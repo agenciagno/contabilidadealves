@@ -43,7 +43,7 @@ import { BankFormDialog } from '@/components/banks/BankFormDialog';
 import { ContactFormDialog } from '@/components/contacts/ContactFormDialog';
 import { CategoryFormDialog } from '@/components/categories/CategoryFormDialog';
 import { TransactionInsert } from '@/hooks/useTransactions';
-import { ReportFilters, QuickPeriod } from '@/components/reports/ReportFilters';
+import { DashboardFilters, QuickPeriod } from '@/components/dashboard/DashboardFilters';
 import { exportToCSV, exportToPDF } from '@/hooks/useReportData';
 
 const formatCurrency = (value: number) => {
@@ -81,14 +81,9 @@ export default function Dashboard() {
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
 
-  // Filter states
+  // Filter states (simplified - only date filters)
   const [startDate, setStartDate] = useState<Date | undefined>(startOfMonth(now));
   const [endDate, setEndDate] = useState<Date | undefined>(now);
-  const [categoryId, setCategoryId] = useState('all');
-  const [bankId, setBankId] = useState('all');
-  const [transactionType, setTransactionType] = useState('all');
-  const [contactId, setContactId] = useState('all');
-  const [paymentStatus, setPaymentStatus] = useState('all');
   const [quickPeriod, setQuickPeriod] = useState<QuickPeriod>('thisMonth');
 
   const { transactions: allTransactions, isLoading: loadingTransactions, createTransaction } = useTransactions();
@@ -106,56 +101,48 @@ export default function Dashboard() {
       case 'thisMonth':
         setStartDate(startOfMonth(today));
         setEndDate(today);
-        setPaymentStatus('all');
         break;
       case 'lastMonth':
         const lastMonth = subMonths(today, 1);
         setStartDate(startOfMonth(lastMonth));
         setEndDate(endOfMonth(lastMonth));
-        setPaymentStatus('all');
         break;
       case 'thisYear':
         setStartDate(startOfYear(today));
         setEndDate(today);
-        setPaymentStatus('all');
         break;
       case 'last30Days':
         setStartDate(subDays(today, 30));
         setEndDate(today);
-        setPaymentStatus('all');
         break;
       case 'last15Days':
         setStartDate(subDays(today, 15));
         setEndDate(today);
-        setPaymentStatus('all');
         break;
       case 'nextMonth':
         const nextMonth = addMonths(today, 1);
         setStartDate(startOfMonth(nextMonth));
         setEndDate(endOfMonth(nextMonth));
-        setPaymentStatus('pending');
         break;
       case 'next30Days':
         setStartDate(today);
         setEndDate(addDays(today, 30));
-        setPaymentStatus('pending');
         break;
       case 'next15Days':
         setStartDate(today);
         setEndDate(addDays(today, 15));
-        setPaymentStatus('pending');
         break;
       default:
         break;
     }
   };
 
-  // Filter transactions based on all filters
+  // Filter transactions based on date only
   const transactions = useMemo(() => {
     return allTransactions.filter((t) => {
       const txDate = new Date(t.date + 'T12:00:00');
       
-      // Date filter
+      // Date filter only
       if (startDate && txDate < startDate) return false;
       if (endDate) {
         const endOfDay = new Date(endDate);
@@ -163,25 +150,9 @@ export default function Dashboard() {
         if (txDate > endOfDay) return false;
       }
       
-      // Type filter
-      if (transactionType !== 'all' && t.type !== transactionType) return false;
-      
-      // Category filter
-      if (categoryId !== 'all' && t.category_id !== categoryId) return false;
-      
-      // Bank filter
-      if (bankId !== 'all' && t.bank_id !== bankId) return false;
-      
-      // Contact filter
-      if (contactId !== 'all' && t.contact_id !== contactId) return false;
-      
-      // Payment status filter
-      if (paymentStatus === 'paid' && !t.is_paid) return false;
-      if (paymentStatus === 'pending' && t.is_paid) return false;
-      
       return true;
     });
-  }, [allTransactions, startDate, endDate, transactionType, categoryId, bankId, contactId, paymentStatus]);
+  }, [allTransactions, startDate, endDate]);
 
   // Calculate financial summary
   const summary = useMemo(() => {
@@ -508,24 +479,11 @@ export default function Dashboard() {
       </div>
 
       {/* Filters */}
-      <ReportFilters
+      <DashboardFilters
         startDate={startDate}
         endDate={endDate}
         onStartDateChange={(date) => { setStartDate(date); setQuickPeriod(null); }}
         onEndDateChange={(date) => { setEndDate(date); setQuickPeriod(null); }}
-        categoryId={categoryId}
-        onCategoryChange={setCategoryId}
-        bankId={bankId}
-        onBankChange={setBankId}
-        transactionType={transactionType}
-        onTransactionTypeChange={setTransactionType}
-        contactId={contactId}
-        onContactChange={setContactId}
-        paymentStatus={paymentStatus}
-        onPaymentStatusChange={setPaymentStatus}
-        categories={categories}
-        banks={banks}
-        contacts={contacts}
         onExportCSV={handleExportCSV}
         onExportPDF={handleExportPDF}
         quickPeriod={quickPeriod}
