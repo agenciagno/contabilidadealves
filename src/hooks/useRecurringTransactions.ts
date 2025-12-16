@@ -7,11 +7,14 @@ export interface RecurringTransaction {
   company_id: string;
   category_id: string | null;
   bank_id: string | null;
+  contact_id: string | null;
   description: string;
   amount: number;
   type: 'receita' | 'despesa';
   frequency: 'weekly' | 'monthly' | 'yearly';
   day_of_month: number | null;
+  times_per_week: number | null;
+  days_of_week: string[] | null;
   start_date: string;
   end_date: string | null;
   is_active: boolean;
@@ -20,16 +23,20 @@ export interface RecurringTransaction {
   updated_at: string;
   category?: { id: string; name: string; color: string } | null;
   bank?: { id: string; name: string; color: string } | null;
+  contact?: { id: string; name: string; type: string } | null;
 }
 
 export type RecurringTransactionInsert = {
   category_id?: string | null;
   bank_id?: string | null;
+  contact_id?: string | null;
   description: string;
   amount: number;
   type: 'receita' | 'despesa';
   frequency?: 'weekly' | 'monthly' | 'yearly';
   day_of_month?: number | null;
+  times_per_week?: number | null;
+  days_of_week?: string[] | null;
   start_date?: string;
   end_date?: string | null;
   is_active?: boolean;
@@ -50,12 +57,20 @@ export function useRecurringTransactions() {
         .select(`
           *,
           category:categories(id, name, color),
-          bank:banks(id, name, color)
+          bank:banks(id, name, color),
+          contact:contacts(id, name, type)
         `)
         .order('description');
 
       if (error) throw error;
-      return data as RecurringTransaction[];
+      
+      // Parse days_of_week from JSON string if needed
+      return (data as any[]).map(item => ({
+        ...item,
+        days_of_week: item.days_of_week ? 
+          (typeof item.days_of_week === 'string' ? JSON.parse(item.days_of_week) : item.days_of_week) 
+          : null
+      })) as RecurringTransaction[];
     },
   });
 
@@ -72,9 +87,16 @@ export function useRecurringTransactions() {
 
       if (!profile) throw new Error('Perfil não encontrado');
 
+      // Convert days_of_week array to JSON string for storage
+      const dataToInsert = {
+        ...recurring,
+        company_id: profile.company_id,
+        days_of_week: recurring.days_of_week ? JSON.stringify(recurring.days_of_week) : null
+      };
+
       const { data, error } = await supabase
         .from('recurring_transactions')
-        .insert({ ...recurring, company_id: profile.company_id })
+        .insert(dataToInsert)
         .select()
         .single();
 
@@ -92,9 +114,15 @@ export function useRecurringTransactions() {
 
   const updateRecurring = useMutation({
     mutationFn: async ({ id, ...updates }: RecurringTransactionUpdate & { id: string }) => {
+      // Convert days_of_week array to JSON string for storage
+      const dataToUpdate = {
+        ...updates,
+        days_of_week: updates.days_of_week ? JSON.stringify(updates.days_of_week) : null
+      };
+
       const { data, error } = await supabase
         .from('recurring_transactions')
-        .update(updates)
+        .update(dataToUpdate)
         .eq('id', id)
         .select()
         .single();
@@ -149,7 +177,11 @@ export function useRecurringTransactions() {
     .reduce(
       (acc, r) => {
         let monthlyAmount = Number(r.amount);
-        if (r.frequency === 'weekly') monthlyAmount *= 4;
+        if (r.frequency === 'weekly') {
+          // Use times_per_week if available, otherwise default to 4 times per month
+          const timesPerWeek = r.times_per_week || 1;
+          monthlyAmount *= timesPerWeek * 4;
+        }
         if (r.frequency === 'yearly') monthlyAmount /= 12;
 
         if (r.type === 'receita') {
