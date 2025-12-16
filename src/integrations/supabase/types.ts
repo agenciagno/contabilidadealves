@@ -173,6 +173,82 @@ export type Database = {
           },
         ]
       }
+      recurring_transactions: {
+        Row: {
+          amount: number
+          bank_id: string | null
+          category_id: string | null
+          company_id: string
+          created_at: string
+          day_of_month: number | null
+          description: string
+          end_date: string | null
+          frequency: string
+          id: string
+          is_active: boolean
+          notes: string | null
+          start_date: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          bank_id?: string | null
+          category_id?: string | null
+          company_id: string
+          created_at?: string
+          day_of_month?: number | null
+          description: string
+          end_date?: string | null
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          start_date?: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          bank_id?: string | null
+          category_id?: string | null
+          company_id?: string
+          created_at?: string
+          day_of_month?: number | null
+          description?: string
+          end_date?: string | null
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          start_date?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_transactions_bank_id_fkey"
+            columns: ["bank_id"]
+            isOneToOne: false
+            referencedRelation: "banks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_transactions_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transactions: {
         Row: {
           amount: number
