@@ -115,6 +115,7 @@ export default function Reports() {
                     <TableHead>Descrição</TableHead>
                     <TableHead>Categoria</TableHead>
                     <TableHead>Banco</TableHead>
+                    <TableHead>Contato</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
@@ -148,6 +149,11 @@ export default function Reports() {
                       <TableCell>
                         {t.bank && (
                           <span className="text-sm text-muted-foreground">{t.bank.name}</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {t.contact && (
+                          <span className="text-sm text-primary">{t.contact.name}</span>
                         )}
                       </TableCell>
                       <TableCell

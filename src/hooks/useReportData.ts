@@ -20,6 +20,7 @@ export interface ReportTransaction {
   is_paid: boolean;
   category?: { id: string; name: string; color: string } | null;
   bank?: { id: string; name: string; color: string } | null;
+  contact?: { id: string; name: string; type: string } | null;
 }
 
 export function useReportData(filters: ReportFilters) {
@@ -36,7 +37,8 @@ export function useReportData(filters: ReportFilters) {
           date,
           is_paid,
           category:categories(id, name, color),
-          bank:banks(id, name, color)
+          bank:banks(id, name, color),
+          contact:contacts(id, name, type)
         `)
         .order('date', { ascending: false });
 
@@ -136,13 +138,14 @@ export function processReportData(transactions: ReportTransaction[]) {
 }
 
 export function exportToCSV(transactions: ReportTransaction[]) {
-  const headers = ['Data', 'Descrição', 'Tipo', 'Categoria', 'Banco', 'Valor', 'Status'];
+  const headers = ['Data', 'Descrição', 'Tipo', 'Categoria', 'Banco', 'Contato', 'Valor', 'Status'];
   const rows = transactions.map((t) => [
     format(parseISO(t.date), 'dd/MM/yyyy'),
     t.description,
     t.type === 'receita' ? 'Receita' : 'Despesa',
     t.category?.name || 'Sem categoria',
     t.bank?.name || 'Sem banco',
+    t.contact?.name || '',
     Number(t.amount).toFixed(2).replace('.', ','),
     t.is_paid ? 'Pago' : 'Pendente',
   ]);

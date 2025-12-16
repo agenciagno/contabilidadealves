@@ -16,6 +16,7 @@ import {
 import { useTransactions, Transaction } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
 import { useBanks } from '@/hooks/useBanks';
+import { useContacts } from '@/hooks/useContacts';
 import { TransactionFormDialog } from '@/components/transactions/TransactionFormDialog';
 import {
   AlertDialog,
@@ -79,6 +80,7 @@ export default function Transactions() {
 
   const { categories } = useCategories();
   const { banks } = useBanks();
+  const { contacts } = useContacts();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
@@ -312,6 +314,12 @@ export default function Transactions() {
                           <span>{transaction.bank.name}</span>
                         </>
                       )}
+                      {transaction.contact && (
+                        <>
+                          <span>•</span>
+                          <span className="text-primary">{transaction.contact.name}</span>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -347,6 +355,7 @@ export default function Transactions() {
         transaction={editingTransaction}
         categories={categories}
         banks={banks}
+        contacts={contacts}
         onSubmit={handleSubmit}
         isLoading={createTransaction.isPending || updateTransaction.isPending}
         defaultType={defaultType}

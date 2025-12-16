@@ -9,8 +9,9 @@ import { Switch } from '@/components/ui/switch';
 import { Transaction, TransactionInsert } from '@/hooks/useTransactions';
 import { Category } from '@/hooks/useCategories';
 import { Bank } from '@/hooks/useBanks';
+import { Contact } from '@/hooks/useContacts';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, User, Building2 } from 'lucide-react';
 
 interface TransactionFormDialogProps {
   open: boolean;
@@ -18,6 +19,7 @@ interface TransactionFormDialogProps {
   transaction?: Transaction | null;
   categories: Category[];
   banks: Bank[];
+  contacts: Contact[];
   onSubmit: (data: TransactionInsert) => void;
   isLoading?: boolean;
   defaultType?: 'receita' | 'despesa';
@@ -29,6 +31,7 @@ export function TransactionFormDialog({
   transaction,
   categories,
   banks,
+  contacts,
   onSubmit,
   isLoading,
   defaultType = 'despesa',
@@ -39,11 +42,13 @@ export function TransactionFormDialog({
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [categoryId, setCategoryId] = useState<string>('');
   const [bankId, setBankId] = useState<string>('');
+  const [contactId, setContactId] = useState<string>('');
   const [isPaid, setIsPaid] = useState(false);
   const [notes, setNotes] = useState('');
 
   const filteredCategories = categories.filter(c => c.type === type);
   const activeBanks = banks.filter(b => b.is_active);
+  const activeContacts = contacts.filter(c => c.is_active);
 
   useEffect(() => {
     if (transaction) {
@@ -53,6 +58,7 @@ export function TransactionFormDialog({
       setDate(transaction.date);
       setCategoryId(transaction.category_id || '');
       setBankId(transaction.bank_id || '');
+      setContactId(transaction.contact_id || '');
       setIsPaid(transaction.is_paid);
       setNotes(transaction.notes || '');
     } else {
@@ -62,6 +68,7 @@ export function TransactionFormDialog({
       setDate(new Date().toISOString().split('T')[0]);
       setCategoryId('');
       setBankId('');
+      setContactId('');
       setIsPaid(false);
       setNotes('');
     }
@@ -83,6 +90,7 @@ export function TransactionFormDialog({
       date,
       category_id: categoryId || null,
       bank_id: bankId || null,
+      contact_id: contactId || null,
       is_paid: isPaid,
       notes: notes || null,
     });
@@ -190,6 +198,29 @@ export function TransactionFormDialog({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="contact">Cliente/Fornecedor</Label>
+            <Select value={contactId} onValueChange={setContactId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um contato..." />
+              </SelectTrigger>
+              <SelectContent>
+                {activeContacts.map((contact) => (
+                  <SelectItem key={contact.id} value={contact.id}>
+                    <div className="flex items-center gap-2">
+                      {contact.type === 'fornecedor' ? (
+                        <Building2 className="w-3 h-3 text-muted-foreground" />
+                      ) : (
+                        <User className="w-3 h-3 text-muted-foreground" />
+                      )}
+                      {contact.name}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
