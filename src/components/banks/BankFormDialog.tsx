@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Bank } from '@/hooks/useBanks';
+import { formatCurrencyInput, parseCurrencyInput } from '@/lib/utils';
 
 const COLORS = [
   '#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', 
@@ -42,7 +43,7 @@ export function BankFormDialog({ open, onOpenChange, bank, onSubmit, isLoading }
       setBankCode(bank.bank_code || '');
       setAgency(bank.agency || '');
       setAccountNumber(bank.account_number || '');
-      setInitialBalance(bank.initial_balance.toString());
+      setInitialBalance(formatCurrencyInput((bank.initial_balance * 100).toString()));
       setColor(bank.color);
       setIsActive(bank.is_active);
     } else {
@@ -50,7 +51,7 @@ export function BankFormDialog({ open, onOpenChange, bank, onSubmit, isLoading }
       setBankCode('');
       setAgency('');
       setAccountNumber('');
-      setInitialBalance('0');
+      setInitialBalance('0,00');
       setColor(COLORS[0]);
       setIsActive(true);
     }
@@ -63,7 +64,7 @@ export function BankFormDialog({ open, onOpenChange, bank, onSubmit, isLoading }
       bank_code: bankCode || null,
       agency: agency || null,
       account_number: accountNumber || null,
-      initial_balance: parseFloat(initialBalance) || 0,
+      initial_balance: parseCurrencyInput(initialBalance),
       color,
       is_active: isActive,
     });
@@ -121,10 +122,10 @@ export function BankFormDialog({ open, onOpenChange, bank, onSubmit, isLoading }
             <Label htmlFor="balance">Saldo Inicial (R$)</Label>
             <Input
               id="balance"
-              type="number"
-              step="0.01"
+              type="text"
+              inputMode="numeric"
               value={initialBalance}
-              onChange={(e) => setInitialBalance(e.target.value)}
+              onChange={(e) => setInitialBalance(formatCurrencyInput(e.target.value))}
               placeholder="0,00"
             />
           </div>
