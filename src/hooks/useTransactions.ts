@@ -7,6 +7,7 @@ export interface Transaction {
   company_id: string;
   category_id: string | null;
   bank_id: string | null;
+  contact_id: string | null;
   description: string;
   amount: number;
   type: 'receita' | 'despesa';
@@ -17,11 +18,13 @@ export interface Transaction {
   updated_at: string;
   category?: { id: string; name: string; color: string } | null;
   bank?: { id: string; name: string; color: string } | null;
+  contact?: { id: string; name: string; type: string } | null;
 }
 
 export type TransactionInsert = {
   category_id?: string | null;
   bank_id?: string | null;
+  contact_id?: string | null;
   description: string;
   amount: number;
   type: 'receita' | 'despesa';
@@ -51,7 +54,8 @@ export function useTransactions(options: UseTransactionsOptions = {}) {
         .select(`
           *,
           category:categories(id, name, color),
-          bank:banks(id, name, color)
+          bank:banks(id, name, color),
+          contact:contacts(id, name, type)
         `)
         .order('date', { ascending: false });
 

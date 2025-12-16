@@ -238,6 +238,7 @@ export type Database = {
           bank_id: string | null
           category_id: string | null
           company_id: string
+          contact_id: string | null
           created_at: string
           day_of_month: number | null
           description: string
@@ -255,6 +256,7 @@ export type Database = {
           bank_id?: string | null
           category_id?: string | null
           company_id: string
+          contact_id?: string | null
           created_at?: string
           day_of_month?: number | null
           description: string
@@ -272,6 +274,7 @@ export type Database = {
           bank_id?: string | null
           category_id?: string | null
           company_id?: string
+          contact_id?: string | null
           created_at?: string
           day_of_month?: number | null
           description?: string
@@ -306,6 +309,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "recurring_transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
         ]
       }
       transactions: {
@@ -314,6 +324,7 @@ export type Database = {
           bank_id: string | null
           category_id: string | null
           company_id: string
+          contact_id: string | null
           created_at: string
           date: string
           description: string
@@ -328,6 +339,7 @@ export type Database = {
           bank_id?: string | null
           category_id?: string | null
           company_id: string
+          contact_id?: string | null
           created_at?: string
           date?: string
           description: string
@@ -342,6 +354,7 @@ export type Database = {
           bank_id?: string | null
           category_id?: string | null
           company_id?: string
+          contact_id?: string | null
           created_at?: string
           date?: string
           description?: string
@@ -371,6 +384,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
         ]
