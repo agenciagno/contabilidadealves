@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { startOfMonth, endOfMonth, subMonths, subDays, startOfYear } from 'date-fns';
+import { startOfMonth, endOfMonth, subMonths, subDays, startOfYear, format as formatDate } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCategories } from '@/hooks/useCategories';
 import { useBanks } from '@/hooks/useBanks';
@@ -9,6 +9,8 @@ import { ReportFilters } from '@/components/reports/ReportFilters';
 import { ReportSummary } from '@/components/reports/ReportSummary';
 import { CategoryPieChart } from '@/components/reports/CategoryPieChart';
 import { MonthlyBarChart } from '@/components/reports/MonthlyBarChart';
+import { PeriodComparison } from '@/components/reports/PeriodComparison';
+import { BalanceEvolutionChart } from '@/components/reports/BalanceEvolutionChart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -27,12 +29,14 @@ export default function Reports() {
   const [bankId, setBankId] = useState('all');
   const [transactionType, setTransactionType] = useState('all');
   const [contactId, setContactId] = useState('all');
+  const [paymentStatus, setPaymentStatus] = useState('all');
   const [quickPeriod, setQuickPeriod] = useState<QuickPeriod>('thisMonth');
 
   const { categories = [] } = useCategories();
   const { banks = [] } = useBanks();
   const { contacts = [] } = useContacts();
 
+  // Current period data
   const { data: transactions = [], isLoading } = useReportData({
     startDate,
     endDate,
@@ -40,35 +44,54 @@ export default function Reports() {
     bankId,
     transactionType,
     contactId,
+    paymentStatus,
+  });
+
+  // Previous month data for comparison
+  const today = new Date();
+  const lastMonthStart = startOfMonth(subMonths(today, 1));
+  const lastMonthEnd = endOfMonth(subMonths(today, 1));
+  const thisMonthStart = startOfMonth(today);
+
+  const { data: thisMonthTransactions = [] } = useReportData({
+    startDate: thisMonthStart,
+    endDate: today,
+  });
+
+  const { data: lastMonthTransactions = [] } = useReportData({
+    startDate: lastMonthStart,
+    endDate: lastMonthEnd,
   });
 
   const reportData = useMemo(() => processReportData(transactions), [transactions]);
+  const thisMonthData = useMemo(() => processReportData(thisMonthTransactions), [thisMonthTransactions]);
+  const lastMonthData = useMemo(() => processReportData(lastMonthTransactions), [lastMonthTransactions]);
 
   const handleQuickPeriodChange = (period: QuickPeriod) => {
     setQuickPeriod(period);
-    const today = new Date();
+    const now = new Date();
     
     switch (period) {
       case 'thisMonth':
-        setStartDate(startOfMonth(today));
-        setEndDate(today);
+        setStartDate(startOfMonth(now));
+        setEndDate(now);
         break;
       case 'lastMonth':
-        const lastMonth = subMonths(today, 1);
+        const lastMonth = subMonths(now, 1);
         setStartDate(startOfMonth(lastMonth));
         setEndDate(endOfMonth(lastMonth));
         break;
       case 'thisYear':
-        setStartDate(startOfYear(today));
-        setEndDate(today);
+        setStartDate(startOfYear(now));
+        setEndDate(now);
         break;
       case 'last30Days':
-        setStartDate(subDays(today, 30));
-        setEndDate(today);
+        setStartDate(subDays(now, 30));
+        setEndDate(now);
         break;
       case 'last15Days':
-        setStartDate(subDays(today, 15));
-        setEndDate(today);
+        setStartDate(subDays(now, 15));
+        setEndDate(now);
         break;
     }
   };
@@ -131,6 +154,8 @@ export default function Reports() {
         onTransactionTypeChange={setTransactionType}
         contactId={contactId}
         onContactChange={setContactId}
+        paymentStatus={paymentStatus}
+        onPaymentStatusChange={setPaymentStatus}
         categories={categories}
         banks={banks}
         contacts={contacts}
@@ -147,6 +172,21 @@ export default function Reports() {
         startDate={startDate}
         endDate={endDate}
       />
+
+      <PeriodComparison
+        currentPeriod={{
+          receitas: thisMonthData.totals.receitas,
+          despesas: thisMonthData.totals.despesas,
+          saldo: thisMonthData.totals.receitas - thisMonthData.totals.despesas,
+        }}
+        previousPeriod={{
+          receitas: lastMonthData.totals.receitas,
+          despesas: lastMonthData.totals.despesas,
+          saldo: lastMonthData.totals.receitas - lastMonthData.totals.despesas,
+        }}
+      />
+
+      <BalanceEvolutionChart data={reportData.balanceEvolution} />
 
       <MonthlyBarChart data={reportData.monthlyData} />
 
