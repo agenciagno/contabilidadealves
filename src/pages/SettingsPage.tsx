@@ -62,6 +62,50 @@ const validateCNPJ = (cnpj: string): boolean => {
   return parseInt(numbers[13]) === digit2;
 };
 
+// Phone validation with valid Brazilian DDDs
+const VALID_DDDS = [
+  11, 12, 13, 14, 15, 16, 17, 18, 19, // SP
+  21, 22, 24, // RJ
+  27, 28, // ES
+  31, 32, 33, 34, 35, 37, 38, // MG
+  41, 42, 43, 44, 45, 46, // PR
+  47, 48, 49, // SC
+  51, 53, 54, 55, // RS
+  61, // DF
+  62, 64, // GO
+  63, // TO
+  65, 66, // MT
+  67, // MS
+  68, // AC
+  69, // RO
+  71, 73, 74, 75, 77, // BA
+  79, // SE
+  81, 87, // PE
+  82, // AL
+  83, // PB
+  84, // RN
+  85, 88, // CE
+  86, 89, // PI
+  91, 93, 94, // PA
+  92, 97, // AM
+  95, // RR
+  96, // AP
+  98, 99, // MA
+];
+
+const validatePhone = (phone: string): boolean => {
+  const numbers = phone.replace(/\D/g, '');
+  
+  // Allow empty phone
+  if (numbers.length === 0) return true;
+  
+  // Must have 10 or 11 digits (with or without 9th digit)
+  if (numbers.length < 10 || numbers.length > 11) return false;
+  
+  const ddd = parseInt(numbers.substring(0, 2));
+  return VALID_DDDS.includes(ddd);
+};
+
 export default function SettingsPage() {
   const { user } = useAuth();
   const { theme, resolvedTheme, setTheme } = useTheme();
@@ -72,6 +116,7 @@ export default function SettingsPage() {
   const [cnpj, setCnpj] = useState('');
   const [cnpjError, setCnpjError] = useState<string | null>(null);
   const [phone, setPhone] = useState('');
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [loadingCompany, setLoadingCompany] = useState(true);
   const [savingCompany, setSavingCompany] = useState(false);
@@ -125,6 +170,7 @@ export default function SettingsPage() {
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPhone(maskPhone(e.target.value));
+    setPhoneError(null);
   };
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -216,6 +262,13 @@ export default function SettingsPage() {
     if (cnpj && !validateCNPJ(cnpj)) {
       setCnpjError('CNPJ inválido');
       toast.error('CNPJ inválido. Verifique os números informados.');
+      return;
+    }
+    
+    // Validate Phone
+    if (phone && !validatePhone(phone)) {
+      setPhoneError('DDD inválido');
+      toast.error('Telefone com DDD inválido.');
       return;
     }
     
@@ -388,7 +441,11 @@ export default function SettingsPage() {
                     value={phone}
                     onChange={handlePhoneChange}
                     maxLength={15}
+                    className={cn(phoneError && "border-destructive focus-visible:ring-destructive")}
                   />
+                  {phoneError && (
+                    <p className="text-xs text-destructive">{phoneError}</p>
+                  )}
                 </div>
               </div>
 
