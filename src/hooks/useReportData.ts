@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { format, startOfMonth, endOfMonth, subMonths, parseISO } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface ReportFilters {
   startDate?: Date;
@@ -9,6 +11,7 @@ interface ReportFilters {
   categoryId?: string;
   bankId?: string;
   transactionType?: string;
+  contactId?: string;
 }
 
 export interface ReportTransaction {
@@ -56,6 +59,9 @@ export function useReportData(filters: ReportFilters) {
       }
       if (filters.transactionType && filters.transactionType !== 'all') {
         query = query.eq('type', filters.transactionType);
+      }
+      if (filters.contactId && filters.contactId !== 'all') {
+        query = query.eq('contact_id', filters.contactId);
       }
 
       const { data, error } = await query;
@@ -137,6 +143,9 @@ export function processReportData(transactions: ReportTransaction[]) {
   };
 }
 
+const formatCurrencyValue = (value: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+
 export function exportToCSV(transactions: ReportTransaction[]) {
   const headers = ['Data', 'Descrição', 'Tipo', 'Categoria', 'Banco', 'Contato', 'Valor', 'Status'];
   const rows = transactions.map((t) => [
@@ -159,4 +168,94 @@ export function exportToCSV(transactions: ReportTransaction[]) {
   link.href = URL.createObjectURL(blob);
   link.download = `relatorio-${format(new Date(), 'yyyy-MM-dd')}.csv`;
   link.click();
+}
+
+export function exportToPDF(
+  transactions: ReportTransaction[],
+  totals: { receitas: number; despesas: number },
+  startDate?: Date,
+  endDate?: Date
+) {
+  const doc = new jsPDF();
+  
+  // Title
+  doc.setFontSize(20);
+  doc.setTextColor(40, 40, 40);
+  doc.text('Relatório Financeiro', 14, 22);
+  
+  // Period
+  doc.setFontSize(11);
+  doc.setTextColor(100, 100, 100);
+  const periodText = startDate && endDate
+    ? `Período: ${format(startDate, 'dd/MM/yyyy')} a ${format(endDate, 'dd/MM/yyyy')}`
+    : 'Período: Todo o histórico';
+  doc.text(periodText, 14, 32);
+  
+  // Summary
+  doc.setFontSize(12);
+  doc.setTextColor(40, 40, 40);
+  doc.text('Resumo', 14, 45);
+  
+  const saldo = totals.receitas - totals.despesas;
+  
+  doc.setFontSize(10);
+  doc.setTextColor(34, 197, 94); // green
+  doc.text(`Total Receitas: ${formatCurrencyValue(totals.receitas)}`, 14, 55);
+  
+  doc.setTextColor(239, 68, 68); // red
+  doc.text(`Total Despesas: ${formatCurrencyValue(totals.despesas)}`, 14, 62);
+  
+  doc.setTextColor(saldo >= 0 ? 34 : 239, saldo >= 0 ? 197 : 68, saldo >= 0 ? 94 : 68);
+  doc.text(`Saldo: ${formatCurrencyValue(saldo)}`, 14, 69);
+  
+  doc.setTextColor(100, 100, 100);
+  doc.text(`Total de transações: ${transactions.length}`, 14, 76);
+  
+  // Transactions table
+  doc.setFontSize(12);
+  doc.setTextColor(40, 40, 40);
+  doc.text('Transações', 14, 90);
+  
+  const tableData = transactions.slice(0, 50).map((t) => [
+    format(parseISO(t.date), 'dd/MM/yyyy'),
+    t.description.substring(0, 30),
+    t.type === 'receita' ? 'Receita' : 'Despesa',
+    t.category?.name || '-',
+    t.bank?.name || '-',
+    `${t.type === 'receita' ? '+' : '-'} ${formatCurrencyValue(Number(t.amount))}`,
+    t.is_paid ? 'Pago' : 'Pendente',
+  ]);
+  
+  autoTable(doc, {
+    startY: 95,
+    head: [['Data', 'Descrição', 'Tipo', 'Categoria', 'Banco', 'Valor', 'Status']],
+    body: tableData,
+    theme: 'striped',
+    headStyles: {
+      fillColor: [59, 130, 246],
+      textColor: 255,
+      fontSize: 9,
+    },
+    bodyStyles: {
+      fontSize: 8,
+    },
+    alternateRowStyles: {
+      fillColor: [245, 247, 250],
+    },
+  });
+  
+  // Footer
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text(
+      `Gerado em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm")} - Página ${i} de ${pageCount}`,
+      14,
+      doc.internal.pageSize.height - 10
+    );
+  }
+  
+  doc.save(`relatorio-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
 }
