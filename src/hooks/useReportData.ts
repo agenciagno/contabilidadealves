@@ -12,6 +12,7 @@ interface ReportFilters {
   bankId?: string;
   transactionType?: string;
   contactId?: string;
+  paymentStatus?: string;
 }
 
 export interface ReportTransaction {
@@ -62,6 +63,9 @@ export function useReportData(filters: ReportFilters) {
       }
       if (filters.contactId && filters.contactId !== 'all') {
         query = query.eq('contact_id', filters.contactId);
+      }
+      if (filters.paymentStatus && filters.paymentStatus !== 'all') {
+        query = query.eq('is_paid', filters.paymentStatus === 'paid');
       }
 
       const { data, error } = await query;
@@ -135,11 +139,27 @@ export function processReportData(transactions: ReportTransaction[]) {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([, data]) => data);
 
+  // Balance evolution data
+  const balanceEvolution = Array.from(monthlyMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .reduce((acc, [, data]) => {
+      const lastBalance = acc.length > 0 ? acc[acc.length - 1].balance : 0;
+      const newBalance = lastBalance + data.receitas - data.despesas;
+      acc.push({
+        month: data.month,
+        balance: newBalance,
+        receitas: data.receitas,
+        despesas: data.despesas,
+      });
+      return acc;
+    }, [] as { month: string; balance: number; receitas: number; despesas: number }[]);
+
   return {
     totals,
     receitasByCategory,
     despesasByCategory,
     monthlyData,
+    balanceEvolution,
   };
 }
 
