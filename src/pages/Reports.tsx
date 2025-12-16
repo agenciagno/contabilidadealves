@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react';
-import { startOfMonth, subMonths } from 'date-fns';
+import { startOfMonth, endOfMonth, subMonths, subDays, startOfYear } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCategories } from '@/hooks/useCategories';
 import { useBanks } from '@/hooks/useBanks';
-import { useReportData, processReportData, exportToCSV } from '@/hooks/useReportData';
+import { useContacts } from '@/hooks/useContacts';
+import { useReportData, processReportData, exportToCSV, exportToPDF } from '@/hooks/useReportData';
 import { ReportFilters } from '@/components/reports/ReportFilters';
 import { ReportSummary } from '@/components/reports/ReportSummary';
 import { CategoryPieChart } from '@/components/reports/CategoryPieChart';
@@ -12,20 +13,25 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format, parseISO } from 'date-fns';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, Calendar } from 'lucide-react';
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
+type QuickPeriod = 'thisMonth' | 'lastMonth' | 'thisYear' | 'last30Days' | 'last15Days' | null;
+
 export default function Reports() {
-  const [startDate, setStartDate] = useState<Date | undefined>(startOfMonth(subMonths(new Date(), 2)));
+  const [startDate, setStartDate] = useState<Date | undefined>(startOfMonth(new Date()));
   const [endDate, setEndDate] = useState<Date | undefined>(new Date());
   const [categoryId, setCategoryId] = useState('all');
   const [bankId, setBankId] = useState('all');
   const [transactionType, setTransactionType] = useState('all');
+  const [contactId, setContactId] = useState('all');
+  const [quickPeriod, setQuickPeriod] = useState<QuickPeriod>('thisMonth');
 
   const { categories = [] } = useCategories();
   const { banks = [] } = useBanks();
+  const { contacts = [] } = useContacts();
 
   const { data: transactions = [], isLoading } = useReportData({
     startDate,
@@ -33,19 +39,63 @@ export default function Reports() {
     categoryId,
     bankId,
     transactionType,
+    contactId,
   });
 
   const reportData = useMemo(() => processReportData(transactions), [transactions]);
 
+  const handleQuickPeriodChange = (period: QuickPeriod) => {
+    setQuickPeriod(period);
+    const today = new Date();
+    
+    switch (period) {
+      case 'thisMonth':
+        setStartDate(startOfMonth(today));
+        setEndDate(today);
+        break;
+      case 'lastMonth':
+        const lastMonth = subMonths(today, 1);
+        setStartDate(startOfMonth(lastMonth));
+        setEndDate(endOfMonth(lastMonth));
+        break;
+      case 'thisYear':
+        setStartDate(startOfYear(today));
+        setEndDate(today);
+        break;
+      case 'last30Days':
+        setStartDate(subDays(today, 30));
+        setEndDate(today);
+        break;
+      case 'last15Days':
+        setStartDate(subDays(today, 15));
+        setEndDate(today);
+        break;
+    }
+  };
+
+  const handleStartDateChange = (date: Date | undefined) => {
+    setStartDate(date);
+    setQuickPeriod(null);
+  };
+
+  const handleEndDateChange = (date: Date | undefined) => {
+    setEndDate(date);
+    setQuickPeriod(null);
+  };
+
   const handleExportCSV = () => {
     exportToCSV(transactions);
+  };
+
+  const handleExportPDF = () => {
+    exportToPDF(transactions, reportData.totals, startDate, endDate);
   };
 
   if (isLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-40 w-full" />
         <div className="grid grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
             <Skeleton key={i} className="h-24" />
@@ -62,34 +112,40 @@ export default function Reports() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Relatórios</h1>
-        <p className="text-muted-foreground">Analise suas finanças em detalhes</p>
+        <h1 className="text-2xl font-bold text-foreground">Relatórios Financeiros</h1>
+        <p className="text-muted-foreground">
+          Análise detalhada das suas finanças com comparativos e exportação de dados
+        </p>
       </div>
 
-      <Card className="bg-card border-border/50">
-        <CardContent className="p-4">
-          <ReportFilters
-            startDate={startDate}
-            endDate={endDate}
-            onStartDateChange={setStartDate}
-            onEndDateChange={setEndDate}
-            categoryId={categoryId}
-            onCategoryChange={setCategoryId}
-            bankId={bankId}
-            onBankChange={setBankId}
-            transactionType={transactionType}
-            onTransactionTypeChange={setTransactionType}
-            categories={categories}
-            banks={banks}
-            onExportCSV={handleExportCSV}
-          />
-        </CardContent>
-      </Card>
+      <ReportFilters
+        startDate={startDate}
+        endDate={endDate}
+        onStartDateChange={handleStartDateChange}
+        onEndDateChange={handleEndDateChange}
+        categoryId={categoryId}
+        onCategoryChange={setCategoryId}
+        bankId={bankId}
+        onBankChange={setBankId}
+        transactionType={transactionType}
+        onTransactionTypeChange={setTransactionType}
+        contactId={contactId}
+        onContactChange={setContactId}
+        categories={categories}
+        banks={banks}
+        contacts={contacts}
+        onExportCSV={handleExportCSV}
+        onExportPDF={handleExportPDF}
+        quickPeriod={quickPeriod}
+        onQuickPeriodChange={handleQuickPeriodChange}
+      />
 
       <ReportSummary
         totalReceitas={reportData.totals.receitas}
         totalDespesas={reportData.totals.despesas}
         transactionCount={transactions.length}
+        startDate={startDate}
+        endDate={endDate}
       />
 
       <MonthlyBarChart data={reportData.monthlyData} />
@@ -101,11 +157,15 @@ export default function Reports() {
 
       <Card className="bg-card border-border/50">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Transações do Período</CardTitle>
+          <CardTitle className="text-base">Últimas Transações</CardTitle>
         </CardHeader>
         <CardContent>
           {transactions.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">Nenhuma transação encontrada</p>
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <Calendar className="h-12 w-12 mb-4 opacity-50" />
+              <p className="text-lg font-medium">Nenhuma transação encontrada</p>
+              <p className="text-sm">Ajuste os filtros para visualizar transações</p>
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
@@ -121,7 +181,7 @@ export default function Reports() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {transactions.slice(0, 50).map((t) => (
+                  {transactions.slice(0, 10).map((t) => (
                     <TableRow key={t.id}>
                       <TableCell className="text-muted-foreground">
                         {format(parseISO(t.date), 'dd/MM/yyyy')}
@@ -173,9 +233,9 @@ export default function Reports() {
                   ))}
                 </TableBody>
               </Table>
-              {transactions.length > 50 && (
+              {transactions.length > 10 && (
                 <p className="text-sm text-muted-foreground text-center mt-4">
-                  Mostrando 50 de {transactions.length} transações
+                  Mostrando 10 de {transactions.length} transações
                 </p>
               )}
             </div>
