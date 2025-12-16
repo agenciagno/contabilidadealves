@@ -11,7 +11,6 @@ import {
   Receipt,
   LayoutGrid,
   List,
-  Hash,
 } from 'lucide-react';
 import { useTransactions, Transaction, TransactionInsert } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
@@ -38,6 +37,8 @@ import {
   endOfMonth,
   subMonths,
   subDays,
+  addDays,
+  addMonths,
   startOfYear,
   endOfYear,
   isWithinInterval,
@@ -59,7 +60,7 @@ function formatDate(dateStr: string) {
   });
 }
 
-type SortField = 'date' | 'amount' | 'description';
+type SortField = 'date';
 type SortOrder = 'asc' | 'desc';
 
 export default function Transactions() {
@@ -71,6 +72,8 @@ export default function Transactions() {
   const [contactFilter, setContactFilter] = useState('all');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [customStartDate, setCustomStartDate] = useState<Date | null>(null);
+  const [customEndDate, setCustomEndDate] = useState<Date | null>(null);
 
   // Sort states
   const [sortField, setSortField] = useState<SortField>('date');
@@ -99,9 +102,9 @@ export default function Transactions() {
   const [defaultType, setDefaultType] = useState<'receita' | 'despesa'>('despesa');
 
   // Calculate date range based on period
-  const getDateRange = (period: PeriodFilter): { start: Date; end: Date } | null => {
+  const getDateRange = (periodValue: PeriodFilter): { start: Date; end: Date } | null => {
     const now = new Date();
-    switch (period) {
+    switch (periodValue) {
       case 'thisMonth':
         return { start: startOfMonth(now), end: endOfMonth(now) };
       case 'lastMonth':
@@ -113,6 +116,18 @@ export default function Transactions() {
         return { start: subDays(now, 15), end: now };
       case 'thisYear':
         return { start: startOfYear(now), end: endOfYear(now) };
+      case 'next15Days':
+        return { start: now, end: addDays(now, 15) };
+      case 'nextMonth':
+        const nextMonth = addMonths(now, 1);
+        return { start: startOfMonth(nextMonth), end: endOfMonth(nextMonth) };
+      case 'next30Days':
+        return { start: now, end: addDays(now, 30) };
+      case 'custom':
+        if (customStartDate && customEndDate) {
+          return { start: customStartDate, end: customEndDate };
+        }
+        return null;
       default:
         return null;
     }
@@ -166,23 +181,12 @@ export default function Transactions() {
 
     // Sort
     result.sort((a, b) => {
-      let comparison = 0;
-      switch (sortField) {
-        case 'date':
-          comparison = a.date.localeCompare(b.date);
-          break;
-        case 'amount':
-          comparison = Number(a.amount) - Number(b.amount);
-          break;
-        case 'description':
-          comparison = a.description.localeCompare(b.description);
-          break;
-      }
+      const comparison = a.date.localeCompare(b.date);
       return sortOrder === 'asc' ? comparison : -comparison;
     });
 
     return result;
-  }, [allTransactions, period, typeFilter, categoryFilter, bankFilter, contactFilter, paymentStatusFilter, searchTerm, sortField, sortOrder]);
+  }, [allTransactions, period, typeFilter, categoryFilter, bankFilter, contactFilter, paymentStatusFilter, searchTerm, sortField, sortOrder, customStartDate, customEndDate]);
 
   // Calculate totals from filtered transactions
   const totals = useMemo(() => {
@@ -208,6 +212,8 @@ export default function Transactions() {
     setContactFilter('all');
     setPaymentStatusFilter('all');
     setSearchTerm('');
+    setCustomStartDate(null);
+    setCustomEndDate(null);
   };
 
   const handleSubmit = async (data: TransactionInsert, pendingFiles?: File[]) => {
@@ -343,10 +349,14 @@ export default function Transactions() {
         banks={banks}
         contacts={contacts}
         onClearFilters={handleClearFilters}
+        customStartDate={customStartDate}
+        customEndDate={customEndDate}
+        onCustomStartDateChange={setCustomStartDate}
+        onCustomEndDateChange={setCustomEndDate}
       />
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="bg-card border-border/50">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -399,21 +409,6 @@ export default function Transactions() {
             </div>
           </CardContent>
         </Card>
-
-        <Card className="bg-card border-border/50">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total de Movimentações</p>
-                <p className="text-2xl font-bold text-foreground">{filteredTransactions.length}</p>
-                <p className="text-xs text-muted-foreground">no período filtrado</p>
-              </div>
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <Hash className="w-6 h-6 text-primary" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Sort Options */}
@@ -427,24 +422,6 @@ export default function Transactions() {
         >
           Data
           {sortField === 'date' && (sortOrder === 'asc' ? '↑' : '↓')}
-        </Button>
-        <Button
-          variant={sortField === 'amount' ? 'secondary' : 'ghost'}
-          size="sm"
-          onClick={() => handleSort('amount')}
-          className="gap-1"
-        >
-          Valor
-          {sortField === 'amount' && (sortOrder === 'asc' ? '↑' : '↓')}
-        </Button>
-        <Button
-          variant={sortField === 'description' ? 'secondary' : 'ghost'}
-          size="sm"
-          onClick={() => handleSort('description')}
-          className="gap-1"
-        >
-          Descrição
-          {sortField === 'description' && (sortOrder === 'asc' ? '↑' : '↓')}
         </Button>
       </div>
 

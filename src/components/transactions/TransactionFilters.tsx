@@ -3,12 +3,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Filter, Search, X } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Filter, Search, X, CalendarIcon } from 'lucide-react';
 import { Category } from '@/hooks/useCategories';
 import { Bank } from '@/hooks/useBanks';
 import { Contact } from '@/hooks/useContacts';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
-export type PeriodFilter = 'all' | 'thisMonth' | 'lastMonth' | 'last30Days' | 'last15Days' | 'thisYear';
+export type PeriodFilter = 
+  | 'all' 
+  | 'thisMonth' 
+  | 'lastMonth' 
+  | 'last30Days' 
+  | 'last15Days' 
+  | 'thisYear'
+  | 'next15Days'
+  | 'nextMonth'
+  | 'next30Days'
+  | 'custom';
 
 interface TransactionFiltersProps {
   period: PeriodFilter;
@@ -29,6 +44,10 @@ interface TransactionFiltersProps {
   banks: Bank[];
   contacts: Contact[];
   onClearFilters: () => void;
+  customStartDate: Date | null;
+  customEndDate: Date | null;
+  onCustomStartDateChange: (date: Date | null) => void;
+  onCustomEndDateChange: (date: Date | null) => void;
 }
 
 const periodOptions: { value: PeriodFilter; label: string }[] = [
@@ -38,6 +57,10 @@ const periodOptions: { value: PeriodFilter; label: string }[] = [
   { value: 'last30Days', label: 'Últimos 30 dias' },
   { value: 'last15Days', label: 'Últimos 15 dias' },
   { value: 'thisYear', label: 'Este ano' },
+  { value: 'next15Days', label: 'Próximos 15 dias' },
+  { value: 'nextMonth', label: 'Próximo mês' },
+  { value: 'next30Days', label: 'Próximos 30 dias' },
+  { value: 'custom', label: 'Personalizado' },
 ];
 
 export function TransactionFilters({
@@ -59,6 +82,10 @@ export function TransactionFilters({
   banks,
   contacts,
   onClearFilters,
+  customStartDate,
+  customEndDate,
+  onCustomStartDateChange,
+  onCustomEndDateChange,
 }: TransactionFiltersProps) {
   const hasActiveFilters =
     period !== 'thisMonth' ||
@@ -103,6 +130,65 @@ export function TransactionFilters({
               </SelectContent>
             </Select>
           </div>
+
+          {/* Custom Date Range - Only shown when period is 'custom' */}
+          {period === 'custom' && (
+            <>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Data Início</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !customStartDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {customStartDate ? format(customStartDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={customStartDate || undefined}
+                      onSelect={(date) => onCustomStartDateChange(date || null)}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Data Fim</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !customEndDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {customEndDate ? format(customEndDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={customEndDate || undefined}
+                      onSelect={(date) => onCustomEndDateChange(date || null)}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </>
+          )}
 
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">Tipo</label>
