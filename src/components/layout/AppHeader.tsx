@@ -140,7 +140,7 @@ export function AppHeader() {
                     {notifications.map((notification) => (
                       <button
                         key={notification.id}
-                        onClick={() => navigate('/transactions')}
+                        onClick={() => navigate('/movimentacoes')}
                         className="w-full p-3 text-left hover:bg-muted/50 transition-colors"
                       >
                         <div className="flex items-start gap-3">
@@ -199,7 +199,7 @@ export function AppHeader() {
                   <Button 
                     variant="ghost" 
                     className="w-full text-sm" 
-                    onClick={() => navigate('/transactions')}
+                    onClick={() => navigate('/movimentacoes')}
                   >
                     Ver todas as transações
                   </Button>

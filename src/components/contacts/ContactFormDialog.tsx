@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Contact, ContactInsert, TaxRegime } from '@/hooks/useContacts';
+import { maskCPFCNPJ, maskPhone } from '@/lib/utils';
 
 interface ContactFormDialogProps {
   open: boolean;
@@ -131,8 +132,9 @@ export function ContactFormDialog({
               <Input
                 id="document"
                 value={document}
-                onChange={(e) => setDocument(e.target.value)}
+                onChange={(e) => setDocument(maskCPFCNPJ(e.target.value))}
                 placeholder="000.000.000-00"
+                maxLength={18}
               />
             </div>
 
@@ -168,8 +170,9 @@ export function ContactFormDialog({
               <Input
                 id="phone"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => setPhone(maskPhone(e.target.value))}
                 placeholder="(00) 00000-0000"
+                maxLength={15}
               />
             </div>
 

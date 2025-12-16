@@ -630,7 +630,7 @@ export default function Dashboard() {
                 Contas Bancárias
               </CardTitle>
               <Button variant="ghost" size="sm" asChild>
-                <Link to="/banks" className="text-xs text-muted-foreground">
+                <Link to="/bancos" className="text-xs text-muted-foreground">
                   Ver todas <ChevronRight className="w-4 h-4" />
                 </Link>
               </Button>
@@ -951,7 +951,7 @@ export default function Dashboard() {
                 Últimas 10 Movimentações
               </CardTitle>
               <Button variant="ghost" size="sm" asChild>
-                <Link to="/transactions" className="text-xs text-muted-foreground">
+                <Link to="/movimentacoes" className="text-xs text-muted-foreground">
                   Ver todas <ChevronRight className="w-4 h-4" />
                 </Link>
               </Button>
@@ -1012,7 +1012,7 @@ export default function Dashboard() {
 
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Link to="/transactions" className="block">
+        <Link to="/movimentacoes" className="block">
           <Card className="bg-card border-border/50 hover:bg-muted/50 transition-colors cursor-pointer">
             <CardContent className="p-4 flex items-center gap-3">
               <div className="p-2 bg-primary/10 rounded-lg">
@@ -1026,7 +1026,7 @@ export default function Dashboard() {
           </Card>
         </Link>
 
-        <Link to="/recurring" className="block">
+        <Link to="/recorrentes" className="block">
           <Card className="bg-card border-border/50 hover:bg-muted/50 transition-colors cursor-pointer">
             <CardContent className="p-4 flex items-center gap-3">
               <div className="p-2 bg-orange-500/10 rounded-lg">
@@ -1054,7 +1054,7 @@ export default function Dashboard() {
           </Card>
         </Link>
 
-        <Link to="/banks" className="block">
+        <Link to="/bancos" className="block">
           <Card className="bg-card border-border/50 hover:bg-muted/50 transition-colors cursor-pointer">
             <CardContent className="p-4 flex items-center gap-3">
               <div className="p-2 bg-emerald-500/10 rounded-lg">
