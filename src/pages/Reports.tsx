@@ -11,6 +11,7 @@ import { CategoryPieChart } from '@/components/reports/CategoryPieChart';
 import { MonthlyBarChart } from '@/components/reports/MonthlyBarChart';
 import { PeriodComparison } from '@/components/reports/PeriodComparison';
 import { BalanceEvolutionChart } from '@/components/reports/BalanceEvolutionChart';
+import { CashFlowForecast } from '@/components/reports/CashFlowForecast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -213,6 +214,8 @@ export default function Reports() {
         groupBy={balanceGroupBy}
         onGroupByChange={setBalanceGroupBy}
       />
+
+      <CashFlowForecast />
 
       <MonthlyBarChart data={reportData.monthlyData} />
 
