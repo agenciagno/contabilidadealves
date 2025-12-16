@@ -36,12 +36,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string, companyName: string, cnpj: string, fullName: string) => {
     try {
-      // 1. Criar empresa primeiro (sem auth, precisa de policy para insert anônimo)
-      const { data: companyData, error: companyError } = await supabase
+      // 1. Criar empresa primeiro (sem auth)
+      // Importante: não usamos `.select()` aqui para evitar RLS no RETURNING.
+      // Geramos o UUID no client para ter o `company_id` sem precisar ler a linha recém-criada.
+      const companyId = crypto.randomUUID();
+
+      const { error: companyError } = await supabase
         .from('companies')
-        .insert({ name: companyName, cnpj })
-        .select()
-        .single();
+        .insert({ id: companyId, name: companyName, cnpj });
 
       if (companyError) {
         if (companyError.message.includes('duplicate')) {
@@ -58,15 +60,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         options: {
           emailRedirectTo: redirectUrl,
           data: {
-            company_id: companyData.id,
+            company_id: companyId,
             full_name: fullName,
           }
         }
       });
 
       if (signUpError) {
-        // Deletar empresa se signup falhou
-        await supabase.from('companies').delete().eq('id', companyData.id);
+        // Se signup falhou, tentamos apagar a empresa criada (pode falhar por permissão/RLS, então ignoramos).
+        await supabase.from('companies').delete().eq('id', companyId);
         return { error: signUpError };
       }
 
@@ -76,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .from('profiles')
           .insert({
             user_id: authData.user.id,
-            company_id: companyData.id,
+            company_id: companyId,
             full_name: fullName,
             email: email,
           });
