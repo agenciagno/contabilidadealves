@@ -7,11 +7,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Transaction, TransactionInsert } from '@/hooks/useTransactions';
-import { Category } from '@/hooks/useCategories';
-import { Bank } from '@/hooks/useBanks';
-import { Contact } from '@/hooks/useContacts';
+import { Category, useCategories, CategoryInsert } from '@/hooks/useCategories';
+import { Bank, useBanks, BankInsert } from '@/hooks/useBanks';
+import { Contact, useContacts, ContactInsert } from '@/hooks/useContacts';
+import { useTransactionAttachments, TransactionAttachment } from '@/hooks/useTransactionAttachments';
+import { AttachmentUpload } from './AttachmentUpload';
+import { CategoryFormDialog } from '@/components/categories/CategoryFormDialog';
+import { BankFormDialog } from '@/components/banks/BankFormDialog';
+import { ContactFormDialog } from '@/components/contacts/ContactFormDialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { TrendingUp, TrendingDown, User, Building2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, User, Building2, Plus } from 'lucide-react';
 
 interface TransactionFormDialogProps {
   open: boolean;
@@ -20,9 +25,22 @@ interface TransactionFormDialogProps {
   categories: Category[];
   banks: Bank[];
   contacts: Contact[];
-  onSubmit: (data: TransactionInsert) => void;
+  onSubmit: (data: TransactionInsert, pendingFiles?: File[]) => void;
   isLoading?: boolean;
   defaultType?: 'receita' | 'despesa';
+}
+
+// Currency formatting helpers
+function formatCurrencyInput(value: string): string {
+  const numbers = value.replace(/\D/g, '');
+  const cents = parseInt(numbers || '0', 10);
+  const reais = cents / 100;
+  return reais.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function parseCurrencyInput(value: string): number {
+  const numbers = value.replace(/\D/g, '');
+  return parseInt(numbers || '0', 10) / 100;
 }
 
 export function TransactionFormDialog({
@@ -40,100 +58,302 @@ export function TransactionFormDialog({
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [issueDate, setIssueDate] = useState('');
+  const [dueDate, setDueDate] = useState('');
   const [categoryId, setCategoryId] = useState<string>('');
   const [bankId, setBankId] = useState<string>('');
   const [contactId, setContactId] = useState<string>('');
   const [isPaid, setIsPaid] = useState(false);
   const [notes, setNotes] = useState('');
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+
+  // Inline creation dialogs
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [bankDialogOpen, setBankDialogOpen] = useState(false);
+  const [contactDialogOpen, setContactDialogOpen] = useState(false);
+
+  // Hooks for inline creation
+  const { createCategory } = useCategories();
+  const { createBank } = useBanks();
+  const { createContact } = useContacts();
+  const { attachments, uploadAttachment, deleteAttachment } = useTransactionAttachments(transaction?.id);
 
   const filteredCategories = categories.filter(c => c.type === type);
   const activeBanks = banks.filter(b => b.is_active);
-  const activeContacts = contacts.filter(c => c.is_active);
+  const filteredContacts = contacts.filter(c => 
+    c.is_active && (type === 'despesa' ? c.type === 'fornecedor' : c.type === 'cliente')
+  );
 
   useEffect(() => {
     if (transaction) {
       setType(transaction.type);
       setDescription(transaction.description);
-      setAmount(String(transaction.amount));
+      setAmount(formatCurrencyInput(String(Math.round(Number(transaction.amount) * 100))));
       setDate(transaction.date);
+      setIssueDate((transaction as any).issue_date || '');
+      setDueDate((transaction as any).due_date || '');
       setCategoryId(transaction.category_id || '');
       setBankId(transaction.bank_id || '');
       setContactId(transaction.contact_id || '');
       setIsPaid(transaction.is_paid);
       setNotes(transaction.notes || '');
+      setPendingFiles([]);
     } else {
       setType(defaultType);
       setDescription('');
       setAmount('');
       setDate(new Date().toISOString().split('T')[0]);
+      setIssueDate('');
+      setDueDate('');
       setCategoryId('');
       setBankId('');
       setContactId('');
       setIsPaid(false);
       setNotes('');
+      setPendingFiles([]);
     }
   }, [transaction, open, defaultType]);
 
-  // Reset category when type changes
+  // Reset category and contact when type changes
   useEffect(() => {
     if (!transaction) {
       setCategoryId('');
+      setContactId('');
     }
   }, [type, transaction]);
+
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatCurrencyInput(e.target.value);
+    setAmount(formatted);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit({
       type,
       description,
-      amount: parseFloat(amount),
+      amount: parseCurrencyInput(amount),
       date,
+      issue_date: issueDate || null,
+      due_date: dueDate || null,
       category_id: categoryId || null,
       bank_id: bankId || null,
       contact_id: contactId || null,
       is_paid: isPaid,
       notes: notes || null,
+    } as TransactionInsert, pendingFiles);
+  };
+
+  // Inline creation handlers
+  const handleCreateCategory = (data: CategoryInsert) => {
+    createCategory.mutate({ ...data, type }, {
+      onSuccess: (newCategory) => {
+        setCategoryId(newCategory.id);
+        setCategoryDialogOpen(false);
+      },
     });
   };
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{transaction ? 'Editar Transação' : 'Nova Transação'}</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Type Selector */}
-          <Tabs value={type} onValueChange={(v) => setType(v as 'receita' | 'despesa')}>
-            <TabsList className="w-full">
-              <TabsTrigger value="despesa" className="flex-1 gap-2">
-                <TrendingDown className="w-4 h-4" />
-                Despesa
-              </TabsTrigger>
-              <TabsTrigger value="receita" className="flex-1 gap-2">
-                <TrendingUp className="w-4 h-4" />
-                Receita
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+  const handleCreateBank = (data: BankInsert) => {
+    createBank.mutate(data, {
+      onSuccess: (newBank) => {
+        setBankId(newBank.id);
+        setBankDialogOpen(false);
+      },
+    });
+  };
 
-          <div className="grid grid-cols-2 gap-4">
+  const handleCreateContact = (data: ContactInsert) => {
+    createContact.mutate({ ...data, type: type === 'despesa' ? 'fornecedor' : 'cliente' }, {
+      onSuccess: (newContact) => {
+        setContactId(newContact.id);
+        setContactDialogOpen(false);
+      },
+    });
+  };
+
+  const handleCategoryChange = (value: string) => {
+    if (value === '__new__') {
+      setCategoryDialogOpen(true);
+    } else {
+      setCategoryId(value);
+    }
+  };
+
+  const handleBankChange = (value: string) => {
+    if (value === '__new__') {
+      setBankDialogOpen(true);
+    } else {
+      setBankId(value);
+    }
+  };
+
+  const handleContactChange = (value: string) => {
+    if (value === '__new__') {
+      setContactDialogOpen(true);
+    } else {
+      setContactId(value);
+    }
+  };
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{transaction ? 'Editar Transação' : 'Nova Transação'}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Type Selector */}
+            <Tabs value={type} onValueChange={(v) => setType(v as 'receita' | 'despesa')}>
+              <TabsList className="w-full">
+                <TabsTrigger value="despesa" className="flex-1 gap-2">
+                  <TrendingDown className="w-4 h-4" />
+                  Despesa
+                </TabsTrigger>
+                <TabsTrigger value="receita" className="flex-1 gap-2">
+                  <TrendingUp className="w-4 h-4" />
+                  Receita
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+
+            {/* Amount and Dates Row */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="amount">Valor (R$) *</Label>
+                <Input
+                  id="amount"
+                  value={amount}
+                  onChange={handleAmountChange}
+                  placeholder="0,00"
+                  required
+                  className="text-lg font-semibold"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="issueDate">Data de Emissão</Label>
+                <Input
+                  id="issueDate"
+                  type="date"
+                  value={issueDate}
+                  onChange={(e) => setIssueDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="dueDate">Data de Vencimento</Label>
+                <Input
+                  id="dueDate"
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Description */}
             <div className="space-y-2">
-              <Label htmlFor="amount">Valor (R$) *</Label>
+              <Label htmlFor="description">Descrição *</Label>
               <Input
-                id="amount"
-                type="number"
-                step="0.01"
-                min="0.01"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="0,00"
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Ex: Pagamento de fornecedor"
                 required
-                className="text-lg font-semibold"
               />
             </div>
+
+            {/* Category and Bank Row */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="category">Categoria</Label>
+                <Select value={categoryId} onValueChange={handleCategoryChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__new__" className="text-primary font-medium">
+                      <div className="flex items-center gap-2">
+                        <Plus className="w-3 h-3" />
+                        Nova categoria
+                      </div>
+                    </SelectItem>
+                    {filteredCategories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: cat.color }}
+                          />
+                          {cat.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bank">Conta</Label>
+                <Select value={bankId} onValueChange={handleBankChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__new__" className="text-primary font-medium">
+                      <div className="flex items-center gap-2">
+                        <Plus className="w-3 h-3" />
+                        Nova conta
+                      </div>
+                    </SelectItem>
+                    {activeBanks.map((bank) => (
+                      <SelectItem key={bank.id} value={bank.id}>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: bank.color }}
+                          />
+                          {bank.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Contact */}
             <div className="space-y-2">
-              <Label htmlFor="date">Data *</Label>
+              <Label htmlFor="contact">{type === 'despesa' ? 'Fornecedor' : 'Cliente'}</Label>
+              <Select value={contactId} onValueChange={handleContactChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um contato..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__new__" className="text-primary font-medium">
+                    <div className="flex items-center gap-2">
+                      <Plus className="w-3 h-3" />
+                      Novo {type === 'despesa' ? 'fornecedor' : 'cliente'}
+                    </div>
+                  </SelectItem>
+                  {filteredContacts.map((contact) => (
+                    <SelectItem key={contact.id} value={contact.id}>
+                      <div className="flex items-center gap-2">
+                        {contact.type === 'fornecedor' ? (
+                          <Building2 className="w-3 h-3 text-muted-foreground" />
+                        ) : (
+                          <User className="w-3 h-3 text-muted-foreground" />
+                        )}
+                        {contact.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Date (moved to separate row for clarity) */}
+            <div className="space-y-2">
+              <Label htmlFor="date">Data da Transação *</Label>
               <Input
                 id="date"
                 type="date"
@@ -142,124 +362,80 @@ export function TransactionFormDialog({
                 required
               />
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Descrição *</Label>
-            <Input
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Ex: Pagamento de fornecedor"
-              required
+            {/* Attachments */}
+            <AttachmentUpload
+              attachments={attachments}
+              pendingFiles={pendingFiles}
+              onAddFiles={(files) => setPendingFiles([...pendingFiles, ...files])}
+              onRemovePendingFile={(index) => setPendingFiles(pendingFiles.filter((_, i) => i !== index))}
+              onDeleteAttachment={(attachment) => deleteAttachment.mutate(attachment)}
+              isUploading={uploadAttachment.isPending}
             />
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
+            {/* Notes */}
             <div className="space-y-2">
-              <Label htmlFor="category">Categoria</Label>
-              <Select value={categoryId} onValueChange={setCategoryId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {filteredCategories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: cat.color }}
-                        />
-                        {cat.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="notes">Observações</Label>
+              <Textarea
+                id="notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Notas adicionais..."
+                rows={2}
+              />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="bank">Conta</Label>
-              <Select value={bankId} onValueChange={setBankId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {activeBanks.map((bank) => (
-                    <SelectItem key={bank.id} value={bank.id}>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: bank.color }}
-                        />
-                        {bank.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+
+            {/* Paid Switch */}
+            <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+              <div>
+                <Label htmlFor="paid" className="font-medium">
+                  {type === 'receita' ? 'Recebido' : 'Pago'}
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  {type === 'receita' ? 'Marque se já recebeu' : 'Marque se já pagou'}
+                </p>
+              </div>
+              <Switch id="paid" checked={isPaid} onCheckedChange={setIsPaid} />
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="contact">Cliente/Fornecedor</Label>
-            <Select value={contactId} onValueChange={setContactId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione um contato..." />
-              </SelectTrigger>
-              <SelectContent>
-                {activeContacts.map((contact) => (
-                  <SelectItem key={contact.id} value={contact.id}>
-                    <div className="flex items-center gap-2">
-                      {contact.type === 'fornecedor' ? (
-                        <Building2 className="w-3 h-3 text-muted-foreground" />
-                      ) : (
-                        <User className="w-3 h-3 text-muted-foreground" />
-                      )}
-                      {contact.name}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="notes">Observações</Label>
-            <Textarea
-              id="notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Notas adicionais..."
-              rows={2}
-            />
-          </div>
-
-          <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-            <div>
-              <Label htmlFor="paid" className="font-medium">
-                {type === 'receita' ? 'Recebido' : 'Pago'}
-              </Label>
-              <p className="text-sm text-muted-foreground">
-                {type === 'receita' ? 'Marque se já recebeu' : 'Marque se já pagou'}
-              </p>
+            {/* Actions */}
+            <div className="flex gap-2 pt-4">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={isLoading || !description.trim() || parseCurrencyInput(amount) === 0}
+                className="flex-1"
+              >
+                {isLoading ? 'Salvando...' : 'Salvar'}
+              </Button>
             </div>
-            <Switch id="paid" checked={isPaid} onCheckedChange={setIsPaid} />
-          </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-          <div className="flex gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={isLoading || !description.trim() || !amount}
-              className="flex-1"
-            >
-              {isLoading ? 'Salvando...' : 'Salvar'}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+      {/* Inline Creation Dialogs */}
+      <CategoryFormDialog
+        open={categoryDialogOpen}
+        onOpenChange={setCategoryDialogOpen}
+        onSubmit={handleCreateCategory}
+        isLoading={createCategory.isPending}
+      />
+
+      <BankFormDialog
+        open={bankDialogOpen}
+        onOpenChange={setBankDialogOpen}
+        onSubmit={handleCreateBank}
+        isLoading={createBank.isPending}
+      />
+
+      <ContactFormDialog
+        open={contactDialogOpen}
+        onOpenChange={setContactDialogOpen}
+        onSubmit={handleCreateContact}
+        isLoading={createContact.isPending}
+      />
+    </>
   );
 }

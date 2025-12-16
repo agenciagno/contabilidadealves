@@ -12,6 +12,8 @@ export interface Transaction {
   amount: number;
   type: 'receita' | 'despesa';
   date: string;
+  issue_date: string | null;
+  due_date: string | null;
   is_paid: boolean;
   notes: string | null;
   created_at: string;
@@ -29,27 +31,22 @@ export type TransactionInsert = {
   amount: number;
   type: 'receita' | 'despesa';
   date: string;
+  issue_date?: string | null;
+  due_date?: string | null;
   is_paid?: boolean;
   notes?: string | null;
 };
 
 export type TransactionUpdate = Partial<TransactionInsert>;
 
-interface UseTransactionsOptions {
-  month?: number;
-  year?: number;
-  type?: 'receita' | 'despesa';
-}
-
-export function useTransactions(options: UseTransactionsOptions = {}) {
+export function useTransactions() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { month, year, type } = options;
 
   const { data: transactions = [], isLoading, error } = useQuery({
-    queryKey: ['transactions', { month, year, type }],
+    queryKey: ['transactions'],
     queryFn: async () => {
-      let query = supabase
+      const { data, error } = await supabase
         .from('transactions')
         .select(`
           *,
@@ -59,17 +56,6 @@ export function useTransactions(options: UseTransactionsOptions = {}) {
         `)
         .order('date', { ascending: false });
 
-      if (month !== undefined && year !== undefined) {
-        const startDate = new Date(year, month, 1).toISOString().split('T')[0];
-        const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0];
-        query = query.gte('date', startDate).lte('date', endDate);
-      }
-
-      if (type) {
-        query = query.eq('type', type);
-      }
-
-      const { data, error } = await query;
       if (error) throw error;
       return data as Transaction[];
     },

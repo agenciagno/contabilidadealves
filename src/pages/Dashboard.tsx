@@ -66,10 +66,15 @@ export default function Dashboard() {
 
   const { widgets, toggleWidget, isWidgetEnabled } = useDashboardWidgets();
 
-  const { transactions, isLoading: loadingTransactions } = useTransactions({
-    month: currentMonth,
-    year: currentYear,
-  });
+  const { transactions: allTransactions, isLoading: loadingTransactions } = useTransactions();
+
+  // Filter transactions for current month
+  const transactions = useMemo(() => {
+    return allTransactions.filter((t) => {
+      const txDate = new Date(t.date + 'T12:00:00');
+      return txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
+    });
+  }, [allTransactions, currentMonth, currentYear]);
 
   const { banks, isLoading: loadingBanks } = useBanks();
   const { recurringTransactions } = useRecurringTransactions();
