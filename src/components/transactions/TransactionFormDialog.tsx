@@ -81,7 +81,10 @@ export function TransactionFormDialog({
   const filteredCategories = categories.filter(c => c.type === type);
   const activeBanks = banks.filter(b => b.is_active);
   const filteredContacts = contacts.filter(c => 
-    c.is_active && (type === 'despesa' ? c.type === 'fornecedor' : c.type === 'cliente')
+    c.is_active && (
+      c.type === 'ambos' || 
+      (type === 'despesa' ? c.type === 'fornecedor' : c.type === 'cliente')
+    )
   );
 
   useEffect(() => {
