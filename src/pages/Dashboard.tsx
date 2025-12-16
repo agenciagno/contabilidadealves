@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { 
   Plus, 
   TrendingUp, 
@@ -12,7 +12,9 @@ import {
   Users,
   FileText,
   ChevronRight,
-  PiggyBank
+  PiggyBank,
+  CreditCard,
+  Tag,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,6 +25,7 @@ import { useTransactions } from '@/hooks/useTransactions';
 import { useBanks } from '@/hooks/useBanks';
 import { useRecurringTransactions } from '@/hooks/useRecurringTransactions';
 import { useContacts } from '@/hooks/useContacts';
+import { useCategories } from '@/hooks/useCategories';
 import { 
   ChartContainer, 
   ChartTooltip, 
@@ -35,6 +38,11 @@ import { format, addDays, isBefore, isAfter, subMonths, parseISO } from 'date-fn
 import { ptBR } from 'date-fns/locale';
 import { useNavigate, Link } from 'react-router-dom';
 import { DashboardWidgetsConfig, useDashboardWidgets } from '@/components/dashboard/DashboardWidgets';
+import { TransactionFormDialog } from '@/components/transactions/TransactionFormDialog';
+import { BankFormDialog } from '@/components/banks/BankFormDialog';
+import { ContactFormDialog } from '@/components/contacts/ContactFormDialog';
+import { CategoryFormDialog } from '@/components/categories/CategoryFormDialog';
+import { TransactionInsert } from '@/hooks/useTransactions';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', {
@@ -66,7 +74,18 @@ export default function Dashboard() {
 
   const { widgets, toggleWidget, isWidgetEnabled } = useDashboardWidgets();
 
-  const { transactions: allTransactions, isLoading: loadingTransactions } = useTransactions();
+  // Dialog states
+  const [transactionDialogOpen, setTransactionDialogOpen] = useState(false);
+  const [defaultTransactionType, setDefaultTransactionType] = useState<'receita' | 'despesa'>('despesa');
+  const [bankDialogOpen, setBankDialogOpen] = useState(false);
+  const [contactDialogOpen, setContactDialogOpen] = useState(false);
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+
+  const { transactions: allTransactions, isLoading: loadingTransactions, createTransaction } = useTransactions();
+  const { banks, isLoading: loadingBanks, createBank } = useBanks();
+  const { recurringTransactions } = useRecurringTransactions();
+  const { contacts, createContact } = useContacts();
+  const { categories, createCategory } = useCategories();
 
   // Filter transactions for current month
   const transactions = useMemo(() => {
@@ -75,10 +94,6 @@ export default function Dashboard() {
       return txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
     });
   }, [allTransactions, currentMonth, currentYear]);
-
-  const { banks, isLoading: loadingBanks } = useBanks();
-  const { recurringTransactions } = useRecurringTransactions();
-  const { contacts } = useContacts();
 
   // Calculate financial summary
   const summary = useMemo(() => {
@@ -145,7 +160,7 @@ export default function Dashboard() {
       });
     }
 
-    transactions.forEach(t => {
+    allTransactions.forEach(t => {
       const tDate = parseISO(t.date);
       const monthKey = format(tDate, 'yyyy-MM');
       const monthData = months.find(m => m.key === monthKey);
@@ -163,9 +178,9 @@ export default function Dashboard() {
     });
 
     return months;
-  }, [transactions, now]);
+  }, [allTransactions, now]);
 
-  // Category chart data
+  // Category chart data (expenses)
   const categoryChartData = useMemo(() => {
     const categoryMap = new Map<string, { name: string; value: number; color: string }>();
     
@@ -189,25 +204,64 @@ export default function Dashboard() {
       .slice(0, 5);
   }, [transactions]);
 
-  // Upcoming bills (unpaid in next 7 days or overdue)
-  const upcomingBills = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const nextWeek = addDays(today, 7);
+  // Revenue category chart data
+  const revenueCategoryChartData = useMemo(() => {
+    const categoryMap = new Map<string, { name: string; value: number; color: string }>();
     
-    return transactions
-      .filter(t => {
-        const tDate = new Date(t.date + 'T12:00:00');
-        return t.type === 'despesa' && !t.is_paid && isBefore(tDate, nextWeek);
-      })
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    transactions.forEach(t => {
+      if (t.type === 'receita' && t.category) {
+        const existing = categoryMap.get(t.category.id);
+        if (existing) {
+          existing.value += Number(t.amount);
+        } else {
+          categoryMap.set(t.category.id, {
+            name: t.category.name,
+            value: Number(t.amount),
+            color: t.category.color || CHART_COLORS[categoryMap.size % CHART_COLORS.length],
+          });
+        }
+      }
+    });
+
+    return Array.from(categoryMap.values())
+      .sort((a, b) => b.value - a.value)
       .slice(0, 5);
   }, [transactions]);
 
-  // Recent transactions
+  // Upcoming receivables (next 10)
+  const upcomingReceivables = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    return allTransactions
+      .filter(t => {
+        const tDate = new Date(t.date + 'T12:00:00');
+        return t.type === 'receita' && !t.is_paid && (isAfter(tDate, today) || format(tDate, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd'));
+      })
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .slice(0, 10);
+  }, [allTransactions]);
+
+  // Upcoming payables (next 10)
+  const upcomingPayables = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    return allTransactions
+      .filter(t => {
+        const tDate = new Date(t.date + 'T12:00:00');
+        return t.type === 'despesa' && !t.is_paid && (isAfter(tDate, today) || format(tDate, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd'));
+      })
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .slice(0, 10);
+  }, [allTransactions]);
+
+  // Recent transactions (last 10)
   const recentTransactions = useMemo(() => {
-    return transactions.slice(0, 5);
-  }, [transactions]);
+    return [...allTransactions]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 10);
+  }, [allTransactions]);
 
   // Active banks
   const activeBanks = useMemo(() => {
@@ -230,6 +284,36 @@ export default function Dashboard() {
 
   const isLoading = loadingTransactions || loadingBanks;
 
+  // Handlers
+  const handleNewTransaction = (type: 'receita' | 'despesa') => {
+    setDefaultTransactionType(type);
+    setTransactionDialogOpen(true);
+  };
+
+  const handleTransactionSubmit = (data: TransactionInsert) => {
+    createTransaction.mutate(data, {
+      onSuccess: () => setTransactionDialogOpen(false),
+    });
+  };
+
+  const handleBankSubmit = (data: any) => {
+    createBank.mutate(data, {
+      onSuccess: () => setBankDialogOpen(false),
+    });
+  };
+
+  const handleContactSubmit = (data: any) => {
+    createContact.mutate(data, {
+      onSuccess: () => setContactDialogOpen(false),
+    });
+  };
+
+  const handleCategorySubmit = (data: any) => {
+    createCategory.mutate(data, {
+      onSuccess: () => setCategoryDialogOpen(false),
+    });
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -250,10 +334,10 @@ export default function Dashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-2">
         <Button 
           className="gap-2 bg-emerald-600 hover:bg-emerald-700"
-          onClick={() => navigate('/transactions?type=receita')}
+          onClick={() => handleNewTransaction('receita')}
         >
           <Plus className="w-4 h-4" />
           Receita
@@ -261,7 +345,7 @@ export default function Dashboard() {
         <Button 
           variant="destructive" 
           className="gap-2"
-          onClick={() => navigate('/transactions?type=despesa')}
+          onClick={() => handleNewTransaction('despesa')}
         >
           <Plus className="w-4 h-4" />
           Despesa
@@ -269,15 +353,31 @@ export default function Dashboard() {
         <Button 
           variant="outline" 
           className="gap-2"
-          onClick={() => navigate('/recurring')}
+          onClick={() => setBankDialogOpen(true)}
         >
-          <Clock className="w-4 h-4" />
-          Recorrente
+          <Building2 className="w-4 h-4" />
+          Conta
+        </Button>
+        <Button 
+          variant="outline" 
+          className="gap-2"
+          onClick={() => setContactDialogOpen(true)}
+        >
+          <Users className="w-4 h-4" />
+          Cliente/Forn.
+        </Button>
+        <Button 
+          variant="outline" 
+          className="gap-2"
+          onClick={() => setCategoryDialogOpen(true)}
+        >
+          <Tag className="w-4 h-4" />
+          Categoria
         </Button>
       </div>
 
       {/* Main Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {isWidgetEnabled('receitas') && (
           <Card className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border-emerald-500/20">
             <CardContent className="p-5">
@@ -365,15 +465,9 @@ export default function Dashboard() {
               {isLoading ? (
                 <Skeleton className="h-8 w-32" />
               ) : (
-                <>
-                  <p className={`text-2xl font-bold ${summary.saldo >= 0 ? 'text-primary' : 'text-orange-500'}`}>
-                    {formatCurrency(summary.saldo)}
-                  </p>
-                  <div className="flex gap-4 mt-2 text-xs">
-                    <span className="text-emerald-500">+{formatCompact(summary.aReceber)} a receber</span>
-                    <span className="text-red-500">-{formatCompact(summary.aPagar)} a pagar</span>
-                  </div>
-                </>
+                <p className={`text-2xl font-bold ${summary.saldo >= 0 ? 'text-primary' : 'text-orange-500'}`}>
+                  {formatCurrency(summary.saldo)}
+                </p>
               )}
             </CardContent>
           </Card>
@@ -400,7 +494,7 @@ export default function Dashboard() {
             <CardContent className="p-5">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-sm text-muted-foreground">A Pagar</span>
-                <Clock className="w-5 h-5 text-red-500" />
+                <CreditCard className="w-5 h-5 text-red-500" />
               </div>
               {isLoading ? (
                 <Skeleton className="h-8 w-32" />
@@ -452,16 +546,13 @@ export default function Dashboard() {
         </Card>
       )}
 
-      {/* Charts Row */}
-      {(isWidgetEnabled('evolution') || isWidgetEnabled('categoryChart')) && (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Monthly Evolution */}
-        {isWidgetEnabled('evolution') && (
+      {/* Monthly Evolution - Full Width & Larger */}
+      {isWidgetEnabled('evolution') && (
         <Card className="bg-card border-border/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Evolução Mensal</CardTitle>
           </CardHeader>
-          <CardContent className="h-64">
+          <CardContent className="h-80">
             {isLoading ? (
               <Skeleton className="h-full w-full" />
             ) : monthlyEvolution.some(d => d.receitas > 0 || d.despesas > 0) ? (
@@ -521,125 +612,229 @@ export default function Dashboard() {
             )}
           </CardContent>
         </Card>
-        )}
-
-        {/* Category Pie Chart */}
-        {isWidgetEnabled('categoryChart') && (
-        <Card className="bg-card border-border/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Despesas por Categoria</CardTitle>
-          </CardHeader>
-          <CardContent className="h-64">
-            {isLoading ? (
-              <Skeleton className="h-full w-full" />
-            ) : categoryChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={categoryChartData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={2}
-                    dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    labelLine={false}
-                  >
-                    {categoryChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <ChartTooltip 
-                    formatter={(value: number) => formatCurrency(value)}
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex items-center justify-center h-full text-muted-foreground">
-                Sem despesas categorizadas
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        )}
-      </div>
       )}
 
-      {/* Bottom Row */}
-      {(isWidgetEnabled('upcomingBills') || isWidgetEnabled('recentTransactions')) && (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Upcoming Bills */}
-        {isWidgetEnabled('upcomingBills') && (
-        <Card className="bg-card border-border/50">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Calendar className="w-4 h-4" />
-                Contas a Vencer
-              </CardTitle>
-              <Badge variant="secondary" className="bg-red-500/10 text-red-500">
-                {upcomingBills.length} pendente{upcomingBills.length !== 1 ? 's' : ''}
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-14 w-full" />
-                ))}
-              </div>
-            ) : upcomingBills.length > 0 ? (
-              <div className="space-y-2">
-                {upcomingBills.map((bill) => {
-                  const billDate = new Date(bill.date + 'T12:00:00');
-                  const today = new Date();
-                  today.setHours(0, 0, 0, 0);
-                  const isOverdue = isBefore(billDate, today);
-                  
-                  return (
-                    <div
-                      key={bill.id}
-                      className={`flex items-center justify-between p-3 rounded-lg ${
-                        isOverdue ? 'bg-red-500/10 border border-red-500/20' : 'bg-muted/50'
-                      }`}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-foreground truncate">{bill.description}</p>
-                        <p className={`text-xs ${isOverdue ? 'text-red-500' : 'text-muted-foreground'}`}>
-                          {isOverdue ? 'Vencido em ' : ''}{format(billDate, "dd 'de' MMM", { locale: ptBR })}
-                        </p>
-                      </div>
-                      <span className="font-semibold text-red-500 ml-3">
-                        {formatCurrency(Number(bill.amount))}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-center py-8">
-                Nenhuma conta pendente nos próximos dias
-              </p>
-            )}
-          </CardContent>
-        </Card>
-        )}
+      {/* Category Charts Row */}
+      {(isWidgetEnabled('revenueCategoryChart') || isWidgetEnabled('categoryChart')) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Revenue Category Pie Chart */}
+          {isWidgetEnabled('revenueCategoryChart') && (
+            <Card className="bg-card border-border/50">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Receitas por Categoria</CardTitle>
+              </CardHeader>
+              <CardContent className="h-64">
+                {isLoading ? (
+                  <Skeleton className="h-full w-full" />
+                ) : revenueCategoryChartData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={revenueCategoryChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={80}
+                        paddingAngle={2}
+                        dataKey="value"
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        labelLine={false}
+                      >
+                        {revenueCategoryChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <ChartTooltip 
+                        formatter={(value: number) => formatCurrency(value)}
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                    Sem receitas categorizadas
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
-        {/* Recent Transactions */}
-        {isWidgetEnabled('recentTransactions') && (
+          {/* Expense Category Pie Chart */}
+          {isWidgetEnabled('categoryChart') && (
+            <Card className="bg-card border-border/50">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Despesas por Categoria</CardTitle>
+              </CardHeader>
+              <CardContent className="h-64">
+                {isLoading ? (
+                  <Skeleton className="h-full w-full" />
+                ) : categoryChartData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={categoryChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={80}
+                        paddingAngle={2}
+                        dataKey="value"
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        labelLine={false}
+                      >
+                        {categoryChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <ChartTooltip 
+                        formatter={(value: number) => formatCurrency(value)}
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                    Sem despesas categorizadas
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* Receivables and Payables Row */}
+      {(isWidgetEnabled('receivables') || isWidgetEnabled('payables')) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Accounts Receivable */}
+          {isWidgetEnabled('receivables') && (
+            <Card className="bg-card border-border/50">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <PiggyBank className="w-4 h-4 text-emerald-500" />
+                    Contas a Receber
+                  </CardTitle>
+                  <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-500">
+                    {upcomingReceivables.length} pendente{upcomingReceivables.length !== 1 ? 's' : ''}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-14 w-full" />
+                    ))}
+                  </div>
+                ) : upcomingReceivables.length > 0 ? (
+                  <div className="space-y-2 max-h-80 overflow-y-auto">
+                    {upcomingReceivables.map((item) => {
+                      const itemDate = new Date(item.date + 'T12:00:00');
+                      
+                      return (
+                        <div
+                          key={item.id}
+                          className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-foreground truncate">{item.description}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {format(itemDate, "dd 'de' MMM", { locale: ptBR })}
+                            </p>
+                          </div>
+                          <span className="font-semibold text-emerald-500 ml-3">
+                            {formatCurrency(Number(item.amount))}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-center py-8">
+                    Nenhuma conta a receber pendente
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Accounts Payable */}
+          {isWidgetEnabled('payables') && (
+            <Card className="bg-card border-border/50">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <CreditCard className="w-4 h-4 text-red-500" />
+                    Contas a Pagar
+                  </CardTitle>
+                  <Badge variant="secondary" className="bg-red-500/10 text-red-500">
+                    {upcomingPayables.length} pendente{upcomingPayables.length !== 1 ? 's' : ''}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-14 w-full" />
+                    ))}
+                  </div>
+                ) : upcomingPayables.length > 0 ? (
+                  <div className="space-y-2 max-h-80 overflow-y-auto">
+                    {upcomingPayables.map((item) => {
+                      const itemDate = new Date(item.date + 'T12:00:00');
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      const isOverdue = isBefore(itemDate, today);
+                      
+                      return (
+                        <div
+                          key={item.id}
+                          className={`flex items-center justify-between p-3 rounded-lg ${
+                            isOverdue ? 'bg-red-500/10 border border-red-500/20' : 'bg-muted/50'
+                          }`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-foreground truncate">{item.description}</p>
+                            <p className={`text-xs ${isOverdue ? 'text-red-500' : 'text-muted-foreground'}`}>
+                              {isOverdue ? 'Vencido em ' : ''}{format(itemDate, "dd 'de' MMM", { locale: ptBR })}
+                            </p>
+                          </div>
+                          <span className="font-semibold text-red-500 ml-3">
+                            {formatCurrency(Number(item.amount))}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-center py-8">
+                    Nenhuma conta a pagar pendente
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* Recent Transactions */}
+      {isWidgetEnabled('recentTransactions') && (
         <Card className="bg-card border-border/50">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base flex items-center gap-2">
                 <TrendingUp className="w-4 h-4" />
-                Últimas Movimentações
+                Últimas 10 Movimentações
               </CardTitle>
               <Button variant="ghost" size="sm" asChild>
                 <Link to="/transactions" className="text-xs text-muted-foreground">
@@ -699,8 +894,6 @@ export default function Dashboard() {
             )}
           </CardContent>
         </Card>
-        )}
-      </div>
       )}
 
       {/* Quick Stats */}
@@ -761,6 +954,40 @@ export default function Dashboard() {
           </Card>
         </Link>
       </div>
+
+      {/* Dialogs */}
+      <TransactionFormDialog
+        open={transactionDialogOpen}
+        onOpenChange={setTransactionDialogOpen}
+        transaction={null}
+        categories={categories}
+        banks={banks}
+        contacts={contacts}
+        onSubmit={handleTransactionSubmit}
+        isLoading={createTransaction.isPending}
+        defaultType={defaultTransactionType}
+      />
+
+      <BankFormDialog
+        open={bankDialogOpen}
+        onOpenChange={setBankDialogOpen}
+        onSubmit={handleBankSubmit}
+        isLoading={createBank.isPending}
+      />
+
+      <ContactFormDialog
+        open={contactDialogOpen}
+        onOpenChange={setContactDialogOpen}
+        onSubmit={handleContactSubmit}
+        isLoading={createContact.isPending}
+      />
+
+      <CategoryFormDialog
+        open={categoryDialogOpen}
+        onOpenChange={setCategoryDialogOpen}
+        onSubmit={handleCategorySubmit}
+        isLoading={createCategory.isPending}
+      />
     </div>
   );
 }
