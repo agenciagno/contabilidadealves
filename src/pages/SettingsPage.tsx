@@ -16,6 +16,7 @@ export default function SettingsPage() {
   const { theme, toggleTheme } = useTheme();
   
   const [companyName, setCompanyName] = useState('');
+  const [cnpj, setCnpj] = useState('');
   const [phone, setPhone] = useState('');
   const [loadingCompany, setLoadingCompany] = useState(true);
   const [savingCompany, setSavingCompany] = useState(false);
@@ -39,12 +40,13 @@ export default function SettingsPage() {
         if (profile?.company_id) {
           const { data: company } = await supabase
             .from('companies')
-            .select('name, phone')
+            .select('name, cnpj, phone')
             .eq('id', profile.company_id)
-            .single();
+            .maybeSingle();
 
           if (company) {
             setCompanyName(company.name || '');
+            setCnpj(company.cnpj || '');
             setPhone(company.phone || '');
           }
         }
@@ -72,7 +74,7 @@ export default function SettingsPage() {
       if (profile?.company_id) {
         const { error } = await supabase
           .from('companies')
-          .update({ name: companyName, phone })
+          .update({ name: companyName, cnpj, phone })
           .eq('id', profile.company_id);
 
         if (error) throw error;
@@ -154,6 +156,16 @@ export default function SettingsPage() {
                   placeholder="Nome da empresa"
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="cnpj">CNPJ</Label>
+                <Input 
+                  id="cnpj" 
+                  placeholder="00.000.000/0000-00"
+                  value={cnpj}
+                  onChange={(e) => setCnpj(e.target.value)}
                 />
               </div>
 
