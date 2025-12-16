@@ -7,26 +7,21 @@ import { CalendarIcon, Download, FileText, Filter } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-
 interface Category {
   id: string;
   name: string;
   type: string;
 }
-
 interface Bank {
   id: string;
   name: string;
 }
-
 interface Contact {
   id: string;
   name: string;
   type: string;
 }
-
 type QuickPeriod = 'thisMonth' | 'lastMonth' | 'thisYear' | 'last30Days' | 'last15Days' | null;
-
 interface ReportFiltersProps {
   startDate: Date | undefined;
   endDate: Date | undefined;
@@ -50,15 +45,25 @@ interface ReportFiltersProps {
   quickPeriod: QuickPeriod;
   onQuickPeriodChange: (period: QuickPeriod) => void;
 }
-
-const quickPeriodOptions: { value: QuickPeriod; label: string }[] = [
-  { value: 'thisMonth', label: 'Este mês' },
-  { value: 'lastMonth', label: 'Mês anterior' },
-  { value: 'thisYear', label: 'Este ano' },
-  { value: 'last30Days', label: 'Últimos 30 dias' },
-  { value: 'last15Days', label: 'Últimos 15 dias' },
-];
-
+const quickPeriodOptions: {
+  value: QuickPeriod;
+  label: string;
+}[] = [{
+  value: 'thisMonth',
+  label: 'Este mês'
+}, {
+  value: 'lastMonth',
+  label: 'Mês anterior'
+}, {
+  value: 'thisYear',
+  label: 'Este ano'
+}, {
+  value: 'last30Days',
+  label: 'Últimos 30 dias'
+}, {
+  value: 'last15Days',
+  label: 'Últimos 15 dias'
+}];
 export function ReportFilters({
   startDate,
   endDate,
@@ -80,10 +85,9 @@ export function ReportFilters({
   onExportCSV,
   onExportPDF,
   quickPeriod,
-  onQuickPeriodChange,
+  onQuickPeriodChange
 }: ReportFiltersProps) {
-  return (
-    <div className="space-y-4">
+  return <div className="space-y-4">
       {/* Filters Card */}
       <Card className="bg-card border-border/50">
         <CardHeader className="pb-3">
@@ -98,17 +102,9 @@ export function ReportFilters({
         <CardContent className="space-y-4">
           {/* Quick period buttons */}
           <div className="flex flex-wrap gap-2">
-            {quickPeriodOptions.map((option) => (
-              <Button
-                key={option.value}
-                variant={quickPeriod === option.value ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => onQuickPeriodChange(option.value)}
-                className="text-xs"
-              >
+            {quickPeriodOptions.map(option => <Button key={option.value} variant={quickPeriod === option.value ? 'default' : 'outline'} size="sm" onClick={() => onQuickPeriodChange(option.value)} className="text-xs">
                 {option.label}
-              </Button>
-            ))}
+              </Button>)}
           </div>
 
           {/* Date and filter row */}
@@ -117,25 +113,13 @@ export function ReportFilters({
               <label className="text-sm font-medium text-foreground">Data Inicial</label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      'w-full justify-start text-left font-normal',
-                      !startDate && 'text-muted-foreground'
-                    )}
-                  >
+                  <Button variant="outline" className={cn('w-full justify-start text-left font-normal', !startDate && 'text-muted-foreground')}>
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {startDate ? format(startDate, 'dd/MM/yyyy') : 'Selecione'}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={startDate}
-                    onSelect={onStartDateChange}
-                    locale={ptBR}
-                    initialFocus
-                  />
+                  <Calendar mode="single" selected={startDate} onSelect={onStartDateChange} locale={ptBR} initialFocus />
                 </PopoverContent>
               </Popover>
             </div>
@@ -144,25 +128,13 @@ export function ReportFilters({
               <label className="text-sm font-medium text-foreground">Data Final</label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      'w-full justify-start text-left font-normal',
-                      !endDate && 'text-muted-foreground'
-                    )}
-                  >
+                  <Button variant="outline" className={cn('w-full justify-start text-left font-normal', !endDate && 'text-muted-foreground')}>
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {endDate ? format(endDate, 'dd/MM/yyyy') : 'Selecione'}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={endDate}
-                    onSelect={onEndDateChange}
-                    locale={ptBR}
-                    initialFocus
-                  />
+                  <Calendar mode="single" selected={endDate} onSelect={onEndDateChange} locale={ptBR} initialFocus />
                 </PopoverContent>
               </Popover>
             </div>
@@ -189,11 +161,9 @@ export function ReportFilters({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas</SelectItem>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>
+                  {categories.map(cat => <SelectItem key={cat.id} value={cat.id}>
                       {cat.name}
-                    </SelectItem>
-                  ))}
+                    </SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -206,28 +176,24 @@ export function ReportFilters({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos</SelectItem>
-                  {banks.map((bank) => (
-                    <SelectItem key={bank.id} value={bank.id}>
+                  {banks.map(bank => <SelectItem key={bank.id} value={bank.id}>
                       {bank.name}
-                    </SelectItem>
-                  ))}
+                    </SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Contato</label>
+              <label className="text-sm font-medium text-foreground">Cliente/Fornecedor</label>
               <Select value={contactId} onValueChange={onContactChange}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Todos" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos</SelectItem>
-                  {contacts.map((contact) => (
-                    <SelectItem key={contact.id} value={contact.id}>
+                  {contacts.map(contact => <SelectItem key={contact.id} value={contact.id}>
                       {contact.name}
-                    </SelectItem>
-                  ))}
+                    </SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -273,6 +239,5 @@ export function ReportFilters({
           </div>
         </CardContent>
       </Card>
-    </div>
-  );
+    </div>;
 }
