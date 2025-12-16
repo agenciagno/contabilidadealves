@@ -34,7 +34,7 @@ import {
   ChartLegendContent
 } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, Area, AreaChart, CartesianGrid } from 'recharts';
-import { format, addDays, isBefore, isAfter, subMonths, parseISO } from 'date-fns';
+import { format, addDays, addMonths, isBefore, isAfter, subMonths, subDays, parseISO, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useNavigate, Link } from 'react-router-dom';
 import { DashboardWidgetsConfig, useDashboardWidgets } from '@/components/dashboard/DashboardWidgets';
@@ -43,6 +43,8 @@ import { BankFormDialog } from '@/components/banks/BankFormDialog';
 import { ContactFormDialog } from '@/components/contacts/ContactFormDialog';
 import { CategoryFormDialog } from '@/components/categories/CategoryFormDialog';
 import { TransactionInsert } from '@/hooks/useTransactions';
+import { ReportFilters, QuickPeriod } from '@/components/reports/ReportFilters';
+import { exportToCSV, exportToPDF } from '@/hooks/useReportData';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', {
@@ -69,8 +71,6 @@ const CHART_COLORS = [
 export default function Dashboard() {
   const navigate = useNavigate();
   const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
 
   const { widgets, toggleWidget, isWidgetEnabled } = useDashboardWidgets();
 
@@ -81,19 +81,107 @@ export default function Dashboard() {
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
 
+  // Filter states
+  const [startDate, setStartDate] = useState<Date | undefined>(startOfMonth(now));
+  const [endDate, setEndDate] = useState<Date | undefined>(now);
+  const [categoryId, setCategoryId] = useState('all');
+  const [bankId, setBankId] = useState('all');
+  const [transactionType, setTransactionType] = useState('all');
+  const [contactId, setContactId] = useState('all');
+  const [paymentStatus, setPaymentStatus] = useState('all');
+  const [quickPeriod, setQuickPeriod] = useState<QuickPeriod>('thisMonth');
+
   const { transactions: allTransactions, isLoading: loadingTransactions, createTransaction } = useTransactions();
   const { banks, isLoading: loadingBanks, createBank } = useBanks();
   const { recurringTransactions } = useRecurringTransactions();
   const { contacts, createContact } = useContacts();
   const { categories, createCategory } = useCategories();
 
-  // Filter transactions for current month
+  // Handle quick period change
+  const handleQuickPeriodChange = (period: QuickPeriod) => {
+    setQuickPeriod(period);
+    const today = new Date();
+
+    switch (period) {
+      case 'thisMonth':
+        setStartDate(startOfMonth(today));
+        setEndDate(today);
+        setPaymentStatus('all');
+        break;
+      case 'lastMonth':
+        const lastMonth = subMonths(today, 1);
+        setStartDate(startOfMonth(lastMonth));
+        setEndDate(endOfMonth(lastMonth));
+        setPaymentStatus('all');
+        break;
+      case 'thisYear':
+        setStartDate(startOfYear(today));
+        setEndDate(today);
+        setPaymentStatus('all');
+        break;
+      case 'last30Days':
+        setStartDate(subDays(today, 30));
+        setEndDate(today);
+        setPaymentStatus('all');
+        break;
+      case 'last15Days':
+        setStartDate(subDays(today, 15));
+        setEndDate(today);
+        setPaymentStatus('all');
+        break;
+      case 'nextMonth':
+        const nextMonth = addMonths(today, 1);
+        setStartDate(startOfMonth(nextMonth));
+        setEndDate(endOfMonth(nextMonth));
+        setPaymentStatus('pending');
+        break;
+      case 'next30Days':
+        setStartDate(today);
+        setEndDate(addDays(today, 30));
+        setPaymentStatus('pending');
+        break;
+      case 'next15Days':
+        setStartDate(today);
+        setEndDate(addDays(today, 15));
+        setPaymentStatus('pending');
+        break;
+      default:
+        break;
+    }
+  };
+
+  // Filter transactions based on all filters
   const transactions = useMemo(() => {
     return allTransactions.filter((t) => {
       const txDate = new Date(t.date + 'T12:00:00');
-      return txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
+      
+      // Date filter
+      if (startDate && txDate < startDate) return false;
+      if (endDate) {
+        const endOfDay = new Date(endDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        if (txDate > endOfDay) return false;
+      }
+      
+      // Type filter
+      if (transactionType !== 'all' && t.type !== transactionType) return false;
+      
+      // Category filter
+      if (categoryId !== 'all' && t.category_id !== categoryId) return false;
+      
+      // Bank filter
+      if (bankId !== 'all' && t.bank_id !== bankId) return false;
+      
+      // Contact filter
+      if (contactId !== 'all' && t.contact_id !== contactId) return false;
+      
+      // Payment status filter
+      if (paymentStatus === 'paid' && !t.is_paid) return false;
+      if (paymentStatus === 'pending' && t.is_paid) return false;
+      
+      return true;
     });
-  }, [allTransactions, currentMonth, currentYear]);
+  }, [allTransactions, startDate, endDate, transactionType, categoryId, bankId, contactId, paymentStatus]);
 
   // Calculate financial summary
   const summary = useMemo(() => {
@@ -314,6 +402,49 @@ export default function Dashboard() {
     });
   };
 
+  // Export handlers
+  const handleExportCSV = () => {
+    const reportData = transactions.map(t => ({
+      id: t.id,
+      description: t.description,
+      amount: Number(t.amount),
+      type: t.type,
+      date: t.date,
+      is_paid: t.is_paid,
+      category: t.category ? { id: t.category.id, name: t.category.name, color: t.category.color || '' } : null,
+      bank: t.bank ? { id: t.bank.id, name: t.bank.name, color: t.bank.color || '' } : null,
+      contact: t.contact ? { id: t.contact.id, name: t.contact.name, type: t.contact.type } : null,
+    }));
+    exportToCSV(reportData);
+  };
+
+  const handleExportPDF = () => {
+    const reportData = transactions.map(t => ({
+      id: t.id,
+      description: t.description,
+      amount: Number(t.amount),
+      type: t.type,
+      date: t.date,
+      is_paid: t.is_paid,
+      category: t.category ? { id: t.category.id, name: t.category.name, color: t.category.color || '' } : null,
+      bank: t.bank ? { id: t.bank.id, name: t.bank.name, color: t.bank.color || '' } : null,
+      contact: t.contact ? { id: t.contact.id, name: t.contact.name, type: t.contact.type } : null,
+    }));
+    const totals = {
+      receitas: transactions.filter(t => t.type === 'receita').reduce((sum, t) => sum + Number(t.amount), 0),
+      despesas: transactions.filter(t => t.type === 'despesa').reduce((sum, t) => sum + Number(t.amount), 0),
+    };
+    exportToPDF(reportData, totals, startDate, endDate);
+  };
+
+  // Period label for display
+  const periodLabel = useMemo(() => {
+    if (startDate && endDate) {
+      return `${format(startDate, "dd/MM/yyyy")} - ${format(endDate, "dd/MM/yyyy")}`;
+    }
+    return format(now, "MMMM 'de' yyyy", { locale: ptBR });
+  }, [startDate, endDate, now]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -321,7 +452,7 @@ export default function Dashboard() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
           <p className="text-muted-foreground">
-            Visão geral de {format(now, "MMMM 'de' yyyy", { locale: ptBR })}
+            {periodLabel}
           </p>
         </div>
         <div className="flex gap-2">
@@ -375,6 +506,31 @@ export default function Dashboard() {
           Categoria
         </Button>
       </div>
+
+      {/* Filters */}
+      <ReportFilters
+        startDate={startDate}
+        endDate={endDate}
+        onStartDateChange={(date) => { setStartDate(date); setQuickPeriod(null); }}
+        onEndDateChange={(date) => { setEndDate(date); setQuickPeriod(null); }}
+        categoryId={categoryId}
+        onCategoryChange={setCategoryId}
+        bankId={bankId}
+        onBankChange={setBankId}
+        transactionType={transactionType}
+        onTransactionTypeChange={setTransactionType}
+        contactId={contactId}
+        onContactChange={setContactId}
+        paymentStatus={paymentStatus}
+        onPaymentStatusChange={setPaymentStatus}
+        categories={categories}
+        banks={banks}
+        contacts={contacts}
+        onExportCSV={handleExportCSV}
+        onExportPDF={handleExportPDF}
+        quickPeriod={quickPeriod}
+        onQuickPeriodChange={handleQuickPeriodChange}
+      />
 
       {/* Main Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
