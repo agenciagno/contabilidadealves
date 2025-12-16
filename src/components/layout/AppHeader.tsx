@@ -29,10 +29,15 @@ export function AppHeader() {
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
 
-  const { transactions } = useTransactions({
-    month: currentMonth,
-    year: currentYear,
-  });
+  const { transactions: allTransactions } = useTransactions();
+
+  // Filter transactions for current month
+  const transactions = useMemo(() => {
+    return allTransactions.filter((t) => {
+      const txDate = new Date(t.date + 'T12:00:00');
+      return txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
+    });
+  }, [allTransactions, currentMonth, currentYear]);
 
   // Get upcoming unpaid bills (next 7 days) and overdue bills
   const notifications = useMemo(() => {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -8,16 +8,18 @@ import {
   TrendingUp,
   TrendingDown,
   Check,
-  ChevronLeft,
-  ChevronRight,
-  Filter,
   Receipt,
+  LayoutGrid,
+  List,
+  Hash,
 } from 'lucide-react';
-import { useTransactions, Transaction } from '@/hooks/useTransactions';
+import { useTransactions, Transaction, TransactionInsert } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
 import { useBanks } from '@/hooks/useBanks';
 import { useContacts } from '@/hooks/useContacts';
+import { useTransactionAttachments } from '@/hooks/useTransactionAttachments';
 import { TransactionFormDialog } from '@/components/transactions/TransactionFormDialog';
+import { TransactionFilters, PeriodFilter } from '@/components/transactions/TransactionFilters';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,12 +34,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  startOfMonth,
+  endOfMonth,
+  subMonths,
+  subDays,
+  startOfYear,
+  endOfYear,
+  isWithinInterval,
+  parseISO,
+} from 'date-fns';
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('pt-BR', {
@@ -49,70 +54,189 @@ function formatCurrency(value: number) {
 function formatDate(dateStr: string) {
   return new Date(dateStr + 'T12:00:00').toLocaleDateString('pt-BR', {
     day: '2-digit',
-    month: 'short',
+    month: '2-digit',
+    year: 'numeric',
   });
 }
 
-const MONTHS = [
-  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
-];
+type SortField = 'date' | 'amount' | 'description';
+type SortOrder = 'asc' | 'desc';
 
 export default function Transactions() {
-  const now = new Date();
-  const [month, setMonth] = useState(now.getMonth());
-  const [year, setYear] = useState(now.getFullYear());
-  const [typeFilter, setTypeFilter] = useState<'all' | 'receita' | 'despesa'>('all');
+  // Filter states
+  const [period, setPeriod] = useState<PeriodFilter>('thisMonth');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [bankFilter, setBankFilter] = useState('all');
+  const [contactFilter, setContactFilter] = useState('all');
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Sort states
+  const [sortField, setSortField] = useState<SortField>('date');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+
+  // View states
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
 
   const {
-    transactions,
+    transactions: allTransactions,
     isLoading,
-    totals,
     createTransaction,
     updateTransaction,
     deleteTransaction,
     togglePaid,
-  } = useTransactions({
-    month,
-    year,
-    type: typeFilter === 'all' ? undefined : typeFilter,
-  });
+  } = useTransactions();
 
   const { categories } = useCategories();
   const { banks } = useBanks();
   const { contacts } = useContacts();
+  const { uploadAttachment } = useTransactionAttachments();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [defaultType, setDefaultType] = useState<'receita' | 'despesa'>('despesa');
 
-  const handlePrevMonth = () => {
-    if (month === 0) {
-      setMonth(11);
-      setYear(year - 1);
-    } else {
-      setMonth(month - 1);
+  // Calculate date range based on period
+  const getDateRange = (period: PeriodFilter): { start: Date; end: Date } | null => {
+    const now = new Date();
+    switch (period) {
+      case 'thisMonth':
+        return { start: startOfMonth(now), end: endOfMonth(now) };
+      case 'lastMonth':
+        const lastMonth = subMonths(now, 1);
+        return { start: startOfMonth(lastMonth), end: endOfMonth(lastMonth) };
+      case 'last30Days':
+        return { start: subDays(now, 30), end: now };
+      case 'last15Days':
+        return { start: subDays(now, 15), end: now };
+      case 'thisYear':
+        return { start: startOfYear(now), end: endOfYear(now) };
+      default:
+        return null;
     }
   };
 
-  const handleNextMonth = () => {
-    if (month === 11) {
-      setMonth(0);
-      setYear(year + 1);
-    } else {
-      setMonth(month + 1);
+  // Filter and sort transactions
+  const filteredTransactions = useMemo(() => {
+    let result = [...allTransactions];
+
+    // Period filter
+    const dateRange = getDateRange(period);
+    if (dateRange) {
+      result = result.filter((t) => {
+        const transactionDate = parseISO(t.date);
+        return isWithinInterval(transactionDate, { start: dateRange.start, end: dateRange.end });
+      });
     }
+
+    // Type filter
+    if (typeFilter !== 'all') {
+      result = result.filter((t) => t.type === typeFilter);
+    }
+
+    // Category filter
+    if (categoryFilter !== 'all') {
+      result = result.filter((t) => t.category_id === categoryFilter);
+    }
+
+    // Bank filter
+    if (bankFilter !== 'all') {
+      result = result.filter((t) => t.bank_id === bankFilter);
+    }
+
+    // Contact filter
+    if (contactFilter !== 'all') {
+      result = result.filter((t) => t.contact_id === contactFilter);
+    }
+
+    // Payment status filter
+    if (paymentStatusFilter === 'paid') {
+      result = result.filter((t) => t.is_paid);
+    } else if (paymentStatusFilter === 'pending') {
+      result = result.filter((t) => !t.is_paid);
+    }
+
+    // Search filter
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      result = result.filter((t) => t.description.toLowerCase().includes(search));
+    }
+
+    // Sort
+    result.sort((a, b) => {
+      let comparison = 0;
+      switch (sortField) {
+        case 'date':
+          comparison = a.date.localeCompare(b.date);
+          break;
+        case 'amount':
+          comparison = Number(a.amount) - Number(b.amount);
+          break;
+        case 'description':
+          comparison = a.description.localeCompare(b.description);
+          break;
+      }
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+
+    return result;
+  }, [allTransactions, period, typeFilter, categoryFilter, bankFilter, contactFilter, paymentStatusFilter, searchTerm, sortField, sortOrder]);
+
+  // Calculate totals from filtered transactions
+  const totals = useMemo(() => {
+    return filteredTransactions.reduce(
+      (acc, t) => {
+        const amount = Number(t.amount);
+        if (t.type === 'receita') {
+          acc.receitas += amount;
+        } else {
+          acc.despesas += amount;
+        }
+        return acc;
+      },
+      { receitas: 0, despesas: 0 }
+    );
+  }, [filteredTransactions]);
+
+  const handleClearFilters = () => {
+    setPeriod('thisMonth');
+    setTypeFilter('all');
+    setCategoryFilter('all');
+    setBankFilter('all');
+    setContactFilter('all');
+    setPaymentStatusFilter('all');
+    setSearchTerm('');
   };
 
-  const handleSubmit = (data: Parameters<typeof createTransaction.mutate>[0]) => {
+  const handleSubmit = async (data: TransactionInsert, pendingFiles?: File[]) => {
     if (editingTransaction) {
       updateTransaction.mutate(
         { id: editingTransaction.id, ...data },
-        { onSuccess: () => { setDialogOpen(false); setEditingTransaction(null); } }
+        {
+          onSuccess: async () => {
+            if (pendingFiles && pendingFiles.length > 0) {
+              for (const file of pendingFiles) {
+                await uploadAttachment.mutateAsync({ file, transactionId: editingTransaction.id });
+              }
+            }
+            setDialogOpen(false);
+            setEditingTransaction(null);
+          },
+        }
       );
     } else {
-      createTransaction.mutate(data, { onSuccess: () => setDialogOpen(false) });
+      createTransaction.mutate(data, {
+        onSuccess: async (newTransaction) => {
+          if (pendingFiles && pendingFiles.length > 0) {
+            for (const file of pendingFiles) {
+              await uploadAttachment.mutateAsync({ file, transactionId: newTransaction.id });
+            }
+          }
+          setDialogOpen(false);
+        },
+      });
     }
   };
 
@@ -133,13 +257,24 @@ export default function Transactions() {
     setDialogOpen(true);
   };
 
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('desc');
+    }
+  };
+
   const saldo = totals.receitas - totals.despesas;
 
   if (isLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-10 w-64" />
-        <div className="grid grid-cols-3 gap-4">
+        <Skeleton className="h-48" />
+        <div className="grid grid-cols-4 gap-4">
+          <Skeleton className="h-24" />
           <Skeleton className="h-24" />
           <Skeleton className="h-24" />
           <Skeleton className="h-24" />
@@ -154,106 +289,229 @@ export default function Transactions() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Transações</h1>
+          <h1 className="text-3xl font-bold text-foreground">Movimentações</h1>
           <p className="text-muted-foreground">Gerencie suas receitas e despesas</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" className="gap-2" onClick={() => handleNewTransaction('receita')}>
-            <TrendingUp className="w-4 h-4 text-green-500" />
-            Nova Receita
-          </Button>
-          <Button className="gap-2" onClick={() => handleNewTransaction('despesa')}>
-            <TrendingDown className="w-4 h-4" />
-            Nova Despesa
+        <div className="flex items-center gap-2">
+          {/* View Toggle */}
+          <div className="flex border border-border rounded-lg overflow-hidden">
+            <Button
+              variant={viewMode === 'grid' ? 'default' : 'ghost'}
+              size="icon"
+              onClick={() => setViewMode('grid')}
+              className="rounded-none"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              size="icon"
+              onClick={() => setViewMode('list')}
+              className="rounded-none"
+            >
+              <List className="w-4 h-4" />
+            </Button>
+          </div>
+          {/* New Transaction Button - Highlighted */}
+          <Button
+            onClick={() => handleNewTransaction('despesa')}
+            className="gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg"
+          >
+            <Plus className="w-4 h-4" />
+            Nova Movimentação
           </Button>
         </div>
       </div>
 
-      {/* Month Navigation */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={handlePrevMonth}>
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-          <span className="text-lg font-semibold min-w-[160px] text-center">
-            {MONTHS[month]} {year}
-          </span>
-          <Button variant="outline" size="icon" onClick={handleNextMonth}>
-            <ChevronRight className="w-4 h-4" />
-          </Button>
-        </div>
-        <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}>
-          <SelectTrigger className="w-40">
-            <Filter className="w-4 h-4 mr-2" />
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="receita">Receitas</SelectItem>
-            <SelectItem value="despesa">Despesas</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      {/* Filters */}
+      <TransactionFilters
+        period={period}
+        onPeriodChange={setPeriod}
+        type={typeFilter}
+        onTypeChange={setTypeFilter}
+        categoryId={categoryFilter}
+        onCategoryChange={setCategoryFilter}
+        bankId={bankFilter}
+        onBankChange={setBankFilter}
+        contactId={contactFilter}
+        onContactChange={setContactFilter}
+        paymentStatus={paymentStatusFilter}
+        onPaymentStatusChange={setPaymentStatusFilter}
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        categories={categories}
+        banks={banks}
+        contacts={contacts}
+        onClearFilters={handleClearFilters}
+      />
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-green-500/10 border-green-500/20">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="bg-card border-border/50">
           <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-green-500" />
-              </div>
+            <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Receitas</p>
-                <p className="text-xl font-bold text-green-500">{formatCurrency(totals.receitas)}</p>
+                <p className="text-2xl font-bold text-emerald-500">{formatCurrency(totals.receitas)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {filteredTransactions.filter(t => t.type === 'receita').length} transação(ões)
+                </p>
+              </div>
+              <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                <TrendingUp className="w-6 h-6 text-emerald-500" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-red-500/10 border-red-500/20">
+        <Card className="bg-card border-border/50">
           <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
-                <TrendingDown className="w-5 h-5 text-red-500" />
-              </div>
+            <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Despesas</p>
-                <p className="text-xl font-bold text-red-500">{formatCurrency(totals.despesas)}</p>
+                <p className="text-2xl font-bold text-red-500">{formatCurrency(totals.despesas)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {filteredTransactions.filter(t => t.type === 'despesa').length} transação(ões)
+                </p>
+              </div>
+              <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center">
+                <TrendingDown className="w-6 h-6 text-red-500" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className={`${saldo >= 0 ? 'bg-primary/10 border-primary/20' : 'bg-orange-500/10 border-orange-500/20'}`}>
+        <Card className="bg-card border-border/50">
           <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${saldo >= 0 ? 'bg-primary/20' : 'bg-orange-500/20'}`}>
-                <Receipt className={`w-5 h-5 ${saldo >= 0 ? 'text-primary' : 'text-orange-500'}`} />
-              </div>
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Saldo do mês</p>
-                <p className={`text-xl font-bold ${saldo >= 0 ? 'text-primary' : 'text-orange-500'}`}>
-                  {formatCurrency(saldo)}
+                <p className="text-sm text-muted-foreground">Saldo do Período</p>
+                <p className={`text-2xl font-bold ${saldo >= 0 ? 'text-primary' : 'text-red-500'}`}>
+                  {saldo < 0 ? '-' : ''}{formatCurrency(Math.abs(saldo))}
                 </p>
+                <p className="text-xs text-muted-foreground">
+                  {saldo >= 0 ? 'Positivo' : 'Negativo'}
+                </p>
+              </div>
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${saldo >= 0 ? 'bg-primary/10' : 'bg-red-500/10'}`}>
+                <Receipt className={`w-6 h-6 ${saldo >= 0 ? 'text-primary' : 'text-red-500'}`} />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card border-border/50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total de Movimentações</p>
+                <p className="text-2xl font-bold text-foreground">{filteredTransactions.length}</p>
+                <p className="text-xs text-muted-foreground">no período filtrado</p>
+              </div>
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <Hash className="w-6 h-6 text-primary" />
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Transactions List */}
-      <Card className="bg-card border-border/50">
-        <CardContent className="p-0">
-          {transactions.length === 0 ? (
-            <div className="text-muted-foreground text-center py-16">
-              <Receipt className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>Nenhuma transação neste mês</p>
-              <p className="text-sm mt-1">Clique em "Nova Receita" ou "Nova Despesa" para começar</p>
-            </div>
-          ) : (
+      {/* Sort Options */}
+      <div className="flex items-center gap-2 text-sm">
+        <span className="text-muted-foreground">Ordenar por:</span>
+        <Button
+          variant={sortField === 'date' ? 'secondary' : 'ghost'}
+          size="sm"
+          onClick={() => handleSort('date')}
+          className="gap-1"
+        >
+          Data
+          {sortField === 'date' && (sortOrder === 'asc' ? '↑' : '↓')}
+        </Button>
+        <Button
+          variant={sortField === 'amount' ? 'secondary' : 'ghost'}
+          size="sm"
+          onClick={() => handleSort('amount')}
+          className="gap-1"
+        >
+          Valor
+          {sortField === 'amount' && (sortOrder === 'asc' ? '↑' : '↓')}
+        </Button>
+        <Button
+          variant={sortField === 'description' ? 'secondary' : 'ghost'}
+          size="sm"
+          onClick={() => handleSort('description')}
+          className="gap-1"
+        >
+          Descrição
+          {sortField === 'description' && (sortOrder === 'asc' ? '↑' : '↓')}
+        </Button>
+      </div>
+
+      {/* Transactions List/Grid */}
+      {filteredTransactions.length === 0 ? (
+        <Card className="bg-card border-border/50">
+          <CardContent className="text-muted-foreground text-center py-16">
+            <Receipt className="w-12 h-12 mx-auto mb-4 opacity-50" />
+            <p>Nenhuma transação encontrada</p>
+            <p className="text-sm mt-1">Ajuste os filtros ou clique em "Nova Movimentação" para começar</p>
+          </CardContent>
+        </Card>
+      ) : viewMode === 'grid' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {filteredTransactions.map((transaction) => (
+            <Card key={transaction.id} className="bg-card border-border/50 hover:border-primary/30 transition-colors">
+              <CardContent className="p-4">
+                <div className="flex items-start gap-4">
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                      transaction.type === 'receita' ? 'bg-emerald-500/20' : 'bg-red-500/20'
+                    }`}
+                  >
+                    {transaction.type === 'receita' ? (
+                      <TrendingUp className="w-5 h-5 text-emerald-500" />
+                    ) : (
+                      <TrendingDown className="w-5 h-5 text-red-500" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium truncate">{transaction.description}</span>
+                      <span
+                        className={`font-bold whitespace-nowrap ${
+                          transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'
+                        }`}
+                      >
+                        {transaction.type === 'receita' ? '+' : '-'} {formatCurrency(Number(transaction.amount))}
+                      </span>
+                    </div>
+                    <div className="text-sm text-muted-foreground mt-1">
+                      📅 {formatDate(transaction.date)}
+                    </div>
+                    {transaction.bank && (
+                      <div className="text-sm text-muted-foreground">
+                        Conta Principal
+                      </div>
+                    )}
+                    {transaction.category && (
+                      <Badge variant="secondary" className="mt-2 text-xs">
+                        {transaction.category.name}
+                      </Badge>
+                    )}
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => handleEdit(transaction)}>
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <Card className="bg-card border-border/50">
+          <CardContent className="p-0">
             <div className="divide-y divide-border/50">
-              {transactions.map((transaction) => (
+              {filteredTransactions.map((transaction) => (
                 <div
                   key={transaction.id}
                   className="flex items-center gap-4 p-4 hover:bg-muted/50 transition-colors"
@@ -269,13 +527,11 @@ export default function Transactions() {
                   {/* Type Icon */}
                   <div
                     className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      transaction.type === 'receita'
-                        ? 'bg-green-500/20'
-                        : 'bg-red-500/20'
+                      transaction.type === 'receita' ? 'bg-emerald-500/20' : 'bg-red-500/20'
                     }`}
                   >
                     {transaction.type === 'receita' ? (
-                      <TrendingUp className="w-5 h-5 text-green-500" />
+                      <TrendingUp className="w-5 h-5 text-emerald-500" />
                     ) : (
                       <TrendingDown className="w-5 h-5 text-red-500" />
                     )}
@@ -326,7 +582,7 @@ export default function Transactions() {
                   {/* Amount */}
                   <span
                     className={`font-bold text-lg ${
-                      transaction.type === 'receita' ? 'text-green-500' : 'text-red-500'
+                      transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'
                     }`}
                   >
                     {transaction.type === 'receita' ? '+' : '-'}
@@ -345,9 +601,9 @@ export default function Transactions() {
                 </div>
               ))}
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       <TransactionFormDialog
         open={dialogOpen}
