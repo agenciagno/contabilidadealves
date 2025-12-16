@@ -1,0 +1,1 @@
+ALTER TABLE contacts ADD COLUMN tax_regime VARCHAR DEFAULT NULL;

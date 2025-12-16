@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Contact, ContactInsert } from '@/hooks/useContacts';
+import { Contact, ContactInsert, TaxRegime } from '@/hooks/useContacts';
 
 interface ContactFormDialogProps {
   open: boolean;
@@ -21,6 +21,14 @@ const STATES = [
   'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'
 ];
 
+const TAX_REGIMES: { value: TaxRegime; label: string }[] = [
+  { value: 'mei', label: 'MEI' },
+  { value: 'simples_nacional', label: 'Simples Nacional' },
+  { value: 'lucro_presumido', label: 'Lucro Presumido' },
+  { value: 'lucro_real', label: 'Lucro Real' },
+  { value: 'nao_aplica', label: 'Não se aplica (PF)' },
+];
+
 export function ContactFormDialog({
   open,
   onOpenChange,
@@ -31,6 +39,7 @@ export function ContactFormDialog({
   const [name, setName] = useState('');
   const [type, setType] = useState<'cliente' | 'fornecedor' | 'ambos'>('cliente');
   const [document, setDocument] = useState('');
+  const [taxRegime, setTaxRegime] = useState<TaxRegime | ''>('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
@@ -44,6 +53,7 @@ export function ContactFormDialog({
       setName(contact.name);
       setType(contact.type);
       setDocument(contact.document || '');
+      setTaxRegime(contact.tax_regime || '');
       setEmail(contact.email || '');
       setPhone(contact.phone || '');
       setAddress(contact.address || '');
@@ -55,6 +65,7 @@ export function ContactFormDialog({
       setName('');
       setType('cliente');
       setDocument('');
+      setTaxRegime('');
       setEmail('');
       setPhone('');
       setAddress('');
@@ -71,6 +82,7 @@ export function ContactFormDialog({
       name: name.trim(),
       type,
       document: document.trim() || null,
+      tax_regime: taxRegime || null,
       email: email.trim() || null,
       phone: phone.trim() || null,
       address: address.trim() || null,
@@ -122,6 +134,22 @@ export function ContactFormDialog({
                 onChange={(e) => setDocument(e.target.value)}
                 placeholder="000.000.000-00"
               />
+            </div>
+
+            <div className="col-span-2">
+              <Label htmlFor="taxRegime">Regime Tributário</Label>
+              <Select value={taxRegime} onValueChange={(v) => setTaxRegime(v as TaxRegime)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o regime..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {TAX_REGIMES.map((regime) => (
+                    <SelectItem key={regime.value} value={regime.value}>
+                      {regime.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div>

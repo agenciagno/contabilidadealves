@@ -16,6 +16,14 @@ const typeLabels = {
   ambos: { label: 'Ambos', color: 'bg-purple-500/10 text-purple-500' },
 };
 
+const taxRegimeLabels: Record<string, string> = {
+  mei: 'MEI',
+  simples_nacional: 'Simples Nacional',
+  lucro_presumido: 'Lucro Presumido',
+  lucro_real: 'Lucro Real',
+  nao_aplica: 'Pessoa Física',
+};
+
 export default function Contacts() {
   const { contacts, isLoading, createContact, updateContact, deleteContact } = useContacts();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -95,9 +103,16 @@ export default function Contacts() {
             </div>
             <div>
               <h3 className="font-semibold text-foreground">{contact.name}</h3>
-              <Badge variant="secondary" className={typeLabels[contact.type].color}>
-                {typeLabels[contact.type].label}
-              </Badge>
+              <div className="flex flex-wrap gap-1 mt-1">
+                <Badge variant="secondary" className={typeLabels[contact.type].color}>
+                  {typeLabels[contact.type].label}
+                </Badge>
+                {contact.tax_regime && (
+                  <Badge variant="outline" className="text-xs">
+                    {taxRegimeLabels[contact.tax_regime]}
+                  </Badge>
+                )}
+              </div>
             </div>
           </div>
           <div className="flex gap-1">
