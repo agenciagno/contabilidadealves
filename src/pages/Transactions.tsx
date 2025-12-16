@@ -11,6 +11,9 @@ import {
   Receipt,
   LayoutGrid,
   List,
+  Download,
+  FileSpreadsheet,
+  FileText,
 } from 'lucide-react';
 import { useTransactions, Transaction, TransactionInsert } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
@@ -19,6 +22,7 @@ import { useContacts } from '@/hooks/useContacts';
 import { useTransactionAttachments } from '@/hooks/useTransactionAttachments';
 import { TransactionFormDialog } from '@/components/transactions/TransactionFormDialog';
 import { TransactionFilters, PeriodFilter } from '@/components/transactions/TransactionFilters';
+import { exportToCSV, exportToPDF, ReportTransaction } from '@/hooks/useReportData';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +33,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -318,6 +328,58 @@ export default function Transactions() {
               <List className="w-4 h-4" />
             </Button>
           </div>
+          {/* Export Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Download className="w-4 h-4" />
+                Exportar
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem 
+                onClick={() => {
+                  const reportTransactions: ReportTransaction[] = filteredTransactions.map(t => ({
+                    id: t.id,
+                    description: t.description,
+                    amount: Number(t.amount),
+                    type: t.type as 'receita' | 'despesa',
+                    date: t.date,
+                    is_paid: t.is_paid,
+                    category: t.category ? { id: t.category.id, name: t.category.name, color: t.category.color || '#6B7280' } : null,
+                    bank: t.bank ? { id: t.bank.id, name: t.bank.name, color: t.bank.color || '#3B82F6' } : null,
+                    contact: t.contact ? { id: t.contact.id, name: t.contact.name, type: t.contact.type } : null,
+                  }));
+                  exportToCSV(reportTransactions);
+                }}
+                className="gap-2"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                Exportar CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => {
+                  const reportTransactions: ReportTransaction[] = filteredTransactions.map(t => ({
+                    id: t.id,
+                    description: t.description,
+                    amount: Number(t.amount),
+                    type: t.type as 'receita' | 'despesa',
+                    date: t.date,
+                    is_paid: t.is_paid,
+                    category: t.category ? { id: t.category.id, name: t.category.name, color: t.category.color || '#6B7280' } : null,
+                    bank: t.bank ? { id: t.bank.id, name: t.bank.name, color: t.bank.color || '#3B82F6' } : null,
+                    contact: t.contact ? { id: t.contact.id, name: t.contact.name, type: t.contact.type } : null,
+                  }));
+                  const dateRange = getDateRange(period);
+                  exportToPDF(reportTransactions, totals, dateRange?.start, dateRange?.end);
+                }}
+                className="gap-2"
+              >
+                <FileText className="w-4 h-4" />
+                Exportar PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           {/* New Transaction Button - Highlighted */}
           <Button
             onClick={() => handleNewTransaction('despesa')}
