@@ -173,6 +173,73 @@ export type Database = {
           },
         ]
       }
+      transactions: {
+        Row: {
+          amount: number
+          bank_id: string | null
+          category_id: string | null
+          company_id: string
+          created_at: string
+          date: string
+          description: string
+          id: string
+          is_paid: boolean
+          notes: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          bank_id?: string | null
+          category_id?: string | null
+          company_id: string
+          created_at?: string
+          date?: string
+          description: string
+          id?: string
+          is_paid?: boolean
+          notes?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          bank_id?: string | null
+          category_id?: string | null
+          company_id?: string
+          created_at?: string
+          date?: string
+          description?: string
+          id?: string
+          is_paid?: boolean
+          notes?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_bank_id_fkey"
+            columns: ["bank_id"]
+            isOneToOne: false
+            referencedRelation: "banks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
