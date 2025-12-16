@@ -152,6 +152,7 @@ export type Database = {
           notes: string | null
           phone: string | null
           state: string | null
+          tax_regime: string | null
           type: string
           updated_at: string
         }
@@ -168,6 +169,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           state?: string | null
+          tax_regime?: string | null
           type: string
           updated_at?: string
         }
@@ -184,6 +186,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           state?: string | null
+          tax_regime?: string | null
           type?: string
           updated_at?: string
         }

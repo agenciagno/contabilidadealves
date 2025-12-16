@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+export type TaxRegime = 'mei' | 'simples_nacional' | 'lucro_presumido' | 'lucro_real' | 'nao_aplica';
+
 export interface Contact {
   id: string;
   company_id: string;
@@ -14,6 +16,7 @@ export interface Contact {
   city: string | null;
   state: string | null;
   notes: string | null;
+  tax_regime: TaxRegime | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
