@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, startOfWeek } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -139,7 +139,7 @@ export function processReportData(transactions: ReportTransaction[]) {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([, data]) => data);
 
-  // Balance evolution data
+  // Balance evolution data (monthly)
   const balanceEvolution = Array.from(monthlyMap.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .reduce((acc, [, data]) => {
@@ -154,12 +154,52 @@ export function processReportData(transactions: ReportTransaction[]) {
       return acc;
     }, [] as { month: string; balance: number; receitas: number; despesas: number }[]);
 
+  // Weekly breakdown for balance evolution
+  const weeklyMap = new Map<string, { week: string; receitas: number; despesas: number }>();
+  transactions.forEach((t) => {
+    const date = parseISO(t.date);
+    const weekStart = startOfWeek(date, { weekStartsOn: 0 });
+    const weekKey = format(weekStart, 'yyyy-MM-dd');
+    const weekLabel = `Sem ${format(weekStart, 'dd/MM', { locale: ptBR })}`;
+    const existing = weeklyMap.get(weekKey);
+    const amount = Number(t.amount);
+    
+    if (existing) {
+      if (t.type === 'receita') {
+        existing.receitas += amount;
+      } else {
+        existing.despesas += amount;
+      }
+    } else {
+      weeklyMap.set(weekKey, {
+        week: weekLabel,
+        receitas: t.type === 'receita' ? amount : 0,
+        despesas: t.type === 'despesa' ? amount : 0,
+      });
+    }
+  });
+
+  const weeklyBalanceEvolution = Array.from(weeklyMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .reduce((acc, [, data]) => {
+      const lastBalance = acc.length > 0 ? acc[acc.length - 1].balance : 0;
+      const newBalance = lastBalance + data.receitas - data.despesas;
+      acc.push({
+        month: data.week,
+        balance: newBalance,
+        receitas: data.receitas,
+        despesas: data.despesas,
+      });
+      return acc;
+    }, [] as { month: string; balance: number; receitas: number; despesas: number }[]);
+
   return {
     totals,
     receitasByCategory,
     despesasByCategory,
     monthlyData,
     balanceEvolution,
+    weeklyBalanceEvolution,
   };
 }
 

@@ -11,7 +11,8 @@ import {
   Building2,
   Users,
   FileText,
-  ChevronRight
+  ChevronRight,
+  PiggyBank
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -33,6 +34,7 @@ import { BarChart, Bar, XAxis, YAxis, PieChart, Pie, Cell, ResponsiveContainer, 
 import { format, addDays, isBefore, isAfter, subMonths, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useNavigate, Link } from 'react-router-dom';
+import { DashboardWidgetsConfig, useDashboardWidgets } from '@/components/dashboard/DashboardWidgets';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', {
@@ -61,6 +63,8 @@ export default function Dashboard() {
   const now = new Date();
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
+
+  const { widgets, toggleWidget, isWidgetEnabled } = useDashboardWidgets();
 
   const { transactions, isLoading: loadingTransactions } = useTransactions({
     month: currentMonth,
@@ -232,6 +236,7 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex gap-2">
+          <DashboardWidgetsConfig widgets={widgets} onToggle={toggleWidget} />
           <Button variant="outline" size="sm" onClick={() => navigate('/relatorios')}>
             <FileText className="w-4 h-4 mr-2" />
             Relatórios
@@ -268,102 +273,142 @@ export default function Dashboard() {
 
       {/* Main Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border-emerald-500/20">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-muted-foreground">Receitas do Mês</span>
-              <TrendingUp className="w-5 h-5 text-emerald-500" />
-            </div>
-            {isLoading ? (
-              <Skeleton className="h-8 w-32" />
-            ) : (
-              <>
-                <p className="text-2xl font-bold text-emerald-500">{formatCurrency(summary.receitas)}</p>
-                <div className="mt-3">
-                  <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                    <span>Recebido</span>
-                    <span>{summary.receitasProgress.toFixed(0)}%</span>
-                  </div>
-                  <Progress value={summary.receitasProgress} className="h-1.5" />
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-red-500/10 to-red-500/5 border-red-500/20">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-muted-foreground">Despesas do Mês</span>
-              <TrendingDown className="w-5 h-5 text-red-500" />
-            </div>
-            {isLoading ? (
-              <Skeleton className="h-8 w-32" />
-            ) : (
-              <>
-                <p className="text-2xl font-bold text-red-500">{formatCurrency(summary.despesas)}</p>
-                <div className="mt-3">
-                  <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                    <span>Pago</span>
-                    <span>{summary.despesasProgress.toFixed(0)}%</span>
-                  </div>
-                  <Progress value={summary.despesasProgress} className="h-1.5" />
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-muted-foreground">Saldo em Contas</span>
-              <Wallet className="w-5 h-5 text-blue-500" />
-            </div>
-            {isLoading ? (
-              <Skeleton className="h-8 w-32" />
-            ) : (
-              <>
-                <p className="text-2xl font-bold text-blue-500">{formatCurrency(summary.saldoAtual)}</p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Previsto: <span className={summary.saldoPrevisto >= 0 ? 'text-emerald-500' : 'text-red-500'}>
-                    {formatCurrency(summary.saldoPrevisto)}
-                  </span>
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className={`bg-gradient-to-br ${summary.saldo >= 0 ? 'from-primary/10 to-primary/5 border-primary/20' : 'from-orange-500/10 to-orange-500/5 border-orange-500/20'}`}>
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-muted-foreground">Resultado do Mês</span>
-              {summary.saldo >= 0 ? (
-                <ArrowUpRight className="w-5 h-5 text-primary" />
+        {isWidgetEnabled('receitas') && (
+          <Card className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border-emerald-500/20">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm text-muted-foreground">Receitas do Mês</span>
+                <TrendingUp className="w-5 h-5 text-emerald-500" />
+              </div>
+              {isLoading ? (
+                <Skeleton className="h-8 w-32" />
               ) : (
-                <ArrowDownRight className="w-5 h-5 text-orange-500" />
+                <>
+                  <p className="text-2xl font-bold text-emerald-500">{formatCurrency(summary.receitas)}</p>
+                  <div className="mt-3">
+                    <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                      <span>Recebido</span>
+                      <span>{summary.receitasProgress.toFixed(0)}%</span>
+                    </div>
+                    <Progress value={summary.receitasProgress} className="h-1.5" />
+                  </div>
+                </>
               )}
-            </div>
-            {isLoading ? (
-              <Skeleton className="h-8 w-32" />
-            ) : (
-              <>
-                <p className={`text-2xl font-bold ${summary.saldo >= 0 ? 'text-primary' : 'text-orange-500'}`}>
-                  {formatCurrency(summary.saldo)}
-                </p>
-                <div className="flex gap-4 mt-2 text-xs">
-                  <span className="text-emerald-500">+{formatCompact(summary.aReceber)} a receber</span>
-                  <span className="text-red-500">-{formatCompact(summary.aPagar)} a pagar</span>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
+
+        {isWidgetEnabled('despesas') && (
+          <Card className="bg-gradient-to-br from-red-500/10 to-red-500/5 border-red-500/20">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm text-muted-foreground">Despesas do Mês</span>
+                <TrendingDown className="w-5 h-5 text-red-500" />
+              </div>
+              {isLoading ? (
+                <Skeleton className="h-8 w-32" />
+              ) : (
+                <>
+                  <p className="text-2xl font-bold text-red-500">{formatCurrency(summary.despesas)}</p>
+                  <div className="mt-3">
+                    <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                      <span>Pago</span>
+                      <span>{summary.despesasProgress.toFixed(0)}%</span>
+                    </div>
+                    <Progress value={summary.despesasProgress} className="h-1.5" />
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {isWidgetEnabled('saldo') && (
+          <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm text-muted-foreground">Saldo em Contas</span>
+                <Wallet className="w-5 h-5 text-blue-500" />
+              </div>
+              {isLoading ? (
+                <Skeleton className="h-8 w-32" />
+              ) : (
+                <>
+                  <p className="text-2xl font-bold text-blue-500">{formatCurrency(summary.saldoAtual)}</p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Previsto: <span className={summary.saldoPrevisto >= 0 ? 'text-emerald-500' : 'text-red-500'}>
+                      {formatCurrency(summary.saldoPrevisto)}
+                    </span>
+                  </p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {isWidgetEnabled('resultado') && (
+          <Card className={`bg-gradient-to-br ${summary.saldo >= 0 ? 'from-primary/10 to-primary/5 border-primary/20' : 'from-orange-500/10 to-orange-500/5 border-orange-500/20'}`}>
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm text-muted-foreground">Resultado do Mês</span>
+                {summary.saldo >= 0 ? (
+                  <ArrowUpRight className="w-5 h-5 text-primary" />
+                ) : (
+                  <ArrowDownRight className="w-5 h-5 text-orange-500" />
+                )}
+              </div>
+              {isLoading ? (
+                <Skeleton className="h-8 w-32" />
+              ) : (
+                <>
+                  <p className={`text-2xl font-bold ${summary.saldo >= 0 ? 'text-primary' : 'text-orange-500'}`}>
+                    {formatCurrency(summary.saldo)}
+                  </p>
+                  <div className="flex gap-4 mt-2 text-xs">
+                    <span className="text-emerald-500">+{formatCompact(summary.aReceber)} a receber</span>
+                    <span className="text-red-500">-{formatCompact(summary.aPagar)} a pagar</span>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {isWidgetEnabled('aReceber') && (
+          <Card className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border-emerald-500/20">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm text-muted-foreground">A Receber</span>
+                <PiggyBank className="w-5 h-5 text-emerald-500" />
+              </div>
+              {isLoading ? (
+                <Skeleton className="h-8 w-32" />
+              ) : (
+                <p className="text-2xl font-bold text-emerald-500">{formatCurrency(summary.aReceber)}</p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {isWidgetEnabled('aPagar') && (
+          <Card className="bg-gradient-to-br from-red-500/10 to-red-500/5 border-red-500/20">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm text-muted-foreground">A Pagar</span>
+                <Clock className="w-5 h-5 text-red-500" />
+              </div>
+              {isLoading ? (
+                <Skeleton className="h-8 w-32" />
+              ) : (
+                <p className="text-2xl font-bold text-red-500">{formatCurrency(summary.aPagar)}</p>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Bank Accounts */}
-      {activeBanks.length > 0 && (
+      {isWidgetEnabled('bankAccounts') && activeBanks.length > 0 && (
         <Card className="bg-card border-border/50">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
@@ -403,8 +448,10 @@ export default function Dashboard() {
       )}
 
       {/* Charts Row */}
+      {(isWidgetEnabled('evolution') || isWidgetEnabled('categoryChart')) && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Monthly Evolution */}
+        {isWidgetEnabled('evolution') && (
         <Card className="bg-card border-border/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Evolução Mensal</CardTitle>
@@ -469,8 +516,10 @@ export default function Dashboard() {
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* Category Pie Chart */}
+        {isWidgetEnabled('categoryChart') && (
         <Card className="bg-card border-border/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Despesas por Categoria</CardTitle>
@@ -513,11 +562,15 @@ export default function Dashboard() {
             )}
           </CardContent>
         </Card>
+        )}
       </div>
+      )}
 
       {/* Bottom Row */}
+      {(isWidgetEnabled('upcomingBills') || isWidgetEnabled('recentTransactions')) && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Upcoming Bills */}
+        {isWidgetEnabled('upcomingBills') && (
         <Card className="bg-card border-border/50">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
@@ -572,8 +625,10 @@ export default function Dashboard() {
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* Recent Transactions */}
+        {isWidgetEnabled('recentTransactions') && (
         <Card className="bg-card border-border/50">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
@@ -639,7 +694,9 @@ export default function Dashboard() {
             )}
           </CardContent>
         </Card>
+        )}
       </div>
+      )}
 
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

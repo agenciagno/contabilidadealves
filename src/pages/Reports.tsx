@@ -1,11 +1,11 @@
 import { useState, useMemo } from 'react';
-import { startOfMonth, endOfMonth, subMonths, subDays, startOfYear, format as formatDate } from 'date-fns';
+import { startOfMonth, endOfMonth, subMonths, subDays, startOfYear, addMonths, addDays, format as formatDate } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCategories } from '@/hooks/useCategories';
 import { useBanks } from '@/hooks/useBanks';
 import { useContacts } from '@/hooks/useContacts';
 import { useReportData, processReportData, exportToCSV, exportToPDF } from '@/hooks/useReportData';
-import { ReportFilters } from '@/components/reports/ReportFilters';
+import { ReportFilters, QuickPeriod } from '@/components/reports/ReportFilters';
 import { ReportSummary } from '@/components/reports/ReportSummary';
 import { CategoryPieChart } from '@/components/reports/CategoryPieChart';
 import { MonthlyBarChart } from '@/components/reports/MonthlyBarChart';
@@ -20,8 +20,6 @@ import { TrendingUp, TrendingDown, Calendar } from 'lucide-react';
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
-type QuickPeriod = 'thisMonth' | 'lastMonth' | 'thisYear' | 'last30Days' | 'last15Days' | null;
-
 export default function Reports() {
   const [startDate, setStartDate] = useState<Date | undefined>(startOfMonth(new Date()));
   const [endDate, setEndDate] = useState<Date | undefined>(new Date());
@@ -31,6 +29,7 @@ export default function Reports() {
   const [contactId, setContactId] = useState('all');
   const [paymentStatus, setPaymentStatus] = useState('all');
   const [quickPeriod, setQuickPeriod] = useState<QuickPeriod>('thisMonth');
+  const [balanceGroupBy, setBalanceGroupBy] = useState<'month' | 'week'>('month');
 
   const { categories = [] } = useCategories();
   const { banks = [] } = useBanks();
@@ -75,23 +74,45 @@ export default function Reports() {
       case 'thisMonth':
         setStartDate(startOfMonth(now));
         setEndDate(now);
+        setPaymentStatus('all');
         break;
       case 'lastMonth':
         const lastMonth = subMonths(now, 1);
         setStartDate(startOfMonth(lastMonth));
         setEndDate(endOfMonth(lastMonth));
+        setPaymentStatus('all');
         break;
       case 'thisYear':
         setStartDate(startOfYear(now));
         setEndDate(now);
+        setPaymentStatus('all');
         break;
       case 'last30Days':
         setStartDate(subDays(now, 30));
         setEndDate(now);
+        setPaymentStatus('all');
         break;
       case 'last15Days':
         setStartDate(subDays(now, 15));
         setEndDate(now);
+        setPaymentStatus('all');
+        break;
+      // Future periods for accounts payable/receivable
+      case 'nextMonth':
+        const nextMonth = addMonths(now, 1);
+        setStartDate(startOfMonth(nextMonth));
+        setEndDate(endOfMonth(nextMonth));
+        setPaymentStatus('pending');
+        break;
+      case 'next30Days':
+        setStartDate(now);
+        setEndDate(addDays(now, 30));
+        setPaymentStatus('pending');
+        break;
+      case 'next15Days':
+        setStartDate(now);
+        setEndDate(addDays(now, 15));
+        setPaymentStatus('pending');
         break;
     }
   };
@@ -186,7 +207,12 @@ export default function Reports() {
         }}
       />
 
-      <BalanceEvolutionChart data={reportData.balanceEvolution} />
+      <BalanceEvolutionChart 
+        data={reportData.balanceEvolution} 
+        weeklyData={reportData.weeklyBalanceEvolution}
+        groupBy={balanceGroupBy}
+        onGroupByChange={setBalanceGroupBy}
+      />
 
       <MonthlyBarChart data={reportData.monthlyData} />
 

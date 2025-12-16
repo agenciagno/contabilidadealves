@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { TrendingUp } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface BalanceData {
   month: string;
@@ -11,6 +12,9 @@ interface BalanceData {
 
 interface BalanceEvolutionChartProps {
   data: BalanceData[];
+  weeklyData?: BalanceData[];
+  groupBy?: 'month' | 'week';
+  onGroupByChange?: (value: 'month' | 'week') => void;
 }
 
 const formatCurrency = (value: number) =>
@@ -39,8 +43,15 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-export function BalanceEvolutionChart({ data }: BalanceEvolutionChartProps) {
-  if (!data || data.length === 0) {
+export function BalanceEvolutionChart({ 
+  data, 
+  weeklyData,
+  groupBy = 'month', 
+  onGroupByChange 
+}: BalanceEvolutionChartProps) {
+  const chartData = groupBy === 'week' && weeklyData ? weeklyData : data;
+
+  if (!chartData || chartData.length === 0) {
     return (
       <Card className="bg-card border-border/50">
         <CardHeader className="pb-2">
@@ -58,21 +69,43 @@ export function BalanceEvolutionChart({ data }: BalanceEvolutionChartProps) {
     );
   }
 
-  const minValue = Math.min(...data.map(d => d.balance));
-  const maxValue = Math.max(...data.map(d => d.balance));
+  const minValue = Math.min(...chartData.map(d => d.balance));
+  const maxValue = Math.max(...chartData.map(d => d.balance));
   const padding = (maxValue - minValue) * 0.1 || 1000;
 
   return (
     <Card className="bg-card border-border/50">
       <CardHeader className="pb-2">
-        <CardTitle className="text-base flex items-center gap-2">
-          <TrendingUp className="h-5 w-5 text-primary" />
-          Evolução do Saldo
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-primary" />
+            Evolução do Saldo
+          </CardTitle>
+          {onGroupByChange && (
+            <div className="flex gap-1">
+              <Button
+                variant={groupBy === 'month' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => onGroupByChange('month')}
+                className="text-xs h-7 px-2"
+              >
+                Mensal
+              </Button>
+              <Button
+                variant={groupBy === 'week' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => onGroupByChange('week')}
+                className="text-xs h-7 px-2"
+              >
+                Semanal
+              </Button>
+            </div>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={250}>
-          <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+          <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
             <XAxis
               dataKey="month"

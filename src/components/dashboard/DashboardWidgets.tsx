@@ -1,0 +1,110 @@
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Settings2, TrendingUp, TrendingDown, Wallet, Clock, DollarSign, PiggyBank, BarChart3 } from 'lucide-react';
+
+export interface WidgetConfig {
+  id: string;
+  name: string;
+  enabled: boolean;
+  icon: React.ReactNode;
+}
+
+const DEFAULT_WIDGETS: WidgetConfig[] = [
+  { id: 'receitas', name: 'Receitas do Mês', enabled: true, icon: <TrendingUp className="h-4 w-4" /> },
+  { id: 'despesas', name: 'Despesas do Mês', enabled: true, icon: <TrendingDown className="h-4 w-4" /> },
+  { id: 'saldo', name: 'Saldo em Contas', enabled: true, icon: <Wallet className="h-4 w-4" /> },
+  { id: 'resultado', name: 'Resultado do Mês', enabled: true, icon: <DollarSign className="h-4 w-4" /> },
+  { id: 'aReceber', name: 'A Receber', enabled: true, icon: <PiggyBank className="h-4 w-4" /> },
+  { id: 'aPagar', name: 'A Pagar', enabled: true, icon: <Clock className="h-4 w-4" /> },
+  { id: 'evolution', name: 'Evolução Mensal', enabled: true, icon: <BarChart3 className="h-4 w-4" /> },
+  { id: 'categoryChart', name: 'Despesas por Categoria', enabled: true, icon: <BarChart3 className="h-4 w-4" /> },
+  { id: 'upcomingBills', name: 'Contas Próximas', enabled: true, icon: <Clock className="h-4 w-4" /> },
+  { id: 'recentTransactions', name: 'Transações Recentes', enabled: true, icon: <TrendingUp className="h-4 w-4" /> },
+  { id: 'bankAccounts', name: 'Contas Bancárias', enabled: true, icon: <Wallet className="h-4 w-4" /> },
+];
+
+const STORAGE_KEY = 'dashboard-widgets-config';
+
+export function useDashboardWidgets() {
+  const [widgets, setWidgets] = useState<WidgetConfig[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Merge with defaults to handle new widgets
+        return DEFAULT_WIDGETS.map(dw => {
+          const saved = parsed.find((p: WidgetConfig) => p.id === dw.id);
+          return saved ? { ...dw, enabled: saved.enabled } : dw;
+        });
+      } catch {
+        return DEFAULT_WIDGETS;
+      }
+    }
+    return DEFAULT_WIDGETS;
+  });
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(widgets.map(w => ({ id: w.id, enabled: w.enabled }))));
+  }, [widgets]);
+
+  const toggleWidget = (id: string) => {
+    setWidgets(prev => prev.map(w => w.id === id ? { ...w, enabled: !w.enabled } : w));
+  };
+
+  const isWidgetEnabled = (id: string) => {
+    return widgets.find(w => w.id === id)?.enabled ?? true;
+  };
+
+  return { widgets, toggleWidget, isWidgetEnabled };
+}
+
+interface DashboardWidgetsConfigProps {
+  widgets: WidgetConfig[];
+  onToggle: (id: string) => void;
+}
+
+export function DashboardWidgetsConfig({ widgets, onToggle }: DashboardWidgetsConfigProps) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="gap-2">
+          <Settings2 className="h-4 w-4" />
+          Personalizar
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Personalizar Dashboard</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <p className="text-sm text-muted-foreground">
+            Selecione quais widgets deseja exibir no dashboard
+          </p>
+          <div className="space-y-3">
+            {widgets.map((widget) => (
+              <div key={widget.id} className="flex items-center space-x-3">
+                <Checkbox
+                  id={widget.id}
+                  checked={widget.enabled}
+                  onCheckedChange={() => onToggle(widget.id)}
+                />
+                <label
+                  htmlFor={widget.id}
+                  className="flex items-center gap-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                >
+                  {widget.icon}
+                  {widget.name}
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
