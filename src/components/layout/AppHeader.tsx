@@ -23,7 +23,7 @@ const formatCurrency = (value: number) => {
 };
 
 export function AppHeader() {
-  const { theme, toggleTheme } = useTheme();
+  const { theme, resolvedTheme, setTheme } = useTheme();
   const navigate = useNavigate();
   const now = new Date();
   const currentMonth = now.getMonth();
@@ -85,10 +85,10 @@ export function AppHeader() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={toggleTheme}
+            onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
             className="text-muted-foreground hover:text-foreground"
           >
-            {theme === 'dark' ? (
+            {resolvedTheme === 'dark' ? (
               <Sun className="w-5 h-5" />
             ) : (
               <Moon className="w-5 h-5" />
