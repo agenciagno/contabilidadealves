@@ -247,6 +247,7 @@ export type Database = {
           contact_id: string | null
           created_at: string
           day_of_month: number | null
+          days_of_week: string | null
           description: string
           end_date: string | null
           frequency: string
@@ -254,6 +255,7 @@ export type Database = {
           is_active: boolean
           notes: string | null
           start_date: string
+          times_per_week: number | null
           type: string
           updated_at: string
         }
@@ -265,6 +267,7 @@ export type Database = {
           contact_id?: string | null
           created_at?: string
           day_of_month?: number | null
+          days_of_week?: string | null
           description: string
           end_date?: string | null
           frequency?: string
@@ -272,6 +275,7 @@ export type Database = {
           is_active?: boolean
           notes?: string | null
           start_date?: string
+          times_per_week?: number | null
           type: string
           updated_at?: string
         }
@@ -283,6 +287,7 @@ export type Database = {
           contact_id?: string | null
           created_at?: string
           day_of_month?: number | null
+          days_of_week?: string | null
           description?: string
           end_date?: string | null
           frequency?: string
@@ -290,6 +295,7 @@ export type Database = {
           is_active?: boolean
           notes?: string | null
           start_date?: string
+          times_per_week?: number | null
           type?: string
           updated_at?: string
         }

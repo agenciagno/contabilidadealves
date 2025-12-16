@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Pencil, Trash2, TrendingUp, TrendingDown, RefreshCw, Calendar } from 'lucide-react';
+import { Plus, Pencil, Trash2, TrendingUp, TrendingDown, RefreshCw, Calendar, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useRecurringTransactions, RecurringTransaction, RecurringTransactionInsert } from '@/hooks/useRecurringTransactions';
 import { RecurringFormDialog } from '@/components/recurring/RecurringFormDialog';
+import { DAY_LABELS } from '@/components/recurring/WeekDaysSelector';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', {
@@ -110,6 +111,9 @@ export default function RecurringBills() {
                 <Badge variant="outline" className="text-xs">
                   <RefreshCw className="w-3 h-3 mr-1" />
                   {frequencyLabels[recurring.frequency]}
+                  {recurring.frequency === 'weekly' && recurring.times_per_week && recurring.times_per_week > 1 && (
+                    <span className="ml-1">({recurring.times_per_week}x)</span>
+                  )}
                 </Badge>
                 {recurring.day_of_month && recurring.frequency === 'monthly' && (
                   <Badge variant="outline" className="text-xs">
@@ -117,7 +121,20 @@ export default function RecurringBills() {
                     Dia {recurring.day_of_month}
                   </Badge>
                 )}
+                {recurring.frequency === 'weekly' && recurring.days_of_week && recurring.days_of_week.length > 0 && (
+                  <Badge variant="outline" className="text-xs">
+                    <Calendar className="w-3 h-3 mr-1" />
+                    {recurring.days_of_week.map(d => DAY_LABELS[d] || d).join(', ')}
+                  </Badge>
+                )}
               </div>
+              {/* Contact info */}
+              {recurring.contact && (
+                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                  <User className="w-3 h-3" />
+                  {recurring.contact.type === 'fornecedor' ? 'Fornecedor' : 'Cliente'}: {recurring.contact.name}
+                </p>
+              )}
               {recurring.bank && (
                 <p className="text-xs text-muted-foreground mt-1">
                   Conta: {recurring.bank.name}
