@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Plus, Search, Edit2, Trash2, User, Building2, Mail, Phone, MapPin, Copy, Eye } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, User, Building2, Mail, Phone, MapPin, Copy, Eye, Users, CheckCircle, AlertTriangle, X } from 'lucide-react';
 import { useContacts, Contact, ContactInsert } from '@/hooks/useContacts';
 import { useTransactions } from '@/hooks/useTransactions';
 import { ContactFormDialog } from '@/components/contacts/ContactFormDialog';
@@ -37,17 +37,8 @@ export default function Contacts() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
-
-  const filteredContacts = contacts.filter((c) => {
-    const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.document?.includes(searchTerm);
-    const matchesType = filterType === 'all' || c.type === filterType || (filterType === 'ambos' && c.type === 'ambos');
-    return matchesSearch && matchesType;
-  });
-
-  const activeContacts = filteredContacts.filter((c) => c.is_active);
-  const inactiveContacts = filteredContacts.filter((c) => !c.is_active);
+  const [filterTaxRegime, setFilterTaxRegime] = useState('all');
+  const [filterFinancialStatus, setFilterFinancialStatus] = useState('all');
 
   // Get financial status for each contact
   const getFinancialStatus = (contactId: string) => {
@@ -57,6 +48,53 @@ export default function Contacts() {
       t => !t.is_paid && t.due_date && t.due_date < today
     );
     return { isInadimplente: hasOverdue };
+  };
+
+  // Calculate summary stats
+  const summaryStats = useMemo(() => {
+    const total = contacts.length;
+    let adimplentes = 0;
+    let inadimplentes = 0;
+    
+    contacts.forEach(contact => {
+      const { isInadimplente } = getFinancialStatus(contact.id);
+      if (isInadimplente) {
+        inadimplentes++;
+      } else {
+        adimplentes++;
+      }
+    });
+    
+    return { total, adimplentes, inadimplentes };
+  }, [contacts, transactions]);
+
+  const filteredContacts = useMemo(() => {
+    return contacts.filter((c) => {
+      const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.document?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesType = filterType === 'all' || c.type === filterType || (filterType === 'ambos' && c.type === 'ambos');
+      const matchesTaxRegime = filterTaxRegime === 'all' || c.tax_regime === filterTaxRegime;
+      
+      let matchesFinancialStatus = true;
+      if (filterFinancialStatus !== 'all') {
+        const { isInadimplente } = getFinancialStatus(c.id);
+        matchesFinancialStatus = filterFinancialStatus === 'inadimplente' ? isInadimplente : !isInadimplente;
+      }
+      
+      return matchesSearch && matchesType && matchesTaxRegime && matchesFinancialStatus;
+    });
+  }, [contacts, searchTerm, filterType, filterTaxRegime, filterFinancialStatus, transactions]);
+
+  const activeContacts = filteredContacts.filter((c) => c.is_active);
+  const inactiveContacts = filteredContacts.filter((c) => !c.is_active);
+
+  const hasActiveFilters = searchTerm || filterType !== 'all' || filterTaxRegime !== 'all' || filterFinancialStatus !== 'all';
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setFilterType('all');
+    setFilterTaxRegime('all');
+    setFilterFinancialStatus('all');
   };
 
   const copyToClipboard = async (text: string, label: string) => {
@@ -105,6 +143,12 @@ export default function Contacts() {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-64" />
+        <div className="grid grid-cols-3 gap-4">
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={i} className="h-24" />
+          ))}
+        </div>
+        <Skeleton className="h-12 w-full" />
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {[...Array(6)].map((_, i) => (
             <Skeleton key={i} className="h-48" />
@@ -219,54 +263,98 @@ export default function Contacts() {
         </Button>
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nome, e-mail ou documento..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <Select value={filterType} onValueChange={setFilterType}>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="Tipo" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="cliente">Clientes</SelectItem>
-            <SelectItem value="fornecedor">Fornecedores</SelectItem>
-            <SelectItem value="ambos">Ambos</SelectItem>
-          </SelectContent>
-        </Select>
+      {/* Summary Stats */}
+      <div className="grid grid-cols-3 gap-4">
+        <Card className="bg-card/80 backdrop-blur-sm border-border/50">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-primary/10">
+              <Users className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-foreground">{summaryStats.total}</p>
+              <p className="text-xs text-muted-foreground">Total de Contatos</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-card/80 backdrop-blur-sm border-border/50">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-emerald-500/10">
+              <CheckCircle className="h-5 w-5 text-emerald-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-emerald-500">{summaryStats.adimplentes}</p>
+              <p className="text-xs text-muted-foreground">Adimplentes</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-card/80 backdrop-blur-sm border-border/50">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-destructive/10">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-destructive">{summaryStats.inadimplentes}</p>
+              <p className="text-xs text-muted-foreground">Inadimplentes</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Summary */}
-      <div className="grid grid-cols-3 gap-4">
-        <Card className="bg-card border-border/50">
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold text-emerald-500">
-              {contacts.filter(c => c.type === 'cliente' || c.type === 'ambos').length}
-            </p>
-            <p className="text-xs text-muted-foreground">Clientes</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border-border/50">
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold text-blue-500">
-              {contacts.filter(c => c.type === 'fornecedor' || c.type === 'ambos').length}
-            </p>
-            <p className="text-xs text-muted-foreground">Fornecedores</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border-border/50">
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold text-foreground">{contacts.length}</p>
-            <p className="text-xs text-muted-foreground">Total</p>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Filters Bar */}
+      <Card className="bg-card/80 backdrop-blur-sm border-border/50">
+        <CardContent className="p-4">
+          <div className="flex flex-wrap gap-3 items-center">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nome ou CNPJ..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 bg-background"
+              />
+            </div>
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="w-[140px] bg-background">
+                <SelectValue placeholder="Tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="cliente">Clientes</SelectItem>
+                <SelectItem value="fornecedor">Fornecedores</SelectItem>
+                <SelectItem value="ambos">Ambos</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterTaxRegime} onValueChange={setFilterTaxRegime}>
+              <SelectTrigger className="w-[170px] bg-background">
+                <SelectValue placeholder="Regime Tributário" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Regimes</SelectItem>
+                <SelectItem value="mei">MEI</SelectItem>
+                <SelectItem value="simples_nacional">Simples Nacional</SelectItem>
+                <SelectItem value="lucro_presumido">Lucro Presumido</SelectItem>
+                <SelectItem value="lucro_real">Lucro Real</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterFinancialStatus} onValueChange={setFilterFinancialStatus}>
+              <SelectTrigger className="w-[150px] bg-background">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Status</SelectItem>
+                <SelectItem value="adimplente">Adimplentes</SelectItem>
+                <SelectItem value="inadimplente">Inadimplentes</SelectItem>
+              </SelectContent>
+            </Select>
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1.5 text-muted-foreground">
+                <X className="h-4 w-4" />
+                Limpar Filtros
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Active Contacts */}
       {activeContacts.length > 0 && (
@@ -299,7 +387,7 @@ export default function Contacts() {
       {filteredContacts.length === 0 && (
         <Card className="bg-card border-border/50">
           <CardContent className="text-muted-foreground text-center py-16">
-            {searchTerm || filterType !== 'all'
+            {hasActiveFilters
               ? 'Nenhum contato encontrado com os filtros aplicados'
               : 'Nenhum contato cadastrado ainda'}
           </CardContent>
