@@ -9,6 +9,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 
 // Pages
 import Auth from "@/pages/Auth";
+import Home from "@/pages/Home";
 import Dashboard from "@/pages/Dashboard";
 import Transactions from "@/pages/Transactions";
 import RecurringBills from "@/pages/RecurringBills";
@@ -17,6 +18,8 @@ import Banks from "@/pages/Banks";
 import Categories from "@/pages/Categories";
 import Reports from "@/pages/Reports";
 import SettingsPage from "@/pages/SettingsPage";
+import CrmDispatches from "@/pages/CrmDispatches";
+import ClientReport from "@/pages/ClientReport";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,7 +34,8 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/auth" element={<Auth />} />
-              <Route path="/" element={<AppLayout><Dashboard /></AppLayout>} />
+              <Route path="/" element={<AppLayout><Home /></AppLayout>} />
+              <Route path="/painel-financeiro" element={<AppLayout><Dashboard /></AppLayout>} />
               <Route path="/movimentacoes" element={<AppLayout><Transactions /></AppLayout>} />
               <Route path="/recorrentes" element={<AppLayout><RecurringBills /></AppLayout>} />
               <Route path="/contatos" element={<AppLayout><Contacts /></AppLayout>} />
@@ -39,6 +43,8 @@ const App = () => (
               <Route path="/categorias" element={<AppLayout><Categories /></AppLayout>} />
               <Route path="/relatorios" element={<AppLayout><Reports /></AppLayout>} />
               <Route path="/configuracoes" element={<AppLayout><SettingsPage /></AppLayout>} />
+              <Route path="/disparos" element={<AppLayout><CrmDispatches /></AppLayout>} />
+              <Route path="/relatorio-clientes" element={<AppLayout><ClientReport /></AppLayout>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
