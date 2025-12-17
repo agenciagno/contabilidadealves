@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,9 +7,11 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Plus, Search, Edit2, Trash2, User, Building2, Mail, Phone, MapPin } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, User, Building2, Mail, Phone, MapPin, Copy, Eye } from 'lucide-react';
 import { useContacts, Contact, ContactInsert } from '@/hooks/useContacts';
+import { useTransactions } from '@/hooks/useTransactions';
 import { ContactFormDialog } from '@/components/contacts/ContactFormDialog';
+import { useToast } from '@/hooks/use-toast';
 
 const typeLabels = {
   cliente: { label: 'Cliente', color: 'bg-emerald-500/10 text-emerald-500' },
@@ -25,7 +28,10 @@ const taxRegimeLabels: Record<string, string> = {
 };
 
 export default function Contacts() {
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const { contacts, isLoading, createContact, updateContact, deleteContact } = useContacts();
+  const { transactions } = useTransactions();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | undefined>();
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -42,6 +48,25 @@ export default function Contacts() {
 
   const activeContacts = filteredContacts.filter((c) => c.is_active);
   const inactiveContacts = filteredContacts.filter((c) => !c.is_active);
+
+  // Get financial status for each contact
+  const getFinancialStatus = (contactId: string) => {
+    const today = new Date().toISOString().split('T')[0];
+    const contactTransactions = transactions.filter(t => t.contact_id === contactId);
+    const hasOverdue = contactTransactions.some(
+      t => !t.is_paid && t.due_date && t.due_date < today
+    );
+    return { isInadimplente: hasOverdue };
+  };
+
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({ title: `${label} copiado!`, duration: 2000 });
+    } catch {
+      toast({ title: 'Erro ao copiar', variant: 'destructive' });
+    }
+  };
 
   const handleSubmit = (data: ContactInsert) => {
     if (editingContact) {
@@ -89,33 +114,86 @@ export default function Contacts() {
     );
   }
 
-  const ContactCard = ({ contact }: { contact: Contact }) => (
-    <Card className={`bg-card border-border/50 ${!contact.is_active ? 'opacity-60' : ''}`}>
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              {contact.type === 'fornecedor' ? (
-                <Building2 className="h-5 w-5 text-primary" />
-              ) : (
-                <User className="h-5 w-5 text-primary" />
-              )}
-            </div>
-            <div>
-              <h3 className="font-semibold text-foreground">{contact.name}</h3>
-              <div className="flex flex-wrap gap-1 mt-1">
-                <Badge variant="secondary" className={typeLabels[contact.type].color}>
-                  {typeLabels[contact.type].label}
-                </Badge>
-                {contact.tax_regime && (
-                  <Badge variant="outline" className="text-xs">
-                    {taxRegimeLabels[contact.tax_regime]}
-                  </Badge>
+  const ContactCard = ({ contact }: { contact: Contact }) => {
+    const { isInadimplente } = getFinancialStatus(contact.id);
+
+    return (
+      <Card className={`bg-card border-border/50 ${!contact.is_active ? 'opacity-60' : ''}`}>
+        <CardContent className="p-4">
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-xl">
+                {contact.type === 'fornecedor' ? (
+                  <Building2 className="h-5 w-5 text-primary" />
+                ) : (
+                  <User className="h-5 w-5 text-primary" />
                 )}
               </div>
+              <div>
+                <h3 className="font-semibold text-foreground">{contact.name}</h3>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  <Badge variant="secondary" className={typeLabels[contact.type].color}>
+                    {typeLabels[contact.type].label}
+                  </Badge>
+                  {contact.tax_regime && (
+                    <Badge variant="outline" className="text-xs">
+                      {taxRegimeLabels[contact.tax_regime]}
+                    </Badge>
+                  )}
+                </div>
+              </div>
             </div>
+            <Badge 
+              variant={isInadimplente ? 'destructive' : 'secondary'}
+              className={!isInadimplente ? 'bg-emerald-500/10 text-emerald-500' : ''}
+            >
+              {isInadimplente ? 'Inadimplente' : 'Adimplente'}
+            </Badge>
           </div>
-          <div className="flex gap-1">
+
+          <div className="space-y-2 text-sm text-muted-foreground">
+            {contact.document && (
+              <p className="truncate font-mono text-xs">{contact.document}</p>
+            )}
+            {contact.email && (
+              <button
+                onClick={() => copyToClipboard(contact.email!, 'E-mail')}
+                className="group flex items-center gap-2 w-full hover:text-primary transition-colors text-left"
+              >
+                <Mail className="h-3.5 w-3.5 flex-shrink-0" />
+                <span className="truncate flex-1">{contact.email}</span>
+                <Copy className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+              </button>
+            )}
+            {contact.phone && (
+              <button
+                onClick={() => copyToClipboard(contact.phone!, 'Telefone')}
+                className="group flex items-center gap-2 w-full hover:text-primary transition-colors text-left"
+              >
+                <Phone className="h-3.5 w-3.5 flex-shrink-0" />
+                <span className="flex-1">{contact.phone}</span>
+                <Copy className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+              </button>
+            )}
+            {(contact.city || contact.state) && (
+              <div className="flex items-center gap-2">
+                <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+                <span>{[contact.city, contact.state].filter(Boolean).join(' - ')}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-2 mt-4 pt-3 border-t border-border/50">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex-1"
+              onClick={() => navigate(`/crm/cliente/${contact.id}`)}
+            >
+              <Eye className="h-4 w-4 mr-1" />
+              Ver Perfil
+            </Button>
             <Button variant="ghost" size="icon" onClick={() => handleEdit(contact)}>
               <Edit2 className="h-4 w-4" />
             </Button>
@@ -123,34 +201,10 @@ export default function Contacts() {
               <Trash2 className="h-4 w-4 text-destructive" />
             </Button>
           </div>
-        </div>
-
-        <div className="space-y-2 text-sm text-muted-foreground">
-          {contact.document && (
-            <p className="truncate">{contact.document}</p>
-          )}
-          {contact.email && (
-            <div className="flex items-center gap-2">
-              <Mail className="h-3.5 w-3.5" />
-              <span className="truncate">{contact.email}</span>
-            </div>
-          )}
-          {contact.phone && (
-            <div className="flex items-center gap-2">
-              <Phone className="h-3.5 w-3.5" />
-              <span>{contact.phone}</span>
-            </div>
-          )}
-          {(contact.city || contact.state) && (
-            <div className="flex items-center gap-2">
-              <MapPin className="h-3.5 w-3.5" />
-              <span>{[contact.city, contact.state].filter(Boolean).join(' - ')}</span>
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <div className="space-y-6">
