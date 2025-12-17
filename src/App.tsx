@@ -14,6 +14,7 @@ import Dashboard from "@/pages/Dashboard";
 import Transactions from "@/pages/Transactions";
 import RecurringBills from "@/pages/RecurringBills";
 import Contacts from "@/pages/Contacts";
+import ContactProfile from "@/pages/ContactProfile";
 import Banks from "@/pages/Banks";
 import Categories from "@/pages/Categories";
 import Reports from "@/pages/Reports";
@@ -39,6 +40,7 @@ const App = () => (
               <Route path="/movimentacoes" element={<AppLayout><Transactions /></AppLayout>} />
               <Route path="/recorrentes" element={<AppLayout><RecurringBills /></AppLayout>} />
               <Route path="/contatos" element={<AppLayout><Contacts /></AppLayout>} />
+              <Route path="/crm/cliente/:id" element={<AppLayout><ContactProfile /></AppLayout>} />
               <Route path="/bancos" element={<AppLayout><Banks /></AppLayout>} />
               <Route path="/categorias" element={<AppLayout><Categories /></AppLayout>} />
               <Route path="/relatorios" element={<AppLayout><Reports /></AppLayout>} />
