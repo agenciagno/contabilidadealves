@@ -14,6 +14,8 @@ import { useTransactions } from '@/hooks/useTransactions';
 import { format, isAfter, isBefore, addDays, parseISO, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
+import { HeaderCalculator } from './HeaderCalculator';
+import { HeaderCalendar } from './HeaderCalendar';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', {
@@ -87,6 +89,9 @@ export function AppHeader() {
         </div>
 
         <div className="flex items-center gap-2">
+          <HeaderCalculator />
+          <HeaderCalendar />
+          
           <Button
             variant="ghost"
             size="icon"
