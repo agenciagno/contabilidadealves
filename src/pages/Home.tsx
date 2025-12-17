@@ -1,38 +1,17 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Home as HomeIcon } from 'lucide-react';
 
 const Home = () => {
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Visão Geral</h1>
-        <p className="text-muted-foreground">
-          Bem-vindo ao seu painel de gestão
-        </p>
+    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+      <div className="p-6 rounded-full bg-muted/30 mb-4">
+        <HomeIcon className="w-16 h-16 text-muted-foreground/50" />
       </div>
-
-      <Card className="border-dashed">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="p-4 rounded-full bg-primary/10">
-              <HomeIcon className="w-12 h-12 text-primary" />
-            </div>
-          </div>
-          <CardTitle>Página Inicial</CardTitle>
-          <CardDescription>
-            Esta página será personalizada com widgets e resumos importantes do seu negócio.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="text-center text-muted-foreground">
-          <p>Em breve você poderá ver aqui:</p>
-          <ul className="mt-4 space-y-2">
-            <li>• Resumo financeiro do dia</li>
-            <li>• Alertas e notificações importantes</li>
-            <li>• Atividades recentes</li>
-            <li>• Metas e indicadores</li>
-          </ul>
-        </CardContent>
-      </Card>
+      <h1 className="text-2xl font-semibold text-muted-foreground/70">
+        Página Inicial
+      </h1>
+      <p className="text-sm text-muted-foreground/50 mt-2">
+        Selecione uma opção no menu lateral
+      </p>
     </div>
   );
 };

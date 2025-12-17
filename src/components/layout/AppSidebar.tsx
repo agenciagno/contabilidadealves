@@ -138,13 +138,13 @@ export function AppSidebar() {
         <SidebarMenuButton asChild tooltip={shortcut.title}>
           <NavLink 
             to={shortcut.url}
-            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors group"
+            className="flex items-center gap-2 pl-8 pr-3 py-1.5 rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors group text-sm"
             activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
           >
-            <IconComponent className="w-4 h-4 shrink-0" />
+            <IconComponent className="w-3.5 h-3.5 shrink-0" />
             {!collapsed && (
               <>
-                <span className="flex-1 truncate text-sm">{shortcut.title}</span>
+                <span className="flex-1 truncate">{shortcut.title}</span>
                 <button
                   onClick={(e) => {
                     e.preventDefault();
@@ -153,7 +153,7 @@ export function AppSidebar() {
                   }}
                   className="opacity-0 group-hover:opacity-100 transition-opacity"
                 >
-                  <PinOff className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
+                  <PinOff className="w-3 h-3 text-muted-foreground hover:text-destructive" />
                 </button>
               </>
             )}
@@ -228,10 +228,10 @@ export function AppSidebar() {
               onOpenChange={() => handleToggleModule(module.title)}
             >
               <CollapsibleTrigger asChild>
-                <SidebarGroupLabel className="flex items-center justify-between cursor-pointer hover:bg-sidebar-accent/50 rounded-lg px-3 py-2 transition-colors">
-                  <div className="flex items-center gap-2 text-sidebar-foreground/70">
-                    <module.icon className="w-4 h-4" />
-                    {!collapsed && <span className="text-xs uppercase tracking-wider">{module.title}</span>}
+                <SidebarGroupLabel className="flex items-center justify-between cursor-pointer hover:bg-sidebar-accent rounded-lg px-3 py-2.5 transition-colors">
+                  <div className="flex items-center gap-3 text-sidebar-foreground">
+                    <module.icon className="w-5 h-5" />
+                    {!collapsed && <span className="text-sm font-semibold">{module.title}</span>}
                   </div>
                   {!collapsed && (
                     <ChevronDown 
@@ -251,21 +251,21 @@ export function AppSidebar() {
                         <SidebarMenuButton asChild tooltip={item.title}>
                           <NavLink 
                             to={item.url}
-                            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors group"
+                            className="flex items-center gap-2 pl-8 pr-3 py-1.5 rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors group text-sm"
                             activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                           >
-                            <item.icon className="w-4 h-4 shrink-0" />
+                            <item.icon className="w-3.5 h-3.5 shrink-0" />
                             {!collapsed && (
                               <>
-                                <span className="flex-1 truncate text-sm">{item.title}</span>
+                                <span className="flex-1 truncate">{item.title}</span>
                                 <button
                                   onClick={(e) => handlePinClick(e, item)}
                                   className="opacity-0 group-hover:opacity-100 transition-opacity"
                                 >
                                   {isPinned(item.url) ? (
-                                    <PinOff className="w-3.5 h-3.5 text-primary" />
+                                    <PinOff className="w-3 h-3 text-primary" />
                                   ) : (
-                                    <Pin className="w-3.5 h-3.5 text-muted-foreground hover:text-primary" />
+                                    <Pin className="w-3 h-3 text-muted-foreground hover:text-primary" />
                                   )}
                                 </button>
                               </>
