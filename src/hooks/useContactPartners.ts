@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { createAuditLog } from './useAuditLog';
 
 export interface ContactPartner {
   id: string;
@@ -56,10 +57,19 @@ export function useContactPartners(contactId: string) {
         .single();
 
       if (error) throw error;
+
+      // Create audit log
+      await createAuditLog({
+        contactId: partner.contact_id,
+        action: 'SOCIO_ADICIONADO',
+        description: `Sócio "${partner.name}" adicionado (${partner.participation_percentage || 0}%)`,
+      });
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contact-partners', contactId] });
+      queryClient.invalidateQueries({ queryKey: ['contact-logs', contactId] });
       toast({ title: 'Sócio adicionado com sucesso!' });
     },
     onError: (error: Error) => {
@@ -77,10 +87,19 @@ export function useContactPartners(contactId: string) {
         .single();
 
       if (error) throw error;
+
+      // Create audit log
+      await createAuditLog({
+        contactId,
+        action: 'SOCIO_EDITADO',
+        description: `Sócio "${updates.name || data.name}" atualizado`,
+      });
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contact-partners', contactId] });
+      queryClient.invalidateQueries({ queryKey: ['contact-logs', contactId] });
       toast({ title: 'Sócio atualizado!' });
     },
     onError: (error: Error) => {
@@ -90,15 +109,26 @@ export function useContactPartners(contactId: string) {
 
   const deletePartner = useMutation({
     mutationFn: async (id: string) => {
+      // Get partner name before deleting
+      const partnerToDelete = partners.find(p => p.id === id);
+      
       const { error } = await supabase
         .from('contact_partners')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
+
+      // Create audit log
+      await createAuditLog({
+        contactId,
+        action: 'SOCIO_REMOVIDO',
+        description: `Sócio "${partnerToDelete?.name || 'Desconhecido'}" removido`,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contact-partners', contactId] });
+      queryClient.invalidateQueries({ queryKey: ['contact-logs', contactId] });
       toast({ title: 'Sócio removido!' });
     },
     onError: (error: Error) => {
