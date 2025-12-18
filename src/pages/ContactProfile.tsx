@@ -173,7 +173,7 @@ export default function ContactProfile() {
         </TabsList>
 
         <TabsContent value="financeiro" className="mt-6">
-          <ContactFinancialTab contactId={contact.id} />
+          <ContactFinancialTab contactId={contact.id} contactName={contact.name} />
         </TabsContent>
 
         <TabsContent value="comunicacao" className="mt-6">

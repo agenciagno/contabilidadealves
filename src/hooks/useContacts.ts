@@ -18,6 +18,7 @@ export interface Contact {
   notes: string | null;
   tax_regime: TaxRegime | null;
   is_active: boolean;
+  representative_legal: string | null;
   created_at: string;
   updated_at: string;
 }

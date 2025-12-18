@@ -48,6 +48,7 @@ export function ContactFormDialog({
   const [state, setState] = useState('');
   const [notes, setNotes] = useState('');
   const [isActive, setIsActive] = useState(true);
+  const [representativeLegal, setRepresentativeLegal] = useState('');
 
   useEffect(() => {
     if (contact) {
@@ -62,6 +63,7 @@ export function ContactFormDialog({
       setState(contact.state || '');
       setNotes(contact.notes || '');
       setIsActive(contact.is_active);
+      setRepresentativeLegal(contact.representative_legal || '');
     } else {
       setName('');
       setType('cliente');
@@ -74,6 +76,7 @@ export function ContactFormDialog({
       setState('');
       setNotes('');
       setIsActive(true);
+      setRepresentativeLegal('');
     }
   }, [contact, open]);
 
@@ -91,19 +94,23 @@ export function ContactFormDialog({
       state: state || null,
       notes: notes.trim() || null,
       is_active: isActive,
+      representative_legal: representativeLegal.trim() || null,
     });
   };
 
+  const isFormValid = name.trim() && document.trim() && email.trim() && taxRegime;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{contact ? 'Editar Contato' : 'Novo Contato'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <Label htmlFor="name">Nome *</Label>
+            {/* Row 1: Nome | Tipo */}
+            <div>
+              <Label htmlFor="name">Nome <span className="text-destructive">*</span></Label>
               <Input
                 id="name"
                 value={name}
@@ -112,9 +119,8 @@ export function ContactFormDialog({
                 required
               />
             </div>
-
             <div>
-              <Label htmlFor="type">Tipo *</Label>
+              <Label htmlFor="type">Tipo <span className="text-destructive">*</span></Label>
               <Select value={type} onValueChange={(v) => setType(v as typeof type)}>
                 <SelectTrigger>
                   <SelectValue />
@@ -127,8 +133,9 @@ export function ContactFormDialog({
               </Select>
             </div>
 
+            {/* Row 2: CPF/CNPJ | Regime Tributário */}
             <div>
-              <Label htmlFor="document">CPF/CNPJ</Label>
+              <Label htmlFor="document">CPF/CNPJ <span className="text-destructive">*</span></Label>
               <Input
                 id="document"
                 value={document}
@@ -137,9 +144,8 @@ export function ContactFormDialog({
                 maxLength={18}
               />
             </div>
-
-            <div className="col-span-2">
-              <Label htmlFor="taxRegime">Regime Tributário</Label>
+            <div>
+              <Label htmlFor="taxRegime">Regime Tributário <span className="text-destructive">*</span></Label>
               <Select value={taxRegime} onValueChange={(v) => setTaxRegime(v as TaxRegime)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o regime..." />
@@ -154,8 +160,9 @@ export function ContactFormDialog({
               </Select>
             </div>
 
+            {/* Row 3: E-mail | Telefone */}
             <div>
-              <Label htmlFor="email">E-mail</Label>
+              <Label htmlFor="email">E-mail <span className="text-destructive">*</span></Label>
               <Input
                 id="email"
                 type="email"
@@ -164,7 +171,6 @@ export function ContactFormDialog({
                 placeholder="email@exemplo.com"
               />
             </div>
-
             <div>
               <Label htmlFor="phone">Telefone</Label>
               <Input
@@ -176,16 +182,16 @@ export function ContactFormDialog({
               />
             </div>
 
-            <div className="col-span-2">
-              <Label htmlFor="address">Endereço</Label>
+            {/* Row 4: Representante Legal | Cidade */}
+            <div>
+              <Label htmlFor="representativeLegal">Representante Legal</Label>
               <Input
-                id="address"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="Rua, número, bairro"
+                id="representativeLegal"
+                value={representativeLegal}
+                onChange={(e) => setRepresentativeLegal(e.target.value)}
+                placeholder="Nome do representante"
               />
             </div>
-
             <div>
               <Label htmlFor="city">Cidade</Label>
               <Input
@@ -196,6 +202,16 @@ export function ContactFormDialog({
               />
             </div>
 
+            {/* Row 5: Endereço | Estado */}
+            <div>
+              <Label htmlFor="address">Endereço</Label>
+              <Input
+                id="address"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Rua, número, bairro"
+              />
+            </div>
             <div>
               <Label htmlFor="state">Estado</Label>
               <Select value={state} onValueChange={setState}>
@@ -210,6 +226,7 @@ export function ContactFormDialog({
               </Select>
             </div>
 
+            {/* Row 6: Observações (full width) */}
             <div className="col-span-2">
               <Label htmlFor="notes">Observações</Label>
               <Textarea
@@ -217,10 +234,11 @@ export function ContactFormDialog({
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Observações adicionais"
-                rows={3}
+                rows={2}
               />
             </div>
 
+            {/* Row 7: Status */}
             <div className="col-span-2 flex items-center justify-between">
               <Label htmlFor="active">Contato ativo</Label>
               <Switch id="active" checked={isActive} onCheckedChange={setIsActive} />
@@ -231,7 +249,7 @@ export function ContactFormDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={isLoading || !name.trim()}>
+            <Button type="submit" disabled={isLoading || !isFormValid}>
               {isLoading ? 'Salvando...' : 'Salvar'}
             </Button>
           </div>

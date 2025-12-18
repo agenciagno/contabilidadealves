@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -9,18 +11,21 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { TrendingUp, Clock } from 'lucide-react';
+import { TrendingUp, Clock, CalendarPlus } from 'lucide-react';
 import { useContactTransactions } from '@/hooks/useContactTransactions';
 import { ContactContractsCard } from './ContactContractsCard';
+import { GenerateFeesDialog } from './GenerateFeesDialog';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 interface ContactFinancialTabProps {
   contactId: string;
+  contactName: string;
 }
 
-export function ContactFinancialTab({ contactId }: ContactFinancialTabProps) {
+export function ContactFinancialTab({ contactId, contactName }: ContactFinancialTabProps) {
   const { data: transactions, isLoading } = useContactTransactions(contactId);
+  const [feesDialogOpen, setFeesDialogOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -55,35 +60,42 @@ export function ContactFinancialTab({ contactId }: ContactFinancialTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Summary Cards - Simplified to 2 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Card className="bg-card border-border/50">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 rounded-lg bg-emerald-500/10">
-                <TrendingUp className="h-5 w-5 text-emerald-500" />
+      {/* Summary Cards - With Generate Fees Button */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1">
+          <Card className="bg-card border-border/50">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 rounded-lg bg-emerald-500/10">
+                  <TrendingUp className="h-5 w-5 text-emerald-500" />
+                </div>
+                <span className="text-sm text-muted-foreground">Total Pago</span>
               </div>
-              <span className="text-sm text-muted-foreground">Total Pago</span>
-            </div>
-            <p className="text-2xl font-bold text-emerald-500">
-              {formatCurrency(summary.totalPago)}
-            </p>
-          </CardContent>
-        </Card>
+              <p className="text-2xl font-bold text-emerald-500">
+                {formatCurrency(summary.totalPago)}
+              </p>
+            </CardContent>
+          </Card>
 
-        <Card className="bg-card border-border/50">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 rounded-lg bg-yellow-500/10">
-                <Clock className="h-5 w-5 text-yellow-500" />
+          <Card className="bg-card border-border/50">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 rounded-lg bg-yellow-500/10">
+                  <Clock className="h-5 w-5 text-yellow-500" />
+                </div>
+                <span className="text-sm text-muted-foreground">Total Pendente</span>
               </div>
-              <span className="text-sm text-muted-foreground">Total Pendente</span>
-            </div>
-            <p className="text-2xl font-bold text-yellow-500">
-              {formatCurrency(summary.totalPendente)}
-            </p>
-          </CardContent>
-        </Card>
+              <p className="text-2xl font-bold text-yellow-500">
+                {formatCurrency(summary.totalPendente)}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+        
+        <Button onClick={() => setFeesDialogOpen(true)} className="gap-2">
+          <CalendarPlus className="h-4 w-4" />
+          Gerar Honorários Recorrentes
+        </Button>
       </div>
 
       {/* Active Contracts */}
@@ -155,6 +167,13 @@ export function ContactFinancialTab({ contactId }: ContactFinancialTabProps) {
           )}
         </CardContent>
       </Card>
+
+      <GenerateFeesDialog
+        open={feesDialogOpen}
+        onOpenChange={setFeesDialogOpen}
+        contactId={contactId}
+        contactName={contactName}
+      />
     </div>
   );
 }
