@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { TrendingUp, Clock, CalendarPlus } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { TrendingUp, Clock, CalendarPlus, ArrowUpDown } from 'lucide-react';
 import { useContactTransactions } from '@/hooks/useContactTransactions';
 import { ContactContractsCard } from './ContactContractsCard';
 import { GenerateFeesDialog } from './GenerateFeesDialog';
@@ -23,9 +30,21 @@ interface ContactFinancialTabProps {
   contactName: string;
 }
 
+type SortOrder = 'newest' | 'oldest';
+
 export function ContactFinancialTab({ contactId, contactName }: ContactFinancialTabProps) {
   const { data: transactions, isLoading } = useContactTransactions(contactId);
   const [feesDialogOpen, setFeesDialogOpen] = useState(false);
+  const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
+
+  const sortedTransactions = useMemo(() => {
+    if (!transactions) return [];
+    return [...transactions].sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+    });
+  }, [transactions, sortOrder]);
 
   if (isLoading) {
     return (
@@ -103,11 +122,23 @@ export function ContactFinancialTab({ contactId, contactName }: ContactFinancial
 
       {/* Transactions Table */}
       <Card className="bg-card border-border/50">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base">Histórico de Transações</CardTitle>
+          <div className="flex items-center gap-2">
+            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+            <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as SortOrder)}>
+              <SelectTrigger className="w-[160px] h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Mais recentes</SelectItem>
+                <SelectItem value="oldest">Mais antigas</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent>
-          {transactions && transactions.length > 0 ? (
+          {sortedTransactions.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -119,7 +150,7 @@ export function ContactFinancialTab({ contactId, contactName }: ContactFinancial
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {transactions.map((transaction) => {
+                {sortedTransactions.map((transaction) => {
                   const isOverdue = !transaction.is_paid && 
                     transaction.due_date && 
                     transaction.due_date < today;
