@@ -2,12 +2,19 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CalendarIcon, Download, FileText, Filter } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CalendarIcon, Download, FileText, Filter, Building2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
 export type QuickPeriod = 'thisMonth' | 'lastMonth' | 'thisYear' | 'last30Days' | 'last15Days' | 'nextMonth' | 'next30Days' | 'next15Days' | null;
+
+interface Bank {
+  id: string;
+  name: string;
+  color: string | null;
+}
 
 interface DashboardFiltersProps {
   startDate: Date | undefined;
@@ -18,6 +25,9 @@ interface DashboardFiltersProps {
   onExportPDF: () => void;
   quickPeriod: QuickPeriod;
   onQuickPeriodChange: (period: QuickPeriod) => void;
+  banks?: Bank[];
+  selectedBankId: string | null;
+  onBankChange: (bankId: string | null) => void;
 }
 
 const pastPeriodOptions: { value: QuickPeriod; label: string }[] = [
@@ -43,6 +53,9 @@ export function DashboardFilters({
   onExportPDF,
   quickPeriod,
   onQuickPeriodChange,
+  banks = [],
+  selectedBankId,
+  onBankChange,
 }: DashboardFiltersProps) {
   return (
     <div className="space-y-4">
@@ -53,7 +66,7 @@ export function DashboardFilters({
             <Filter className="h-5 w-5 text-primary" />
             <div>
               <CardTitle className="text-lg">Filtros</CardTitle>
-              <CardDescription>Selecione o período para visualização</CardDescription>
+              <CardDescription>Selecione o período e conta para visualização</CardDescription>
             </div>
           </div>
         </CardHeader>
@@ -96,8 +109,42 @@ export function DashboardFilters({
             </div>
           </div>
 
-          {/* Date selectors row */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {/* Date selectors and bank filter row */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+            {/* Bank Filter */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Conta/Banco</label>
+              <Select 
+                value={selectedBankId || 'all'} 
+                onValueChange={(value) => onBankChange(value === 'all' ? null : value)}
+              >
+                <SelectTrigger className="w-full">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    <SelectValue placeholder="Todas as Contas" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">
+                    <span className="flex items-center gap-2">
+                      Todas as Contas
+                    </span>
+                  </SelectItem>
+                  {banks.map((bank) => (
+                    <SelectItem key={bank.id} value={bank.id}>
+                      <span className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full flex-shrink-0" 
+                          style={{ backgroundColor: bank.color || '#3B82F6' }} 
+                        />
+                        {bank.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">Data Inicial</label>
               <Popover>
