@@ -8,6 +8,7 @@ import { useCategories } from '@/hooks/useCategories';
 import { useBanks } from '@/hooks/useBanks';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useToast } from '@/hooks/use-toast';
+import { useNotificationTriggers } from '@/hooks/useNotificationTriggers';
 import { formatCurrencyInput, parseCurrencyInput } from '@/lib/utils';
 import { addMonths, format } from 'date-fns';
 
@@ -25,6 +26,7 @@ export function GenerateFeesDialog({
   contactName,
 }: GenerateFeesDialogProps) {
   const { toast } = useToast();
+  const { notifyBulkFeesGenerated } = useNotificationTriggers();
   const { categories } = useCategories();
   const { banks } = useBanks();
   const { createTransaction } = useTransactions();
@@ -78,6 +80,7 @@ export function GenerateFeesDialog({
         title: 'Honorários gerados com sucesso!', 
         description: `${months} parcelas de ${formatCurrencyInput(parsedAmount.toString())} criadas.` 
       });
+      notifyBulkFeesGenerated(contactName, months);
       onOpenChange(false);
       // Reset form
       setAmount('');

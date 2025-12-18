@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 
 // Pages
@@ -33,7 +34,8 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <Routes>
+            <NotificationProvider>
+              <Routes>
               <Route path="/auth" element={<Auth />} />
               <Route path="/" element={<AppLayout><Home /></AppLayout>} />
               <Route path="/painel-financeiro" element={<AppLayout><Dashboard /></AppLayout>} />
@@ -48,7 +50,8 @@ const App = () => (
               <Route path="/disparos" element={<AppLayout><CrmDispatches /></AppLayout>} />
               <Route path="/relatorio-clientes" element={<AppLayout><ClientReport /></AppLayout>} />
               <Route path="*" element={<NotFound />} />
-            </Routes>
+              </Routes>
+            </NotificationProvider>
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>
