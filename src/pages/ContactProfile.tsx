@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, User, Building2, DollarSign, MessageSquare, FileText, ClipboardList, Download } from 'lucide-react';
+import { ArrowLeft, User, Building2, DollarSign, MessageSquare, FileText, ClipboardList, Download, StickyNote, History } from 'lucide-react';
 import { useContacts } from '@/hooks/useContacts';
 import { useContactTransactions, useContactFinancialStatus } from '@/hooks/useContactTransactions';
 import { useContactDocuments, DOCUMENT_CATEGORIES } from '@/hooks/useContactDocuments';
@@ -11,6 +11,8 @@ import { ContactFinancialTab } from '@/components/contacts/ContactFinancialTab';
 import { ContactDetailsTab } from '@/components/contacts/ContactDetailsTab';
 import { ContactCommunicationTab } from '@/components/contacts/ContactCommunicationTab';
 import { ContactDocumentsTab } from '@/components/contacts/ContactDocumentsTab';
+import { ContactNotesTab } from '@/components/contacts/ContactNotesTab';
+import { ContactLogsTab } from '@/components/contacts/ContactLogsTab';
 import { generateContactReport } from '@/components/contacts/ContactReportPDF';
 
 const typeLabels = {
@@ -153,10 +155,14 @@ export default function ContactProfile() {
 
       {/* Tabs */}
       <Tabs defaultValue="financeiro" className="w-full">
-        <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:grid-cols-4 gap-1">
+        <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:grid-cols-6 gap-1">
           <TabsTrigger value="financeiro" className="flex items-center gap-1.5">
             <DollarSign className="h-4 w-4" />
             <span className="hidden sm:inline">Financeiro</span>
+          </TabsTrigger>
+          <TabsTrigger value="notas" className="flex items-center gap-1.5">
+            <StickyNote className="h-4 w-4" />
+            <span className="hidden sm:inline">Notas</span>
           </TabsTrigger>
           <TabsTrigger value="comunicacao" className="flex items-center gap-1.5">
             <MessageSquare className="h-4 w-4" />
@@ -165,6 +171,10 @@ export default function ContactProfile() {
           <TabsTrigger value="documentos" className="flex items-center gap-1.5">
             <FileText className="h-4 w-4" />
             <span className="hidden sm:inline">Documentos</span>
+          </TabsTrigger>
+          <TabsTrigger value="logs" className="flex items-center gap-1.5">
+            <History className="h-4 w-4" />
+            <span className="hidden sm:inline">Logs</span>
           </TabsTrigger>
           <TabsTrigger value="dados" className="flex items-center gap-1.5">
             <ClipboardList className="h-4 w-4" />
@@ -176,12 +186,20 @@ export default function ContactProfile() {
           <ContactFinancialTab contactId={contact.id} contactName={contact.name} />
         </TabsContent>
 
+        <TabsContent value="notas" className="mt-6">
+          <ContactNotesTab contactId={contact.id} />
+        </TabsContent>
+
         <TabsContent value="comunicacao" className="mt-6">
           <ContactCommunicationTab contactId={contact.id} initialNotes={contact.notes} />
         </TabsContent>
 
         <TabsContent value="documentos" className="mt-6">
           <ContactDocumentsTab contactId={contact.id} />
+        </TabsContent>
+
+        <TabsContent value="logs" className="mt-6">
+          <ContactLogsTab contactId={contact.id} />
         </TabsContent>
 
         <TabsContent value="dados" className="mt-6">
