@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/table';
 import { TrendingUp, Clock } from 'lucide-react';
 import { useContactTransactions } from '@/hooks/useContactTransactions';
+import { ContactContractsCard } from './ContactContractsCard';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -84,6 +85,9 @@ export function ContactFinancialTab({ contactId }: ContactFinancialTabProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Active Contracts */}
+      <ContactContractsCard contactId={contactId} />
 
       {/* Transactions Table */}
       <Card className="bg-card border-border/50">
