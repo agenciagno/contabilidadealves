@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +30,7 @@ const taxRegimeLabels: Record<string, string> = {
 
 export default function Contacts() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const { contacts, isLoading, createContact, updateContact, deleteContact } = useContacts();
   const { transactions } = useTransactions();
@@ -40,6 +41,15 @@ export default function Contacts() {
   const [filterType, setFilterType] = useState('all');
   const [filterTaxRegime, setFilterTaxRegime] = useState('all');
   const [filterFinancialStatus, setFilterFinancialStatus] = useState('all');
+
+  // Handle navigation state for automatic filter
+  useEffect(() => {
+    if (location.state?.filterStatus === 'inadimplente') {
+      setFilterFinancialStatus('inadimplente');
+      // Clear the state to prevent re-applying on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   // Get dependencies for delete confirmation
   const { data: dependencies, isLoading: loadingDependencies } = useContactDependencies(deleteId);
