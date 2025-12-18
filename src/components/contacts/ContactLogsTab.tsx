@@ -1,7 +1,22 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { History, Calendar, User, FileText, Edit, Trash2, Plus, MessageSquare, RefreshCw } from 'lucide-react';
+import { 
+  History, 
+  Calendar, 
+  User, 
+  FileText, 
+  Edit, 
+  Trash2, 
+  Plus, 
+  MessageSquare, 
+  RefreshCw,
+  DollarSign,
+  CheckCircle,
+  Users,
+  UserPlus,
+  UserMinus
+} from 'lucide-react';
 import { useContactLogs } from '@/hooks/useContactLogs';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -18,6 +33,12 @@ const actionIcons: Record<string, React.ReactNode> = {
   DOCUMENTO_EXCLUIDO: <Trash2 className="h-4 w-4" />,
   MENSAGEM_ENVIADA: <MessageSquare className="h-4 w-4" />,
   PERFIL_ATUALIZADO: <RefreshCw className="h-4 w-4" />,
+  CADASTRO_ALTERADO: <Edit className="h-4 w-4" />,
+  HONORARIO_GERADO: <DollarSign className="h-4 w-4" />,
+  TRANSACAO_PAGA: <CheckCircle className="h-4 w-4" />,
+  SOCIO_ADICIONADO: <UserPlus className="h-4 w-4" />,
+  SOCIO_EDITADO: <Users className="h-4 w-4" />,
+  SOCIO_REMOVIDO: <UserMinus className="h-4 w-4" />,
 };
 
 const actionLabels: Record<string, string> = {
@@ -28,6 +49,12 @@ const actionLabels: Record<string, string> = {
   DOCUMENTO_EXCLUIDO: 'Documento Excluído',
   MENSAGEM_ENVIADA: 'Mensagem Enviada',
   PERFIL_ATUALIZADO: 'Perfil Atualizado',
+  CADASTRO_ALTERADO: 'Cadastro Alterado',
+  HONORARIO_GERADO: 'Honorário Gerado',
+  TRANSACAO_PAGA: 'Transação Paga',
+  SOCIO_ADICIONADO: 'Sócio Adicionado',
+  SOCIO_EDITADO: 'Sócio Editado',
+  SOCIO_REMOVIDO: 'Sócio Removido',
 };
 
 const actionColors: Record<string, string> = {
@@ -38,6 +65,12 @@ const actionColors: Record<string, string> = {
   DOCUMENTO_EXCLUIDO: 'bg-red-500/10 text-red-500',
   MENSAGEM_ENVIADA: 'bg-cyan-500/10 text-cyan-500',
   PERFIL_ATUALIZADO: 'bg-amber-500/10 text-amber-500',
+  CADASTRO_ALTERADO: 'bg-orange-500/10 text-orange-500',
+  HONORARIO_GERADO: 'bg-emerald-500/10 text-emerald-500',
+  TRANSACAO_PAGA: 'bg-green-500/10 text-green-500',
+  SOCIO_ADICIONADO: 'bg-indigo-500/10 text-indigo-500',
+  SOCIO_EDITADO: 'bg-violet-500/10 text-violet-500',
+  SOCIO_REMOVIDO: 'bg-rose-500/10 text-rose-500',
 };
 
 export function ContactLogsTab({ contactId }: ContactLogsTabProps) {
@@ -78,7 +111,7 @@ export function ContactLogsTab({ contactId }: ContactLogsTabProps) {
           <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border/50 hidden sm:block" />
 
           <div className="space-y-4">
-            {logs.map((log, index) => (
+            {logs.map((log) => (
               <div key={log.id} className="relative flex gap-4">
                 {/* Timeline dot */}
                 <div className="hidden sm:flex items-start justify-center pt-1">

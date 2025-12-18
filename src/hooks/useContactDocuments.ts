@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { createAuditLog } from './useAuditLog';
 
 export type DocumentCategory = 'atos_constitutivos' | 'impostos_guias' | 'fiscal' | 'dp_rh' | 'certidoes';
 
@@ -110,10 +111,20 @@ export function useContactDocuments(contactId: string | undefined) {
         .single();
 
       if (error) throw error;
+
+      // Create audit log
+      const categoryLabel = DOCUMENT_CATEGORIES.find(c => c.value === category)?.label || category;
+      await createAuditLog({
+        contactId,
+        action: 'DOCUMENTO_UPLOAD',
+        description: `Documento "${file.name}" enviado para ${categoryLabel}`,
+      });
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contact-documents', contactId] });
+      queryClient.invalidateQueries({ queryKey: ['contact-logs', contactId] });
       toast({
         title: 'Documento enviado',
         description: 'O arquivo foi salvo com sucesso.',
@@ -144,9 +155,17 @@ export function useContactDocuments(contactId: string | undefined) {
         .eq('id', document.id);
 
       if (error) throw error;
+
+      // Create audit log
+      await createAuditLog({
+        contactId: document.contact_id,
+        action: 'DOCUMENTO_EXCLUIDO',
+        description: `Documento "${document.file_name}" excluído`,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contact-documents', contactId] });
+      queryClient.invalidateQueries({ queryKey: ['contact-logs', contactId] });
       toast({
         title: 'Documento excluído',
         description: 'O arquivo foi removido com sucesso.',

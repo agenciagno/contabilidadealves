@@ -9,6 +9,7 @@ import { useBanks } from '@/hooks/useBanks';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useToast } from '@/hooks/use-toast';
 import { useNotificationTriggers } from '@/hooks/useNotificationTriggers';
+import { createAuditLog } from '@/hooks/useAuditLog';
 import { formatCurrencyInput, parseCurrencyInput } from '@/lib/utils';
 import { addMonths, format } from 'date-fns';
 
@@ -40,6 +41,13 @@ export function GenerateFeesDialog({
 
   const receitaCategories = categories.filter(c => c.type === 'receita');
   const activeBanks = banks.filter(b => b.is_active);
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(value);
+  };
 
   const handleGenerate = async () => {
     const parsedAmount = parseCurrencyInput(amount);
@@ -75,6 +83,13 @@ export function GenerateFeesDialog({
           notes: `Honorário gerado automaticamente - Parcela ${i + 1} de ${months}`,
         });
       }
+
+      // Create audit log for fees generation
+      await createAuditLog({
+        contactId,
+        action: 'HONORARIO_GERADO',
+        description: `${months} parcelas de ${formatCurrency(parsedAmount)} geradas`,
+      });
 
       toast({ 
         title: 'Honorários gerados com sucesso!', 
