@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Pencil, Trash2, TrendingUp, TrendingDown, RefreshCw, Calendar, User } from 'lucide-react';
+import { Plus, Pencil, Trash2, TrendingUp, TrendingDown, RefreshCw, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -98,16 +98,32 @@ export default function RecurringBills() {
             </div>
             <div>
               <h3 className="font-medium text-foreground">{recurring.description}</h3>
-              <div className="flex items-center gap-2 mt-1 flex-wrap">
+              {/* Metadata line - Categoria | Banco */}
+              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1 flex-wrap">
                 {recurring.category && (
-                  <Badge variant="secondary" className="text-xs">
-                    <div
-                      className="w-2 h-2 rounded-full mr-1"
+                  <span className="flex items-center gap-1">
+                    <span
+                      className="w-2 h-2 rounded-full inline-block"
                       style={{ backgroundColor: recurring.category.color || '#3B82F6' }}
                     />
                     {recurring.category.name}
-                  </Badge>
+                  </span>
                 )}
+                {recurring.bank && (
+                  <>
+                    {recurring.category && <span className="text-muted-foreground/50">|</span>}
+                    <span>{recurring.bank.name}</span>
+                  </>
+                )}
+                {recurring.contact && (
+                  <>
+                    {(recurring.category || recurring.bank) && <span className="text-muted-foreground/50">|</span>}
+                    <span className="text-primary">{recurring.contact.name}</span>
+                  </>
+                )}
+              </p>
+              {/* Badges de frequência */}
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
                 <Badge variant="outline" className="text-xs">
                   <RefreshCw className="w-3 h-3 mr-1" />
                   {frequencyLabels[recurring.frequency]}
@@ -128,18 +144,6 @@ export default function RecurringBills() {
                   </Badge>
                 )}
               </div>
-              {/* Contact info */}
-              {recurring.contact && (
-                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                  <User className="w-3 h-3" />
-                  {recurring.contact.type === 'fornecedor' ? 'Fornecedor' : 'Cliente'}: {recurring.contact.name}
-                </p>
-              )}
-              {recurring.bank && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Conta: {recurring.bank.name}
-                </p>
-              )}
             </div>
           </div>
           <div className="text-right">
