@@ -194,18 +194,15 @@ export function CashFlowForecast() {
 
         {/* Alerts */}
         {alerts.length > 0 && (
-          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-            <h4 className="text-sm font-medium text-destructive flex items-center gap-2 mb-2">
+          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 max-h-[200px] overflow-y-auto">
+            <h4 className="text-sm font-medium text-destructive flex items-center gap-2 mb-2 sticky top-0 bg-destructive/10 pb-2">
               <AlertTriangle className="h-4 w-4" />
-              Alertas de Saldo Negativo
+              Alertas de Saldo Negativo ({alerts.length})
             </h4>
             <ul className="space-y-1 text-sm text-destructive/80">
-              {alerts.slice(0, 5).map((alert, i) => (
+              {alerts.map((alert, i) => (
                 <li key={i}>• {alert.message}: {formatCurrency(alert.saldo)}</li>
               ))}
-              {alerts.length > 5 && (
-                <li className="text-muted-foreground">... e mais {alerts.length - 5} dias</li>
-              )}
             </ul>
           </div>
         )}
