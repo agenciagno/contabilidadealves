@@ -524,23 +524,42 @@ export default function Transactions() {
                         {transaction.type === 'receita' ? '+' : '-'} {formatCurrency(Number(transaction.amount))}
                       </span>
                     </div>
-                    <div className="text-sm text-muted-foreground mt-1">
+                    {/* Metadata line */}
+                    <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1 flex-wrap">
+                      {transaction.category && (
+                        <span className="flex items-center gap-1">
+                          <span
+                            className="w-2 h-2 rounded-full inline-block"
+                            style={{ backgroundColor: transaction.category.color }}
+                          />
+                          {transaction.category.name}
+                        </span>
+                      )}
+                      {transaction.bank && (
+                        <>
+                          {transaction.category && <span className="text-muted-foreground/50">|</span>}
+                          <span>{transaction.bank.name}</span>
+                        </>
+                      )}
+                      {transaction.contact && (
+                        <>
+                          {(transaction.category || transaction.bank) && <span className="text-muted-foreground/50">|</span>}
+                          <span className="text-primary">{transaction.contact.name}</span>
+                        </>
+                      )}
+                    </p>
+                    <div className="text-xs text-muted-foreground mt-1">
                       📅 {formatDate(transaction.date)}
                     </div>
-                    {transaction.bank && (
-                      <div className="text-sm text-muted-foreground">
-                        Conta Principal
-                      </div>
-                    )}
-                    {transaction.category && (
-                      <Badge variant="secondary" className="mt-2 text-xs">
-                        {transaction.category.name}
-                      </Badge>
-                    )}
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => handleEdit(transaction)}>
-                    <Pencil className="w-4 h-4" />
-                  </Button>
+                  <div className="flex flex-col gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => handleEdit(transaction)}>
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => setDeleteId(transaction.id)}>
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
