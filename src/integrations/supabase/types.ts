@@ -428,6 +428,53 @@ export type Database = {
           },
         ]
       }
+      global_logs: {
+        Row: {
+          action: string
+          company_id: string
+          created_at: string
+          details: string
+          entity_id: string | null
+          entity_name: string | null
+          id: string
+          module: string
+          user_id: string
+          user_name: string | null
+        }
+        Insert: {
+          action: string
+          company_id: string
+          created_at?: string
+          details: string
+          entity_id?: string | null
+          entity_name?: string | null
+          id?: string
+          module: string
+          user_id: string
+          user_name?: string | null
+        }
+        Update: {
+          action?: string
+          company_id?: string
+          created_at?: string
+          details?: string
+          entity_id?: string | null
+          entity_name?: string | null
+          id?: string
+          module?: string
+          user_id?: string
+          user_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "global_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           company_id: string

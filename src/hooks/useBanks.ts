@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { createGlobalLog } from '@/hooks/useGlobalLogs';
 
 export interface Bank {
   id: string;
@@ -63,10 +64,20 @@ export function useBanks() {
         .single();
 
       if (error) throw error;
+      
+      await createGlobalLog({
+        action: 'ADICAO',
+        module: 'BANCOS',
+        entityId: data.id,
+        entityName: bank.name,
+        details: `Banco "${bank.name}" criado com saldo inicial de R$ ${Number(bank.initial_balance).toFixed(2)}`,
+      });
+      
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['banks'] });
+      queryClient.invalidateQueries({ queryKey: ['global-logs'] });
       toast({ title: 'Banco criado com sucesso!' });
     },
     onError: (error: Error) => {
@@ -97,15 +108,33 @@ export function useBanks() {
 
   const deleteBank = useMutation({
     mutationFn: async (id: string) => {
+      // Get bank info before deleting
+      const { data: bank } = await supabase
+        .from('banks')
+        .select('name')
+        .eq('id', id)
+        .single();
+
       const { error } = await supabase
         .from('banks')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
+      
+      if (bank) {
+        await createGlobalLog({
+          action: 'EXCLUSAO',
+          module: 'BANCOS',
+          entityId: id,
+          entityName: bank.name,
+          details: `Banco "${bank.name}" excluído`,
+        });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['banks'] });
+      queryClient.invalidateQueries({ queryKey: ['global-logs'] });
       toast({ title: 'Banco excluído!' });
     },
     onError: (error: Error) => {
