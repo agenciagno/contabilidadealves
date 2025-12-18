@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { createAuditLog, getFieldChanges } from '@/hooks/useAuditLog';
 
 export type TaxRegime = 'mei' | 'simples_nacional' | 'lucro_presumido' | 'lucro_real' | 'nao_aplica';
 
@@ -78,7 +79,7 @@ export function useContacts() {
   });
 
   const updateContact = useMutation({
-    mutationFn: async ({ id, ...updates }: ContactUpdate & { id: string }) => {
+    mutationFn: async ({ id, originalContact, ...updates }: ContactUpdate & { id: string; originalContact?: Contact }) => {
       const { data, error } = await supabase
         .from('contacts')
         .update(updates)
@@ -87,11 +88,60 @@ export function useContacts() {
         .single();
 
       if (error) throw error;
+
+      // Create audit log for cadastral changes
+      if (originalContact) {
+        const fieldLabels: Record<string, string> = {
+          name: 'Nome',
+          document: 'CPF/CNPJ',
+          tax_regime: 'Regime Tributário',
+          email: 'E-mail',
+          phone: 'Telefone',
+          address: 'Endereço',
+          city: 'Cidade',
+          state: 'Estado',
+          representative_legal: 'Representante Legal',
+          type: 'Tipo',
+          is_active: 'Status',
+        };
+
+        const taxRegimeLabels: Record<string, string> = {
+          mei: 'MEI',
+          simples_nacional: 'Simples Nacional',
+          lucro_presumido: 'Lucro Presumido',
+          lucro_real: 'Lucro Real',
+          nao_aplica: 'Pessoa Física',
+        };
+
+        // Map tax regime values to labels for better readability
+        const mappedOldData = {
+          ...originalContact,
+          tax_regime: originalContact.tax_regime ? taxRegimeLabels[originalContact.tax_regime] || originalContact.tax_regime : '',
+          is_active: originalContact.is_active ? 'Ativo' : 'Inativo',
+        };
+        const mappedNewData = {
+          ...updates,
+          tax_regime: updates.tax_regime ? taxRegimeLabels[updates.tax_regime] || updates.tax_regime : '',
+          is_active: updates.is_active !== undefined ? (updates.is_active ? 'Ativo' : 'Inativo') : mappedOldData.is_active,
+        };
+
+        const changes = getFieldChanges(mappedOldData, mappedNewData, fieldLabels);
+
+        if (changes.length > 0) {
+          await createAuditLog({
+            contactId: id,
+            action: 'CADASTRO_ALTERADO',
+            description: changes.join('; '),
+          });
+        }
+      }
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
-      queryClient.invalidateQueries({ queryKey: ['transactions'] }); // Sync transactions view
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['contact-logs'] });
       toast({ title: 'Contato atualizado!' });
     },
     onError: (error: Error) => {

@@ -122,7 +122,7 @@ export default function Contacts() {
 
   const handleSubmit = (data: ContactInsert) => {
     if (editingContact) {
-      updateContact.mutate({ id: editingContact.id, ...data }, {
+      updateContact.mutate({ id: editingContact.id, originalContact: editingContact, ...data }, {
         onSuccess: () => {
           setDialogOpen(false);
           setEditingContact(undefined);
