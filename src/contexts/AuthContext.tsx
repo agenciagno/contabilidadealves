@@ -7,7 +7,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signUp: (email: string, password: string, companyName: string, cnpj: string, fullName: string) => Promise<{ error: Error | null }>;
-  signIn: (emailOrCnpj: string, password: string) => Promise<{ error: Error | null }>;
+  signIn: (emailOrUsername: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -105,29 +105,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signIn = async (emailOrCnpj: string, password: string) => {
+  const signIn = async (emailOrUsername: string, password: string) => {
     try {
-      let email = emailOrCnpj;
+      let email = emailOrUsername;
 
-      // Verificar se é CNPJ
-      const cnpjRegex = /^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$|^\d{14}$/;
-      if (cnpjRegex.test(emailOrCnpj.replace(/\D/g, ''))) {
-        // Buscar email pelo CNPJ
-        const { data: company } = await supabase
-          .from('companies')
-          .select('id')
-          .eq('cnpj', emailOrCnpj)
+      // Check if it's a username (no @ symbol)
+      if (!emailOrUsername.includes('@')) {
+        // Try to find email by username
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('username', emailOrUsername.toLowerCase())
           .maybeSingle();
 
-        if (company) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('email')
-            .eq('company_id', company.id)
+        if (profile?.email) {
+          email = profile.email;
+        } else {
+          // Try internal email format
+          email = `${emailOrUsername.toLowerCase()}@internal.local`;
+        }
+      } else {
+        // Check if it's a CNPJ format
+        const cnpjRegex = /^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$|^\d{14}$/;
+        if (cnpjRegex.test(emailOrUsername.replace(/\D/g, ''))) {
+          // Buscar email pelo CNPJ
+          const { data: company } = await supabase
+            .from('companies')
+            .select('id')
+            .eq('cnpj', emailOrUsername)
             .maybeSingle();
 
-          if (profile?.email) {
-            email = profile.email;
+          if (company) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('email')
+              .eq('company_id', company.id)
+              .maybeSingle();
+
+            if (profile?.email) {
+              email = profile.email;
+            }
           }
         }
       }
@@ -139,7 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error) {
         if (error.message.includes('Invalid login credentials')) {
-          return { error: new Error('Email/CNPJ ou senha incorretos') };
+          return { error: new Error('Usuário ou senha incorretos') };
         }
         return { error };
       }

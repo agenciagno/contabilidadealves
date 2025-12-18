@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Separator } from '@/components/ui/separator';
@@ -10,6 +11,7 @@ import { Moon, Sun, Monitor, Loader2, Upload, Building2, Palette, Check, Lightbu
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import UsersTab from '@/components/users/UsersTab';
 
 // Mask functions
 const maskCNPJ = (value: string) => {
@@ -331,9 +333,16 @@ export default function SettingsPage() {
         <p className="text-muted-foreground">Gerencie sua conta e preferências</p>
       </div>
 
-      <Card className="bg-card border-border/50">
-        <CardHeader>
-          <CardTitle>Dados da Conta</CardTitle>
+      <Tabs defaultValue="conta" className="w-full">
+        <TabsList className="mb-6">
+          <TabsTrigger value="conta">Conta</TabsTrigger>
+          <TabsTrigger value="usuarios">Usuários Internos</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="conta" className="space-y-6 mt-0">
+          <Card className="bg-card border-border/50">
+            <CardHeader>
+              <CardTitle>Dados da Conta</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
@@ -593,6 +602,14 @@ export default function SettingsPage() {
           </Button>
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="usuarios" className="mt-0">
+          {companyId && user && (
+            <UsersTab companyId={companyId} currentUserId={user.id} />
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
