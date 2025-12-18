@@ -59,6 +59,8 @@ export function useTransactions() {
       if (error) throw error;
       return data as Transaction[];
     },
+    staleTime: 1000 * 30, // 30 seconds - data is fresh
+    gcTime: 1000 * 60 * 5, // 5 minutes - garbage collection
   });
 
   const createTransaction = useMutation({

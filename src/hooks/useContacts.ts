@@ -41,6 +41,8 @@ export function useContacts() {
       if (error) throw error;
       return data as Contact[];
     },
+    staleTime: 1000 * 30,
+    gcTime: 1000 * 60 * 5,
   });
 
   const createContact = useMutation({
@@ -67,6 +69,7 @@ export function useContacts() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] }); // Sync transactions view
       toast({ title: 'Contato criado com sucesso!' });
     },
     onError: (error: Error) => {
@@ -88,6 +91,7 @@ export function useContacts() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] }); // Sync transactions view
       toast({ title: 'Contato atualizado!' });
     },
     onError: (error: Error) => {
@@ -106,6 +110,7 @@ export function useContacts() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] }); // Sync transactions view
       toast({ title: 'Contato excluído!' });
     },
     onError: (error: Error) => {
