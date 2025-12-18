@@ -108,6 +108,7 @@ export function useTransactions() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['banks'] });
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
       toast({ title: 'Transação atualizada!' });
     },
     onError: (error: Error) => {
@@ -127,6 +128,7 @@ export function useTransactions() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['banks'] });
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
       toast({ title: 'Transação excluída!' });
     },
     onError: (error: Error) => {
@@ -145,6 +147,8 @@ export function useTransactions() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['banks'] });
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
     },
   });
 

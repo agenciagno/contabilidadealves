@@ -7,9 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Plus, Search, Edit2, Trash2, User, Building2, Mail, Phone, MapPin, Copy, Eye, Users, CheckCircle, AlertTriangle, X } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, User, Building2, Mail, Phone, MapPin, Copy, Eye, Users, CheckCircle, AlertTriangle, X, FileText, RefreshCw } from 'lucide-react';
 import { useContacts, Contact, ContactInsert } from '@/hooks/useContacts';
 import { useTransactions } from '@/hooks/useTransactions';
+import { useContactDependencies } from '@/hooks/useContactDependencies';
 import { ContactFormDialog } from '@/components/contacts/ContactFormDialog';
 import { useToast } from '@/hooks/use-toast';
 
@@ -39,6 +40,9 @@ export default function Contacts() {
   const [filterType, setFilterType] = useState('all');
   const [filterTaxRegime, setFilterTaxRegime] = useState('all');
   const [filterFinancialStatus, setFilterFinancialStatus] = useState('all');
+
+  // Get dependencies for delete confirmation
+  const { data: dependencies, isLoading: loadingDependencies } = useContactDependencies(deleteId);
 
   // Get financial status for each contact
   const getFinancialStatus = (contactId: string) => {
@@ -406,14 +410,51 @@ export default function Contacts() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir contato?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação não pode ser desfeita. O contato será removido permanentemente.
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>Esta ação não pode ser desfeita. O contato será removido permanentemente.</p>
+                
+                {loadingDependencies ? (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    Verificando vínculos...
+                  </div>
+                ) : dependencies?.hasDependencies && (
+                  <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 space-y-2">
+                    <p className="font-medium text-destructive flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4" />
+                      Atenção: Este contato possui vínculos
+                    </p>
+                    <ul className="text-sm text-muted-foreground space-y-1 ml-6">
+                      {dependencies.transactionCount > 0 && (
+                        <li className="flex items-center gap-2">
+                          <FileText className="h-3.5 w-3.5" />
+                          {dependencies.transactionCount} transação(ões) financeira(s)
+                        </li>
+                      )}
+                      {dependencies.recurringCount > 0 && (
+                        <li className="flex items-center gap-2">
+                          <RefreshCw className="h-3.5 w-3.5" />
+                          {dependencies.recurringCount} conta(s) recorrente(s)
+                        </li>
+                      )}
+                    </ul>
+                    <p className="text-xs text-muted-foreground">
+                      Ao excluir, os registros vinculados permanecerão sem associação a este contato.
+                    </p>
+                  </div>
+                )}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
-              Excluir
+            <AlertDialogAction 
+              onClick={handleDelete} 
+              className="bg-destructive text-destructive-foreground"
+              disabled={loadingDependencies}
+            >
+              {dependencies?.hasDependencies ? 'Excluir mesmo assim' : 'Excluir'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
