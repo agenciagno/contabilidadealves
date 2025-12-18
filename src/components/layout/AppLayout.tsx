@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
 import { AppHeader } from './AppHeader';
+import { InadimplentToast } from '@/components/notifications/InadimplentToast';
 import { Loader2 } from 'lucide-react';
 
 interface AppLayoutProps {
@@ -27,6 +28,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <SidebarProvider>
+      <InadimplentToast />
       <div className="min-h-screen flex w-full">
         <AppSidebar />
         <SidebarInset className="flex-1">

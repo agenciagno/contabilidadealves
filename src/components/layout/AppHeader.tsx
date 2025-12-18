@@ -1,17 +1,19 @@
 import { useMemo } from 'react';
-import { Bell, Moon, Sun, TrendingDown, TrendingUp, Calendar } from 'lucide-react';
+import { Bell, Moon, Sun, TrendingDown, TrendingUp, Calendar, Users, AlertTriangle } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/button';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useTransactions } from '@/hooks/useTransactions';
-import { format, isAfter, isBefore, addDays, parseISO, startOfDay } from 'date-fns';
+import { useInadimplentContacts } from '@/hooks/useInadimplentContacts';
+import { format, isBefore, addDays, parseISO, startOfDay, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 import { HeaderCalculator } from './HeaderCalculator';
@@ -32,6 +34,7 @@ export function AppHeader() {
   const currentYear = now.getFullYear();
 
   const { transactions: allTransactions } = useTransactions();
+  const { inadimplentContacts, count: inadimplentCount } = useInadimplentContacts();
 
   // Filter transactions for current month
   const transactions = useMemo(() => {
@@ -69,7 +72,7 @@ export function AppHeader() {
 
   const overdueCount = notifications.filter(n => n.isOverdue).length;
   const upcomingCount = notifications.filter(n => !n.isOverdue).length;
-  const totalCount = notifications.length;
+  const totalCount = notifications.length + inadimplentCount;
 
   const getDueDateLabel = (daysUntil: number, isOverdue: boolean) => {
     if (isOverdue) {
@@ -79,6 +82,12 @@ export function AppHeader() {
     if (daysUntil === 0) return 'Vence hoje';
     if (daysUntil === 1) return 'Vence amanhã';
     return `Vence em ${daysUntil} dias`;
+  };
+
+  const getOverdueDaysLabel = (oldestDueDate: string) => {
+    const days = differenceInDays(new Date(), parseISO(oldestDueDate));
+    if (days === 1) return 'há 1 dia';
+    return `há ${days} dias`;
   };
 
   return (
@@ -111,103 +120,182 @@ export function AppHeader() {
                 <Bell className="w-5 h-5" />
                 {totalCount > 0 && (
                   <span className={`absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center text-xs font-bold rounded-full ${
-                    overdueCount > 0 ? 'bg-destructive text-destructive-foreground' : 'bg-primary text-primary-foreground'
+                    overdueCount > 0 || inadimplentCount > 0 ? 'bg-destructive text-destructive-foreground' : 'bg-primary text-primary-foreground'
                   }`}>
                     {totalCount > 9 ? '9+' : totalCount}
                   </span>
                 )}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80 p-0">
+            <DropdownMenuContent align="end" className="w-96 p-0">
               <div className="p-3 border-b border-border">
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold text-foreground">Notificações</h3>
-                  {totalCount > 0 && (
-                    <div className="flex gap-2">
-                      {overdueCount > 0 && (
-                        <Badge variant="destructive" className="text-xs">
-                          {overdueCount} vencida{overdueCount > 1 ? 's' : ''}
-                        </Badge>
-                      )}
-                      {upcomingCount > 0 && (
-                        <Badge variant="secondary" className="text-xs">
-                          {upcomingCount} a vencer
-                        </Badge>
-                      )}
-                    </div>
-                  )}
+                  <div className="flex gap-2 flex-wrap">
+                    {inadimplentCount > 0 && (
+                      <Badge variant="destructive" className="text-xs">
+                        {inadimplentCount} inadimplente{inadimplentCount > 1 ? 's' : ''}
+                      </Badge>
+                    )}
+                    {overdueCount > 0 && (
+                      <Badge variant="outline" className="text-xs border-destructive text-destructive">
+                        {overdueCount} vencida{overdueCount > 1 ? 's' : ''}
+                      </Badge>
+                    )}
+                    {upcomingCount > 0 && (
+                      <Badge variant="secondary" className="text-xs">
+                        {upcomingCount} a vencer
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
               
-              {notifications.length > 0 ? (
-                <ScrollArea className="max-h-80">
-                  <div className="divide-y divide-border">
-                    {notifications.map((notification) => (
-                      <button
-                        key={notification.id}
-                        onClick={() => navigate('/movimentacoes')}
-                        className="w-full p-3 text-left hover:bg-muted/50 transition-colors"
-                      >
-                        <div className="flex items-start gap-3">
-                          <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                              notification.type === 'receita' 
-                                ? 'bg-success/20' 
-                                : notification.isOverdue 
-                                  ? 'bg-destructive/20' 
-                                  : 'bg-warning/20'
-                            }`}
-                          >
-                            {notification.type === 'receita' ? (
-                              <TrendingUp className="w-4 h-4 text-success" />
-                            ) : (
-                              <TrendingDown className={`w-4 h-4 ${notification.isOverdue ? 'text-destructive' : 'text-warning'}`} />
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm text-foreground truncate">
-                              {notification.description}
-                            </p>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <span className={`text-xs ${notification.isOverdue ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
-                                {getDueDateLabel(notification.daysUntil, notification.isOverdue)}
-                              </span>
-                              <span className="text-xs text-muted-foreground">•</span>
-                              <span className="text-xs text-muted-foreground">
-                                {format(parseISO(notification.date), "dd/MM", { locale: ptBR })}
-                              </span>
+              <ScrollArea className="max-h-96">
+                {/* Inadimplent Contacts Section */}
+                {inadimplentCount > 0 && (
+                  <>
+                    <div className="px-3 py-2 bg-destructive/10">
+                      <div className="flex items-center gap-2 text-destructive">
+                        <AlertTriangle className="w-4 h-4" />
+                        <span className="text-xs font-medium">Clientes Inadimplentes</span>
+                      </div>
+                    </div>
+                    <div className="divide-y divide-border">
+                      {inadimplentContacts.slice(0, 5).map((contact) => (
+                        <button
+                          key={contact.id}
+                          onClick={() => navigate(`/crm/cliente/${contact.id}`)}
+                          className="w-full p-3 text-left hover:bg-muted/50 transition-colors"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-destructive/20">
+                              <Users className="w-4 h-4 text-destructive" />
                             </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm text-foreground truncate">
+                                {contact.name}
+                              </p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-xs text-destructive font-medium">
+                                  {contact.overdueCount} título{contact.overdueCount > 1 ? 's' : ''} em atraso
+                                </span>
+                                <span className="text-xs text-muted-foreground">•</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {getOverdueDaysLabel(contact.oldestDueDate)}
+                                </span>
+                              </div>
+                            </div>
+                            <span className="text-sm font-semibold flex-shrink-0 text-destructive">
+                              {formatCurrency(contact.totalOverdue)}
+                            </span>
                           </div>
-                          <span
-                            className={`text-sm font-semibold flex-shrink-0 ${
-                              notification.type === 'receita' ? 'text-success' : 'text-destructive'
-                            }`}
-                          >
-                            {formatCurrency(Number(notification.amount))}
-                          </span>
-                        </div>
-                      </button>
-                    ))}
+                        </button>
+                      ))}
+                      {inadimplentCount > 5 && (
+                        <button
+                          onClick={() => navigate('/contatos')}
+                          className="w-full p-2 text-center text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                        >
+                          Ver todos os {inadimplentCount} inadimplentes
+                        </button>
+                      )}
+                    </div>
+                    {notifications.length > 0 && <Separator />}
+                  </>
+                )}
+
+                {/* Transactions Section */}
+                {notifications.length > 0 && (
+                  <>
+                    <div className="px-3 py-2 bg-muted/50">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Calendar className="w-4 h-4" />
+                        <span className="text-xs font-medium">Contas Pendentes</span>
+                      </div>
+                    </div>
+                    <div className="divide-y divide-border">
+                      {notifications.map((notification) => (
+                        <button
+                          key={notification.id}
+                          onClick={() => navigate('/movimentacoes')}
+                          className="w-full p-3 text-left hover:bg-muted/50 transition-colors"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div
+                              className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                notification.type === 'receita' 
+                                  ? 'bg-success/20' 
+                                  : notification.isOverdue 
+                                    ? 'bg-destructive/20' 
+                                    : 'bg-warning/20'
+                              }`}
+                            >
+                              {notification.type === 'receita' ? (
+                                <TrendingUp className="w-4 h-4 text-success" />
+                              ) : (
+                                <TrendingDown className={`w-4 h-4 ${notification.isOverdue ? 'text-destructive' : 'text-warning'}`} />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm text-foreground truncate">
+                                {notification.description}
+                              </p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className={`text-xs ${notification.isOverdue ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                                  {getDueDateLabel(notification.daysUntil, notification.isOverdue)}
+                                </span>
+                                <span className="text-xs text-muted-foreground">•</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {format(parseISO(notification.date), "dd/MM", { locale: ptBR })}
+                                </span>
+                              </div>
+                            </div>
+                            <span
+                              className={`text-sm font-semibold flex-shrink-0 ${
+                                notification.type === 'receita' ? 'text-success' : 'text-destructive'
+                              }`}
+                            >
+                              {formatCurrency(Number(notification.amount))}
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {/* Empty State */}
+                {notifications.length === 0 && inadimplentCount === 0 && (
+                  <div className="p-6 text-center">
+                    <Calendar className="w-10 h-10 mx-auto text-muted-foreground/50 mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      Nenhuma notificação pendente
+                    </p>
                   </div>
-                </ScrollArea>
-              ) : (
-                <div className="p-6 text-center">
-                  <Calendar className="w-10 h-10 mx-auto text-muted-foreground/50 mb-2" />
-                  <p className="text-sm text-muted-foreground">
-                    Nenhuma conta pendente nos próximos 7 dias
-                  </p>
-                </div>
-              )}
+                )}
+              </ScrollArea>
               
-              {notifications.length > 0 && (
-                <div className="p-2 border-t border-border">
-                  <Button 
-                    variant="ghost" 
-                    className="w-full text-sm" 
-                    onClick={() => navigate('/movimentacoes')}
-                  >
-                    Ver todas as transações
-                  </Button>
+              {(notifications.length > 0 || inadimplentCount > 0) && (
+                <div className="p-2 border-t border-border flex gap-2">
+                  {inadimplentCount > 0 && (
+                    <Button 
+                      variant="ghost" 
+                      className="flex-1 text-sm" 
+                      onClick={() => navigate('/contatos')}
+                    >
+                      Ver Contatos
+                    </Button>
+                  )}
+                  {notifications.length > 0 && (
+                    <Button 
+                      variant="ghost" 
+                      className="flex-1 text-sm" 
+                      onClick={() => navigate('/movimentacoes')}
+                    >
+                      Ver Transações
+                    </Button>
+                  )}
                 </div>
               )}
             </DropdownMenuContent>
