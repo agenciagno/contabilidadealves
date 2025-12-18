@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { format, subMonths, startOfMonth, endOfMonth, isToday, isBefore, isAfter, addDays } from 'date-fns';
+import { format, subMonths, startOfMonth, endOfMonth, isToday, isBefore, addDays, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
   Wallet,
@@ -9,13 +9,10 @@ import {
   TrendingUp,
   TrendingDown,
   AlertTriangle,
-  Plus,
-  ArrowRight,
   Calendar,
   DollarSign,
   UserPlus,
   Receipt,
-  CreditCard,
 } from 'lucide-react';
 import {
   BarChart,
@@ -27,12 +24,15 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Tooltip as TooltipUI, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 import { useProfile } from '@/hooks/useProfile';
 import { useBanks } from '@/hooks/useBanks';
@@ -59,6 +59,7 @@ const getGreeting = () => {
 
 const Home = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { userName, isLoading: profileLoading } = useProfile();
   const { banks, isLoading: banksLoading } = useBanks();
   const { contacts, createContact, isLoading: contactsLoading } = useContacts();
@@ -69,6 +70,11 @@ const Home = () => {
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
   const [revenueDialogOpen, setRevenueDialogOpen] = useState(false);
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
+  
+  // New states for improvements
+  const [chartPeriod, setChartPeriod] = useState<'month' | 'week'>('month');
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const today = new Date();
   const currentMonthStart = startOfMonth(today);
@@ -81,7 +87,7 @@ const Home = () => {
       .reduce((sum, bank) => sum + Number(bank.current_balance), 0);
   }, [banks]);
 
-  // KPI: Resultado Líquido do Mês
+  // KPI: Resultado Líquido do Mês (Realizado)
   const monthlyResult = useMemo(() => {
     const monthTransactions = transactions.filter((t) => {
       const date = new Date(t.date);
@@ -98,6 +104,38 @@ const Home = () => {
 
     return { receitas, despesas, resultado: receitas - despesas };
   }, [transactions, currentMonthStart, currentMonthEnd]);
+
+  // KPI: Previsto do Mês (recorrentes + pendentes)
+  const previstoMes = useMemo(() => {
+    // Soma das receitas recorrentes ativas para o mês
+    const receitasRecorrentes = recurringTransactions.filter(
+      (r) => r.is_active && r.type === 'receita'
+    );
+    
+    const totalRecorrente = receitasRecorrentes.reduce((sum, r) => {
+      if (r.frequency === 'monthly') return sum + Number(r.amount);
+      if (r.frequency === 'weekly') return sum + Number(r.amount) * 4;
+      if (r.frequency === 'yearly') return sum + Number(r.amount) / 12;
+      return sum;
+    }, 0);
+
+    // Receitas pendentes no mês
+    const receitasPendentes = transactions
+      .filter((t) => {
+        if (t.type !== 'receita' || t.is_paid) return false;
+        const dueDate = t.due_date ? new Date(t.due_date) : new Date(t.date);
+        return dueDate >= currentMonthStart && dueDate <= currentMonthEnd;
+      })
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+
+    return Math.max(totalRecorrente, monthlyResult.receitas + receitasPendentes);
+  }, [recurringTransactions, transactions, currentMonthStart, currentMonthEnd, monthlyResult.receitas]);
+
+  // Percentual realizado
+  const percentualRealizado = useMemo(() => {
+    if (previstoMes <= 0) return 100;
+    return Math.min(Math.round((monthlyResult.receitas / previstoMes) * 100), 100);
+  }, [monthlyResult.receitas, previstoMes]);
 
   // KPI: Clientes Ativos e Inadimplentes
   const crmStats = useMemo(() => {
@@ -152,6 +190,15 @@ const Home = () => {
     };
   }, [recurringTransactions, monthlyResult.receitas]);
 
+  // Refresh function for honorários
+  const handleRefreshHonorarios = async () => {
+    setIsRefreshing(true);
+    await queryClient.invalidateQueries({ queryKey: ['recurring_transactions'] });
+    await queryClient.invalidateQueries({ queryKey: ['transactions'] });
+    setLastRefresh(new Date());
+    setTimeout(() => setIsRefreshing(false), 1000);
+  };
+
   // Gráfico: Últimos 6 meses
   const chartData = useMemo(() => {
     const months = [];
@@ -182,10 +229,36 @@ const Home = () => {
     return months;
   }, [transactions, today]);
 
+  // Gráfico: Esta Semana (por dia)
+  const weeklyChartData = useMemo(() => {
+    const weekStart = startOfWeek(today, { weekStartsOn: 1 }); // Monday
+    const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
+    const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
+
+    return days.map((day) => {
+      const dayTransactions = transactions.filter((t) => {
+        const tDate = new Date(t.date);
+        return tDate.toDateString() === day.toDateString() && t.is_paid;
+      });
+
+      const receitas = dayTransactions
+        .filter((t) => t.type === 'receita')
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+
+      const despesas = dayTransactions
+        .filter((t) => t.type === 'despesa')
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+
+      return {
+        month: format(day, 'EEE', { locale: ptBR }),
+        receitas,
+        despesas,
+      };
+    });
+  }, [transactions, today]);
+
   // Alertas: Transações vencidas ou vencendo
   const criticalAlerts = useMemo(() => {
-    const tomorrow = addDays(today, 1);
-
     return transactions
       .filter((t) => {
         if (t.is_paid || !t.due_date) return false;
@@ -223,6 +296,9 @@ const Home = () => {
     }
     return null;
   };
+
+  // Determine which chart data to use
+  const activeChartData = chartPeriod === 'week' ? weeklyChartData : chartData;
 
   return (
     <div className="space-y-6">
@@ -293,18 +369,32 @@ const Home = () => {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Resultado do Mês</p>
-                  <p
-                    className={`text-lg font-semibold flex items-center gap-1 ${
-                      monthlyResult.resultado >= 0 ? 'text-emerald-500' : 'text-destructive'
-                    }`}
-                  >
-                    {monthlyResult.resultado >= 0 ? (
-                      <TrendingUp className="h-4 w-4" />
-                    ) : (
-                      <TrendingDown className="h-4 w-4" />
-                    )}
-                    {formatCurrency(monthlyResult.resultado)}
+                  <div className="flex items-baseline gap-2">
+                    <p
+                      className={`text-lg font-semibold flex items-center gap-1 ${
+                        monthlyResult.resultado >= 0 ? 'text-emerald-500' : 'text-destructive'
+                      }`}
+                    >
+                      {monthlyResult.resultado >= 0 ? (
+                        <TrendingUp className="h-4 w-4" />
+                      ) : (
+                        <TrendingDown className="h-4 w-4" />
+                      )}
+                      {formatCurrency(monthlyResult.resultado)}
+                    </p>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    / {formatCurrency(previstoMes)} previsto
                   </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Progress value={percentualRealizado} className="h-1.5 flex-1" />
+                    <span className={`text-xs font-medium ${
+                      percentualRealizado >= 100 ? 'text-emerald-500' : 
+                      percentualRealizado >= 50 ? 'text-yellow-500' : 'text-destructive'
+                    }`}>
+                      {percentualRealizado}%
+                    </span>
+                  </div>
                 </div>
               </>
             )}
@@ -332,7 +422,8 @@ const Home = () => {
                 <div className="flex items-center gap-2">
                   <Badge
                     variant={crmStats.inadimplentes > 0 ? 'destructive' : 'secondary'}
-                    className="text-xs"
+                    className="text-xs cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => navigate('/crm', { state: { filterStatus: 'inadimplente' } })}
                   >
                     {crmStats.inadimplentes > 0 && (
                       <AlertTriangle className="h-3 w-3 mr-1" />
@@ -351,7 +442,23 @@ const Home = () => {
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Honorários do Mês
             </CardTitle>
-            <RefreshCw className="h-4 w-4 text-violet-500" />
+            <TooltipProvider>
+              <TooltipUI>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={handleRefreshHonorarios}
+                  >
+                    <RefreshCw className={`h-4 w-4 text-violet-500 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Última atualização: {format(lastRefresh, 'HH:mm')}
+                </TooltipContent>
+              </TooltipUI>
+            </TooltipProvider>
           </CardHeader>
           <CardContent className="space-y-3">
             {isLoading ? (
@@ -381,18 +488,37 @@ const Home = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Gráfico de Desempenho */}
         <Card className="bg-card/80 backdrop-blur-sm border-border/50">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base font-medium flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-emerald-500" />
-              Desempenho Mensal
+              {chartPeriod === 'week' ? 'Desempenho Semanal' : 'Desempenho Mensal'}
             </CardTitle>
+            <ToggleGroup
+              type="single"
+              value={chartPeriod}
+              onValueChange={(value) => value && setChartPeriod(value as 'month' | 'week')}
+              className="bg-muted/50 rounded-lg p-0.5"
+            >
+              <ToggleGroupItem
+                value="week"
+                className="text-xs px-3 py-1 h-7 data-[state=on]:bg-background data-[state=on]:shadow-sm"
+              >
+                Semana
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="month"
+                className="text-xs px-3 py-1 h-7 data-[state=on]:bg-background data-[state=on]:shadow-sm"
+              >
+                Mês
+              </ToggleGroupItem>
+            </ToggleGroup>
           </CardHeader>
           <CardContent>
             {isLoading ? (
               <Skeleton className="h-[250px] w-full" />
             ) : (
               <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                <BarChart data={activeChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
                   <XAxis
                     dataKey="month"
@@ -446,7 +572,6 @@ const Home = () => {
               onClick={() => navigate('/transacoes')}
             >
               Ver todas
-              <ArrowRight className="h-3 w-3 ml-1" />
             </Button>
           </CardHeader>
           <CardContent>
@@ -479,38 +604,28 @@ const Home = () => {
                             : 'bg-yellow-500'
                         }`}
                       />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{alert.description}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {alert.description}
+                        </p>
                         <p className="text-xs text-muted-foreground">
                           {alert.status === 'overdue'
-                            ? 'Vencido'
+                            ? 'Vencida'
                             : alert.status === 'today'
                             ? 'Vence hoje'
                             : 'Vence amanhã'}{' '}
-                          • {alert.due_date && format(new Date(alert.due_date), 'dd/MM')}
+                          • {format(new Date(alert.due_date!), 'dd/MM')}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <Badge
-                        variant={alert.type === 'receita' ? 'default' : 'secondary'}
-                        className={`text-xs ${
-                          alert.type === 'receita'
-                            ? 'bg-emerald-500/20 text-emerald-500'
-                            : 'bg-destructive/20 text-destructive'
-                        }`}
-                      >
-                        {formatCurrency(Number(alert.amount))}
-                      </Badge>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => navigate('/transacoes')}
-                      >
-                        <ArrowRight className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <p
+                      className={`text-sm font-semibold ${
+                        alert.type === 'receita' ? 'text-emerald-500' : 'text-destructive'
+                      }`}
+                    >
+                      {alert.type === 'receita' ? '+' : '-'}
+                      {formatCurrency(Number(alert.amount))}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -523,40 +638,42 @@ const Home = () => {
       <ContactFormDialog
         open={contactDialogOpen}
         onOpenChange={setContactDialogOpen}
-        onSubmit={(data) => {
+        onSubmit={(data) =>
           createContact.mutate(data, {
             onSuccess: () => setContactDialogOpen(false),
-          });
-        }}
+          })
+        }
         isLoading={createContact.isPending}
       />
+
       <TransactionFormDialog
         open={revenueDialogOpen}
         onOpenChange={setRevenueDialogOpen}
         defaultType="receita"
+        onSubmit={(data) =>
+          createTransaction.mutate(data, {
+            onSuccess: () => setRevenueDialogOpen(false),
+          })
+        }
+        isLoading={createTransaction.isPending}
         categories={categories}
         banks={banks}
         contacts={contacts}
-        onSubmit={(data) => {
-          createTransaction.mutate(data, {
-            onSuccess: () => setRevenueDialogOpen(false),
-          });
-        }}
-        isLoading={createTransaction.isPending}
       />
+
       <TransactionFormDialog
         open={expenseDialogOpen}
         onOpenChange={setExpenseDialogOpen}
         defaultType="despesa"
+        onSubmit={(data) =>
+          createTransaction.mutate(data, {
+            onSuccess: () => setExpenseDialogOpen(false),
+          })
+        }
+        isLoading={createTransaction.isPending}
         categories={categories}
         banks={banks}
         contacts={contacts}
-        onSubmit={(data) => {
-          createTransaction.mutate(data, {
-            onSuccess: () => setExpenseDialogOpen(false),
-          });
-        }}
-        isLoading={createTransaction.isPending}
       />
     </div>
   );
