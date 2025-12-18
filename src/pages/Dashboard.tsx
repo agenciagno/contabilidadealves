@@ -15,6 +15,7 @@ import {
   PiggyBank,
   CreditCard,
   Tag,
+  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -81,10 +82,11 @@ export default function Dashboard() {
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
 
-  // Filter states (simplified - only date filters)
+  // Filter states
   const [startDate, setStartDate] = useState<Date | undefined>(startOfMonth(now));
   const [endDate, setEndDate] = useState<Date | undefined>(now);
   const [quickPeriod, setQuickPeriod] = useState<QuickPeriod>('thisMonth');
+  const [selectedBankId, setSelectedBankId] = useState<string | null>(null);
 
   const { transactions: allTransactions, isLoading: loadingTransactions, createTransaction } = useTransactions();
   const { banks, isLoading: loadingBanks, createBank } = useBanks();
@@ -137,12 +139,12 @@ export default function Dashboard() {
     }
   };
 
-  // Filter transactions based on date only
+  // Filter transactions based on date and bank
   const transactions = useMemo(() => {
     return allTransactions.filter((t) => {
       const txDate = new Date(t.date + 'T12:00:00');
       
-      // Date filter only
+      // Date filter
       if (startDate && txDate < startDate) return false;
       if (endDate) {
         const endOfDay = new Date(endDate);
@@ -150,9 +152,12 @@ export default function Dashboard() {
         if (txDate > endOfDay) return false;
       }
       
+      // Bank filter
+      if (selectedBankId && t.bank_id !== selectedBankId) return false;
+      
       return true;
     });
-  }, [allTransactions, startDate, endDate]);
+  }, [allTransactions, startDate, endDate, selectedBankId]);
 
   // Calculate financial summary
   const summary = useMemo(() => {
@@ -180,9 +185,10 @@ export default function Dashboard() {
       .filter(t => t.type === 'despesa' && !t.is_paid)
       .reduce((sum, t) => sum + Number(t.amount), 0);
 
-    const saldoAtual = banks
-      .filter(b => b.is_active)
-      .reduce((sum, b) => sum + Number(b.current_balance), 0);
+    // Calculate balance based on bank filter
+    const saldoAtual = selectedBankId
+      ? banks.filter(b => b.id === selectedBankId && b.is_active).reduce((sum, b) => sum + Number(b.current_balance), 0)
+      : banks.filter(b => b.is_active).reduce((sum, b) => sum + Number(b.current_balance), 0);
 
     const saldoPrevisto = saldoAtual + aReceber - aPagar;
 
@@ -202,7 +208,20 @@ export default function Dashboard() {
       despesasProgress,
       saldo: receitas - despesas,
     };
-  }, [transactions, banks]);
+  }, [transactions, banks, selectedBankId]);
+
+  // Calculate overdue payables for alert system
+  const overduePayables = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    return allTransactions.filter(t => {
+      const tDate = new Date(t.date + 'T12:00:00');
+      return t.type === 'despesa' && !t.is_paid && isBefore(tDate, today);
+    });
+  }, [allTransactions]);
+
+  const overdueCount = overduePayables.length;
 
   // Monthly evolution data (last 6 months)
   const monthlyEvolution = useMemo(() => {
@@ -488,6 +507,9 @@ export default function Dashboard() {
         onExportPDF={handleExportPDF}
         quickPeriod={quickPeriod}
         onQuickPeriodChange={handleQuickPeriodChange}
+        banks={banks.filter(b => b.is_active)}
+        selectedBankId={selectedBankId}
+        onBankChange={setSelectedBankId}
       />
 
       {/* Main Stats Cards */}
@@ -503,7 +525,7 @@ export default function Dashboard() {
                 <Skeleton className="h-8 w-32" />
               ) : (
                 <>
-                  <p className="text-2xl font-bold text-emerald-500">{formatCurrency(summary.receitas)}</p>
+                  <p className="text-2xl font-bold text-emerald-500 transition-all duration-300">{formatCurrency(summary.receitas)}</p>
                   <div className="mt-3">
                     <div className="flex justify-between text-xs text-muted-foreground mb-1">
                       <span>Recebido</span>
@@ -528,7 +550,7 @@ export default function Dashboard() {
                 <Skeleton className="h-8 w-32" />
               ) : (
                 <>
-                  <p className="text-2xl font-bold text-red-500">{formatCurrency(summary.despesas)}</p>
+                  <p className="text-2xl font-bold text-red-500 transition-all duration-300">{formatCurrency(summary.despesas)}</p>
                   <div className="mt-3">
                     <div className="flex justify-between text-xs text-muted-foreground mb-1">
                       <span>Pago</span>
@@ -553,8 +575,8 @@ export default function Dashboard() {
                 <Skeleton className="h-8 w-32" />
               ) : (
                 <>
-                  <p className="text-2xl font-bold text-blue-500">{formatCurrency(summary.saldoAtual)}</p>
-                  <p className="text-xs text-muted-foreground mt-2">
+                  <p className="text-2xl font-bold text-blue-500 transition-all duration-300">{formatCurrency(summary.saldoAtual)}</p>
+                  <p className="text-xs text-muted-foreground mt-2 transition-all duration-300">
                     Previsto: <span className={summary.saldoPrevisto >= 0 ? 'text-emerald-500' : 'text-red-500'}>
                       {formatCurrency(summary.saldoPrevisto)}
                     </span>
@@ -579,7 +601,7 @@ export default function Dashboard() {
               {isLoading ? (
                 <Skeleton className="h-8 w-32" />
               ) : (
-                <p className={`text-2xl font-bold ${summary.saldo >= 0 ? 'text-primary' : 'text-orange-500'}`}>
+                <p className={`text-2xl font-bold transition-all duration-300 ${summary.saldo >= 0 ? 'text-primary' : 'text-orange-500'}`}>
                   {formatCurrency(summary.saldo)}
                 </p>
               )}
@@ -597,7 +619,7 @@ export default function Dashboard() {
               {isLoading ? (
                 <Skeleton className="h-8 w-32" />
               ) : (
-                <p className="text-2xl font-bold text-emerald-500">{formatCurrency(summary.aReceber)}</p>
+                <p className="text-2xl font-bold text-emerald-500 transition-all duration-300">{formatCurrency(summary.aReceber)}</p>
               )}
             </CardContent>
           </Card>
@@ -613,7 +635,7 @@ export default function Dashboard() {
               {isLoading ? (
                 <Skeleton className="h-8 w-32" />
               ) : (
-                <p className="text-2xl font-bold text-red-500">{formatCurrency(summary.aPagar)}</p>
+                <p className="text-2xl font-bold text-red-500 transition-all duration-300">{formatCurrency(summary.aPagar)}</p>
               )}
             </CardContent>
           </Card>
@@ -890,9 +912,20 @@ export default function Dashboard() {
                     <CreditCard className="w-4 h-4 text-red-500" />
                     Contas a Pagar
                   </CardTitle>
-                  <Badge variant="secondary" className="bg-red-500/10 text-red-500">
-                    {upcomingPayables.length} pendente{upcomingPayables.length !== 1 ? 's' : ''}
-                  </Badge>
+                  <div className="flex gap-2">
+                    {overdueCount > 0 && (
+                      <Badge 
+                        variant="destructive" 
+                        className="bg-amber-500/20 text-amber-600 border border-amber-500/30 hover:bg-amber-500/30"
+                      >
+                        <AlertTriangle className="w-3 h-3 mr-1" />
+                        {overdueCount} Vencida{overdueCount > 1 ? 's' : ''}
+                      </Badge>
+                    )}
+                    <Badge variant="secondary" className="bg-red-500/10 text-red-500">
+                      {upcomingPayables.length} pendente{upcomingPayables.length !== 1 ? 's' : ''}
+                    </Badge>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -913,17 +946,20 @@ export default function Dashboard() {
                       return (
                         <div
                           key={item.id}
-                          className={`flex items-center justify-between p-3 rounded-lg ${
-                            isOverdue ? 'bg-red-500/10 border border-red-500/20' : 'bg-muted/50'
+                          className={`flex items-center justify-between p-3 rounded-lg transition-all duration-200 ${
+                            isOverdue ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-muted/50'
                           }`}
                         >
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-foreground truncate">{item.description}</p>
-                            <p className={`text-xs ${isOverdue ? 'text-red-500' : 'text-muted-foreground'}`}>
-                              {isOverdue ? 'Vencido em ' : ''}{format(itemDate, "dd 'de' MMM", { locale: ptBR })}
-                            </p>
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            {isOverdue && <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-foreground truncate">{item.description}</p>
+                              <p className={`text-xs ${isOverdue ? 'text-amber-500 font-medium' : 'text-muted-foreground'}`}>
+                                {isOverdue ? 'Vencido em ' : ''}{format(itemDate, "dd 'de' MMM", { locale: ptBR })}
+                              </p>
+                            </div>
                           </div>
-                          <span className="font-semibold text-red-500 ml-3">
+                          <span className={`font-semibold ml-3 ${isOverdue ? 'text-amber-500' : 'text-red-500'}`}>
                             {formatCurrency(Number(item.amount))}
                           </span>
                         </div>
