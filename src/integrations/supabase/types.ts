@@ -223,6 +223,50 @@ export type Database = {
           },
         ]
       }
+      contact_partners: {
+        Row: {
+          company_id: string
+          contact_id: string
+          cpf: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          participation_percentage: number | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          contact_id: string
+          cpf?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          participation_percentage?: number | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          contact_id?: string
+          cpf?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          participation_percentage?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_partners_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           address: string | null
@@ -236,6 +280,7 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
+          representative_legal: string | null
           state: string | null
           tax_regime: string | null
           type: string
@@ -253,6 +298,7 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
+          representative_legal?: string | null
           state?: string | null
           tax_regime?: string | null
           type: string
@@ -270,6 +316,7 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
+          representative_legal?: string | null
           state?: string | null
           tax_regime?: string | null
           type?: string
