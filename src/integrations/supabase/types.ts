@@ -140,6 +140,7 @@ export type Database = {
       }
       contact_documents: {
         Row: {
+          category: string | null
           company_id: string
           contact_id: string
           file_name: string
@@ -150,6 +151,7 @@ export type Database = {
           uploaded_at: string | null
         }
         Insert: {
+          category?: string | null
           company_id: string
           contact_id: string
           file_name: string
@@ -160,6 +162,7 @@ export type Database = {
           uploaded_at?: string | null
         }
         Update: {
+          category?: string | null
           company_id?: string
           contact_id?: string
           file_name?: string

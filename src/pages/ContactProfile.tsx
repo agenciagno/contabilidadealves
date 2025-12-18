@@ -3,13 +3,15 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, User, Building2, DollarSign, MessageSquare, FileText, ClipboardList } from 'lucide-react';
+import { ArrowLeft, User, Building2, DollarSign, MessageSquare, FileText, ClipboardList, Download } from 'lucide-react';
 import { useContacts } from '@/hooks/useContacts';
 import { useContactTransactions, useContactFinancialStatus } from '@/hooks/useContactTransactions';
+import { useContactDocuments, DOCUMENT_CATEGORIES } from '@/hooks/useContactDocuments';
 import { ContactFinancialTab } from '@/components/contacts/ContactFinancialTab';
 import { ContactDetailsTab } from '@/components/contacts/ContactDetailsTab';
 import { ContactCommunicationTab } from '@/components/contacts/ContactCommunicationTab';
 import { ContactDocumentsTab } from '@/components/contacts/ContactDocumentsTab';
+import { generateContactReport } from '@/components/contacts/ContactReportPDF';
 
 const typeLabels = {
   cliente: { label: 'Cliente', color: 'bg-emerald-500/10 text-emerald-500' },
@@ -30,9 +32,31 @@ export default function ContactProfile() {
   const navigate = useNavigate();
   const { contacts, isLoading: isLoadingContacts } = useContacts();
   const { data: transactions } = useContactTransactions(id);
+  const { documents, getDocumentCounts } = useContactDocuments(id);
   
   const contact = contacts.find(c => c.id === id);
   const { isInadimplente } = useContactFinancialStatus(id, transactions);
+
+  const handleGenerateReport = () => {
+    if (!contact) return;
+
+    const financialSummary = {
+      totalPago: transactions?.filter(t => t.is_paid).reduce((sum, t) => sum + Number(t.amount), 0) || 0,
+      totalPendente: transactions?.filter(t => !t.is_paid).reduce((sum, t) => sum + Number(t.amount), 0) || 0,
+    };
+
+    const documentCounts = getDocumentCounts();
+    const documentCountsArray = DOCUMENT_CATEGORIES
+      .map(cat => ({ category: cat.value, count: documentCounts[cat.value] }))
+      .filter(item => item.count > 0);
+
+    generateContactReport(
+      contact,
+      transactions || [],
+      documentCountsArray,
+      financialSummary
+    );
+  };
 
   if (isLoadingContacts) {
     return (
@@ -103,8 +127,29 @@ export default function ContactProfile() {
               </Badge>
             </div>
           </div>
+
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleGenerateReport}
+            className="hidden sm:flex"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Gerar Relatório
+          </Button>
         </div>
       </div>
+
+      {/* Mobile Report Button */}
+      <Button 
+        variant="outline" 
+        size="sm"
+        onClick={handleGenerateReport}
+        className="sm:hidden w-full"
+      >
+        <Download className="h-4 w-4 mr-2" />
+        Gerar Relatório PDF
+      </Button>
 
       {/* Tabs */}
       <Tabs defaultValue="financeiro" className="w-full">

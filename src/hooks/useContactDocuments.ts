@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+export type DocumentCategory = 'atos_constitutivos' | 'impostos_guias' | 'fiscal' | 'dp_rh' | 'certidoes';
+
 export interface ContactDocument {
   id: string;
   company_id: string;
@@ -11,7 +13,16 @@ export interface ContactDocument {
   file_type: string | null;
   file_size: number | null;
   uploaded_at: string;
+  category: DocumentCategory;
 }
+
+export const DOCUMENT_CATEGORIES: { value: DocumentCategory; label: string; icon: string }[] = [
+  { value: 'atos_constitutivos', label: 'Atos Constitutivos', icon: 'FileSignature' },
+  { value: 'impostos_guias', label: 'Impostos e Guias', icon: 'Receipt' },
+  { value: 'fiscal', label: 'Fiscal', icon: 'FileSpreadsheet' },
+  { value: 'dp_rh', label: 'DP/RH', icon: 'Users' },
+  { value: 'certidoes', label: 'Certidões', icon: 'FileCheck' },
+];
 
 export function useContactDocuments(contactId: string | undefined) {
   const { toast } = useToast();
@@ -34,8 +45,38 @@ export function useContactDocuments(contactId: string | undefined) {
     enabled: !!contactId,
   });
 
+  const getDocumentsByCategory = (category: DocumentCategory) => {
+    return documents?.filter(doc => doc.category === category) || [];
+  };
+
+  const getDocumentCounts = () => {
+    const counts: Record<DocumentCategory, number> = {
+      atos_constitutivos: 0,
+      impostos_guias: 0,
+      fiscal: 0,
+      dp_rh: 0,
+      certidoes: 0,
+    };
+
+    documents?.forEach(doc => {
+      if (counts[doc.category] !== undefined) {
+        counts[doc.category]++;
+      }
+    });
+
+    return counts;
+  };
+
   const uploadDocument = useMutation({
-    mutationFn: async ({ file, contactId }: { file: File; contactId: string }) => {
+    mutationFn: async ({ 
+      file, 
+      contactId, 
+      category 
+    }: { 
+      file: File; 
+      contactId: string; 
+      category: DocumentCategory;
+    }) => {
       const { data: profile } = await supabase
         .from('profiles')
         .select('company_id')
@@ -53,11 +94,6 @@ export function useContactDocuments(contactId: string | undefined) {
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('contact-documents')
-        .getPublicUrl(fileName);
-
       // Save document record
       const { data, error } = await supabase
         .from('contact_documents')
@@ -68,6 +104,7 @@ export function useContactDocuments(contactId: string | undefined) {
           file_url: fileName,
           file_type: fileExt?.toUpperCase() || null,
           file_size: file.size,
+          category,
         })
         .select()
         .single();
@@ -149,11 +186,27 @@ export function useContactDocuments(contactId: string | undefined) {
     URL.revokeObjectURL(url);
   };
 
+  const getPreviewUrl = async (document: ContactDocument): Promise<string | null> => {
+    const { data, error } = await supabase.storage
+      .from('contact-documents')
+      .createSignedUrl(document.file_url, 3600); // 1 hour expiry
+
+    if (error) {
+      console.error('Error creating signed URL:', error);
+      return null;
+    }
+
+    return data.signedUrl;
+  };
+
   return {
     documents,
     isLoading,
     uploadDocument,
     deleteDocument,
     downloadDocument,
+    getPreviewUrl,
+    getDocumentsByCategory,
+    getDocumentCounts,
   };
 }
