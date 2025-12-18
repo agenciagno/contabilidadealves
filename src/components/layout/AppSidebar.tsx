@@ -96,8 +96,7 @@ const menuModules: MenuModule[] = [
     title: 'Relatórios',
     icon: BarChart3,
     items: [
-      { title: 'Relatório Financeiro', url: '/relatorios', icon: FileBarChart, iconName: 'file-bar-chart' },
-      { title: 'Relatório de Clientes', url: '/relatorio-clientes', icon: BarChart3, iconName: 'bar-chart-3' },
+      { title: 'Relatórios', url: '/relatorios', icon: FileBarChart, iconName: 'file-bar-chart' },
     ],
   },
 ];

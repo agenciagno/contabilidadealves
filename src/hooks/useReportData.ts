@@ -25,7 +25,7 @@ export interface ReportTransaction {
   is_paid: boolean;
   category?: { id: string; name: string; color: string } | null;
   bank?: { id: string; name: string; color: string } | null;
-  contact?: { id: string; name: string; type: string; tax_regime?: string | null } | null;
+  contact?: { id: string; name: string; type: string; tax_regime?: string | null; phone?: string | null } | null;
 }
 
 export function useReportData(filters: ReportFilters) {
@@ -44,7 +44,7 @@ export function useReportData(filters: ReportFilters) {
           is_paid,
           category:categories(id, name, color),
           bank:banks(id, name, color),
-          contact:contacts(id, name, type, tax_regime)
+          contact:contacts(id, name, type, tax_regime, phone)
         `)
         .order('date', { ascending: false });
 

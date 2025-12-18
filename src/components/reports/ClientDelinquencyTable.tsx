@@ -1,12 +1,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, User } from 'lucide-react';
-import { differenceInDays, parseISO } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import { AlertTriangle, User, MessageCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface DelinquentClient {
   id: string;
   name: string;
+  phone?: string | null;
   openAmount: number;
   daysOverdue: number;
 }
@@ -26,7 +28,20 @@ const getSeverityBadge = (days: number) => {
 };
 
 export function ClientDelinquencyTable({ clients }: ClientDelinquencyTableProps) {
+  const { toast } = useToast();
   const totalOpenAmount = clients.reduce((sum, c) => sum + c.openAmount, 0);
+
+  const handleWhatsApp = (client: DelinquentClient) => {
+    if (!client.phone) {
+      toast({ title: 'Telefone não cadastrado', variant: 'destructive' });
+      return;
+    }
+    const phone = client.phone.replace(/\D/g, '');
+    const message = encodeURIComponent(
+      `Olá ${client.name}, identificamos um valor em aberto de ${formatCurrency(client.openAmount)}. Por favor, entre em contato para regularização.`
+    );
+    window.open(`https://wa.me/55${phone}?text=${message}`, '_blank');
+  };
 
   return (
     <Card className="bg-card border-border/50">
@@ -56,9 +71,10 @@ export function ClientDelinquencyTable({ clients }: ClientDelinquencyTableProps)
               <TableHeader>
                 <TableRow>
                   <TableHead>Cliente</TableHead>
-                  <TableHead className="text-right">Valor em Aberto</TableHead>
+                  <TableHead className="text-right">Valor Vencido</TableHead>
                   <TableHead className="text-center">Dias de Atraso</TableHead>
                   <TableHead className="text-center">Risco</TableHead>
+                  <TableHead className="text-center">Ação</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -85,6 +101,17 @@ export function ClientDelinquencyTable({ clients }: ClientDelinquencyTableProps)
                         <Badge variant="outline" className={severity.className}>
                           {severity.label}
                         </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10"
+                          onClick={() => handleWhatsApp(client)}
+                          title="Enviar WhatsApp"
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   );

@@ -90,7 +90,7 @@ export default function Reports() {
 
   // Calculate delinquent clients
   const delinquentClients = useMemo(() => {
-    const clientMap = new Map<string, { id: string; name: string; openAmount: number; oldestDueDate: Date }>();
+    const clientMap = new Map<string, { id: string; name: string; phone?: string | null; openAmount: number; oldestDueDate: Date }>();
     
     allUnpaidTransactions
       .filter(t => t.type === 'receita' && t.due_date && t.contact)
@@ -109,6 +109,7 @@ export default function Reports() {
             clientMap.set(t.contact!.id, {
               id: t.contact!.id,
               name: t.contact!.name,
+              phone: t.contact!.phone,
               openAmount: Number(t.amount),
               oldestDueDate: dueDate,
             });
