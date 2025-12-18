@@ -7,11 +7,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Separator } from '@/components/ui/separator';
-import { Moon, Sun, Monitor, Loader2, Upload, Building2, Palette, Check, Lightbulb, Trash2 } from 'lucide-react';
+import { Moon, Sun, Monitor, Loader2, Upload, Building2, Palette, Check, Lightbulb, Trash2, History } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import UsersTab from '@/components/users/UsersTab';
+import GlobalLogsTab from '@/components/settings/GlobalLogsTab';
 
 // Mask functions
 const maskCNPJ = (value: string) => {
@@ -337,6 +338,10 @@ export default function SettingsPage() {
         <TabsList className="mb-6">
           <TabsTrigger value="conta">Conta</TabsTrigger>
           <TabsTrigger value="usuarios">Usuários Internos</TabsTrigger>
+          <TabsTrigger value="logs" className="gap-1.5">
+            <History className="w-4 h-4" />
+            Logs Globais
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="conta" className="space-y-6 mt-0">
@@ -608,6 +613,10 @@ export default function SettingsPage() {
           {companyId && user && (
             <UsersTab companyId={companyId} currentUserId={user.id} />
           )}
+        </TabsContent>
+
+        <TabsContent value="logs" className="mt-0">
+          <GlobalLogsTab />
         </TabsContent>
       </Tabs>
     </div>

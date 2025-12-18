@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Plus, Pencil, Trash2, TrendingUp, TrendingDown, RefreshCw, Calendar } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { Plus, Pencil, Trash2, TrendingUp, TrendingDown, RefreshCw, Calendar, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +17,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useRecurringTransactions, RecurringTransaction, RecurringTransactionInsert } from '@/hooks/useRecurringTransactions';
+import { useTransactions } from '@/hooks/useTransactions';
 import { RecurringFormDialog } from '@/components/recurring/RecurringFormDialog';
 import { DAY_LABELS } from '@/components/recurring/WeekDaysSelector';
 
@@ -43,9 +45,60 @@ export default function RecurringBills() {
     toggleActive,
   } = useRecurringTransactions();
 
+  const { transactions, isLoading: isLoadingTransactions } = useTransactions();
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRecurring, setEditingRecurring] = useState<RecurringTransaction | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  // Calculate client fees (recurring revenue from CRM - monthly fees per client)
+  const clientFees = useMemo(() => {
+    // Group future unpaid transactions by contact that have "Honorário" in description
+    const feesByContact = new Map<string, { 
+      contactId: string;
+      contactName: string;
+      monthlyAmount: number;
+      totalPending: number;
+      pendingCount: number;
+    }>();
+
+    const now = new Date();
+    
+    transactions
+      .filter(t => 
+        t.type === 'receita' && 
+        t.contact_id && 
+        t.contact?.name &&
+        (t.description.toLowerCase().includes('honorário') || 
+         t.description.toLowerCase().includes('honorario') ||
+         t.description.toLowerCase().includes('mensalidade'))
+      )
+      .forEach(t => {
+        const existing = feesByContact.get(t.contact_id!);
+        const amount = Number(t.amount);
+        
+        if (existing) {
+          existing.totalPending += t.is_paid ? 0 : amount;
+          existing.pendingCount += t.is_paid ? 0 : 1;
+        } else {
+          feesByContact.set(t.contact_id!, {
+            contactId: t.contact_id!,
+            contactName: t.contact!.name,
+            monthlyAmount: amount,
+            totalPending: t.is_paid ? 0 : amount,
+            pendingCount: t.is_paid ? 0 : 1,
+          });
+        }
+      });
+
+    return Array.from(feesByContact.values());
+  }, [transactions]);
+
+  // Calculate total monthly client fees
+  const totalClientFees = clientFees.reduce((sum, fee) => sum + fee.monthlyAmount, 0);
+
+  // Combined monthly revenue = recurring receitas + client fees
+  const totalMonthlyRevenue = monthlyTotals.receitas + totalClientFees;
 
   const handleCreate = () => {
     setEditingRecurring(null);
@@ -118,7 +171,12 @@ export default function RecurringBills() {
                 {recurring.contact && (
                   <>
                     {(recurring.category || recurring.bank) && <span className="text-muted-foreground/50">|</span>}
-                    <span className="text-primary">{recurring.contact.name}</span>
+                    <Link 
+                      to={`/contatos/${recurring.contact_id}`}
+                      className="text-primary hover:underline"
+                    >
+                      {recurring.contact.name}
+                    </Link>
                   </>
                 )}
               </p>
@@ -187,11 +245,11 @@ export default function RecurringBills() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <Card className="bg-card border-border/50">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Receitas Mensais
+              Receitas Fixas
             </CardTitle>
             <TrendingUp className="w-4 h-4 text-success" />
           </CardHeader>
@@ -201,6 +259,24 @@ export default function RecurringBills() {
             ) : (
               <div className="text-xl font-bold text-success">
                 {formatCurrency(monthlyTotals.receitas)}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card border-border/50">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Honorários Clientes
+            </CardTitle>
+            <Users className="w-4 h-4 text-primary" />
+          </CardHeader>
+          <CardContent>
+            {isLoadingTransactions ? (
+              <Skeleton className="h-7 w-24" />
+            ) : (
+              <div className="text-xl font-bold text-primary">
+                {formatCurrency(totalClientFees)}
               </div>
             )}
           </CardContent>
@@ -232,18 +308,57 @@ export default function RecurringBills() {
             <RefreshCw className="w-4 h-4 text-primary" />
           </CardHeader>
           <CardContent>
-            {isLoading ? (
+            {isLoading || isLoadingTransactions ? (
               <Skeleton className="h-7 w-24" />
             ) : (
               <div className={`text-xl font-bold ${
-                monthlyTotals.receitas - monthlyTotals.despesas >= 0 ? 'text-success' : 'text-destructive'
+                totalMonthlyRevenue - monthlyTotals.despesas >= 0 ? 'text-success' : 'text-destructive'
               }`}>
-                {formatCurrency(monthlyTotals.receitas - monthlyTotals.despesas)}
+                {formatCurrency(totalMonthlyRevenue - monthlyTotals.despesas)}
               </div>
             )}
           </CardContent>
         </Card>
       </div>
+
+      {/* Client Fees Section */}
+      {clientFees.length > 0 && (
+        <section>
+          <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+            <Users className="w-5 h-5 text-primary" />
+            Honorários de Clientes ({clientFees.length})
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {clientFees.map((fee) => (
+              <Card key={fee.contactId} className="bg-card border-border/50">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Link 
+                        to={`/contatos/${fee.contactId}`}
+                        className="font-medium text-foreground hover:text-primary hover:underline"
+                      >
+                        {fee.contactName}
+                      </Link>
+                      {fee.pendingCount > 0 && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {fee.pendingCount} parcela{fee.pendingCount > 1 ? 's' : ''} pendente{fee.pendingCount > 1 ? 's' : ''}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-semibold text-success">
+                        {formatCurrency(fee.monthlyAmount)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">/mês</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Active Recurring */}
       <section>

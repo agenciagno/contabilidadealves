@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { createGlobalLog } from '@/hooks/useGlobalLogs';
 
 export interface Transaction {
   id: string;
@@ -83,11 +84,22 @@ export function useTransactions() {
         .single();
 
       if (error) throw error;
+      
+      // Log to global audit
+      await createGlobalLog({
+        action: 'ADICAO',
+        module: 'FINANCEIRO',
+        entityId: data.id,
+        entityName: transaction.description,
+        details: `Transação "${transaction.description}" criada - ${transaction.type === 'receita' ? 'Receita' : 'Despesa'} de R$ ${Number(transaction.amount).toFixed(2)}`,
+      });
+      
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['banks'] }); // Refresh bank balances
+      queryClient.invalidateQueries({ queryKey: ['banks'] });
+      queryClient.invalidateQueries({ queryKey: ['global-logs'] });
       toast({ title: 'Transação criada com sucesso!' });
     },
     onError: (error: Error) => {
@@ -111,6 +123,7 @@ export function useTransactions() {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['banks'] });
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['global-logs'] });
       toast({ title: 'Transação atualizada!' });
     },
     onError: (error: Error) => {
@@ -120,17 +133,36 @@ export function useTransactions() {
 
   const deleteTransaction = useMutation({
     mutationFn: async (id: string) => {
+      // Get transaction info before deleting for logging
+      const { data: transaction } = await supabase
+        .from('transactions')
+        .select('description, amount, type')
+        .eq('id', id)
+        .single();
+
       const { error } = await supabase
         .from('transactions')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
+      
+      // Log deletion
+      if (transaction) {
+        await createGlobalLog({
+          action: 'EXCLUSAO',
+          module: 'FINANCEIRO',
+          entityId: id,
+          entityName: transaction.description,
+          details: `Transação "${transaction.description}" excluída - ${transaction.type === 'receita' ? 'Receita' : 'Despesa'} de R$ ${Number(transaction.amount).toFixed(2)}`,
+        });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['banks'] });
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['global-logs'] });
       toast({ title: 'Transação excluída!' });
     },
     onError: (error: Error) => {

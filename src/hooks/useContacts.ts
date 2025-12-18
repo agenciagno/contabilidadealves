@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { createAuditLog, getFieldChanges } from '@/hooks/useAuditLog';
+import { createGlobalLog } from '@/hooks/useGlobalLogs';
 
 export type TaxRegime = 'mei' | 'simples_nacional' | 'lucro_presumido' | 'lucro_real' | 'nao_aplica';
 
@@ -66,11 +67,22 @@ export function useContacts() {
         .single();
 
       if (error) throw error;
+      
+      const typeLabel = contact.type === 'cliente' ? 'Cliente' : contact.type === 'fornecedor' ? 'Fornecedor' : 'Cliente/Fornecedor';
+      await createGlobalLog({
+        action: 'ADICAO',
+        module: 'CRM',
+        entityId: data.id,
+        entityName: contact.name,
+        details: `${typeLabel} "${contact.name}" cadastrado`,
+      });
+      
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
-      queryClient.invalidateQueries({ queryKey: ['transactions'] }); // Sync transactions view
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['global-logs'] });
       toast({ title: 'Contato criado com sucesso!' });
     },
     onError: (error: Error) => {

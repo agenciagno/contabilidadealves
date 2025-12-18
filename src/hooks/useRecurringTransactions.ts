@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { createGlobalLog } from '@/hooks/useGlobalLogs';
 
 export interface RecurringTransaction {
   id: string;
@@ -101,10 +102,20 @@ export function useRecurringTransactions() {
         .single();
 
       if (error) throw error;
+      
+      await createGlobalLog({
+        action: 'ADICAO',
+        module: 'RECORRENTES',
+        entityId: data.id,
+        entityName: recurring.description,
+        details: `Conta recorrente "${recurring.description}" criada - ${recurring.type === 'receita' ? 'Receita' : 'Despesa'} de R$ ${Number(recurring.amount).toFixed(2)}`,
+      });
+      
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['recurring_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['global-logs'] });
       toast({ title: 'Conta recorrente criada com sucesso!' });
     },
     onError: (error: Error) => {
