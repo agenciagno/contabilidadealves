@@ -21,10 +21,11 @@ export interface ReportTransaction {
   amount: number;
   type: 'receita' | 'despesa';
   date: string;
+  due_date?: string | null;
   is_paid: boolean;
   category?: { id: string; name: string; color: string } | null;
   bank?: { id: string; name: string; color: string } | null;
-  contact?: { id: string; name: string; type: string } | null;
+  contact?: { id: string; name: string; type: string; tax_regime?: string | null } | null;
 }
 
 export function useReportData(filters: ReportFilters) {
@@ -39,10 +40,11 @@ export function useReportData(filters: ReportFilters) {
           amount,
           type,
           date,
+          due_date,
           is_paid,
           category:categories(id, name, color),
           bank:banks(id, name, color),
-          contact:contacts(id, name, type)
+          contact:contacts(id, name, type, tax_regime)
         `)
         .order('date', { ascending: false });
 
