@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { TrendingUp, TrendingDown, Clock, AlertTriangle } from 'lucide-react';
+import { TrendingUp, Clock } from 'lucide-react';
 import { useContactTransactions } from '@/hooks/useContactTransactions';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -24,9 +24,9 @@ export function ContactFinancialTab({ contactId }: ContactFinancialTabProps) {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-24" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {[...Array(2)].map((_, i) => (
+            <Skeleton key={i} className="h-28" />
           ))}
         </div>
         <Skeleton className="h-64" />
@@ -37,14 +37,12 @@ export function ContactFinancialTab({ contactId }: ContactFinancialTabProps) {
   const today = new Date().toISOString().split('T')[0];
 
   const summary = {
-    totalReceitas: transactions
-      ?.filter(t => t.type === 'receita')
+    totalPago: transactions
+      ?.filter(t => t.is_paid)
       .reduce((acc, t) => acc + Number(t.amount), 0) || 0,
-    totalDespesas: transactions
-      ?.filter(t => t.type === 'despesa')
+    totalPendente: transactions
+      ?.filter(t => !t.is_paid)
       .reduce((acc, t) => acc + Number(t.amount), 0) || 0,
-    pendentes: transactions?.filter(t => !t.is_paid).length || 0,
-    vencidas: transactions?.filter(t => !t.is_paid && t.due_date && t.due_date < today).length || 0,
   };
 
   const formatCurrency = (value: number) => {
@@ -56,49 +54,33 @@ export function ContactFinancialTab({ contactId }: ContactFinancialTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Summary Cards - Simplified to 2 */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card className="bg-card border-border/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <TrendingUp className="h-4 w-4 text-emerald-500" />
-              <span className="text-xs text-muted-foreground">Total Receitas</span>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 rounded-lg bg-emerald-500/10">
+                <TrendingUp className="h-5 w-5 text-emerald-500" />
+              </div>
+              <span className="text-sm text-muted-foreground">Total Pago</span>
             </div>
-            <p className="text-xl font-bold text-emerald-500">
-              {formatCurrency(summary.totalReceitas)}
+            <p className="text-2xl font-bold text-emerald-500">
+              {formatCurrency(summary.totalPago)}
             </p>
           </CardContent>
         </Card>
 
         <Card className="bg-card border-border/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <TrendingDown className="h-4 w-4 text-red-500" />
-              <span className="text-xs text-muted-foreground">Total Despesas</span>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 rounded-lg bg-yellow-500/10">
+                <Clock className="h-5 w-5 text-yellow-500" />
+              </div>
+              <span className="text-sm text-muted-foreground">Total Pendente</span>
             </div>
-            <p className="text-xl font-bold text-red-500">
-              {formatCurrency(summary.totalDespesas)}
+            <p className="text-2xl font-bold text-yellow-500">
+              {formatCurrency(summary.totalPendente)}
             </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-card border-border/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Clock className="h-4 w-4 text-yellow-500" />
-              <span className="text-xs text-muted-foreground">Pendentes</span>
-            </div>
-            <p className="text-xl font-bold text-yellow-500">{summary.pendentes}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-card border-border/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle className="h-4 w-4 text-destructive" />
-              <span className="text-xs text-muted-foreground">Vencidas</span>
-            </div>
-            <p className="text-xl font-bold text-destructive">{summary.vencidas}</p>
           </CardContent>
         </Card>
       </div>
@@ -115,9 +97,8 @@ export function ContactFinancialTab({ contactId }: ContactFinancialTabProps) {
                 <TableRow>
                   <TableHead>Data</TableHead>
                   <TableHead>Descrição</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead>Tipo</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
+                  <TableHead>Vencimento</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -129,41 +110,21 @@ export function ContactFinancialTab({ contactId }: ContactFinancialTabProps) {
 
                   return (
                     <TableRow key={transaction.id}>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="text-muted-foreground whitespace-nowrap">
                         {format(new Date(transaction.date), 'dd/MM/yyyy', { locale: ptBR })}
                       </TableCell>
                       <TableCell className="font-medium">{transaction.description}</TableCell>
-                      <TableCell>
-                        {transaction.category ? (
-                          <Badge 
-                            variant="outline" 
-                            style={{ 
-                              borderColor: transaction.category.color || undefined,
-                              color: transaction.category.color || undefined 
-                            }}
-                          >
-                            {transaction.category.name}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge 
-                          variant="secondary"
-                          className={transaction.type === 'receita' 
-                            ? 'bg-emerald-500/10 text-emerald-500' 
-                            : 'bg-red-500/10 text-red-500'
-                          }
-                        >
-                          {transaction.type === 'receita' ? 'Receita' : 'Despesa'}
-                        </Badge>
-                      </TableCell>
                       <TableCell className={`text-right font-medium ${
                         transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'
                       }`}>
                         {transaction.type === 'despesa' && '-'}
                         {formatCurrency(Number(transaction.amount))}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground whitespace-nowrap">
+                        {transaction.due_date 
+                          ? format(new Date(transaction.due_date), 'dd/MM/yyyy', { locale: ptBR })
+                          : '-'
+                        }
                       </TableCell>
                       <TableCell>
                         {transaction.is_paid ? (
