@@ -138,6 +138,88 @@ export type Database = {
         }
         Relationships: []
       }
+      contact_documents: {
+        Row: {
+          company_id: string
+          contact_id: string
+          file_name: string
+          file_size: number | null
+          file_type: string | null
+          file_url: string
+          id: string
+          uploaded_at: string | null
+        }
+        Insert: {
+          company_id: string
+          contact_id: string
+          file_name: string
+          file_size?: number | null
+          file_type?: string | null
+          file_url: string
+          id?: string
+          uploaded_at?: string | null
+        }
+        Update: {
+          company_id?: string
+          contact_id?: string
+          file_name?: string
+          file_size?: number | null
+          file_type?: string | null
+          file_url?: string
+          id?: string
+          uploaded_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_documents_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contact_messages: {
+        Row: {
+          channel: string
+          company_id: string
+          contact_id: string
+          created_at: string | null
+          id: string
+          message: string
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          channel: string
+          company_id: string
+          contact_id: string
+          created_at?: string | null
+          id?: string
+          message: string
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          channel?: string
+          company_id?: string
+          contact_id?: string
+          created_at?: string | null
+          id?: string
+          message?: string
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_messages_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           address: string | null

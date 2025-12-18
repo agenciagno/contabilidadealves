@@ -3,11 +3,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, User, Building2 } from 'lucide-react';
+import { ArrowLeft, User, Building2, DollarSign, MessageSquare, FileText, ClipboardList } from 'lucide-react';
 import { useContacts } from '@/hooks/useContacts';
 import { useContactTransactions, useContactFinancialStatus } from '@/hooks/useContactTransactions';
 import { ContactFinancialTab } from '@/components/contacts/ContactFinancialTab';
 import { ContactDetailsTab } from '@/components/contacts/ContactDetailsTab';
+import { ContactCommunicationTab } from '@/components/contacts/ContactCommunicationTab';
+import { ContactDocumentsTab } from '@/components/contacts/ContactDocumentsTab';
 
 const typeLabels = {
   cliente: { label: 'Cliente', color: 'bg-emerald-500/10 text-emerald-500' },
@@ -79,7 +81,12 @@ export default function ContactProfile() {
           
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-foreground">{contact.name}</h1>
-            <div className="flex flex-wrap gap-2 mt-1">
+            {contact.document && (
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {contact.document.length > 14 ? 'CNPJ' : 'CPF'}: {contact.document}
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2 mt-2">
               <Badge variant="secondary" className={typeLabels[contact.type].color}>
                 {typeLabels[contact.type].label}
               </Badge>
@@ -101,17 +108,35 @@ export default function ContactProfile() {
 
       {/* Tabs */}
       <Tabs defaultValue="financeiro" className="w-full">
-        <TabsList className="w-full sm:w-auto">
-          <TabsTrigger value="financeiro" className="flex-1 sm:flex-none">
-            Financeiro
+        <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:grid-cols-4 gap-1">
+          <TabsTrigger value="financeiro" className="flex items-center gap-1.5">
+            <DollarSign className="h-4 w-4" />
+            <span className="hidden sm:inline">Financeiro</span>
           </TabsTrigger>
-          <TabsTrigger value="dados" className="flex-1 sm:flex-none">
-            Dados Detalhados
+          <TabsTrigger value="comunicacao" className="flex items-center gap-1.5">
+            <MessageSquare className="h-4 w-4" />
+            <span className="hidden sm:inline">Comunicação</span>
+          </TabsTrigger>
+          <TabsTrigger value="documentos" className="flex items-center gap-1.5">
+            <FileText className="h-4 w-4" />
+            <span className="hidden sm:inline">Documentos</span>
+          </TabsTrigger>
+          <TabsTrigger value="dados" className="flex items-center gap-1.5">
+            <ClipboardList className="h-4 w-4" />
+            <span className="hidden sm:inline">Cadastro</span>
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="financeiro" className="mt-6">
           <ContactFinancialTab contactId={contact.id} />
+        </TabsContent>
+
+        <TabsContent value="comunicacao" className="mt-6">
+          <ContactCommunicationTab contactId={contact.id} initialNotes={contact.notes} />
+        </TabsContent>
+
+        <TabsContent value="documentos" className="mt-6">
+          <ContactDocumentsTab contactId={contact.id} />
         </TabsContent>
 
         <TabsContent value="dados" className="mt-6">
