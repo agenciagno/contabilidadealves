@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useContacts } from './useContacts';
 import { useTransactions } from './useTransactions';
+import { startOfDay, format, parseISO, isBefore } from 'date-fns';
 
 export interface InadimplentContact {
   id: string;
@@ -12,18 +13,19 @@ export interface InadimplentContact {
 }
 
 export function useInadimplentContacts() {
-  const { contacts } = useContacts();
-  const { transactions } = useTransactions();
-  
-  const today = new Date().toISOString().split('T')[0];
+  const { contacts, isLoading: contactsLoading } = useContacts();
+  const { transactions, isLoading: transactionsLoading } = useTransactions();
   
   const inadimplentContacts = useMemo(() => {
+    const today = startOfDay(new Date());
+    const todayStr = format(today, 'yyyy-MM-dd');
     const contactsMap = new Map<string, InadimplentContact>();
     
     // Find all unpaid transactions with due_date < today
-    const overdueTransactions = transactions.filter(
-      t => !t.is_paid && t.due_date && t.due_date < today && t.contact_id
-    );
+    const overdueTransactions = transactions.filter(t => {
+      if (t.is_paid || !t.due_date || !t.contact_id) return false;
+      return t.due_date < todayStr;
+    });
     
     // Group by contact
     overdueTransactions.forEach(t => {
@@ -53,11 +55,16 @@ export function useInadimplentContacts() {
     return Array.from(contactsMap.values()).sort(
       (a, b) => new Date(a.oldestDueDate).getTime() - new Date(b.oldestDueDate).getTime()
     );
-  }, [contacts, transactions, today]);
+  }, [contacts, transactions]);
+  
+  const totalAmount = useMemo(() => {
+    return inadimplentContacts.reduce((sum, c) => sum + c.totalOverdue, 0);
+  }, [inadimplentContacts]);
   
   return {
     inadimplentContacts,
     count: inadimplentContacts.length,
-    totalAmount: inadimplentContacts.reduce((sum, c) => sum + c.totalOverdue, 0),
+    totalAmount,
+    isLoading: contactsLoading || transactionsLoading,
   };
 }

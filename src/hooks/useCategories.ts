@@ -31,6 +31,8 @@ export function useCategories() {
       if (error) throw error;
       return data as Category[];
     },
+    staleTime: 1000 * 60, // 1 minute - categories change less often
+    gcTime: 1000 * 60 * 10,
   });
 
   const createCategory = useMutation({

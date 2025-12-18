@@ -35,6 +35,8 @@ export function useBanks() {
       if (error) throw error;
       return data as Bank[];
     },
+    staleTime: 1000 * 30,
+    gcTime: 1000 * 60 * 5,
   });
 
   const createBank = useMutation({
