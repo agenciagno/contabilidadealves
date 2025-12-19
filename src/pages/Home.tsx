@@ -542,13 +542,13 @@ const Home = () => {
                   />
                   <Bar
                     dataKey="receitas"
-                    fill="hsl(var(--chart-2))"
+                    fill="hsl(142.1 76.2% 36.3%)"
                     radius={[4, 4, 0, 0]}
                     maxBarSize={40}
                   />
                   <Bar
                     dataKey="despesas"
-                    fill="hsl(var(--chart-1))"
+                    fill="hsl(0 84.2% 60.2%)"
                     radius={[4, 4, 0, 0]}
                     maxBarSize={40}
                   />
