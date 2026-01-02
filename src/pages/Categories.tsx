@@ -4,30 +4,32 @@ import { Button } from '@/components/ui/button';
 import { Plus, Pencil, Trash2, Tag, TrendingUp, TrendingDown } from 'lucide-react';
 import { useCategories, Category } from '@/hooks/useCategories';
 import { CategoryFormDialog } from '@/components/categories/CategoryFormDialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-
 export default function Categories() {
-  const { categories, isLoading, createCategory, updateCategory, deleteCategory } = useCategories();
+  const {
+    categories,
+    isLoading,
+    createCategory,
+    updateCategory,
+    deleteCategory
+  } = useCategories();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-
   const receitas = categories.filter(c => c.type === 'receita');
   const despesas = categories.filter(c => c.type === 'despesa');
-
-  const handleSubmit = (data: { name: string; type: 'receita' | 'despesa'; color: string; icon: string }) => {
+  const handleSubmit = (data: {
+    name: string;
+    type: 'receita' | 'despesa';
+    color: string;
+    icon: string;
+  }) => {
     if (editingCategory) {
-      updateCategory.mutate({ id: editingCategory.id, ...data }, {
+      updateCategory.mutate({
+        id: editingCategory.id,
+        ...data
+      }, {
         onSuccess: () => {
           setDialogOpen(false);
           setEditingCategory(null);
@@ -39,12 +41,10 @@ export default function Categories() {
       });
     }
   };
-
   const handleEdit = (category: Category) => {
     setEditingCategory(category);
     setDialogOpen(true);
   };
-
   const handleDelete = () => {
     if (deleteId) {
       deleteCategory.mutate(deleteId, {
@@ -52,17 +52,18 @@ export default function Categories() {
       });
     }
   };
-
-  const CategoryCard = ({ category }: { category: Category }) => (
-    <div
-      className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border border-border/50 hover:border-border transition-colors"
-    >
+  const CategoryCard = ({
+    category
+  }: {
+    category: Category;
+  }) => <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border border-border/50 hover:border-border transition-colors">
       <div className="flex items-center gap-3">
-        <div
-          className="w-10 h-10 rounded-full flex items-center justify-center"
-          style={{ backgroundColor: category.color + '20' }}
-        >
-          <Tag className="w-5 h-5" style={{ color: category.color }} />
+        <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{
+        backgroundColor: category.color + '20'
+      }}>
+          <Tag className="w-5 h-5" style={{
+          color: category.color
+        }} />
         </div>
         <span className="font-medium text-foreground">{category.name}</span>
       </div>
@@ -74,12 +75,9 @@ export default function Categories() {
           <Trash2 className="w-4 h-4 text-destructive" />
         </Button>
       </div>
-    </div>
-  );
-
+    </div>;
   if (isLoading) {
-    return (
-      <div className="space-y-6">
+    return <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <Skeleton className="h-8 w-40" />
@@ -91,18 +89,18 @@ export default function Categories() {
           <Skeleton className="h-64" />
           <Skeleton className="h-64" />
         </div>
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Categorias</h1>
-          <p className="text-muted-foreground">Organize suas receitas e despesas</p>
+          
         </div>
-        <Button className="gap-2" onClick={() => { setEditingCategory(null); setDialogOpen(true); }}>
+        <Button className="gap-2" onClick={() => {
+        setEditingCategory(null);
+        setDialogOpen(true);
+      }}>
           <Plus className="w-4 h-4" />
           Nova Categoria
         </Button>
@@ -118,11 +116,7 @@ export default function Categories() {
               <span className="text-sm text-muted-foreground">({receitas.length})</span>
             </div>
             <div className="space-y-2">
-              {receitas.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">Nenhuma categoria de receita</p>
-              ) : (
-                receitas.map(cat => <CategoryCard key={cat.id} category={cat} />)
-              )}
+              {receitas.length === 0 ? <p className="text-muted-foreground text-center py-8">Nenhuma categoria de receita</p> : receitas.map(cat => <CategoryCard key={cat.id} category={cat} />)}
             </div>
           </CardContent>
         </Card>
@@ -136,23 +130,13 @@ export default function Categories() {
               <span className="text-sm text-muted-foreground">({despesas.length})</span>
             </div>
             <div className="space-y-2">
-              {despesas.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">Nenhuma categoria de despesa</p>
-              ) : (
-                despesas.map(cat => <CategoryCard key={cat.id} category={cat} />)
-              )}
+              {despesas.length === 0 ? <p className="text-muted-foreground text-center py-8">Nenhuma categoria de despesa</p> : despesas.map(cat => <CategoryCard key={cat.id} category={cat} />)}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <CategoryFormDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        category={editingCategory}
-        onSubmit={handleSubmit}
-        isLoading={createCategory.isPending || updateCategory.isPending}
-      />
+      <CategoryFormDialog open={dialogOpen} onOpenChange={setDialogOpen} category={editingCategory} onSubmit={handleSubmit} isLoading={createCategory.isPending || updateCategory.isPending} />
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
@@ -170,6 +154,5 @@ export default function Categories() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
-  );
+    </div>;
 }
