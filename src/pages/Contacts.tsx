@@ -7,18 +7,12 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Plus, Search, Edit2, Trash2, User, Building2, Mail, Phone, MapPin, Copy, Eye, Users, CheckCircle, AlertTriangle, X, FileText, RefreshCw } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, User, Mail, Phone, MapPin, Copy, Eye, Users, CheckCircle, AlertTriangle, X, FileText, RefreshCw } from 'lucide-react';
 import { useContacts, Contact, ContactInsert } from '@/hooks/useContacts';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useContactDependencies } from '@/hooks/useContactDependencies';
 import { ContactFormDialog } from '@/components/contacts/ContactFormDialog';
 import { useToast } from '@/hooks/use-toast';
-
-const typeLabels = {
-  cliente: { label: 'Cliente', color: 'bg-emerald-500/10 text-emerald-500' },
-  fornecedor: { label: 'Fornecedor', color: 'bg-blue-500/10 text-blue-500' },
-  ambos: { label: 'Ambos', color: 'bg-purple-500/10 text-purple-500' },
-};
 
 const taxRegimeLabels: Record<string, string> = {
   mei: 'MEI',
@@ -38,7 +32,7 @@ export default function Contacts() {
   const [editingContact, setEditingContact] = useState<Contact | undefined>();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState('all');
+  
   const [filterTaxRegime, setFilterTaxRegime] = useState('all');
   const [filterFinancialStatus, setFilterFinancialStatus] = useState('all');
 
@@ -86,7 +80,6 @@ export default function Contacts() {
     return contacts.filter((c) => {
       const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.document?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesType = filterType === 'all' || c.type === filterType || (filterType === 'ambos' && c.type === 'ambos');
       const matchesTaxRegime = filterTaxRegime === 'all' || c.tax_regime === filterTaxRegime;
       
       let matchesFinancialStatus = true;
@@ -95,18 +88,17 @@ export default function Contacts() {
         matchesFinancialStatus = filterFinancialStatus === 'inadimplente' ? isInadimplente : !isInadimplente;
       }
       
-      return matchesSearch && matchesType && matchesTaxRegime && matchesFinancialStatus;
+      return matchesSearch && matchesTaxRegime && matchesFinancialStatus;
     });
-  }, [contacts, searchTerm, filterType, filterTaxRegime, filterFinancialStatus, transactions]);
+  }, [contacts, searchTerm, filterTaxRegime, filterFinancialStatus, transactions]);
 
   const activeContacts = filteredContacts.filter((c) => c.is_active);
   const inactiveContacts = filteredContacts.filter((c) => !c.is_active);
 
-  const hasActiveFilters = searchTerm || filterType !== 'all' || filterTaxRegime !== 'all' || filterFinancialStatus !== 'all';
+  const hasActiveFilters = searchTerm || filterTaxRegime !== 'all' || filterFinancialStatus !== 'all';
 
   const clearFilters = () => {
     setSearchTerm('');
-    setFilterType('all');
     setFilterTaxRegime('all');
     setFilterFinancialStatus('all');
   };
@@ -181,24 +173,15 @@ export default function Contacts() {
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-primary/10 rounded-xl">
-                {contact.type === 'fornecedor' ? (
-                  <Building2 className="h-5 w-5 text-primary" />
-                ) : (
-                  <User className="h-5 w-5 text-primary" />
-                )}
+                <User className="h-5 w-5 text-primary" />
               </div>
               <div>
                 <h3 className="font-semibold text-foreground">{contact.name}</h3>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  <Badge variant="secondary" className={typeLabels[contact.type].color}>
-                    {typeLabels[contact.type].label}
+                {contact.tax_regime && (
+                  <Badge variant="outline" className="text-xs mt-1">
+                    {taxRegimeLabels[contact.tax_regime]}
                   </Badge>
-                  {contact.tax_regime && (
-                    <Badge variant="outline" className="text-xs">
-                      {taxRegimeLabels[contact.tax_regime]}
-                    </Badge>
-                  )}
-                </div>
+                )}
               </div>
             </div>
             <Badge 
@@ -268,7 +251,7 @@ export default function Contacts() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Clientes/Fornecedores</h1>
+          <h1 className="text-2xl font-bold text-foreground">Contatos</h1>
           <p className="text-muted-foreground">Gerencie seus contatos comerciais</p>
         </div>
         <Button className="gap-2" onClick={handleNew}>
@@ -327,17 +310,6 @@ export default function Contacts() {
                 className="pl-9 bg-background"
               />
             </div>
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="w-[140px] bg-background">
-                <SelectValue placeholder="Tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="cliente">Clientes</SelectItem>
-                <SelectItem value="fornecedor">Fornecedores</SelectItem>
-                <SelectItem value="ambos">Ambos</SelectItem>
-              </SelectContent>
-            </Select>
             <Select value={filterTaxRegime} onValueChange={setFilterTaxRegime}>
               <SelectTrigger className="w-[170px] bg-background">
                 <SelectValue placeholder="Regime Tributário" />
