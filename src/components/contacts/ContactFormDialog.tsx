@@ -38,7 +38,6 @@ export function ContactFormDialog({
   isLoading,
 }: ContactFormDialogProps) {
   const [name, setName] = useState('');
-  const [type, setType] = useState<'cliente' | 'fornecedor' | 'ambos'>('cliente');
   const [document, setDocument] = useState('');
   const [taxRegime, setTaxRegime] = useState<TaxRegime | ''>('');
   const [email, setEmail] = useState('');
@@ -53,7 +52,6 @@ export function ContactFormDialog({
   useEffect(() => {
     if (contact) {
       setName(contact.name);
-      setType(contact.type);
       setDocument(contact.document || '');
       setTaxRegime(contact.tax_regime || '');
       setEmail(contact.email || '');
@@ -66,7 +64,6 @@ export function ContactFormDialog({
       setRepresentativeLegal(contact.representative_legal || '');
     } else {
       setName('');
-      setType('cliente');
       setDocument('');
       setTaxRegime('');
       setEmail('');
@@ -84,7 +81,7 @@ export function ContactFormDialog({
     e.preventDefault();
     onSubmit({
       name: name.trim(),
-      type,
+      type: contact?.type || 'cliente', // Mantém tipo existente ou usa 'cliente' como padrão
       document: document.trim() || null,
       tax_regime: taxRegime || null,
       email: email.trim() || null,
@@ -98,7 +95,7 @@ export function ContactFormDialog({
     });
   };
 
-  const isFormValid = name.trim() && document.trim() && email.trim() && taxRegime;
+  const isFormValid = name.trim();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -108,8 +105,8 @@ export function ContactFormDialog({
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            {/* Row 1: Nome | Tipo */}
-            <div>
+            {/* Row 1: Nome (full width) */}
+            <div className="col-span-2">
               <Label htmlFor="name">Nome <span className="text-destructive">*</span></Label>
               <Input
                 id="name"
@@ -119,23 +116,10 @@ export function ContactFormDialog({
                 required
               />
             </div>
-            <div>
-              <Label htmlFor="type">Tipo <span className="text-destructive">*</span></Label>
-              <Select value={type} onValueChange={(v) => setType(v as typeof type)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cliente">Cliente</SelectItem>
-                  <SelectItem value="fornecedor">Fornecedor</SelectItem>
-                  <SelectItem value="ambos">Ambos</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
 
             {/* Row 2: CPF/CNPJ | Regime Tributário */}
             <div>
-              <Label htmlFor="document">CPF/CNPJ <span className="text-destructive">*</span></Label>
+              <Label htmlFor="document">CPF/CNPJ</Label>
               <Input
                 id="document"
                 value={document}
@@ -145,7 +129,7 @@ export function ContactFormDialog({
               />
             </div>
             <div>
-              <Label htmlFor="taxRegime">Regime Tributário <span className="text-destructive">*</span></Label>
+              <Label htmlFor="taxRegime">Regime Tributário</Label>
               <Select value={taxRegime} onValueChange={(v) => setTaxRegime(v as TaxRegime)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o regime..." />
@@ -162,7 +146,7 @@ export function ContactFormDialog({
 
             {/* Row 3: E-mail | Telefone */}
             <div>
-              <Label htmlFor="email">E-mail <span className="text-destructive">*</span></Label>
+              <Label htmlFor="email">E-mail</Label>
               <Input
                 id="email"
                 type="email"
