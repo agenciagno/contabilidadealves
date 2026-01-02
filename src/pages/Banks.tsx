@@ -4,36 +4,29 @@ import { Button } from '@/components/ui/button';
 import { Plus, Pencil, Trash2, Building2, CircleDollarSign } from 'lucide-react';
 import { useBanks, Bank } from '@/hooks/useBanks';
 import { BankFormDialog } from '@/components/banks/BankFormDialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL'
   }).format(value);
 }
-
 export default function Banks() {
-  const { banks, isLoading, createBank, updateBank, deleteBank } = useBanks();
+  const {
+    banks,
+    isLoading,
+    createBank,
+    updateBank,
+    deleteBank
+  } = useBanks();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingBank, setEditingBank] = useState<Bank | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-
   const activeBanks = banks.filter(b => b.is_active);
   const inactiveBanks = banks.filter(b => !b.is_active);
   const totalBalance = activeBanks.reduce((sum, b) => sum + Number(b.current_balance), 0);
-
   const handleSubmit = (data: {
     name: string;
     bank_code: string | null;
@@ -44,7 +37,10 @@ export default function Banks() {
     is_active: boolean;
   }) => {
     if (editingBank) {
-      updateBank.mutate({ id: editingBank.id, ...data }, {
+      updateBank.mutate({
+        id: editingBank.id,
+        ...data
+      }, {
         onSuccess: () => {
           setDialogOpen(false);
           setEditingBank(null);
@@ -56,12 +52,10 @@ export default function Banks() {
       });
     }
   };
-
   const handleEdit = (bank: Bank) => {
     setEditingBank(bank);
     setDialogOpen(true);
   };
-
   const handleDelete = () => {
     if (deleteId) {
       deleteBank.mutate(deleteId, {
@@ -69,30 +63,29 @@ export default function Banks() {
       });
     }
   };
-
-  const BankCard = ({ bank }: { bank: Bank }) => (
-    <Card className="bg-card border-border/50 hover:border-border transition-colors">
+  const BankCard = ({
+    bank
+  }: {
+    bank: Bank;
+  }) => <Card className="bg-card border-border/50 hover:border-border transition-colors">
       <CardContent className="p-4">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div
-              className="w-12 h-12 rounded-xl flex items-center justify-center"
-              style={{ backgroundColor: bank.color + '20' }}
-            >
-              <Building2 className="w-6 h-6" style={{ color: bank.color }} />
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{
+            backgroundColor: bank.color + '20'
+          }}>
+              <Building2 className="w-6 h-6" style={{
+              color: bank.color
+            }} />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold text-foreground">{bank.name}</h3>
-                {!bank.is_active && (
-                  <Badge variant="secondary" className="text-xs">Inativa</Badge>
-                )}
+                {!bank.is_active && <Badge variant="secondary" className="text-xs">Inativa</Badge>}
               </div>
-              {(bank.bank_code || bank.agency || bank.account_number) && (
-                <p className="text-sm text-muted-foreground">
+              {(bank.bank_code || bank.agency || bank.account_number) && <p className="text-sm text-muted-foreground">
                   {[bank.bank_code, bank.agency, bank.account_number].filter(Boolean).join(' • ')}
-                </p>
-              )}
+                </p>}
             </div>
           </div>
           <div className="flex gap-1">
@@ -113,12 +106,9 @@ export default function Banks() {
           </div>
         </div>
       </CardContent>
-    </Card>
-  );
-
+    </Card>;
   if (isLoading) {
-    return (
-      <div className="space-y-6">
+    return <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <Skeleton className="h-8 w-32" />
@@ -132,18 +122,18 @@ export default function Banks() {
           <Skeleton className="h-40" />
           <Skeleton className="h-40" />
         </div>
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Bancos</h1>
-          <p className="text-muted-foreground">Gerencie suas contas bancárias</p>
+          <h1 className="text-2xl font-bold text-foreground">Gestão de Contas</h1>
+          <p className="text-muted-foreground">Organize suas contas bancárias</p>
         </div>
-        <Button className="gap-2" onClick={() => { setEditingBank(null); setDialogOpen(true); }}>
+        <Button className="gap-2" onClick={() => {
+        setEditingBank(null);
+        setDialogOpen(true);
+      }}>
           <Plus className="w-4 h-4" />
           Novo Banco
         </Button>
@@ -167,42 +157,30 @@ export default function Banks() {
       </Card>
 
       {/* Active Banks */}
-      {activeBanks.length > 0 && (
-        <div>
+      {activeBanks.length > 0 && <div>
           <h2 className="text-lg font-semibold text-foreground mb-4">Contas Ativas ({activeBanks.length})</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {activeBanks.map(bank => <BankCard key={bank.id} bank={bank} />)}
           </div>
-        </div>
-      )}
+        </div>}
 
       {/* Inactive Banks */}
-      {inactiveBanks.length > 0 && (
-        <div>
+      {inactiveBanks.length > 0 && <div>
           <h2 className="text-lg font-semibold text-muted-foreground mb-4">Contas Inativas ({inactiveBanks.length})</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {inactiveBanks.map(bank => <BankCard key={bank.id} bank={bank} />)}
           </div>
-        </div>
-      )}
+        </div>}
 
-      {banks.length === 0 && (
-        <Card className="bg-card border-border/50">
+      {banks.length === 0 && <Card className="bg-card border-border/50">
           <CardContent className="text-muted-foreground text-center py-16">
             <Building2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
             <p>Nenhuma conta cadastrada</p>
             <p className="text-sm mt-1">Clique em "Novo Banco" para adicionar sua primeira conta</p>
           </CardContent>
-        </Card>
-      )}
+        </Card>}
 
-      <BankFormDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        bank={editingBank}
-        onSubmit={handleSubmit}
-        isLoading={createBank.isPending || updateBank.isPending}
-      />
+      <BankFormDialog open={dialogOpen} onOpenChange={setDialogOpen} bank={editingBank} onSubmit={handleSubmit} isLoading={createBank.isPending || updateBank.isPending} />
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
@@ -220,6 +198,5 @@ export default function Banks() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
-  );
+    </div>;
 }
