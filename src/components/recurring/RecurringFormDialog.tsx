@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
+import { addMonths, differenceInMonths, format } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -56,6 +57,7 @@ export function RecurringFormDialog({
   });
 
   const [amountDisplay, setAmountDisplay] = useState('0,00');
+  const [installments, setInstallments] = useState<number | null>(null);
   
   // Inline creation dialogs
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
@@ -81,6 +83,16 @@ export function RecurringFormDialog({
         notes: recurring.notes,
       });
       setAmountDisplay(formatCurrencyInput((recurring.amount * 100).toString()));
+      
+      // Calculate installments from existing dates when editing monthly
+      if (recurring.frequency === 'monthly' && recurring.start_date && recurring.end_date) {
+        const start = new Date(recurring.start_date);
+        const end = new Date(recurring.end_date);
+        const months = differenceInMonths(end, start) + 1;
+        setInstallments(months > 0 ? months : null);
+      } else {
+        setInstallments(null);
+      }
     } else {
       setFormData({
         description: '',
@@ -99,14 +111,33 @@ export function RecurringFormDialog({
         notes: null,
       });
       setAmountDisplay('0,00');
+      setInstallments(null);
     }
   }, [recurring, open, initialContactId]);
 
+  const calcularDataFim = () => {
+    if (!installments || !formData.start_date) return null;
+    const startDate = new Date(formData.start_date);
+    const endDate = addMonths(startDate, installments - 1);
+    return format(endDate, 'dd/MM/yyyy');
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    let calculatedEndDate = formData.end_date;
+    
+    // If monthly and has installments, calculate end_date
+    if (formData.frequency === 'monthly' && installments) {
+      const startDate = new Date(formData.start_date);
+      const endDate = addMonths(startDate, installments - 1);
+      calculatedEndDate = endDate.toISOString().split('T')[0];
+    }
+    
     onSubmit({
       ...formData,
       amount: parseCurrencyInput(amountDisplay),
+      end_date: calculatedEndDate,
     });
   };
 
@@ -348,15 +379,35 @@ export function RecurringFormDialog({
                   </div>
                 )}
 
-                <div className="space-y-2">
-                  <Label htmlFor="end_date">Data Fim (opcional)</Label>
-                  <Input
-                    id="end_date"
-                    type="date"
-                    value={formData.end_date || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, end_date: e.target.value || null }))}
-                  />
-                </div>
+                {formData.frequency === 'monthly' ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="installments">Número de Parcelas</Label>
+                    <Input
+                      id="installments"
+                      type="number"
+                      min="1"
+                      max="120"
+                      value={installments || ''}
+                      onChange={(e) => setInstallments(parseInt(e.target.value) || null)}
+                      placeholder="Ex: 12"
+                    />
+                    {installments && formData.start_date && (
+                      <p className="text-xs text-muted-foreground">
+                        Término previsto: {calcularDataFim()}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label htmlFor="end_date">Data Fim (opcional)</Label>
+                    <Input
+                      id="end_date"
+                      type="date"
+                      value={formData.end_date || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, end_date: e.target.value || null }))}
+                    />
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label htmlFor="contact">Contato</Label>
