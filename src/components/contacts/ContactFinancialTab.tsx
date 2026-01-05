@@ -21,7 +21,10 @@ import {
 import { TrendingUp, Clock, CalendarPlus, ArrowUpDown } from 'lucide-react';
 import { useContactTransactions } from '@/hooks/useContactTransactions';
 import { ContactContractsCard } from './ContactContractsCard';
-import { GenerateFeesDialog } from './GenerateFeesDialog';
+import { RecurringFormDialog } from '@/components/recurring/RecurringFormDialog';
+import { useRecurringTransactions, RecurringTransactionInsert } from '@/hooks/useRecurringTransactions';
+import { createAuditLog } from '@/hooks/useAuditLog';
+import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -34,8 +37,25 @@ type SortOrder = 'newest' | 'oldest';
 
 export function ContactFinancialTab({ contactId, contactName }: ContactFinancialTabProps) {
   const { data: transactions, isLoading } = useContactTransactions(contactId);
-  const [feesDialogOpen, setFeesDialogOpen] = useState(false);
+  const { createRecurring } = useRecurringTransactions();
+  const queryClient = useQueryClient();
+  const [recurringDialogOpen, setRecurringDialogOpen] = useState(false);
   const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
+
+  const handleRecurringSubmit = async (data: RecurringTransactionInsert) => {
+    try {
+      await createRecurring.mutateAsync(data);
+      await createAuditLog({
+        contactId,
+        action: 'HONORARIO_GERADO',
+        description: `Recorrência criada: ${data.description} - R$ ${data.amount.toFixed(2).replace('.', ',')}`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['contact-recurrings', contactId] });
+      setRecurringDialogOpen(false);
+    } catch (error) {
+      console.error('Erro ao criar recorrência:', error);
+    }
+  };
 
   const sortedTransactions = useMemo(() => {
     if (!transactions) return [];
@@ -111,9 +131,9 @@ export function ContactFinancialTab({ contactId, contactName }: ContactFinancial
           </Card>
         </div>
         
-        <Button onClick={() => setFeesDialogOpen(true)} className="gap-2">
+        <Button onClick={() => setRecurringDialogOpen(true)} className="gap-2">
           <CalendarPlus className="h-4 w-4" />
-          Gerar Honorários Recorrentes
+          Gerar Recorrência
         </Button>
       </div>
 
@@ -199,11 +219,12 @@ export function ContactFinancialTab({ contactId, contactName }: ContactFinancial
         </CardContent>
       </Card>
 
-      <GenerateFeesDialog
-        open={feesDialogOpen}
-        onOpenChange={setFeesDialogOpen}
-        contactId={contactId}
-        contactName={contactName}
+      <RecurringFormDialog
+        open={recurringDialogOpen}
+        onOpenChange={setRecurringDialogOpen}
+        onSubmit={handleRecurringSubmit}
+        isLoading={createRecurring.isPending}
+        initialContactId={contactId}
       />
     </div>
   );
