@@ -23,6 +23,7 @@ interface RecurringFormDialogProps {
   recurring?: RecurringTransaction | null;
   onSubmit: (data: RecurringTransactionInsert) => void;
   isLoading?: boolean;
+  initialContactId?: string;
 }
 
 export function RecurringFormDialog({
@@ -31,6 +32,7 @@ export function RecurringFormDialog({
   recurring,
   onSubmit,
   isLoading,
+  initialContactId,
 }: RecurringFormDialogProps) {
   const { categories, createCategory } = useCategories();
   const { banks, createBank } = useBanks();
@@ -92,13 +94,13 @@ export function RecurringFormDialog({
         end_date: null,
         category_id: null,
         bank_id: null,
-        contact_id: null,
+        contact_id: initialContactId || null,
         is_active: true,
         notes: null,
       });
       setAmountDisplay('0,00');
     }
-  }, [recurring, open]);
+  }, [recurring, open, initialContactId]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,9 +139,7 @@ export function RecurringFormDialog({
 
   const filteredCategories = categories.filter(c => c.type === formData.type);
   const activeBanks = banks.filter(b => b.is_active);
-  const filteredContacts = contacts.filter(c => 
-    c.is_active && (formData.type === 'despesa' ? c.type === 'fornecedor' : c.type === 'cliente')
-  );
+  const filteredContacts = contacts.filter(c => c.is_active);
 
   const frequencyLabels = {
     weekly: 'Semanal',
@@ -359,9 +359,7 @@ export function RecurringFormDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="contact">
-                    {formData.type === 'despesa' ? 'Fornecedor' : 'Cliente'}
-                  </Label>
+                  <Label htmlFor="contact">Contato</Label>
                   <Select
                     value={formData.contact_id || 'none'}
                     onValueChange={(value) => {
@@ -376,9 +374,7 @@ export function RecurringFormDialog({
                       <SelectValue placeholder="Selecione..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">
-                        Sem {formData.type === 'despesa' ? 'fornecedor' : 'cliente'}
-                      </SelectItem>
+                      <SelectItem value="none">Sem contato</SelectItem>
                       {filteredContacts.map((contact) => (
                         <SelectItem key={contact.id} value={contact.id}>
                           {contact.name}
@@ -388,7 +384,7 @@ export function RecurringFormDialog({
                       <SelectItem value="add_new">
                         <div className="flex items-center gap-2 text-primary">
                           <Plus className="w-4 h-4" />
-                          Novo {formData.type === 'despesa' ? 'fornecedor' : 'cliente'}
+                          Novo contato
                         </div>
                       </SelectItem>
                     </SelectContent>

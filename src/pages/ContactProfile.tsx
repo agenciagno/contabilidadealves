@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, User, Building2, DollarSign, MessageSquare, FileText, ClipboardList, Download, History } from 'lucide-react';
+import { ArrowLeft, User, DollarSign, MessageSquare, FileText, ClipboardList, Download, History } from 'lucide-react';
 import { useContacts } from '@/hooks/useContacts';
 import { useContactTransactions, useContactFinancialStatus } from '@/hooks/useContactTransactions';
 import { useContactDocuments, DOCUMENT_CATEGORIES } from '@/hooks/useContactDocuments';
@@ -13,12 +13,6 @@ import { ContactCommunicationTab } from '@/components/contacts/ContactCommunicat
 import { ContactDocumentsTab } from '@/components/contacts/ContactDocumentsTab';
 import { ContactLogsTab } from '@/components/contacts/ContactLogsTab';
 import { generateContactReport } from '@/components/contacts/ContactReportPDF';
-
-const typeLabels = {
-  cliente: { label: 'Cliente', color: 'bg-emerald-500/10 text-emerald-500' },
-  fornecedor: { label: 'Fornecedor', color: 'bg-blue-500/10 text-blue-500' },
-  ambos: { label: 'Ambos', color: 'bg-purple-500/10 text-purple-500' },
-};
 
 const taxRegimeLabels: Record<string, string> = {
   mei: 'MEI',
@@ -97,11 +91,7 @@ export default function ContactProfile() {
         
         <div className="flex items-center gap-4 flex-1">
           <div className="p-3 bg-primary/10 rounded-xl">
-            {contact.type === 'fornecedor' ? (
-              <Building2 className="h-6 w-6 text-primary" />
-            ) : (
-              <User className="h-6 w-6 text-primary" />
-            )}
+            <User className="h-6 w-6 text-primary" />
           </div>
           
           <div className="flex-1">
@@ -112,9 +102,6 @@ export default function ContactProfile() {
               </p>
             )}
             <div className="flex flex-wrap gap-2 mt-2">
-              <Badge variant="secondary" className={typeLabels[contact.type].color}>
-                {typeLabels[contact.type].label}
-              </Badge>
               {contact.tax_regime && (
                 <Badge variant="outline">
                   {taxRegimeLabels[contact.tax_regime]}
