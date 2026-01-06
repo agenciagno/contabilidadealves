@@ -7,7 +7,6 @@ import {
   Clock,
   ArrowUpRight,
   ArrowDownRight,
-  Calendar,
   Building2,
   Users,
   FileText,
@@ -16,6 +15,8 @@ import {
   CreditCard,
   Tag,
   AlertTriangle,
+  Download,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,7 +36,7 @@ import {
   ChartLegendContent
 } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, Area, AreaChart, CartesianGrid } from 'recharts';
-import { format, addDays, addMonths, isBefore, isAfter, subMonths, subDays, parseISO, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
+import { format, addDays, addMonths, isBefore, isAfter, subMonths, subDays, parseISO, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useNavigate, Link } from 'react-router-dom';
 import { DashboardWidgetsConfig, useDashboardWidgets } from '@/components/dashboard/DashboardWidgets';
@@ -44,8 +45,14 @@ import { BankFormDialog } from '@/components/banks/BankFormDialog';
 import { ContactFormDialog } from '@/components/contacts/ContactFormDialog';
 import { CategoryFormDialog } from '@/components/categories/CategoryFormDialog';
 import { TransactionInsert } from '@/hooks/useTransactions';
-import { DashboardFilters, QuickPeriod } from '@/components/dashboard/DashboardFilters';
+import { UnifiedFilterBox, PeriodFilter, getDateRangeFromPeriod } from '@/components/filters/UnifiedFilterBox';
 import { exportToCSV, exportToPDF } from '@/hooks/useReportData';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', {
@@ -83,10 +90,14 @@ export default function Dashboard() {
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
 
   // Filter states
-  const [startDate, setStartDate] = useState<Date | undefined>(startOfMonth(now));
-  const [endDate, setEndDate] = useState<Date | undefined>(now);
-  const [quickPeriod, setQuickPeriod] = useState<QuickPeriod>('thisMonth');
-  const [selectedBankId, setSelectedBankId] = useState<string | null>(null);
+  const [period, setPeriod] = useState<PeriodFilter>('thisMonth');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedBankId, setSelectedBankId] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [contactFilter, setContactFilter] = useState('all');
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState('all');
+  const [customStartDate, setCustomStartDate] = useState<Date | null>(null);
+  const [customEndDate, setCustomEndDate] = useState<Date | null>(null);
 
   const { transactions: allTransactions, isLoading: loadingTransactions, createTransaction } = useTransactions();
   const { banks, isLoading: loadingBanks, createBank } = useBanks();
@@ -94,70 +105,69 @@ export default function Dashboard() {
   const { contacts, createContact } = useContacts();
   const { categories, createCategory } = useCategories();
 
-  // Handle quick period change
-  const handleQuickPeriodChange = (period: QuickPeriod) => {
-    setQuickPeriod(period);
-    const today = new Date();
-
-    switch (period) {
-      case 'thisMonth':
-        setStartDate(startOfMonth(today));
-        setEndDate(today);
-        break;
-      case 'lastMonth':
-        const lastMonth = subMonths(today, 1);
-        setStartDate(startOfMonth(lastMonth));
-        setEndDate(endOfMonth(lastMonth));
-        break;
-      case 'thisYear':
-        setStartDate(startOfYear(today));
-        setEndDate(today);
-        break;
-      case 'last30Days':
-        setStartDate(subDays(today, 30));
-        setEndDate(today);
-        break;
-      case 'last15Days':
-        setStartDate(subDays(today, 15));
-        setEndDate(today);
-        break;
-      case 'nextMonth':
-        const nextMonth = addMonths(today, 1);
-        setStartDate(startOfMonth(nextMonth));
-        setEndDate(endOfMonth(nextMonth));
-        break;
-      case 'next30Days':
-        setStartDate(today);
-        setEndDate(addDays(today, 30));
-        break;
-      case 'next15Days':
-        setStartDate(today);
-        setEndDate(addDays(today, 15));
-        break;
-      default:
-        break;
+  // Get date range for filtering
+  const getDateRange = (): { start: Date; end: Date } | null => {
+    if (period === 'custom' && customStartDate && customEndDate) {
+      return { start: customStartDate, end: customEndDate };
     }
+    return getDateRangeFromPeriod(period);
   };
 
-  // Filter transactions based on date and bank
+  // Clear all filters
+  const handleClearFilters = () => {
+    setPeriod('thisMonth');
+    setSearchTerm('');
+    setSelectedBankId('all');
+    setCategoryFilter('all');
+    setContactFilter('all');
+    setPaymentStatusFilter('all');
+    setCustomStartDate(null);
+    setCustomEndDate(null);
+  };
+
+  // Filter transactions based on all filters
   const transactions = useMemo(() => {
-    return allTransactions.filter((t) => {
-      const txDate = new Date(t.date + 'T12:00:00');
-      
-      // Date filter
-      if (startDate && txDate < startDate) return false;
-      if (endDate) {
-        const endOfDay = new Date(endDate);
-        endOfDay.setHours(23, 59, 59, 999);
-        if (txDate > endOfDay) return false;
-      }
-      
-      // Bank filter
-      if (selectedBankId && t.bank_id !== selectedBankId) return false;
-      
-      return true;
-    });
-  }, [allTransactions, startDate, endDate, selectedBankId]);
+    let result = [...allTransactions];
+    
+    // Date filter
+    const dateRange = getDateRange();
+    if (dateRange) {
+      result = result.filter((t) => {
+        const txDate = parseISO(t.date);
+        return isWithinInterval(txDate, { start: dateRange.start, end: dateRange.end });
+      });
+    }
+    
+    // Bank filter
+    if (selectedBankId !== 'all') {
+      result = result.filter(t => t.bank_id === selectedBankId);
+    }
+    
+    // Category filter
+    if (categoryFilter !== 'all') {
+      result = result.filter(t => t.category_id === categoryFilter);
+    }
+    
+    // Contact filter
+    if (contactFilter !== 'all') {
+      result = result.filter(t => t.contact_id === contactFilter);
+    }
+    
+    // Payment status filter
+    if (paymentStatusFilter === 'paid') {
+      result = result.filter(t => t.is_paid);
+    } else if (paymentStatusFilter === 'pending') {
+      result = result.filter(t => !t.is_paid);
+    }
+    
+    // Search filter
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      result = result.filter(t => t.description.toLowerCase().includes(search));
+    }
+    
+    return result;
+  }, [allTransactions, period, customStartDate, customEndDate, selectedBankId, categoryFilter, contactFilter, paymentStatusFilter, searchTerm]);
 
   // Calculate financial summary
   const summary = useMemo(() => {
@@ -424,16 +434,18 @@ export default function Dashboard() {
       receitas: transactions.filter(t => t.type === 'receita').reduce((sum, t) => sum + Number(t.amount), 0),
       despesas: transactions.filter(t => t.type === 'despesa').reduce((sum, t) => sum + Number(t.amount), 0),
     };
-    exportToPDF(reportData, totals, startDate, endDate);
+    const dateRange = getDateRange();
+    exportToPDF(reportData, totals, dateRange?.start, dateRange?.end);
   };
 
   // Period label for display
   const periodLabel = useMemo(() => {
-    if (startDate && endDate) {
-      return `${format(startDate, "dd/MM/yyyy")} - ${format(endDate, "dd/MM/yyyy")}`;
+    const dateRange = getDateRange();
+    if (dateRange) {
+      return `${format(dateRange.start, "dd/MM/yyyy")} - ${format(dateRange.end, "dd/MM/yyyy")}`;
     }
     return format(now, "MMMM 'de' yyyy", { locale: ptBR });
-  }, [startDate, endDate, now]);
+  }, [period, customStartDate, customEndDate, now]);
 
   return (
     <div className="space-y-6">
@@ -447,6 +459,25 @@ export default function Dashboard() {
         </div>
         <div className="flex gap-2">
           <DashboardWidgetsConfig widgets={widgets} onToggle={toggleWidget} />
+          {/* Export Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Download className="w-4 h-4" />
+                Exportar
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExportCSV} className="gap-2">
+                <FileSpreadsheet className="w-4 h-4" />
+                Exportar CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportPDF} className="gap-2">
+                <FileText className="w-4 h-4" />
+                Exportar PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button variant="outline" size="sm" onClick={() => navigate('/relatorios')}>
             <FileText className="w-4 h-4 mr-2" />
             Relatórios
@@ -498,18 +529,27 @@ export default function Dashboard() {
       </div>
 
       {/* Filters */}
-      <DashboardFilters
-        startDate={startDate}
-        endDate={endDate}
-        onStartDateChange={(date) => { setStartDate(date); setQuickPeriod(null); }}
-        onEndDateChange={(date) => { setEndDate(date); setQuickPeriod(null); }}
-        onExportCSV={handleExportCSV}
-        onExportPDF={handleExportPDF}
-        quickPeriod={quickPeriod}
-        onQuickPeriodChange={handleQuickPeriodChange}
-        banks={banks.filter(b => b.is_active)}
-        selectedBankId={selectedBankId}
+      <UnifiedFilterBox
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        period={period}
+        onPeriodChange={setPeriod}
+        customStartDate={customStartDate}
+        customEndDate={customEndDate}
+        onCustomStartDateChange={setCustomStartDate}
+        onCustomEndDateChange={setCustomEndDate}
+        bankId={selectedBankId}
         onBankChange={setSelectedBankId}
+        banks={banks}
+        categoryId={categoryFilter}
+        onCategoryChange={setCategoryFilter}
+        categories={categories}
+        paymentStatus={paymentStatusFilter}
+        onPaymentStatusChange={setPaymentStatusFilter}
+        contactId={contactFilter}
+        onContactChange={setContactFilter}
+        contacts={contacts}
+        onClearFilters={handleClearFilters}
       />
 
       {/* Main Stats Cards */}

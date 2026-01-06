@@ -21,7 +21,7 @@ import { useBanks } from '@/hooks/useBanks';
 import { useContacts } from '@/hooks/useContacts';
 import { useTransactionAttachments } from '@/hooks/useTransactionAttachments';
 import { TransactionFormDialog } from '@/components/transactions/TransactionFormDialog';
-import { TransactionFilters, PeriodFilter } from '@/components/transactions/TransactionFilters';
+import { UnifiedFilterBox, PeriodFilter, getDateRangeFromPeriod } from '@/components/filters/UnifiedFilterBox';
 import { exportToCSV, exportToPDF, ReportTransaction } from '@/hooks/useReportData';
 import {
   AlertDialog,
@@ -113,34 +113,10 @@ export default function Transactions() {
 
   // Calculate date range based on period
   const getDateRange = (periodValue: PeriodFilter): { start: Date; end: Date } | null => {
-    const now = new Date();
-    switch (periodValue) {
-      case 'thisMonth':
-        return { start: startOfMonth(now), end: endOfMonth(now) };
-      case 'lastMonth':
-        const lastMonth = subMonths(now, 1);
-        return { start: startOfMonth(lastMonth), end: endOfMonth(lastMonth) };
-      case 'last30Days':
-        return { start: subDays(now, 30), end: now };
-      case 'last15Days':
-        return { start: subDays(now, 15), end: now };
-      case 'thisYear':
-        return { start: startOfYear(now), end: endOfYear(now) };
-      case 'next15Days':
-        return { start: now, end: addDays(now, 15) };
-      case 'nextMonth':
-        const nextMonth = addMonths(now, 1);
-        return { start: startOfMonth(nextMonth), end: endOfMonth(nextMonth) };
-      case 'next30Days':
-        return { start: now, end: addDays(now, 30) };
-      case 'custom':
-        if (customStartDate && customEndDate) {
-          return { start: customStartDate, end: customEndDate };
-        }
-        return null;
-      default:
-        return null;
+    if (periodValue === 'custom' && customStartDate && customEndDate) {
+      return { start: customStartDate, end: customEndDate };
     }
+    return getDateRangeFromPeriod(periodValue);
   };
 
   // Filter and sort transactions
@@ -392,29 +368,30 @@ export default function Transactions() {
       </div>
 
       {/* Filters */}
-      <TransactionFilters
-        period={period}
-        onPeriodChange={setPeriod}
-        type={typeFilter}
-        onTypeChange={setTypeFilter}
-        categoryId={categoryFilter}
-        onCategoryChange={setCategoryFilter}
-        bankId={bankFilter}
-        onBankChange={setBankFilter}
-        contactId={contactFilter}
-        onContactChange={setContactFilter}
-        paymentStatus={paymentStatusFilter}
-        onPaymentStatusChange={setPaymentStatusFilter}
+      <UnifiedFilterBox
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
-        categories={categories}
-        banks={banks}
-        contacts={contacts}
-        onClearFilters={handleClearFilters}
+        period={period}
+        onPeriodChange={setPeriod}
         customStartDate={customStartDate}
         customEndDate={customEndDate}
         onCustomStartDateChange={setCustomStartDate}
         onCustomEndDateChange={setCustomEndDate}
+        bankId={bankFilter}
+        onBankChange={setBankFilter}
+        banks={banks}
+        categoryId={categoryFilter}
+        onCategoryChange={setCategoryFilter}
+        categories={categories}
+        paymentStatus={paymentStatusFilter}
+        onPaymentStatusChange={setPaymentStatusFilter}
+        contactId={contactFilter}
+        onContactChange={setContactFilter}
+        contacts={contacts}
+        onClearFilters={handleClearFilters}
+        type={typeFilter}
+        onTypeChange={setTypeFilter}
+        showTypeFilter={true}
       />
 
       {/* Summary Cards */}
