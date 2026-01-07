@@ -16,7 +16,7 @@ import { CategoryFormDialog } from '@/components/categories/CategoryFormDialog';
 import { BankFormDialog } from '@/components/banks/BankFormDialog';
 import { ContactFormDialog } from '@/components/contacts/ContactFormDialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { TrendingUp, TrendingDown, User, Building2, Plus } from 'lucide-react';
+import { TrendingUp, TrendingDown, User, Plus } from 'lucide-react';
 
 interface TransactionFormDialogProps {
   open: boolean;
@@ -79,12 +79,7 @@ export function TransactionFormDialog({
 
   const filteredCategories = categories.filter(c => c.type === type);
   const activeBanks = banks.filter(b => b.is_active);
-  const filteredContacts = contacts.filter(c => 
-    c.is_active && (
-      c.type === 'ambos' || 
-      (type === 'despesa' ? c.type === 'fornecedor' : c.type === 'cliente')
-    )
-  );
+  const filteredContacts = contacts.filter(c => c.is_active);
 
   useEffect(() => {
     if (transaction) {
@@ -164,7 +159,7 @@ export function TransactionFormDialog({
   };
 
   const handleCreateContact = (data: ContactInsert) => {
-    createContact.mutate({ ...data, type: type === 'despesa' ? 'fornecedor' : 'cliente' }, {
+    createContact.mutate({ ...data, type: 'cliente' }, {
       onSuccess: (newContact) => {
         setContactId(newContact.id);
         setContactDialogOpen(false);
@@ -264,7 +259,7 @@ export function TransactionFormDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="contact">{type === 'despesa' ? 'Fornecedor' : 'Cliente'}</Label>
+                  <Label htmlFor="contact">Contato</Label>
                   <Select value={contactId} onValueChange={handleContactChange}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione um contato..." />
@@ -273,17 +268,13 @@ export function TransactionFormDialog({
                       <SelectItem value="__new__" className="text-primary font-medium">
                         <div className="flex items-center gap-2">
                           <Plus className="w-3 h-3" />
-                          Novo {type === 'despesa' ? 'fornecedor' : 'cliente'}
+                          Novo contato
                         </div>
                       </SelectItem>
                       {filteredContacts.map((contact) => (
                         <SelectItem key={contact.id} value={contact.id}>
                           <div className="flex items-center gap-2">
-                            {contact.type === 'fornecedor' ? (
-                              <Building2 className="w-3 h-3 text-muted-foreground" />
-                            ) : (
-                              <User className="w-3 h-3 text-muted-foreground" />
-                            )}
+                            <User className="w-3 h-3 text-muted-foreground" />
                             {contact.name}
                           </div>
                         </SelectItem>
