@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Settings2, TrendingUp, TrendingDown, Wallet, Clock, DollarSign, PiggyBank, BarChart3, CreditCard } from 'lucide-react';
+import { Settings2, TrendingUp, TrendingDown, Wallet, Clock, DollarSign, PiggyBank, BarChart3, CreditCard, FileText } from 'lucide-react';
 
 export interface WidgetConfig {
   id: string;
@@ -13,19 +13,17 @@ export interface WidgetConfig {
 }
 
 const DEFAULT_WIDGETS: WidgetConfig[] = [
-  { id: 'receitas', name: 'Receitas do Mês', enabled: true, icon: <TrendingUp className="h-4 w-4" /> },
-  { id: 'despesas', name: 'Despesas do Mês', enabled: true, icon: <TrendingDown className="h-4 w-4" /> },
-  { id: 'saldo', name: 'Saldo em Contas', enabled: true, icon: <Wallet className="h-4 w-4" /> },
-  { id: 'resultado', name: 'Resultado do Mês', enabled: true, icon: <DollarSign className="h-4 w-4" /> },
-  { id: 'aReceber', name: 'A Receber', enabled: true, icon: <PiggyBank className="h-4 w-4" /> },
-  { id: 'aPagar', name: 'A Pagar', enabled: true, icon: <Clock className="h-4 w-4" /> },
+  { id: 'receitasRecebidas', name: 'Receitas Recebidas', enabled: true, icon: <TrendingUp className="h-4 w-4" /> },
+  { id: 'receitasAReceber', name: 'Receitas a Receber', enabled: true, icon: <PiggyBank className="h-4 w-4" /> },
+  { id: 'contasPagas', name: 'Contas Pagas', enabled: true, icon: <TrendingDown className="h-4 w-4" /> },
+  { id: 'contasAPagar', name: 'Contas a Pagar', enabled: true, icon: <CreditCard className="h-4 w-4" /> },
+  { id: 'saldoBancario', name: 'Saldo Bancário', enabled: true, icon: <Wallet className="h-4 w-4" /> },
+  { id: 'caixaGeral', name: 'Caixa Geral', enabled: true, icon: <Wallet className="h-4 w-4" /> },
   { id: 'evolution', name: 'Evolução Mensal', enabled: true, icon: <BarChart3 className="h-4 w-4" /> },
   { id: 'revenueCategoryChart', name: 'Receitas por Categoria', enabled: true, icon: <BarChart3 className="h-4 w-4" /> },
   { id: 'categoryChart', name: 'Despesas por Categoria', enabled: true, icon: <BarChart3 className="h-4 w-4" /> },
-  { id: 'receivables', name: 'Contas a Receber', enabled: true, icon: <PiggyBank className="h-4 w-4" /> },
-  { id: 'payables', name: 'Contas a Pagar', enabled: true, icon: <CreditCard className="h-4 w-4" /> },
+  { id: 'pendingList', name: 'Contas Pendentes', enabled: true, icon: <FileText className="h-4 w-4" /> },
   { id: 'recentTransactions', name: 'Últimas Movimentações', enabled: true, icon: <TrendingUp className="h-4 w-4" /> },
-  { id: 'bankAccounts', name: 'Contas Bancárias', enabled: true, icon: <Wallet className="h-4 w-4" /> },
 ];
 
 const STORAGE_KEY = 'dashboard-widgets-config';

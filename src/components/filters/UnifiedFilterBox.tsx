@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Search, Calendar, X, ChevronDown } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -141,7 +141,7 @@ export function UnifiedFilterBox({
   const [periodPopoverOpen, setPeriodPopoverOpen] = useState(false);
 
   const hasActiveFilters = 
-    period !== 'thisMonth' || 
+    period !== 'all' || 
     bankId !== 'all' || 
     categoryId !== 'all' || 
     paymentStatus !== 'all' || 
