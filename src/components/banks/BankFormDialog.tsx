@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Bank } from '@/hooks/useBanks';
 import { formatCurrencyInput, parseCurrencyInput } from '@/lib/utils';
 
@@ -24,6 +25,7 @@ interface BankFormDialogProps {
     initial_balance: number;
     color: string;
     is_active: boolean;
+    is_caixa_geral: boolean;
   }) => void;
   isLoading?: boolean;
 }
@@ -36,6 +38,7 @@ export function BankFormDialog({ open, onOpenChange, bank, onSubmit, isLoading }
   const [initialBalance, setInitialBalance] = useState('0');
   const [color, setColor] = useState(COLORS[0]);
   const [isActive, setIsActive] = useState(true);
+  const [isCaixaGeral, setIsCaixaGeral] = useState(false);
 
   useEffect(() => {
     if (bank) {
@@ -46,6 +49,7 @@ export function BankFormDialog({ open, onOpenChange, bank, onSubmit, isLoading }
       setInitialBalance(formatCurrencyInput((bank.initial_balance * 100).toString()));
       setColor(bank.color);
       setIsActive(bank.is_active);
+      setIsCaixaGeral(bank.is_caixa_geral || false);
     } else {
       setName('');
       setBankCode('');
@@ -54,6 +58,7 @@ export function BankFormDialog({ open, onOpenChange, bank, onSubmit, isLoading }
       setInitialBalance('0,00');
       setColor(COLORS[0]);
       setIsActive(true);
+      setIsCaixaGeral(false);
     }
   }, [bank, open]);
 
@@ -67,6 +72,7 @@ export function BankFormDialog({ open, onOpenChange, bank, onSubmit, isLoading }
       initial_balance: parseCurrencyInput(initialBalance),
       color,
       is_active: isActive,
+      is_caixa_geral: isCaixaGeral,
     });
   };
 
@@ -148,6 +154,17 @@ export function BankFormDialog({ open, onOpenChange, bank, onSubmit, isLoading }
           <div className="flex items-center justify-between">
             <Label htmlFor="active">Conta ativa</Label>
             <Switch id="active" checked={isActive} onCheckedChange={setIsActive} />
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Checkbox 
+              id="is_caixa_geral" 
+              checked={isCaixaGeral} 
+              onCheckedChange={(checked) => setIsCaixaGeral(!!checked)} 
+            />
+            <Label htmlFor="is_caixa_geral" className="cursor-pointer">
+              Marcar como Caixa Geral
+            </Label>
           </div>
 
           <div className="flex gap-2 pt-4">
