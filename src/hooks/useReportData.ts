@@ -95,7 +95,7 @@ export function processReportData(transactions: ReportTransaction[]) {
   // Category breakdown
   const categoryMap = new Map<string, { name: string; value: number; color: string; type: string }>();
   transactions.forEach((t) => {
-    const catName = t.category?.name || 'Sem categoria';
+    const catName = t.category?.name || 'Sem evento contábil';
     const catColor = t.category?.color || '#6B7280';
     const key = `${catName}-${t.type}`;
     const existing = categoryMap.get(key);

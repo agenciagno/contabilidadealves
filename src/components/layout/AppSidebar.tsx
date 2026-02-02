@@ -81,7 +81,7 @@ const menuModules: MenuModule[] = [
       { title: 'Movimentações', url: '/movimentacoes', icon: ArrowLeftRight, iconName: 'arrow-left-right' },
       { title: 'Contas Recorrentes', url: '/recorrentes', icon: CalendarClock, iconName: 'calendar-clock' },
       { title: 'Bancos', url: '/bancos', icon: Building2, iconName: 'building-2' },
-      { title: 'Categorias', url: '/categorias', icon: Tags, iconName: 'tags' },
+      { title: 'Eventos Contábeis', url: '/categorias', icon: Tags, iconName: 'tags' },
     ],
   },
   {

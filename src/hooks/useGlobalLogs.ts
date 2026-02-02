@@ -13,7 +13,7 @@ export type GlobalLogModule =
   | 'FINANCEIRO'
   | 'CRM'
   | 'BANCOS'
-  | 'CATEGORIAS'
+  | 'EVENTOS_CONTABEIS'
   | 'RECORRENTES'
   | 'DOCUMENTOS'
   | 'USUARIOS'

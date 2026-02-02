@@ -60,10 +60,10 @@ export function useCategories() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
-      toast({ title: 'Categoria criada com sucesso!' });
+      toast({ title: 'Evento contábil criado com sucesso!' });
     },
     onError: (error: Error) => {
-      toast({ title: 'Erro ao criar categoria', description: error.message, variant: 'destructive' });
+      toast({ title: 'Erro ao criar evento contábil', description: error.message, variant: 'destructive' });
     },
   });
 
@@ -81,10 +81,10 @@ export function useCategories() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
-      toast({ title: 'Categoria atualizada!' });
+      toast({ title: 'Evento contábil atualizado!' });
     },
     onError: (error: Error) => {
-      toast({ title: 'Erro ao atualizar categoria', description: error.message, variant: 'destructive' });
+      toast({ title: 'Erro ao atualizar evento contábil', description: error.message, variant: 'destructive' });
     },
   });
 
@@ -99,10 +99,10 @@ export function useCategories() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
-      toast({ title: 'Categoria excluída!' });
+      toast({ title: 'Evento contábil excluído!' });
     },
     onError: (error: Error) => {
-      toast({ title: 'Erro ao excluir categoria', description: error.message, variant: 'destructive' });
+      toast({ title: 'Erro ao excluir evento contábil', description: error.message, variant: 'destructive' });
     },
   });
 

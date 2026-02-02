@@ -45,7 +45,7 @@ export function CategoryFormDialog({ open, onOpenChange, category, onSubmit, isL
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{category ? 'Editar Categoria' : 'Nova Categoria'}</DialogTitle>
+          <DialogTitle>{category ? 'Editar Evento Contábil' : 'Novo Evento Contábil'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">

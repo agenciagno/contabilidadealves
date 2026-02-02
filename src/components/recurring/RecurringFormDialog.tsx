@@ -259,7 +259,7 @@ export function RecurringFormDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="category">Categoria <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="category">Evento Contábil <span className="text-destructive">*</span></Label>
                   <Select
                     value={formData.category_id || 'none'}
                     onValueChange={(value) => {
@@ -289,7 +289,7 @@ export function RecurringFormDialog({
                       <SelectItem value="add_new">
                         <div className="flex items-center gap-2 text-primary">
                           <Plus className="w-4 h-4" />
-                          Nova categoria
+                          Novo evento contábil
                         </div>
                       </SelectItem>
                     </SelectContent>

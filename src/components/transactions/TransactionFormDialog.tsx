@@ -231,7 +231,7 @@ export function TransactionFormDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="category">Categoria <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="category">Evento Contábil <span className="text-destructive">*</span></Label>
                   <Select value={categoryId} onValueChange={handleCategoryChange}>
                     <SelectTrigger className={!categoryId ? 'border-muted-foreground/30' : ''}>
                       <SelectValue placeholder="Selecione..." />
@@ -240,7 +240,7 @@ export function TransactionFormDialog({
                       <SelectItem value="__new__" className="text-primary font-medium">
                         <div className="flex items-center gap-2">
                           <Plus className="w-3 h-3" />
-                          Nova categoria
+                          Novo evento contábil
                         </div>
                       </SelectItem>
                       {filteredCategories.map((cat) => (
