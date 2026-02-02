@@ -193,7 +193,7 @@ export function ReportFilters({
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Categoria</label>
+              <label className="text-sm font-medium text-foreground">Evento Contábil</label>
               <Select value={categoryId} onValueChange={onCategoryChange}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Todas" />

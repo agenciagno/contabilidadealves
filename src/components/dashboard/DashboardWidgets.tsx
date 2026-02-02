@@ -20,8 +20,8 @@ const DEFAULT_WIDGETS: WidgetConfig[] = [
   { id: 'saldoBancario', name: 'Saldo Bancário', enabled: true, icon: <Wallet className="h-4 w-4" /> },
   { id: 'caixaGeral', name: 'Caixa Geral', enabled: true, icon: <Wallet className="h-4 w-4" /> },
   { id: 'evolution', name: 'Evolução Mensal', enabled: true, icon: <BarChart3 className="h-4 w-4" /> },
-  { id: 'revenueCategoryChart', name: 'Receitas por Categoria', enabled: true, icon: <BarChart3 className="h-4 w-4" /> },
-  { id: 'categoryChart', name: 'Despesas por Categoria', enabled: true, icon: <BarChart3 className="h-4 w-4" /> },
+  { id: 'revenueCategoryChart', name: 'Receitas por Evento Contábil', enabled: true, icon: <BarChart3 className="h-4 w-4" /> },
+  { id: 'categoryChart', name: 'Despesas por Evento Contábil', enabled: true, icon: <BarChart3 className="h-4 w-4" /> },
   { id: 'pendingList', name: 'Contas Pendentes', enabled: true, icon: <FileText className="h-4 w-4" /> },
   { id: 'recentTransactions', name: 'Últimas Movimentações', enabled: true, icon: <TrendingUp className="h-4 w-4" /> },
 ];

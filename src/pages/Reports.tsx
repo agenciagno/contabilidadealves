@@ -326,8 +326,8 @@ export default function Reports() {
           <MonthlyBarChart data={reportData.monthlyData} />
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <CategoryPieChart data={reportData.receitasByCategory} title="Receitas por Categoria" />
-            <CategoryPieChart data={reportData.despesasByCategory} title="Despesas por Categoria" />
+            <CategoryPieChart data={reportData.receitasByCategory} title="Receitas por Evento Contábil" />
+            <CategoryPieChart data={reportData.despesasByCategory} title="Despesas por Evento Contábil" />
           </div>
 
           <Card className="bg-card border-border/50">
@@ -348,7 +348,7 @@ export default function Reports() {
                       <TableRow>
                         <TableHead>Data</TableHead>
                         <TableHead>Descrição</TableHead>
-                        <TableHead>Categoria</TableHead>
+                        <TableHead>Evento Contábil</TableHead>
                         <TableHead>Banco</TableHead>
                         <TableHead>Contato</TableHead>
                         <TableHead className="text-right">Valor</TableHead>

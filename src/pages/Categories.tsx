@@ -94,7 +94,7 @@ export default function Categories() {
   return <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Categorias</h1>
+          <h1 className="text-2xl font-bold text-foreground">Eventos Contábeis</h1>
           
         </div>
         <Button className="gap-2" onClick={() => {
@@ -102,7 +102,7 @@ export default function Categories() {
         setDialogOpen(true);
       }}>
           <Plus className="w-4 h-4" />
-          Nova Categoria
+          Novo Evento Contábil
         </Button>
       </div>
 
@@ -116,7 +116,7 @@ export default function Categories() {
               <span className="text-sm text-muted-foreground">({receitas.length})</span>
             </div>
             <div className="space-y-2">
-              {receitas.length === 0 ? <p className="text-muted-foreground text-center py-8">Nenhuma categoria de receita</p> : receitas.map(cat => <CategoryCard key={cat.id} category={cat} />)}
+              {receitas.length === 0 ? <p className="text-muted-foreground text-center py-8">Nenhum evento contábil de receita</p> : receitas.map(cat => <CategoryCard key={cat.id} category={cat} />)}
             </div>
           </CardContent>
         </Card>
@@ -130,7 +130,7 @@ export default function Categories() {
               <span className="text-sm text-muted-foreground">({despesas.length})</span>
             </div>
             <div className="space-y-2">
-              {despesas.length === 0 ? <p className="text-muted-foreground text-center py-8">Nenhuma categoria de despesa</p> : despesas.map(cat => <CategoryCard key={cat.id} category={cat} />)}
+              {despesas.length === 0 ? <p className="text-muted-foreground text-center py-8">Nenhum evento contábil de despesa</p> : despesas.map(cat => <CategoryCard key={cat.id} category={cat} />)}
             </div>
           </CardContent>
         </Card>
@@ -141,9 +141,9 @@ export default function Categories() {
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir categoria?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir evento contábil?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita. A categoria será removida permanentemente.
+              Esta ação não pode ser desfeita. O evento contábil será removido permanentemente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

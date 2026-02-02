@@ -317,10 +317,10 @@ export function UnifiedFilterBox({
           {/* Category Filter */}
           <Select value={categoryId} onValueChange={onCategoryChange}>
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Categoria" />
+              <SelectValue placeholder="Evento Contábil" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todas as Categorias</SelectItem>
+              <SelectItem value="all">Todos os Eventos Contábeis</SelectItem>
               {categories.map((cat) => (
                 <SelectItem key={cat.id} value={cat.id}>
                   <div className="flex items-center gap-2">

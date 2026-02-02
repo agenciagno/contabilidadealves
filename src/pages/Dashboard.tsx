@@ -670,7 +670,7 @@ export default function Dashboard() {
           {isWidgetEnabled('revenueCategoryChart') && (
             <Card className="bg-card border-border/50">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base">Receitas por Categoria</CardTitle>
+                <CardTitle className="text-base">Receitas por Evento Contábil</CardTitle>
               </CardHeader>
               <CardContent className="h-64">
                 {isLoading ? (
@@ -716,7 +716,7 @@ export default function Dashboard() {
           {isWidgetEnabled('categoryChart') && (
             <Card className="bg-card border-border/50">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base">Despesas por Categoria</CardTitle>
+                <CardTitle className="text-base">Despesas por Evento Contábil</CardTitle>
               </CardHeader>
               <CardContent className="h-64">
                 {isLoading ? (
