@@ -1,107 +1,232 @@
 
-## Plano: Correção de Modais Cortados no Sistema
+## Plano Revisado: Reorganização do Modal de Nova Movimentação
 
-### Problema Identificado
-
-Os modais do sistema estão sendo cortados porque o componente base `DialogContent` em `src/components/ui/dialog.tsx` usa posicionamento fixo centralizado (`top-[50%] translate-y-[-50%]`) sem:
-- Margens superiores/inferiores de segurança
-- Altura máxima limitada à viewport
-- Scroll interno para conteúdo extenso
-
-Isso faz com que modais com muito conteúdo (como TransactionFormDialog e RecurringFormDialog) ultrapassem os limites da tela, cortando o botão "Salvar".
+### Objetivo
+Reestruturar o layout do formulário de transação removendo o campo "Descrição" e organizando os campos restantes em 5 linhas lógicas.
 
 ---
 
-### Solução
+### Nova Estrutura do Layout (SEM Descrição)
 
-Modificar o componente base `DialogContent` para garantir que todos os modais do sistema:
-1. Tenham margens superior e inferior de 5% da viewport (my-[5vh])
-2. Respeitem uma altura máxima de 90% da viewport (max-h-[90vh])
-3. Permitam scroll interno quando o conteúdo exceder o espaço disponível (overflow-y-auto)
-
----
-
-### Arquivos a Modificar
-
-#### 1. `src/components/ui/dialog.tsx` - Componente Base
-
-**Alteração no `DialogContent`:**
-
-```tsx
-// ANTES (linha 38-40):
-className={cn(
-  "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 ...",
-  className,
-)}
-
-// DEPOIS:
-className={cn(
-  "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 max-h-[90vh] overflow-y-auto my-[5vh] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
-  className,
-)}
-```
-
-**Classes adicionadas:**
-- `max-h-[90vh]` - Limita altura a 90% da viewport
-- `overflow-y-auto` - Permite scroll vertical quando necessário
-
----
-
-#### 2. `src/components/contacts/DocumentPreviewDialog.tsx` - Caso Especial
-
-Este modal já usa `h-[90vh]` e precisa de ajuste específico para evitar conflito com a nova regra base:
-
-```tsx
-// ANTES (linha 43):
-<DialogContent className="max-w-4xl h-[90vh] flex flex-col">
-
-// DEPOIS:
-<DialogContent className="max-w-4xl h-[85vh] max-h-[85vh] flex flex-col">
+```text
+┌─────────────────────────────┬─────────────────────────────┐
+│  TABS: Despesa / Receita                                  │
+└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────┬─────────────────────────────┐
+│  Cliente/Fornecedor (50%)   │  Valor (50%)                │
+└─────────────────────────────┴─────────────────────────────┘
+┌─────────────────────────────┬─────────────────────────────┐
+│  Evento Contábil (50%)      │  Conta/Banco (50%)          │
+└─────────────────────────────┴─────────────────────────────┘
+┌─────────────────────────┬─────────────────────────┬───────┐
+│  Data da Transação      │  Data de Vencimento     │ Anexo │
+│         (33%)           │        (33%)            │ (33%) │
+└─────────────────────────┴─────────────────────────┴───────┘
+┌─────────────────────────────────────────────────────────────┐
+│  Observações (100% largura, altura reduzida - 1 linha)      │
+└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│  Switch: Pago/Recebido                                      │
+└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────┬─────────────────────────────┐
+│  Cancelar                   │  Salvar                     │
+└─────────────────────────────┴─────────────────────────────┘
 ```
 
 ---
 
-### Benefícios da Solução
+### Alterações Detalhadas
 
-| Aspecto | Antes | Depois |
-|---------|-------|--------|
-| Margem superior | 0 | 5vh |
-| Margem inferior | 0 | 5vh |
-| Altura máxima | Sem limite | 90vh |
-| Overflow de conteúdo | Cortado | Scroll automático |
-| Botão Salvar | Inacessível em telas pequenas | Sempre visível via scroll |
+#### Arquivo: `src/components/transactions/TransactionFormDialog.tsx`
+
+**1. Remover estado e referências ao campo Descrição**
+
+| Linha | Ação |
+|-------|------|
+| 58 | Remover: `const [description, setDescription] = useState('');` |
+| 87 | Remover: `setDescription(transaction.description);` |
+| 99 | Remover: `setDescription('');` |
+| 129 | Alterar: `description` no objeto de submit será gerado automaticamente |
+| 194 | Alterar validação: remover `description.trim()` da condição |
+
+**2. Gerar descrição automaticamente**
+
+Na submissão, a descrição será gerada a partir do nome do evento contábil selecionado:
+```tsx
+const handleSubmit = (e: React.FormEvent) => {
+  e.preventDefault();
+  const selectedCategory = filteredCategories.find(c => c.id === categoryId);
+  const autoDescription = selectedCategory?.name || 'Movimentação';
+  
+  onSubmit({
+    type,
+    description: autoDescription,
+    amount: parseCurrencyInput(amount),
+    // ... resto dos campos
+  } as TransactionInsert, pendingFiles);
+};
+```
+
+**3. Reestruturar layout do formulário**
+
+Substituir o grid de 2 colunas atual (linhas 218-351) por:
+
+**Linha 1: Cliente/Fornecedor + Valor**
+```tsx
+<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+  {/* Cliente/Fornecedor */}
+  <div className="space-y-2">
+    <Label htmlFor="contact">Cliente/Fornecedor</Label>
+    <Select value={contactId} onValueChange={handleContactChange}>
+      <SelectTrigger>
+        <SelectValue placeholder="Selecione um cliente/fornecedor..." />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="__new__">
+          <Plus /> Novo cliente/fornecedor
+        </SelectItem>
+        {/* ... opções */}
+      </SelectContent>
+    </Select>
+  </div>
+  
+  {/* Valor */}
+  <div className="space-y-2">
+    <Label htmlFor="amount">Valor (R$) *</Label>
+    <Input value={amount} onChange={handleAmountChange} />
+  </div>
+</div>
+```
+
+**Linha 2: Evento Contábil + Conta/Banco**
+```tsx
+<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+  {/* Evento Contábil */}
+  <div className="space-y-2">
+    <Label htmlFor="category">Evento Contábil *</Label>
+    <Select ... />
+  </div>
+  
+  {/* Conta/Banco */}
+  <div className="space-y-2">
+    <Label htmlFor="bank">Conta/Banco *</Label>
+    <Select ... />
+  </div>
+</div>
+```
+
+**Linha 3: Datas + Anexo (grid de 3 colunas)**
+```tsx
+<div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+  {/* Data da Transação */}
+  <div className="space-y-2">
+    <Label htmlFor="date">Data da Transação *</Label>
+    <Input type="date" ... />
+  </div>
+  
+  {/* Data de Vencimento */}
+  <div className="space-y-2">
+    <Label htmlFor="dueDate">Data de Vencimento</Label>
+    <Input type="date" ... />
+  </div>
+  
+  {/* Anexo - compacto */}
+  <div className="space-y-2">
+    <Label>Anexo</Label>
+    <AttachmentUpload compact={true} ... />
+  </div>
+</div>
+```
+
+**Linha 4: Observações (100% largura, reduzido)**
+```tsx
+<div className="space-y-2">
+  <Label htmlFor="notes">Observações</Label>
+  <Textarea
+    rows={1}
+    className="min-h-[40px] resize-none"
+    placeholder="Notas adicionais..."
+  />
+</div>
+```
+
+**Linha 5: Pago/Recebido** - sem alterações
 
 ---
 
-### Modais Beneficiados Automaticamente
+#### Arquivo: `src/components/transactions/AttachmentUpload.tsx`
 
-Como a correção é no componente base, todos os modais serão corrigidos:
+Adicionar prop `compact` para versão simplificada:
 
-- `TransactionFormDialog.tsx` (sm:max-w-3xl)
-- `ContactFormDialog.tsx` (sm:max-w-3xl)
-- `RecurringFormDialog.tsx` (sm:max-w-3xl)
-- `BankFormDialog.tsx` (sm:max-w-md)
-- `CategoryFormDialog.tsx` (sm:max-w-md)
-- `PartnerFormDialog.tsx` (sm:max-w-md)
-- `UserFormDialog.tsx` (sm:max-w-[500px])
-- `GenerateFeesDialog.tsx` (sm:max-w-lg)
-- `DashboardWidgets.tsx` (sm:max-w-md)
-- `ContactDocumentsTab.tsx` (dialog de upload)
+```tsx
+interface AttachmentUploadProps {
+  // ... props existentes
+  compact?: boolean;
+}
+
+export function AttachmentUpload({ ..., compact = false }) {
+  if (compact) {
+    return (
+      <div className="space-y-1">
+        <div className="relative">
+          <input type="file" multiple onChange={handleFileSelect} className="absolute inset-0 opacity-0 cursor-pointer" />
+          <Button type="button" variant="outline" size="sm" className="w-full gap-2">
+            <Paperclip className="w-4 h-4" />
+            {pendingFiles.length + attachments.length > 0
+              ? `${pendingFiles.length + attachments.length} arquivo(s)`
+              : 'Anexar'}
+          </Button>
+        </div>
+        {/* Lista compacta de arquivos */}
+        {(pendingFiles.length > 0 || attachments.length > 0) && (
+          <div className="text-xs text-muted-foreground">
+            {pendingFiles.map((f, i) => (
+              <div key={i} className="flex items-center gap-1">
+                <span className="truncate">{f.name}</span>
+                <X className="w-3 h-3 cursor-pointer" onClick={() => onRemovePendingFile(i)} />
+              </div>
+            ))}
+            {attachments.map(a => (
+              <div key={a.id} className="flex items-center gap-1">
+                <span className="truncate">{a.file_name}</span>
+                <X className="w-3 h-3 cursor-pointer" onClick={() => onDeleteAttachment(a)} />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+  
+  // Versão completa existente
+  return ( ... );
+}
+```
 
 ---
 
-### Detalhes Técnicos
+### Resumo das Mudanças de Labels
 
-A solução usa CSS puro via Tailwind, sem necessidade de JavaScript adicional:
+| Campo | Antes | Depois |
+|-------|-------|--------|
+| Contato | `Contato` | `Cliente/Fornecedor` |
+| Placeholder | `Selecione um contato...` | `Selecione um cliente/fornecedor...` |
+| Novo contato | `Novo contato` | `Novo cliente/fornecedor` |
+| Conta | `Conta` | `Conta/Banco` |
 
-1. **`max-h-[90vh]`**: Garante que o modal nunca ultrapasse 90% da altura da janela
-2. **`overflow-y-auto`**: Adiciona barra de rolagem somente quando necessário
-3. **Posicionamento mantido**: O `top-[50%] translate-y-[-50%]` continua centralizando, mas agora respeitando os limites
+---
 
-O scroll interno garante que:
-- O cabeçalho (DialogHeader) permanece visível no topo
-- O conteúdo do formulário rola normalmente
-- Os botões de ação ficam acessíveis via scroll
+### Validação do Formulário (Atualizada)
+
+```tsx
+// ANTES:
+const isFormValid = description.trim() && parseCurrencyInput(amount) > 0 && categoryId && bankId;
+
+// DEPOIS:
+const isFormValid = parseCurrencyInput(amount) > 0 && categoryId && bankId;
+```
+
+A descrição não é mais necessária pois será gerada automaticamente a partir do evento contábil selecionado.
 
 ---
 
@@ -109,7 +234,7 @@ O scroll interno garante que:
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `src/components/ui/dialog.tsx` | Adicionar `max-h-[90vh] overflow-y-auto` ao DialogContent |
-| `src/components/contacts/DocumentPreviewDialog.tsx` | Ajustar altura para `h-[85vh] max-h-[85vh]` |
+| `src/components/transactions/TransactionFormDialog.tsx` | Remover campo descrição, reorganizar layout em 5 linhas, renomear labels, atualizar validação |
+| `src/components/transactions/AttachmentUpload.tsx` | Adicionar variante `compact` para exibição inline |
 
-**Total**: 2 arquivos, correção global para todos os ~10+ modais do sistema.
+**Total**: 2 arquivos
