@@ -40,7 +40,7 @@ export function DocumentPreviewDialog({
 
   return (
     <Dialog open={!!document} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
+      <DialogContent className="max-w-4xl h-[85vh] max-h-[85vh] flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <div className="flex items-center justify-between">
             <DialogTitle className="truncate pr-4">{document.file_name}</DialogTitle>
