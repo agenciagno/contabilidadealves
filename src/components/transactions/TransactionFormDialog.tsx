@@ -10,7 +10,7 @@ import { Transaction, TransactionInsert } from '@/hooks/useTransactions';
 import { Category, useCategories, CategoryInsert } from '@/hooks/useCategories';
 import { Bank, useBanks, BankInsert } from '@/hooks/useBanks';
 import { Contact, useContacts, ContactInsert } from '@/hooks/useContacts';
-import { useTransactionAttachments, TransactionAttachment } from '@/hooks/useTransactionAttachments';
+import { useTransactionAttachments } from '@/hooks/useTransactionAttachments';
 import { AttachmentUpload } from './AttachmentUpload';
 import { CategoryFormDialog } from '@/components/categories/CategoryFormDialog';
 import { BankFormDialog } from '@/components/banks/BankFormDialog';
@@ -55,7 +55,6 @@ export function TransactionFormDialog({
   defaultType = 'despesa',
 }: TransactionFormDialogProps) {
   const [type, setType] = useState<'receita' | 'despesa'>(defaultType);
-  const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [dueDate, setDueDate] = useState('');
@@ -84,7 +83,6 @@ export function TransactionFormDialog({
   useEffect(() => {
     if (transaction) {
       setType(transaction.type);
-      setDescription(transaction.description);
       setAmount(formatCurrencyInput(String(Math.round(Number(transaction.amount) * 100))));
       setDate(transaction.date);
       setDueDate((transaction as any).due_date || '');
@@ -96,7 +94,6 @@ export function TransactionFormDialog({
       setPendingFiles([]);
     } else {
       setType(defaultType);
-      setDescription('');
       setAmount('');
       setDate(new Date().toISOString().split('T')[0]);
       setDueDate('');
@@ -124,9 +121,14 @@ export function TransactionFormDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Auto-generate description from category name
+    const selectedCategory = filteredCategories.find(c => c.id === categoryId);
+    const autoDescription = selectedCategory?.name || 'Movimentação';
+    
     onSubmit({
       type,
-      description,
+      description: autoDescription,
       amount: parseCurrencyInput(amount),
       date,
       issue_date: null,
@@ -191,12 +193,12 @@ export function TransactionFormDialog({
     }
   };
 
-  const isFormValid = description.trim() && parseCurrencyInput(amount) > 0 && categoryId && bankId;
+  const isFormValid = parseCurrencyInput(amount) > 0 && categoryId && bankId;
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-3xl">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{transaction ? 'Editar Transação' : 'Nova Transação'}</DialogTitle>
           </DialogHeader>
@@ -215,152 +217,143 @@ export function TransactionFormDialog({
               </TabsList>
             </Tabs>
 
-            {/* Two Column Layout */}
+            {/* Line 1: Cliente/Fornecedor + Valor */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Column 1 */}
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="description">Descrição <span className="text-destructive">*</span></Label>
-                  <Input
-                    id="description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Ex: Pagamento de fornecedor"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="category">Evento Contábil <span className="text-destructive">*</span></Label>
-                  <Select value={categoryId} onValueChange={handleCategoryChange}>
-                    <SelectTrigger className={!categoryId ? 'border-muted-foreground/30' : ''}>
-                      <SelectValue placeholder="Selecione..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__new__" className="text-primary font-medium">
+              <div className="space-y-2">
+                <Label htmlFor="contact">Cliente/Fornecedor</Label>
+                <Select value={contactId} onValueChange={handleContactChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um cliente/fornecedor..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__new__" className="text-primary font-medium">
+                      <div className="flex items-center gap-2">
+                        <Plus className="w-3 h-3" />
+                        Novo cliente/fornecedor
+                      </div>
+                    </SelectItem>
+                    {filteredContacts.map((contact) => (
+                      <SelectItem key={contact.id} value={contact.id}>
                         <div className="flex items-center gap-2">
-                          <Plus className="w-3 h-3" />
-                          Novo evento contábil
+                          <User className="w-3 h-3 text-muted-foreground" />
+                          {contact.name}
                         </div>
                       </SelectItem>
-                      {filteredCategories.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id}>
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="w-3 h-3 rounded-full"
-                              style={{ backgroundColor: cat.color }}
-                            />
-                            {cat.name}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="contact">Contato</Label>
-                  <Select value={contactId} onValueChange={handleContactChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione um contato..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__new__" className="text-primary font-medium">
-                        <div className="flex items-center gap-2">
-                          <Plus className="w-3 h-3" />
-                          Novo contato
-                        </div>
-                      </SelectItem>
-                      {filteredContacts.map((contact) => (
-                        <SelectItem key={contact.id} value={contact.id}>
-                          <div className="flex items-center gap-2">
-                            <User className="w-3 h-3 text-muted-foreground" />
-                            {contact.name}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
-              {/* Column 2 */}
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="amount">Valor (R$) <span className="text-destructive">*</span></Label>
-                  <Input
-                    id="amount"
-                    value={amount}
-                    onChange={handleAmountChange}
-                    placeholder="0,00"
-                    required
-                    className="text-lg font-semibold"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="bank">Conta <span className="text-destructive">*</span></Label>
-                  <Select value={bankId} onValueChange={handleBankChange}>
-                    <SelectTrigger className={!bankId ? 'border-muted-foreground/30' : ''}>
-                      <SelectValue placeholder="Selecione..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__new__" className="text-primary font-medium">
-                        <div className="flex items-center gap-2">
-                          <Plus className="w-3 h-3" />
-                          Nova conta
-                        </div>
-                      </SelectItem>
-                      {activeBanks.map((bank) => (
-                        <SelectItem key={bank.id} value={bank.id}>
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="w-3 h-3 rounded-full"
-                              style={{ backgroundColor: bank.color }}
-                            />
-                            {bank.name}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="date">Data da Transação <span className="text-destructive">*</span></Label>
-                    <Input
-                      id="date"
-                      type="date"
-                      value={date}
-                      onChange={(e) => setDate(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="dueDate">Data de Vencimento</Label>
-                    <Input
-                      id="dueDate"
-                      type="date"
-                      value={dueDate}
-                      onChange={(e) => setDueDate(e.target.value)}
-                    />
-                  </div>
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="amount">Valor (R$) <span className="text-destructive">*</span></Label>
+                <Input
+                  id="amount"
+                  value={amount}
+                  onChange={handleAmountChange}
+                  placeholder="0,00"
+                  required
+                  className="text-lg font-semibold"
+                />
               </div>
             </div>
 
-            {/* Attachments */}
-            <AttachmentUpload
-              attachments={attachments}
-              pendingFiles={pendingFiles}
-              onAddFiles={(files) => setPendingFiles([...pendingFiles, ...files])}
-              onRemovePendingFile={(index) => setPendingFiles(pendingFiles.filter((_, i) => i !== index))}
-              onDeleteAttachment={(attachment) => deleteAttachment.mutate(attachment)}
-              isUploading={uploadAttachment.isPending}
-            />
+            {/* Line 2: Evento Contábil + Conta/Banco */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="category">Evento Contábil <span className="text-destructive">*</span></Label>
+                <Select value={categoryId} onValueChange={handleCategoryChange}>
+                  <SelectTrigger className={!categoryId ? 'border-muted-foreground/30' : ''}>
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__new__" className="text-primary font-medium">
+                      <div className="flex items-center gap-2">
+                        <Plus className="w-3 h-3" />
+                        Novo evento contábil
+                      </div>
+                    </SelectItem>
+                    {filteredCategories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: cat.color }}
+                          />
+                          {cat.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* Notes */}
+              <div className="space-y-2">
+                <Label htmlFor="bank">Conta/Banco <span className="text-destructive">*</span></Label>
+                <Select value={bankId} onValueChange={handleBankChange}>
+                  <SelectTrigger className={!bankId ? 'border-muted-foreground/30' : ''}>
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__new__" className="text-primary font-medium">
+                      <div className="flex items-center gap-2">
+                        <Plus className="w-3 h-3" />
+                        Nova conta/banco
+                      </div>
+                    </SelectItem>
+                    {activeBanks.map((bank) => (
+                      <SelectItem key={bank.id} value={bank.id}>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: bank.color }}
+                          />
+                          {bank.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Line 3: Data da Transação + Vencimento + Anexo */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="date">Data da Transação <span className="text-destructive">*</span></Label>
+                <Input
+                  id="date"
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="dueDate">Data de Vencimento</Label>
+                <Input
+                  id="dueDate"
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Anexo</Label>
+                <AttachmentUpload
+                  compact
+                  attachments={attachments}
+                  pendingFiles={pendingFiles}
+                  onAddFiles={(files) => setPendingFiles([...pendingFiles, ...files])}
+                  onRemovePendingFile={(index) => setPendingFiles(pendingFiles.filter((_, i) => i !== index))}
+                  onDeleteAttachment={(attachment) => deleteAttachment.mutate(attachment)}
+                  isUploading={uploadAttachment.isPending}
+                />
+              </div>
+            </div>
+
+            {/* Line 4: Observações (100% width, reduced height) */}
             <div className="space-y-2">
               <Label htmlFor="notes">Observações</Label>
               <Textarea
@@ -368,11 +361,12 @@ export function TransactionFormDialog({
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Notas adicionais..."
-                rows={2}
+                rows={1}
+                className="min-h-[40px] resize-none"
               />
             </div>
 
-            {/* Paid Switch */}
+            {/* Line 5: Paid Switch */}
             <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
               <div>
                 <Label htmlFor="paid" className="font-medium">
