@@ -10,6 +10,7 @@ interface AttachmentUploadProps {
   onRemovePendingFile: (index: number) => void;
   onDeleteAttachment: (attachment: TransactionAttachment) => void;
   isUploading?: boolean;
+  compact?: boolean;
 }
 
 function getFileIcon(type: string | null) {
@@ -33,6 +34,7 @@ export function AttachmentUpload({
   onRemovePendingFile,
   onDeleteAttachment,
   isUploading,
+  compact = false,
 }: AttachmentUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
 
@@ -63,6 +65,82 @@ export function AttachmentUpload({
     e.target.value = '';
   }, [onAddFiles]);
 
+  const totalFiles = pendingFiles.length + attachments.length;
+
+  // Compact version for inline display
+  if (compact) {
+    return (
+      <div className="space-y-1">
+        <div className="relative">
+          <input
+            type="file"
+            multiple
+            onChange={handleFileSelect}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full gap-2 h-10"
+            disabled={isUploading}
+          >
+            {isUploading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Paperclip className="w-4 h-4" />
+            )}
+            {totalFiles > 0 ? `${totalFiles} arquivo(s)` : 'Anexar'}
+          </Button>
+        </div>
+        
+        {/* Compact file list */}
+        {totalFiles > 0 && (
+          <div className="space-y-1 max-h-20 overflow-y-auto">
+            {pendingFiles.map((file, index) => (
+              <div
+                key={`pending-${index}`}
+                className="flex items-center gap-1 text-xs text-muted-foreground bg-muted/50 rounded px-2 py-1"
+              >
+                {getFileIcon(file.type)}
+                <span className="flex-1 truncate">{file.name}</span>
+                {isUploading ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <X
+                    className="w-3 h-3 cursor-pointer hover:text-destructive"
+                    onClick={() => onRemovePendingFile(index)}
+                  />
+                )}
+              </div>
+            ))}
+            {attachments.map((attachment) => (
+              <div
+                key={attachment.id}
+                className="flex items-center gap-1 text-xs text-muted-foreground bg-muted/30 rounded px-2 py-1"
+              >
+                {getFileIcon(attachment.file_type)}
+                <a
+                  href={attachment.file_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 truncate hover:text-primary"
+                >
+                  {attachment.file_name}
+                </a>
+                <X
+                  className="w-3 h-3 cursor-pointer hover:text-destructive"
+                  onClick={() => onDeleteAttachment(attachment)}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Full version (original)
   return (
     <div className="space-y-3">
       <label className="text-sm font-medium text-foreground">Anexos</label>
