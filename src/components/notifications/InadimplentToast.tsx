@@ -33,7 +33,7 @@ export function InadimplentToast() {
         toast({
           variant: 'destructive',
           title: `⚠️ ${count} cliente${count > 1 ? 's' : ''} inadimplente${count > 1 ? 's' : ''}`,
-          description: `Total em atraso: ${formatCurrency(totalAmount)}. Acesse CRM > Contatos para detalhes.`,
+          description: `Total em atraso: ${formatCurrency(totalAmount)}. Acesse CRM > Cliente/Fornecedor para detalhes.`,
           duration: 8000,
         });
       }, 1500);

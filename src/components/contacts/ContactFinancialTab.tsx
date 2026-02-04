@@ -213,7 +213,7 @@ export function ContactFinancialTab({ contactId, contactName }: ContactFinancial
             </Table>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
-              Nenhuma transação encontrada para este contato
+              Nenhuma transação encontrada para este cliente/fornecedor
             </div>
           )}
         </CardContent>

@@ -209,7 +209,7 @@ const formatCurrencyValue = (value: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
 export function exportToCSV(transactions: ReportTransaction[]) {
-  const headers = ['Data', 'Descrição', 'Tipo', 'Categoria', 'Banco', 'Contato', 'Valor', 'Status'];
+  const headers = ['Data', 'Descrição', 'Tipo', 'Categoria', 'Banco', 'Cliente/Fornecedor', 'Valor', 'Status'];
   const rows = transactions.map((t) => [
     format(parseISO(t.date), 'dd/MM/yyyy'),
     t.description,

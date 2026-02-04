@@ -83,10 +83,10 @@ export function useContacts() {
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['global-logs'] });
-      toast({ title: 'Contato criado com sucesso!' });
+      toast({ title: 'Cliente/Fornecedor criado!' });
     },
     onError: (error: Error) => {
-      toast({ title: 'Erro ao criar contato', description: error.message, variant: 'destructive' });
+      toast({ title: 'Erro ao criar cliente/fornecedor', description: error.message, variant: 'destructive' });
     },
   });
 
@@ -154,10 +154,10 @@ export function useContacts() {
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['contact-logs'] });
-      toast({ title: 'Contato atualizado!' });
+      toast({ title: 'Cliente/Fornecedor atualizado!' });
     },
     onError: (error: Error) => {
-      toast({ title: 'Erro ao atualizar contato', description: error.message, variant: 'destructive' });
+      toast({ title: 'Erro ao atualizar cliente/fornecedor', description: error.message, variant: 'destructive' });
     },
   });
 
@@ -173,10 +173,10 @@ export function useContacts() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] }); // Sync transactions view
-      toast({ title: 'Contato excluído!' });
+      toast({ title: 'Cliente/Fornecedor excluído!' });
     },
     onError: (error: Error) => {
-      toast({ title: 'Erro ao excluir contato', description: error.message, variant: 'destructive' });
+      toast({ title: 'Erro ao excluir cliente/fornecedor', description: error.message, variant: 'destructive' });
     },
   });
 

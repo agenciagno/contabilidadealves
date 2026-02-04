@@ -80,7 +80,7 @@ const mockHistory = [
 ];
 
 const audienceOptions = [
-  { value: 'todos', label: 'Todos os Contatos', count: 256 },
+  { value: 'todos', label: 'Todos os Clientes', count: 256 },
   { value: 'inadimplentes', label: 'Inadimplentes', count: 45 },
   { value: 'simples_nacional', label: 'Simples Nacional', count: 128 },
   { value: 'lucro_presumido', label: 'Lucro Presumido', count: 32 },
@@ -255,7 +255,7 @@ const CrmDispatches = () => {
                   )} />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Contatos impactados</p>
+                  <p className="text-sm text-muted-foreground">Clientes impactados</p>
                   <p className="text-2xl font-bold">{contactCount}</p>
                 </div>
               </div>
@@ -402,7 +402,7 @@ const CrmDispatches = () => {
                 <TableHead>Data e Hora</TableHead>
                 <TableHead>Canal</TableHead>
                 <TableHead>Audiência</TableHead>
-                <TableHead>Contatos</TableHead>
+                <TableHead>Clientes</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>

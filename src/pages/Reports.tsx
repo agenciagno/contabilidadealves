@@ -350,7 +350,7 @@ export default function Reports() {
                         <TableHead>Descrição</TableHead>
                         <TableHead>Evento Contábil</TableHead>
                         <TableHead>Banco</TableHead>
-                        <TableHead>Contato</TableHead>
+                        <TableHead>Cliente/Fornecedor</TableHead>
                         <TableHead className="text-right">Valor</TableHead>
                         <TableHead>Status</TableHead>
                       </TableRow>
