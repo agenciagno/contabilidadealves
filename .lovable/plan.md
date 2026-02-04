@@ -1,25 +1,26 @@
 
-## Plano: Reestruturação do Card de Cliente/Fornecedor
+
+## Plano: Simplificação da Barra de Filtros e Cards de Resumo
 
 ### Objetivo
-Atualizar o layout do card de cliente/fornecedor para exibir as informações solicitadas com opção de copiar em todos os campos, e tornar o status financeiro mais discreto.
+Remover o filtro por "Regime Tributário" e tornar a área de busca, filtros e cards de resumo mais discretos e minimalistas.
 
 ---
 
-### Novo Layout do Card
+### Novo Layout Proposto
 
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│  [👤]  Nome do Cliente (destaque)           [●] Adimplente  │
-│                                              (indicador)    │
-├─────────────────────────────────────────────────────────────┤
-│  📋  00.000.000/0000-00                              [📋]   │
-│  📧  email@empresa.com                               [📋]   │
-│  📞  (11) 99999-0000                                 [📋]   │
-├─────────────────────────────────────────────────────────────┤
-│  [Ver Perfil]           [✏️]                    [🗑️]        │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│  Cliente/Fornecedor                              [+ Novo Cliente/Fornecedor]    │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│  🔍 Buscar...          [Status ▼]  [Limpar]     12 total · 10 ✓ · 2 ⚠          │
+└─────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+**Características do novo design:**
+- Barra única e compacta integrando busca, filtro de status e contadores
+- Cards de resumo substituídos por indicadores inline discretos
+- Filtro de Regime Tributário removido
 
 ---
 
@@ -27,108 +28,104 @@ Atualizar o layout do card de cliente/fornecedor para exibir as informações so
 
 #### Arquivo: `src/pages/Contacts.tsx`
 
-**1. Modificar o componente ContactCard (linhas 173-232)**
+**1. Remover estado e lógica do filtro de Regime Tributário**
 
-**Header do Card - Nome com cópia + indicador discreto:**
+| Item | Ação |
+|------|------|
+| Linha 43 | Remover `const [filterTaxRegime, setFilterTaxRegime] = useState('all');` |
+| Linha 95 | Remover `const matchesTaxRegime = filterTaxRegime === 'all' \|\| c.tax_regime === filterTaxRegime;` |
+| Linha 103 | Remover `matchesTaxRegime` do return |
+| Linha 105 | Remover `filterTaxRegime` da lista de dependências |
+| Linha 108 | Remover `filterTaxRegime !== 'all'` da verificação de hasActiveFilters |
+| Linha 111 | Remover `setFilterTaxRegime('all');` do clearFilters |
+| Linhas 16-22 | Remover constante `taxRegimeLabels` (não utilizada) |
+
+**2. Substituir Cards de Resumo por Indicadores Inline**
+
+Remover os 3 cards separados (linhas 263-298) e substituir por indicadores compactos integrados à barra de filtros:
+
 ```tsx
-<div className="flex items-start justify-between mb-3">
-  <div className="flex items-center gap-3">
-    <div className="p-2 bg-primary/10 rounded-xl">
-      <User className="h-5 w-5 text-primary" />
-    </div>
-    <button 
-      onClick={() => copyToClipboard(contact.name, 'Nome')} 
-      className="group flex items-center gap-2 hover:text-primary transition-colors text-left"
-    >
-      <h3 className="font-semibold text-foreground">{contact.name}</h3>
-      <Copy className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground" />
-    </button>
+{/* Barra de Filtros Minimalista */}
+<div className="flex flex-wrap gap-3 items-center">
+  {/* Busca */}
+  <div className="relative flex-1 min-w-[200px]">
+    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+    <Input 
+      placeholder="Buscar por nome ou CNPJ..." 
+      value={searchTerm} 
+      onChange={e => setSearchTerm(e.target.value)} 
+      className="pl-9 h-9 bg-background/50 border-border/50" 
+    />
   </div>
-  {/* Indicador discreto - apenas um círculo colorido com tooltip */}
-  <div 
-    className={`h-2.5 w-2.5 rounded-full ${isInadimplente ? 'bg-destructive' : 'bg-emerald-500'}`}
-    title={isInadimplente ? 'Inadimplente' : 'Adimplente'}
-  />
+  
+  {/* Filtro de Status */}
+  <Select value={filterFinancialStatus} onValueChange={setFilterFinancialStatus}>
+    <SelectTrigger className="w-[140px] h-9 bg-background/50 border-border/50">
+      <SelectValue placeholder="Status" />
+    </SelectTrigger>
+    <SelectContent>
+      <SelectItem value="all">Todos</SelectItem>
+      <SelectItem value="adimplente">Adimplentes</SelectItem>
+      <SelectItem value="inadimplente">Inadimplentes</SelectItem>
+    </SelectContent>
+  </Select>
+  
+  {/* Limpar Filtros */}
+  {hasActiveFilters && (
+    <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 gap-1.5 text-muted-foreground">
+      <X className="h-3.5 w-3.5" />
+      Limpar
+    </Button>
+  )}
+  
+  {/* Separador */}
+  <div className="h-5 w-px bg-border/50 hidden sm:block" />
+  
+  {/* Indicadores de Resumo Inline */}
+  <div className="flex items-center gap-3 text-sm text-muted-foreground">
+    <span className="flex items-center gap-1.5">
+      <Users className="h-3.5 w-3.5" />
+      <span className="font-medium text-foreground">{summaryStats.total}</span>
+    </span>
+    <span className="flex items-center gap-1.5">
+      <span className="h-2 w-2 rounded-full bg-emerald-500" />
+      <span>{summaryStats.adimplentes}</span>
+    </span>
+    <span className="flex items-center gap-1.5">
+      <span className="h-2 w-2 rounded-full bg-destructive" />
+      <span>{summaryStats.inadimplentes}</span>
+    </span>
+  </div>
 </div>
 ```
 
-**Informações do Card - Todas com opção de cópia:**
+**3. Remover imports não utilizados**
+
 ```tsx
-<div className="space-y-2 text-sm text-muted-foreground">
-  {/* CNPJ/CPF */}
-  {contact.document && (
-    <button 
-      onClick={() => copyToClipboard(contact.document!, 'CPF/CNPJ')} 
-      className="group flex items-center gap-2 w-full hover:text-primary transition-colors text-left"
-    >
-      <FileText className="h-3.5 w-3.5 flex-shrink-0" />
-      <span className="truncate flex-1 font-mono text-xs">{contact.document}</span>
-      <Copy className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-    </button>
-  )}
-  
-  {/* Telefone */}
-  {contact.phone && (
-    <button 
-      onClick={() => copyToClipboard(contact.phone!, 'Telefone')} 
-      className="group flex items-center gap-2 w-full hover:text-primary transition-colors text-left"
-    >
-      <Phone className="h-3.5 w-3.5 flex-shrink-0" />
-      <span className="flex-1">{contact.phone}</span>
-      <Copy className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-    </button>
-  )}
-  
-  {/* E-mail */}
-  {contact.email && (
-    <button 
-      onClick={() => copyToClipboard(contact.email!, 'E-mail')} 
-      className="group flex items-center gap-2 w-full hover:text-primary transition-colors text-left"
-    >
-      <Mail className="h-3.5 w-3.5 flex-shrink-0" />
-      <span className="truncate flex-1">{contact.email}</span>
-      <Copy className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-    </button>
-  )}
-</div>
+// ANTES (linha 10):
+import { ..., Users, CheckCircle, AlertTriangle, ... } from 'lucide-react';
+
+// DEPOIS:
+// Manter apenas Users (usado no indicador inline)
+// CheckCircle e AlertTriangle podem ser removidos se não usados em outro lugar
 ```
+
+Verificando uso:
+- `CheckCircle` - usado apenas nos cards removidos → **REMOVER**
+- `AlertTriangle` - usado no AlertDialog de exclusão → **MANTER**
+- `Users` - usado no indicador inline → **MANTER**
 
 ---
 
-### Mudanças Visuais
+### Comparativo Visual
 
 | Elemento | Antes | Depois |
 |----------|-------|--------|
-| Nome | Texto estático | Clicável para copiar com ícone ao hover |
-| CPF/CNPJ | Texto estático (sem ícone) | Clicável com ícone FileText + cópia |
-| Telefone | Clicável para copiar | Mantido (já estava funcional) |
-| E-mail | Clicável para copiar | Mantido (já estava funcional) |
-| Status (Adimplente/Inadimplente) | Badge grande e colorido | Pequeno círculo colorido com tooltip |
-| Regime Tributário | Badge abaixo do nome | Removido (não solicitado) |
-| Localização (Cidade/Estado) | Exibido | Removido (não solicitado) |
-
----
-
-### Ordem de Exibição das Informações
-
-1. **Nome** (em destaque, clicável)
-2. **CPF/CNPJ** (com ícone de documento)
-3. **Telefone** (com ícone de telefone)
-4. **E-mail** (com ícone de e-mail)
-5. **Status** (indicador discreto no canto superior direito)
-
----
-
-### Indicador de Status Discreto
-
-O badge atual (`Adimplente`/`Inadimplente`) será substituído por um pequeno círculo colorido:
-
-| Status | Cor | Comportamento |
-|--------|-----|---------------|
-| Adimplente | Verde (`bg-emerald-500`) | Círculo pequeno |
-| Inadimplente | Vermelho (`bg-destructive`) | Círculo pequeno |
-
-O tooltip ao passar o mouse mostrará o texto completo do status.
+| Cards de Resumo | 3 cards separados (ocupam 1 linha inteira) | Indicadores inline na barra de filtros |
+| Filtro Regime Tributário | Select com 5 opções | Removido |
+| Barra de Filtros | Card com padding grande | Barra compacta e discreta |
+| Altura do Input | Padrão | h-9 (menor) |
+| Estilo dos Elementos | bg-background | bg-background/50 (mais sutil) |
 
 ---
 
@@ -136,6 +133,18 @@ O tooltip ao passar o mouse mostrará o texto completo do status.
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `src/pages/Contacts.tsx` | Reestruturar ContactCard: nome clicável, CPF/CNPJ com cópia, status discreto, remover localização e regime tributário |
+| `src/pages/Contacts.tsx` | Remover filtro de Regime Tributário, substituir cards por indicadores inline, simplificar barra de filtros |
 
 **Total**: 1 arquivo
+
+**Itens removidos:**
+- Estado `filterTaxRegime`
+- Constante `taxRegimeLabels`
+- Select de Regime Tributário
+- 3 Cards de resumo separados
+- Import `CheckCircle`
+
+**Itens adicionados:**
+- Indicadores de resumo inline (total, adimplentes, inadimplentes)
+- Separador visual entre filtros e indicadores
+
