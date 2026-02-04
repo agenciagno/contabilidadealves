@@ -1,257 +1,185 @@
 
-## Plano: Simplificação do Modal de Cadastro de Contatos
+
+## Plano: Atualização de Terminologia "Contato" → "Cliente/Fornecedor"
 
 ### Objetivo
-Reestruturar o layout do formulário de contatos removendo campos desnecessários e reorganizando os campos restantes conforme especificado.
+Padronizar toda a terminologia do sistema, substituindo "Gestão de Contatos", "Contato", "Contatos" por "Cliente/Fornecedor" ou "Clientes/Fornecedores" em todos os locais visíveis para o usuário.
 
 ---
 
-### Nova Estrutura do Layout
+### Mapeamento de Substituições
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│  Linha 1: CPF/CNPJ com botão de busca (100% largura)        │
-└─────────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────────┐
-│  Linha 2: Nome do Cliente/Fornecedor (100% largura)         │
-└─────────────────────────────────────────────────────────────┘
-┌─────────────────────────────┬─────────────────────────────┐
-│  Linha 3: E-mail (50%)      │  Telefone (50%)             │
-└─────────────────────────────┴─────────────────────────────┘
-┌───────────────────┬───────────────────┬───────────────────┐
-│  Linha 4:         │                   │                   │
-│  Endereço (33%)   │  Cidade (33%)     │  Estado (33%)     │
-└───────────────────┴───────────────────┴───────────────────┘
-┌─────────────────────────────────────────────────────────────┐
-│  Linha 5: Observações (100% largura, 1 linha apenas)        │
-└─────────────────────────────────────────────────────────────┘
-┌─────────────────────────────┬─────────────────────────────┐
-│  Cancelar                   │  Salvar                     │
-└─────────────────────────────┴─────────────────────────────┘
-```
+| Termo Atual | Novo Termo |
+|-------------|------------|
+| Gestão de Contatos | Cliente/Fornecedor |
+| Novo Contato | Novo Cliente/Fornecedor |
+| Editar Contato | Editar Cliente/Fornecedor |
+| Excluir contato? | Excluir cliente/fornecedor? |
+| Total de Contatos | Total Cadastrado |
+| Contatos Ativos | Ativos |
+| Contatos Inativos | Inativos |
+| Contato criado com sucesso! | Cliente/Fornecedor criado! |
+| Contato atualizado com sucesso! | Cliente/Fornecedor atualizado! |
+| Contato excluído com sucesso! | Cliente/Fornecedor excluído! |
+| Contato não encontrado | Cliente/Fornecedor não encontrado |
+| Nenhum contato encontrado | Nenhum cliente/fornecedor encontrado |
+| Nenhum contato cadastrado | Nenhum cliente/fornecedor cadastrado |
+| Contatos (header tabela) | Cliente/Fornecedor |
+| Novo contato (opção select) | Novo cliente/fornecedor |
+| Todos os Contatos | Todos os Clientes |
 
 ---
 
-### Campos a Remover
+### Arquivos a Modificar
 
-| Campo | Motivo |
-|-------|--------|
-| `Representante Legal` | Solicitado pelo usuário |
-| `Regime Tributário` | Solicitado pelo usuário |
-| `Contato ativo` (Switch) | Cliente será ativo por padrão (is_active = true sempre) |
+#### 1. `src/components/layout/AppSidebar.tsx` (linha 91)
 
----
-
-### Alterações Detalhadas
-
-#### Arquivo: `src/components/contacts/ContactFormDialog.tsx`
-
-**1. Remover estados não utilizados (linhas 45, 52-53):**
-```tsx
-// REMOVER:
-const [taxRegime, setTaxRegime] = useState<TaxRegime | ''>('');
-const [isActive, setIsActive] = useState(true);
-const [representativeLegal, setRepresentativeLegal] = useState('');
-```
-
-**2. Remover imports não utilizados (linhas 7-8):**
-```tsx
-// REMOVER do import:
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-
-// MANTER apenas para o Select de Estado:
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-```
-
-**3. Remover constante TAX_REGIMES (linhas 28-34):**
-- Não será mais necessária
-
-**4. Atualizar useEffect (linhas 58-84):**
-- Remover referências a `taxRegime`, `isActive`, `representativeLegal`
-
-**5. Atualizar handleSubmit (linhas 135-151):**
-```tsx
-const handleSubmit = (e: React.FormEvent) => {
-  e.preventDefault();
-  onSubmit({
-    name: name.trim(),
-    type: contact?.type || 'cliente',
-    document: document.trim() || null,
-    tax_regime: null,              // Sempre null
-    email: email.trim() || null,
-    phone: phone.trim() || null,
-    address: address.trim() || null,
-    city: city.trim() || null,
-    state: state || null,
-    notes: notes.trim() || null,
-    is_active: true,               // Sempre true por padrão
-    representative_legal: null,     // Sempre null
-  });
-};
-```
-
-**6. Reestruturar layout do formulário (linhas 161-304):**
-
-**Linha 1: CPF/CNPJ (100% largura)**
-```tsx
-<div className="col-span-3">
-  <Label htmlFor="document">CPF/CNPJ</Label>
-  <div className="flex gap-2">
-    <Input
-      id="document"
-      value={document}
-      onChange={(e) => setDocument(maskCPFCNPJ(e.target.value))}
-      placeholder="00.000.000/0000-00"
-      maxLength={18}
-      className="flex-1"
-    />
-    <Button
-      type="button"
-      variant="outline"
-      size="icon"
-      onClick={handleFetchCnpj}
-      disabled={isFetchingCnpj || document.replace(/\D/g, '').length < 14}
-      title="Buscar dados do CNPJ"
-    >
-      {isFetchingCnpj ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : (
-        <Search className="h-4 w-4" />
-      )}
-    </Button>
-  </div>
-</div>
-```
-
-**Linha 2: Nome do Cliente/Fornecedor (100% largura)**
-```tsx
-<div className="col-span-3">
-  <Label htmlFor="name">Nome do Cliente/Fornecedor <span className="text-destructive">*</span></Label>
-  <Input
-    id="name"
-    value={name}
-    onChange={(e) => setName(e.target.value)}
-    placeholder="Nome do cliente ou fornecedor"
-    required
-  />
-</div>
-```
-
-**Linha 3: E-mail + Telefone (grid 2 colunas dentro de span-3)**
-```tsx
-<div className="col-span-3 grid grid-cols-2 gap-4">
-  <div>
-    <Label htmlFor="email">E-mail</Label>
-    <Input
-      id="email"
-      type="email"
-      value={email}
-      onChange={(e) => setEmail(e.target.value)}
-      placeholder="email@exemplo.com"
-    />
-  </div>
-  <div>
-    <Label htmlFor="phone">Telefone</Label>
-    <Input
-      id="phone"
-      value={phone}
-      onChange={(e) => setPhone(maskPhone(e.target.value))}
-      placeholder="(00) 00000-0000"
-      maxLength={15}
-    />
-  </div>
-</div>
-```
-
-**Linha 4: Endereço + Cidade + Estado (grid 3 colunas)**
-```tsx
-<div className="col-span-3 grid grid-cols-3 gap-4">
-  <div>
-    <Label htmlFor="address">Endereço</Label>
-    <Input
-      id="address"
-      value={address}
-      onChange={(e) => setAddress(e.target.value)}
-      placeholder="Rua, número, bairro"
-      disabled={addressFieldsLocked}
-    />
-  </div>
-  <div>
-    <Label htmlFor="city">Cidade</Label>
-    <Input
-      id="city"
-      value={city}
-      onChange={(e) => setCity(e.target.value)}
-      placeholder="Cidade"
-      disabled={addressFieldsLocked}
-    />
-  </div>
-  <div>
-    <Label htmlFor="state">Estado</Label>
-    <Select value={state} onValueChange={setState} disabled={addressFieldsLocked}>
-      <SelectTrigger>
-        <SelectValue placeholder="UF" />
-      </SelectTrigger>
-      <SelectContent>
-        {STATES.map((s) => (
-          <SelectItem key={s} value={s}>{s}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  </div>
-</div>
-```
-
-**Linha 5: Observações (100% largura, 1 linha)**
-```tsx
-<div className="col-span-3">
-  <Label htmlFor="notes">Observações</Label>
-  <Textarea
-    id="notes"
-    value={notes}
-    onChange={(e) => setNotes(e.target.value)}
-    placeholder="Observações adicionais"
-    rows={1}
-    className="min-h-[40px] resize-none"
-  />
-</div>
-```
-
-**7. Atualizar grid container:**
 ```tsx
 // ANTES:
-<div className="grid grid-cols-2 gap-4">
+{ title: 'Gestão de Contatos', url: '/contatos', icon: UserCircle, iconName: 'user-circle' },
 
 // DEPOIS:
-<div className="grid grid-cols-3 gap-4">
+{ title: 'Cliente/Fornecedor', url: '/contatos', icon: UserCircle, iconName: 'user-circle' },
 ```
-
-Usar `grid-cols-3` permite que os campos de 100% usem `col-span-3`, os de 50% fiquem dentro de um sub-grid de 2 colunas, e a linha 4 use naturalmente 3 colunas.
 
 ---
 
-### Comparativo Antes/Depois
+#### 2. `src/pages/Contacts.tsx` (múltiplas linhas)
 
-| Aspecto | Antes | Depois |
-|---------|-------|--------|
-| Campos no formulário | 10 campos | 7 campos |
-| Linhas de layout | 7 linhas | 5 linhas |
-| Linha 1 | Nome (100%) | CPF/CNPJ com busca (100%) |
-| Linha 2 | CPF/CNPJ + Regime Tributário | Nome do Cliente/Fornecedor (100%) |
-| Linha 3 | E-mail + Telefone | E-mail + Telefone (mantido) |
-| Linha 4 | Representante + Cidade | Endereço + Cidade + Estado (33% cada) |
-| Linha 5 | Endereço + Estado | Observações (1 linha) |
-| Linha 6 | Observações (2 linhas) | - |
-| Linha 7 | Switch Ativo | - |
-| `is_active` | Configurável via Switch | Sempre `true` |
+| Linha | Antes | Depois |
+|-------|-------|--------|
+| 242 | `Novo Contato` | `Novo Cliente/Fornecedor` |
+| 255 | `Total de Contatos` | `Total Cadastrado` |
+| 324 | `Contatos Ativos ({activeContacts.length})` | `Ativos ({activeContacts.length})` |
+| 334 | `Contatos Inativos ({inactiveContacts.length})` | `Inativos ({inactiveContacts.length})` |
+| 343 | `Nenhum contato encontrado...` / `Nenhum contato cadastrado...` | `Nenhum cliente/fornecedor encontrado...` / `Nenhum cliente/fornecedor cadastrado...` |
+| 352 | `Excluir contato?` | `Excluir cliente/fornecedor?` |
+| 355 | `O contato será removido permanentemente` | `O cliente/fornecedor será removido permanentemente` |
+
+---
+
+#### 3. `src/components/contacts/ContactFormDialog.tsx` (linha 141)
+
+```tsx
+// ANTES:
+<DialogTitle>{contact ? 'Editar Contato' : 'Novo Contato'}</DialogTitle>
+
+// DEPOIS:
+<DialogTitle>{contact ? 'Editar Cliente/Fornecedor' : 'Novo Cliente/Fornecedor'}</DialogTitle>
+```
+
+---
+
+#### 4. `src/hooks/useContacts.ts` (linhas 86, 89, 157, 160, 176, 179)
+
+| Linha | Antes | Depois |
+|-------|-------|--------|
+| 86 | `Contato criado com sucesso!` | `Cliente/Fornecedor criado!` |
+| 89 | `Erro ao criar contato` | `Erro ao criar cliente/fornecedor` |
+| 157 | `Contato atualizado com sucesso!` | `Cliente/Fornecedor atualizado!` |
+| 160 | `Erro ao atualizar contato` | `Erro ao atualizar cliente/fornecedor` |
+| 176 | `Contato excluído com sucesso!` | `Cliente/Fornecedor excluído!` |
+| 179 | `Erro ao excluir contato` | `Erro ao excluir cliente/fornecedor` |
+
+---
+
+#### 5. `src/components/recurring/RecurringFormDialog.tsx` (linha 438)
+
+```tsx
+// ANTES:
+Novo contato
+
+// DEPOIS:
+Novo cliente/fornecedor
+```
+
+---
+
+#### 6. `src/components/notifications/InadimplentToast.tsx` (linha 36)
+
+```tsx
+// ANTES:
+description: `Total em atraso: ${formatCurrency(totalAmount)}. Acesse CRM > Contatos para detalhes.`,
+
+// DEPOIS:
+description: `Total em atraso: ${formatCurrency(totalAmount)}. Acesse CRM > Cliente/Fornecedor para detalhes.`,
+```
+
+---
+
+#### 7. `src/pages/ContactProfile.tsx` (linha 77)
+
+```tsx
+// ANTES:
+<p className="text-muted-foreground">Contato não encontrado</p>
+
+// DEPOIS:
+<p className="text-muted-foreground">Cliente/Fornecedor não encontrado</p>
+```
+
+---
+
+#### 8. `src/components/contacts/ContactFinancialTab.tsx` (linha 216)
+
+```tsx
+// ANTES:
+Nenhuma transação encontrada para este contato
+
+// DEPOIS:
+Nenhuma transação encontrada para este cliente/fornecedor
+```
+
+---
+
+#### 9. `src/pages/CrmDispatches.tsx` (linhas 83, 258, 405)
+
+| Linha | Antes | Depois |
+|-------|-------|--------|
+| 83 | `Todos os Contatos` | `Todos os Clientes` |
+| 258 | `Contatos impactados` | `Clientes impactados` |
+| 405 | `Contatos` (header tabela) | `Clientes` |
+
+---
+
+#### 10. `src/pages/Reports.tsx` (linha 353)
+
+```tsx
+// ANTES:
+<TableHead>Contato</TableHead>
+
+// DEPOIS:
+<TableHead>Cliente/Fornecedor</TableHead>
+```
+
+---
+
+#### 11. `src/hooks/useReportData.ts` (linha 212)
+
+```tsx
+// ANTES:
+const headers = ['Data', 'Descrição', 'Tipo', 'Categoria', 'Banco', 'Contato', 'Valor', 'Status'];
+
+// DEPOIS:
+const headers = ['Data', 'Descrição', 'Tipo', 'Categoria', 'Banco', 'Cliente/Fornecedor', 'Valor', 'Status'];
+```
 
 ---
 
 ### Resumo das Alterações
 
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/components/contacts/ContactFormDialog.tsx` | Remover campos (Representante, Regime Tributário, Switch Ativo), reorganizar layout em 5 linhas, atualizar labels, reduzir observações para 1 linha |
+| Arquivo | Quantidade de Alterações |
+|---------|--------------------------|
+| `src/components/layout/AppSidebar.tsx` | 1 |
+| `src/pages/Contacts.tsx` | 7 |
+| `src/components/contacts/ContactFormDialog.tsx` | 1 |
+| `src/hooks/useContacts.ts` | 6 |
+| `src/components/recurring/RecurringFormDialog.tsx` | 1 |
+| `src/components/notifications/InadimplentToast.tsx` | 1 |
+| `src/pages/ContactProfile.tsx` | 1 |
+| `src/components/contacts/ContactFinancialTab.tsx` | 1 |
+| `src/pages/CrmDispatches.tsx` | 3 |
+| `src/pages/Reports.tsx` | 1 |
+| `src/hooks/useReportData.ts` | 1 |
 
-**Total**: 1 arquivo
+**Total**: 11 arquivos, 24 alterações de texto
+
