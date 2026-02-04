@@ -8,6 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Contact, ContactInsert, TaxRegime } from '@/hooks/useContacts';
 import { maskCPFCNPJ, maskPhone } from '@/lib/utils';
+import { Search, Loader2 } from 'lucide-react';
+import { fetchCnpjData } from '@/lib/cnpj-api';
+import { useToast } from '@/hooks/use-toast';
 
 interface ContactFormDialogProps {
   open: boolean;
@@ -48,6 +51,9 @@ export function ContactFormDialog({
   const [notes, setNotes] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [representativeLegal, setRepresentativeLegal] = useState('');
+  const [isFetchingCnpj, setIsFetchingCnpj] = useState(false);
+  const [addressFieldsLocked, setAddressFieldsLocked] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (contact) {
@@ -76,6 +82,55 @@ export function ContactFormDialog({
       setRepresentativeLegal('');
     }
   }, [contact, open]);
+
+  const handleFetchCnpj = async () => {
+    const cleanDoc = document.replace(/\D/g, '');
+    
+    if (cleanDoc.length !== 14) {
+      toast({
+        title: 'CNPJ inválido',
+        description: 'Digite um CNPJ completo (14 dígitos) para buscar',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    setIsFetchingCnpj(true);
+    setAddressFieldsLocked(true);
+    
+    try {
+      const data = await fetchCnpjData(cleanDoc);
+      
+      setName(data.nome_fantasia || data.razao_social);
+      
+      const addressParts = [data.logradouro, data.numero, data.bairro].filter(Boolean);
+      if (addressParts.length > 0) {
+        setAddress(`${data.logradouro || ''}${data.numero ? ', ' + data.numero : ''}${data.bairro ? ' - ' + data.bairro : ''}`);
+      }
+      
+      setCity(data.municipio || '');
+      setState(data.uf || '');
+      
+      if (data.ddd_telefone_1) {
+        const phoneClean = data.ddd_telefone_1.replace(/\D/g, '');
+        setPhone(maskPhone(phoneClean));
+      }
+      
+      toast({
+        title: 'Dados carregados!',
+        description: 'Confira as informações e complete os campos restantes.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Erro na consulta',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsFetchingCnpj(false);
+      setAddressFieldsLocked(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,13 +175,30 @@ export function ContactFormDialog({
             {/* Row 2: CPF/CNPJ | Regime Tributário */}
             <div>
               <Label htmlFor="document">CPF/CNPJ</Label>
-              <Input
-                id="document"
-                value={document}
-                onChange={(e) => setDocument(maskCPFCNPJ(e.target.value))}
-                placeholder="000.000.000-00"
-                maxLength={18}
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="document"
+                  value={document}
+                  onChange={(e) => setDocument(maskCPFCNPJ(e.target.value))}
+                  placeholder="00.000.000/0000-00"
+                  maxLength={18}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={handleFetchCnpj}
+                  disabled={isFetchingCnpj || document.replace(/\D/g, '').length < 14}
+                  title="Buscar dados do CNPJ"
+                >
+                  {isFetchingCnpj ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Search className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
             </div>
             <div>
               <Label htmlFor="taxRegime">Regime Tributário</Label>
@@ -183,6 +255,7 @@ export function ContactFormDialog({
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
                 placeholder="Cidade"
+                disabled={addressFieldsLocked}
               />
             </div>
 
@@ -194,11 +267,12 @@ export function ContactFormDialog({
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 placeholder="Rua, número, bairro"
+                disabled={addressFieldsLocked}
               />
             </div>
             <div>
               <Label htmlFor="state">Estado</Label>
-              <Select value={state} onValueChange={setState}>
+              <Select value={state} onValueChange={setState} disabled={addressFieldsLocked}>
                 <SelectTrigger>
                   <SelectValue placeholder="UF" />
                 </SelectTrigger>
