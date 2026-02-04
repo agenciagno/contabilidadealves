@@ -7,19 +7,12 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Plus, Search, Edit2, Trash2, User, Mail, Phone, MapPin, Copy, Eye, Users, CheckCircle, AlertTriangle, X, FileText, RefreshCw } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, User, Mail, Phone, Copy, Eye, Users, AlertTriangle, X, FileText, RefreshCw } from 'lucide-react';
 import { useContacts, Contact, ContactInsert } from '@/hooks/useContacts';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useContactDependencies } from '@/hooks/useContactDependencies';
 import { ContactFormDialog } from '@/components/contacts/ContactFormDialog';
 import { useToast } from '@/hooks/use-toast';
-const taxRegimeLabels: Record<string, string> = {
-  mei: 'MEI',
-  simples_nacional: 'Simples Nacional',
-  lucro_presumido: 'Lucro Presumido',
-  lucro_real: 'Lucro Real',
-  nao_aplica: 'Pessoa Física'
-};
 export default function Contacts() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -40,7 +33,6 @@ export default function Contacts() {
   const [editingContact, setEditingContact] = useState<Contact | undefined>();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterTaxRegime, setFilterTaxRegime] = useState('all');
   const [filterFinancialStatus, setFilterFinancialStatus] = useState('all');
 
   // Handle navigation state for automatic filter
@@ -92,7 +84,6 @@ export default function Contacts() {
   const filteredContacts = useMemo(() => {
     return contacts.filter(c => {
       const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || c.document?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesTaxRegime = filterTaxRegime === 'all' || c.tax_regime === filterTaxRegime;
       let matchesFinancialStatus = true;
       if (filterFinancialStatus !== 'all') {
         const {
@@ -100,15 +91,14 @@ export default function Contacts() {
         } = getFinancialStatus(c.id);
         matchesFinancialStatus = filterFinancialStatus === 'inadimplente' ? isInadimplente : !isInadimplente;
       }
-      return matchesSearch && matchesTaxRegime && matchesFinancialStatus;
+      return matchesSearch && matchesFinancialStatus;
     });
-  }, [contacts, searchTerm, filterTaxRegime, filterFinancialStatus, transactions]);
+  }, [contacts, searchTerm, filterFinancialStatus, transactions]);
   const activeContacts = filteredContacts.filter(c => c.is_active);
   const inactiveContacts = filteredContacts.filter(c => !c.is_active);
-  const hasActiveFilters = searchTerm || filterTaxRegime !== 'all' || filterFinancialStatus !== 'all';
+  const hasActiveFilters = searchTerm || filterFinancialStatus !== 'all';
   const clearFilters = () => {
     setSearchTerm('');
-    setFilterTaxRegime('all');
     setFilterFinancialStatus('all');
   };
   const copyToClipboard = async (text: string, label: string) => {
@@ -260,80 +250,53 @@ export default function Contacts() {
         </Button>
       </div>
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-3 gap-4">
-        <Card className="bg-card/80 backdrop-blur-sm border-border/50">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-primary/10">
-              <Users className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-foreground">{summaryStats.total}</p>
-              <p className="text-xs text-muted-foreground">Total Cadastrado</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-card/80 backdrop-blur-sm border-border/50">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-emerald-500/10">
-              <CheckCircle className="h-5 w-5 text-emerald-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-emerald-500">{summaryStats.adimplentes}</p>
-              <p className="text-xs text-muted-foreground">Adimplentes</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-card/80 backdrop-blur-sm border-border/50">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-destructive/10">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-destructive">{summaryStats.inadimplentes}</p>
-              <p className="text-xs text-muted-foreground">Inadimplentes</p>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Compact Filters Bar */}
+      <div className="flex flex-wrap gap-3 items-center">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input 
+            placeholder="Buscar por nome ou CNPJ..." 
+            value={searchTerm} 
+            onChange={e => setSearchTerm(e.target.value)} 
+            className="pl-9 h-9 bg-background/50 border-border/50" 
+          />
+        </div>
+        
+        <Select value={filterFinancialStatus} onValueChange={setFilterFinancialStatus}>
+          <SelectTrigger className="w-[140px] h-9 bg-background/50 border-border/50">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="adimplente">Adimplentes</SelectItem>
+            <SelectItem value="inadimplente">Inadimplentes</SelectItem>
+          </SelectContent>
+        </Select>
+        
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 gap-1.5 text-muted-foreground">
+            <X className="h-3.5 w-3.5" />
+            Limpar
+          </Button>
+        )}
+        
+        <div className="h-5 w-px bg-border/50 hidden sm:block" />
+        
+        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <Users className="h-3.5 w-3.5" />
+            <span className="font-medium text-foreground">{summaryStats.total}</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            <span>{summaryStats.adimplentes}</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-destructive" />
+            <span>{summaryStats.inadimplentes}</span>
+          </span>
+        </div>
       </div>
-
-      {/* Filters Bar */}
-      <Card className="bg-card/80 backdrop-blur-sm border-border/50">
-        <CardContent className="p-4">
-          <div className="flex flex-wrap gap-3 items-center">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Buscar por nome ou CNPJ..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9 bg-background" />
-            </div>
-            <Select value={filterTaxRegime} onValueChange={setFilterTaxRegime}>
-              <SelectTrigger className="w-[170px] bg-background">
-                <SelectValue placeholder="Regime Tributário" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os Regimes</SelectItem>
-                <SelectItem value="mei">MEI</SelectItem>
-                <SelectItem value="simples_nacional">Simples Nacional</SelectItem>
-                <SelectItem value="lucro_presumido">Lucro Presumido</SelectItem>
-                <SelectItem value="lucro_real">Lucro Real</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={filterFinancialStatus} onValueChange={setFilterFinancialStatus}>
-              <SelectTrigger className="w-[150px] bg-background">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os Status</SelectItem>
-                <SelectItem value="adimplente">Adimplentes</SelectItem>
-                <SelectItem value="inadimplente">Inadimplentes</SelectItem>
-              </SelectContent>
-            </Select>
-            {hasActiveFilters && <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1.5 text-muted-foreground">
-                <X className="h-4 w-4" />
-                Limpar Filtros
-              </Button>}
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Active Contacts */}
       {activeContacts.length > 0 && <div className="space-y-3">
