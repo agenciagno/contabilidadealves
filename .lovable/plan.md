@@ -1,240 +1,265 @@
 
-## Plano Revisado: Reorganização do Modal de Nova Movimentação
+
+## Plano: Integração de Consulta Automática de CNPJ (BrasilAPI)
 
 ### Objetivo
-Reestruturar o layout do formulário de transação removendo o campo "Descrição" e organizando os campos restantes em 5 linhas lógicas.
+Automatizar o cadastro de clientes através da consulta de CNPJ na API pública BrasilAPI, preenchendo automaticamente os campos do formulário.
 
 ---
 
-### Nova Estrutura do Layout (SEM Descrição)
+### Estrutura da Implementação
 
 ```text
-┌─────────────────────────────┬─────────────────────────────┐
-│  TABS: Despesa / Receita                                  │
-└─────────────────────────────────────────────────────────────┘
-┌─────────────────────────────┬─────────────────────────────┐
-│  Cliente/Fornecedor (50%)   │  Valor (50%)                │
-└─────────────────────────────┴─────────────────────────────┘
-┌─────────────────────────────┬─────────────────────────────┐
-│  Evento Contábil (50%)      │  Conta/Banco (50%)          │
-└─────────────────────────────┴─────────────────────────────┘
-┌─────────────────────────┬─────────────────────────┬───────┐
-│  Data da Transação      │  Data de Vencimento     │ Anexo │
-│         (33%)           │        (33%)            │ (33%) │
-└─────────────────────────┴─────────────────────────┴───────┘
 ┌─────────────────────────────────────────────────────────────┐
-│  Observações (100% largura, altura reduzida - 1 linha)      │
+│  Campo CPF/CNPJ (com máscara)                               │
+│  ┌─────────────────────────────────────────┐ ┌───────────┐  │
+│  │  00.000.000/0000-00                     │ │  🔍 Buscar│  │
+│  └─────────────────────────────────────────┘ └───────────┘  │
+│                                                             │
+│  Ao clicar em "Buscar":                                     │
+│  1. Valida se é CNPJ (14 dígitos)                          │
+│  2. Mostra spinner no botão                                 │
+│  3. Bloqueia campos de endereço                            │
+│  4. Faz requisição GET para BrasilAPI                      │
+│  5. Preenche campos automaticamente                        │
+│  6. Libera campos para conferência                         │
 └─────────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────────┐
-│  Switch: Pago/Recebido                                      │
-└─────────────────────────────────────────────────────────────┘
-┌─────────────────────────────┬─────────────────────────────┐
-│  Cancelar                   │  Salvar                     │
-└─────────────────────────────┴─────────────────────────────┘
 ```
 
 ---
 
-### Alterações Detalhadas
+### Arquivos a Criar/Modificar
 
-#### Arquivo: `src/components/transactions/TransactionFormDialog.tsx`
+#### 1. Novo Arquivo: `src/lib/cnpj-api.ts`
 
-**1. Remover estado e referências ao campo Descrição**
+Função utilitária para consulta à BrasilAPI:
 
-| Linha | Ação |
-|-------|------|
-| 58 | Remover: `const [description, setDescription] = useState('');` |
-| 87 | Remover: `setDescription(transaction.description);` |
-| 99 | Remover: `setDescription('');` |
-| 129 | Alterar: `description` no objeto de submit será gerado automaticamente |
-| 194 | Alterar validação: remover `description.trim()` da condição |
+```typescript
+export interface CnpjData {
+  razao_social: string;
+  nome_fantasia: string;
+  cep: string;
+  logradouro: string;
+  numero: string;
+  bairro: string;
+  municipio: string;
+  uf: string;
+  ddd_telefone_1: string;
+}
 
-**2. Gerar descrição automaticamente**
-
-Na submissão, a descrição será gerada a partir do nome do evento contábil selecionado:
-```tsx
-const handleSubmit = (e: React.FormEvent) => {
-  e.preventDefault();
-  const selectedCategory = filteredCategories.find(c => c.id === categoryId);
-  const autoDescription = selectedCategory?.name || 'Movimentação';
+export async function fetchCnpjData(cnpj: string): Promise<CnpjData> {
+  // Remove caracteres não numéricos
+  const cleanCnpj = cnpj.replace(/\D/g, '');
   
-  onSubmit({
-    type,
-    description: autoDescription,
-    amount: parseCurrencyInput(amount),
-    // ... resto dos campos
-  } as TransactionInsert, pendingFiles);
+  // Valida tamanho
+  if (cleanCnpj.length !== 14) {
+    throw new Error('CNPJ deve conter 14 dígitos');
+  }
+  
+  const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanCnpj}`);
+  
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error('CNPJ não encontrado na base da Receita Federal');
+    }
+    throw new Error('Erro ao consultar CNPJ. Tente novamente.');
+  }
+  
+  return response.json();
+}
+```
+
+---
+
+#### 2. Modificar: `src/components/contacts/ContactFormDialog.tsx`
+
+**Novos imports:**
+```typescript
+import { Search, Loader2 } from 'lucide-react';
+import { fetchCnpjData } from '@/lib/cnpj-api';
+import { useToast } from '@/hooks/use-toast';
+```
+
+**Novos estados:**
+```typescript
+const [isFetchingCnpj, setIsFetchingCnpj] = useState(false);
+const [addressFieldsLocked, setAddressFieldsLocked] = useState(false);
+const { toast } = useToast();
+```
+
+**Nova função de busca:**
+```typescript
+const handleFetchCnpj = async () => {
+  const cleanDoc = document.replace(/\D/g, '');
+  
+  // Verificar se é CNPJ (14 dígitos)
+  if (cleanDoc.length !== 14) {
+    toast({
+      title: 'CNPJ inválido',
+      description: 'Digite um CNPJ completo (14 dígitos) para buscar',
+      variant: 'destructive',
+    });
+    return;
+  }
+  
+  setIsFetchingCnpj(true);
+  setAddressFieldsLocked(true);
+  
+  try {
+    const data = await fetchCnpjData(cleanDoc);
+    
+    // Auto-preencher campos
+    setName(data.nome_fantasia || data.razao_social);
+    setAddress(`${data.logradouro}, ${data.numero} - ${data.bairro}`);
+    setCity(data.municipio);
+    setState(data.uf);
+    
+    // Telefone: formatar DDD + número
+    if (data.ddd_telefone_1) {
+      const phoneClean = data.ddd_telefone_1.replace(/\D/g, '');
+      setPhone(maskPhone(phoneClean));
+    }
+    
+    toast({
+      title: 'Dados carregados!',
+      description: 'Confira as informações e complete os campos restantes.',
+    });
+  } catch (error) {
+    toast({
+      title: 'Erro na consulta',
+      description: error instanceof Error ? error.message : 'Erro desconhecido',
+      variant: 'destructive',
+    });
+  } finally {
+    setIsFetchingCnpj(false);
+    setAddressFieldsLocked(false);
+  }
 };
 ```
 
-**3. Reestruturar layout do formulário**
+**Modificar campo CPF/CNPJ (linha 121-130):**
 
-Substituir o grid de 2 colunas atual (linhas 218-351) por:
-
-**Linha 1: Cliente/Fornecedor + Valor**
+Antes:
 ```tsx
-<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-  {/* Cliente/Fornecedor */}
-  <div className="space-y-2">
-    <Label htmlFor="contact">Cliente/Fornecedor</Label>
-    <Select value={contactId} onValueChange={handleContactChange}>
-      <SelectTrigger>
-        <SelectValue placeholder="Selecione um cliente/fornecedor..." />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="__new__">
-          <Plus /> Novo cliente/fornecedor
-        </SelectItem>
-        {/* ... opções */}
-      </SelectContent>
-    </Select>
-  </div>
-  
-  {/* Valor */}
-  <div className="space-y-2">
-    <Label htmlFor="amount">Valor (R$) *</Label>
-    <Input value={amount} onChange={handleAmountChange} />
-  </div>
-</div>
-```
-
-**Linha 2: Evento Contábil + Conta/Banco**
-```tsx
-<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-  {/* Evento Contábil */}
-  <div className="space-y-2">
-    <Label htmlFor="category">Evento Contábil *</Label>
-    <Select ... />
-  </div>
-  
-  {/* Conta/Banco */}
-  <div className="space-y-2">
-    <Label htmlFor="bank">Conta/Banco *</Label>
-    <Select ... />
-  </div>
-</div>
-```
-
-**Linha 3: Datas + Anexo (grid de 3 colunas)**
-```tsx
-<div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-  {/* Data da Transação */}
-  <div className="space-y-2">
-    <Label htmlFor="date">Data da Transação *</Label>
-    <Input type="date" ... />
-  </div>
-  
-  {/* Data de Vencimento */}
-  <div className="space-y-2">
-    <Label htmlFor="dueDate">Data de Vencimento</Label>
-    <Input type="date" ... />
-  </div>
-  
-  {/* Anexo - compacto */}
-  <div className="space-y-2">
-    <Label>Anexo</Label>
-    <AttachmentUpload compact={true} ... />
-  </div>
-</div>
-```
-
-**Linha 4: Observações (100% largura, reduzido)**
-```tsx
-<div className="space-y-2">
-  <Label htmlFor="notes">Observações</Label>
-  <Textarea
-    rows={1}
-    className="min-h-[40px] resize-none"
-    placeholder="Notas adicionais..."
+<div>
+  <Label htmlFor="document">CPF/CNPJ</Label>
+  <Input
+    id="document"
+    value={document}
+    onChange={(e) => setDocument(maskCPFCNPJ(e.target.value))}
+    placeholder="000.000.000-00"
+    maxLength={18}
   />
 </div>
 ```
 
-**Linha 5: Pago/Recebido** - sem alterações
-
----
-
-#### Arquivo: `src/components/transactions/AttachmentUpload.tsx`
-
-Adicionar prop `compact` para versão simplificada:
-
+Depois:
 ```tsx
-interface AttachmentUploadProps {
-  // ... props existentes
-  compact?: boolean;
-}
+<div>
+  <Label htmlFor="document">CPF/CNPJ</Label>
+  <div className="flex gap-2">
+    <Input
+      id="document"
+      value={document}
+      onChange={(e) => setDocument(maskCPFCNPJ(e.target.value))}
+      placeholder="00.000.000/0000-00"
+      maxLength={18}
+      className="flex-1"
+    />
+    <Button
+      type="button"
+      variant="outline"
+      size="icon"
+      onClick={handleFetchCnpj}
+      disabled={isFetchingCnpj || document.replace(/\D/g, '').length < 14}
+      title="Buscar dados do CNPJ"
+    >
+      {isFetchingCnpj ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <Search className="h-4 w-4" />
+      )}
+    </Button>
+  </div>
+</div>
+```
 
-export function AttachmentUpload({ ..., compact = false }) {
-  if (compact) {
-    return (
-      <div className="space-y-1">
-        <div className="relative">
-          <input type="file" multiple onChange={handleFileSelect} className="absolute inset-0 opacity-0 cursor-pointer" />
-          <Button type="button" variant="outline" size="sm" className="w-full gap-2">
-            <Paperclip className="w-4 h-4" />
-            {pendingFiles.length + attachments.length > 0
-              ? `${pendingFiles.length + attachments.length} arquivo(s)`
-              : 'Anexar'}
-          </Button>
-        </div>
-        {/* Lista compacta de arquivos */}
-        {(pendingFiles.length > 0 || attachments.length > 0) && (
-          <div className="text-xs text-muted-foreground">
-            {pendingFiles.map((f, i) => (
-              <div key={i} className="flex items-center gap-1">
-                <span className="truncate">{f.name}</span>
-                <X className="w-3 h-3 cursor-pointer" onClick={() => onRemovePendingFile(i)} />
-              </div>
-            ))}
-            {attachments.map(a => (
-              <div key={a.id} className="flex items-center gap-1">
-                <span className="truncate">{a.file_name}</span>
-                <X className="w-3 h-3 cursor-pointer" onClick={() => onDeleteAttachment(a)} />
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-  
-  // Versão completa existente
-  return ( ... );
-}
+**Bloquear campos durante a busca:**
+
+Os campos de endereço (address, city, state) receberão `disabled={addressFieldsLocked}` para evitar edição conflitante durante a consulta.
+
+Exemplo:
+```tsx
+<Input
+  id="address"
+  value={address}
+  onChange={(e) => setAddress(e.target.value)}
+  placeholder="Rua, número, bairro"
+  disabled={addressFieldsLocked}
+/>
 ```
 
 ---
 
-### Resumo das Mudanças de Labels
+### Mapeamento de Campos API → Formulário
 
-| Campo | Antes | Depois |
-|-------|-------|--------|
-| Contato | `Contato` | `Cliente/Fornecedor` |
-| Placeholder | `Selecione um contato...` | `Selecione um cliente/fornecedor...` |
-| Novo contato | `Novo contato` | `Novo cliente/fornecedor` |
-| Conta | `Conta` | `Conta/Banco` |
+| Campo do Formulário | Campo da API | Tratamento |
+|---------------------|--------------|------------|
+| `name` | `nome_fantasia` | Se vazio, usar `razao_social` |
+| `address` | `logradouro`, `numero`, `bairro` | Concatenar: `"{logradouro}, {numero} - {bairro}"` |
+| `city` | `municipio` | Direto |
+| `state` | `uf` | Direto |
+| `phone` | `ddd_telefone_1` | Aplicar `maskPhone()` |
 
 ---
 
-### Validação do Formulário (Atualizada)
+### Fluxo de UX
 
-```tsx
-// ANTES:
-const isFormValid = description.trim() && parseCurrencyInput(amount) > 0 && categoryId && bankId;
-
-// DEPOIS:
-const isFormValid = parseCurrencyInput(amount) > 0 && categoryId && bankId;
+```text
+┌────────────────────────────────────────────────────────────────┐
+│ Usuário digita CNPJ                                            │
+│         ↓                                                      │
+│ Botão 🔍 fica habilitado (14 dígitos)                         │
+│         ↓                                                      │
+│ Clique no botão                                                │
+│         ↓                                                      │
+│ ┌──────────────────────────────────────────────────────────┐   │
+│ │  • Botão mostra spinner (loading)                        │   │
+│ │  • Campos Nome, Endereço, Cidade, Estado ficam disabled  │   │
+│ │  • Requisição GET para BrasilAPI                         │   │
+│ └──────────────────────────────────────────────────────────┘   │
+│         ↓                                                      │
+│ ┌──────────────────────────────────────────────────────────┐   │
+│ │  SUCESSO:                                                 │   │
+│ │  • Preenche campos automaticamente                       │   │
+│ │  • Toast: "Dados carregados!"                            │   │
+│ │  • Libera campos para edição/conferência                 │   │
+│ │                                                          │   │
+│ │  ERRO:                                                   │   │
+│ │  • Toast: "CNPJ não encontrado" ou mensagem do erro      │   │
+│ │  • Libera campos                                         │   │
+│ └──────────────────────────────────────────────────────────┘   │
+└────────────────────────────────────────────────────────────────┘
 ```
 
-A descrição não é mais necessária pois será gerada automaticamente a partir do evento contábil selecionado.
+---
+
+### Tratamento de Erros
+
+| Cenário | Mensagem |
+|---------|----------|
+| CNPJ < 14 dígitos | "Digite um CNPJ completo (14 dígitos) para buscar" |
+| CNPJ não encontrado (404) | "CNPJ não encontrado na base da Receita Federal" |
+| Erro de rede/API | "Erro ao consultar CNPJ. Tente novamente." |
 
 ---
 
 ### Resumo das Alterações
 
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/components/transactions/TransactionFormDialog.tsx` | Remover campo descrição, reorganizar layout em 5 linhas, renomear labels, atualizar validação |
-| `src/components/transactions/AttachmentUpload.tsx` | Adicionar variante `compact` para exibição inline |
+| Arquivo | Ação |
+|---------|------|
+| `src/lib/cnpj-api.ts` | **CRIAR** - Função `fetchCnpjData()` |
+| `src/components/contacts/ContactFormDialog.tsx` | **MODIFICAR** - Adicionar botão de busca, estados de loading, função de auto-preenchimento, bloqueio de campos |
 
-**Total**: 2 arquivos
+**Total**: 2 arquivos (1 novo, 1 modificado)
+
