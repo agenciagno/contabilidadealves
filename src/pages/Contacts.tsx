@@ -234,7 +234,7 @@ export default function Contacts() {
   return <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Cliente/Fornecedo</h1>
+          <h1 className="text-2xl font-bold text-foreground">Cliente/Fornecedor</h1>
           
         </div>
         <Button className="gap-2" onClick={handleNew}>
