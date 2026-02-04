@@ -88,7 +88,7 @@ const menuModules: MenuModule[] = [
     title: 'CRM / Clientes',
     icon: Users,
     items: [
-      { title: 'Gestão de Contatos', url: '/contatos', icon: UserCircle, iconName: 'user-circle' },
+      { title: 'Cliente/Fornecedor', url: '/contatos', icon: UserCircle, iconName: 'user-circle' },
       { title: 'Disparos', url: '/disparos', icon: Send, iconName: 'send' },
     ],
   },

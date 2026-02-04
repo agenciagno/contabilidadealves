@@ -239,7 +239,7 @@ export default function Contacts() {
         </div>
         <Button className="gap-2" onClick={handleNew}>
           <Plus className="w-4 h-4" />
-          Novo Contato
+          Novo Cliente/Fornecedor
         </Button>
       </div>
 
@@ -252,7 +252,7 @@ export default function Contacts() {
             </div>
             <div>
               <p className="text-2xl font-bold text-foreground">{summaryStats.total}</p>
-              <p className="text-xs text-muted-foreground">Total de Contatos</p>
+              <p className="text-xs text-muted-foreground">Total Cadastrado</p>
             </div>
           </CardContent>
         </Card>
@@ -321,7 +321,7 @@ export default function Contacts() {
       {/* Active Contacts */}
       {activeContacts.length > 0 && <div className="space-y-3">
           <h2 className="text-sm font-medium text-muted-foreground">
-            Contatos Ativos ({activeContacts.length})
+            Ativos ({activeContacts.length})
           </h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {activeContacts.map(contact => <ContactCard key={contact.id} contact={contact} />)}
@@ -331,7 +331,7 @@ export default function Contacts() {
       {/* Inactive Contacts */}
       {inactiveContacts.length > 0 && <div className="space-y-3">
           <h2 className="text-sm font-medium text-muted-foreground">
-            Contatos Inativos ({inactiveContacts.length})
+            Inativos ({inactiveContacts.length})
           </h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {inactiveContacts.map(contact => <ContactCard key={contact.id} contact={contact} />)}
@@ -340,7 +340,7 @@ export default function Contacts() {
 
       {filteredContacts.length === 0 && <Card className="bg-card border-border/50">
           <CardContent className="text-muted-foreground text-center py-16">
-            {hasActiveFilters ? 'Nenhum contato encontrado com os filtros aplicados' : 'Nenhum contato cadastrado ainda'}
+            {hasActiveFilters ? 'Nenhum cliente/fornecedor encontrado com os filtros aplicados' : 'Nenhum cliente/fornecedor cadastrado ainda'}
           </CardContent>
         </Card>}
 
@@ -349,10 +349,10 @@ export default function Contacts() {
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir contato?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir cliente/fornecedor?</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3">
-                <p>Esta ação não pode ser desfeita. O contato será removido permanentemente.</p>
+                <p>Esta ação não pode ser desfeita. O cliente/fornecedor será removido permanentemente.</p>
                 
                 {loadingDependencies ? <div className="flex items-center gap-2 text-muted-foreground">
                     <RefreshCw className="h-4 w-4 animate-spin" />

@@ -74,7 +74,7 @@ export default function ContactProfile() {
           Voltar
         </Button>
         <div className="text-center py-16">
-          <p className="text-muted-foreground">Contato não encontrado</p>
+          <p className="text-muted-foreground">Cliente/Fornecedor não encontrado</p>
         </div>
       </div>
     );
