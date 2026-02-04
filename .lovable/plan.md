@@ -1,185 +1,141 @@
 
-
-## Plano: Atualização de Terminologia "Contato" → "Cliente/Fornecedor"
+## Plano: Reestruturação do Card de Cliente/Fornecedor
 
 ### Objetivo
-Padronizar toda a terminologia do sistema, substituindo "Gestão de Contatos", "Contato", "Contatos" por "Cliente/Fornecedor" ou "Clientes/Fornecedores" em todos os locais visíveis para o usuário.
+Atualizar o layout do card de cliente/fornecedor para exibir as informações solicitadas com opção de copiar em todos os campos, e tornar o status financeiro mais discreto.
 
 ---
 
-### Mapeamento de Substituições
+### Novo Layout do Card
 
-| Termo Atual | Novo Termo |
-|-------------|------------|
-| Gestão de Contatos | Cliente/Fornecedor |
-| Novo Contato | Novo Cliente/Fornecedor |
-| Editar Contato | Editar Cliente/Fornecedor |
-| Excluir contato? | Excluir cliente/fornecedor? |
-| Total de Contatos | Total Cadastrado |
-| Contatos Ativos | Ativos |
-| Contatos Inativos | Inativos |
-| Contato criado com sucesso! | Cliente/Fornecedor criado! |
-| Contato atualizado com sucesso! | Cliente/Fornecedor atualizado! |
-| Contato excluído com sucesso! | Cliente/Fornecedor excluído! |
-| Contato não encontrado | Cliente/Fornecedor não encontrado |
-| Nenhum contato encontrado | Nenhum cliente/fornecedor encontrado |
-| Nenhum contato cadastrado | Nenhum cliente/fornecedor cadastrado |
-| Contatos (header tabela) | Cliente/Fornecedor |
-| Novo contato (opção select) | Novo cliente/fornecedor |
-| Todos os Contatos | Todos os Clientes |
-
----
-
-### Arquivos a Modificar
-
-#### 1. `src/components/layout/AppSidebar.tsx` (linha 91)
-
-```tsx
-// ANTES:
-{ title: 'Gestão de Contatos', url: '/contatos', icon: UserCircle, iconName: 'user-circle' },
-
-// DEPOIS:
-{ title: 'Cliente/Fornecedor', url: '/contatos', icon: UserCircle, iconName: 'user-circle' },
+```text
+┌─────────────────────────────────────────────────────────────┐
+│  [👤]  Nome do Cliente (destaque)           [●] Adimplente  │
+│                                              (indicador)    │
+├─────────────────────────────────────────────────────────────┤
+│  📋  00.000.000/0000-00                              [📋]   │
+│  📧  email@empresa.com                               [📋]   │
+│  📞  (11) 99999-0000                                 [📋]   │
+├─────────────────────────────────────────────────────────────┤
+│  [Ver Perfil]           [✏️]                    [🗑️]        │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-#### 2. `src/pages/Contacts.tsx` (múltiplas linhas)
+### Alterações Detalhadas
 
-| Linha | Antes | Depois |
-|-------|-------|--------|
-| 242 | `Novo Contato` | `Novo Cliente/Fornecedor` |
-| 255 | `Total de Contatos` | `Total Cadastrado` |
-| 324 | `Contatos Ativos ({activeContacts.length})` | `Ativos ({activeContacts.length})` |
-| 334 | `Contatos Inativos ({inactiveContacts.length})` | `Inativos ({inactiveContacts.length})` |
-| 343 | `Nenhum contato encontrado...` / `Nenhum contato cadastrado...` | `Nenhum cliente/fornecedor encontrado...` / `Nenhum cliente/fornecedor cadastrado...` |
-| 352 | `Excluir contato?` | `Excluir cliente/fornecedor?` |
-| 355 | `O contato será removido permanentemente` | `O cliente/fornecedor será removido permanentemente` |
+#### Arquivo: `src/pages/Contacts.tsx`
 
----
+**1. Modificar o componente ContactCard (linhas 173-232)**
 
-#### 3. `src/components/contacts/ContactFormDialog.tsx` (linha 141)
-
+**Header do Card - Nome com cópia + indicador discreto:**
 ```tsx
-// ANTES:
-<DialogTitle>{contact ? 'Editar Contato' : 'Novo Contato'}</DialogTitle>
+<div className="flex items-start justify-between mb-3">
+  <div className="flex items-center gap-3">
+    <div className="p-2 bg-primary/10 rounded-xl">
+      <User className="h-5 w-5 text-primary" />
+    </div>
+    <button 
+      onClick={() => copyToClipboard(contact.name, 'Nome')} 
+      className="group flex items-center gap-2 hover:text-primary transition-colors text-left"
+    >
+      <h3 className="font-semibold text-foreground">{contact.name}</h3>
+      <Copy className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground" />
+    </button>
+  </div>
+  {/* Indicador discreto - apenas um círculo colorido com tooltip */}
+  <div 
+    className={`h-2.5 w-2.5 rounded-full ${isInadimplente ? 'bg-destructive' : 'bg-emerald-500'}`}
+    title={isInadimplente ? 'Inadimplente' : 'Adimplente'}
+  />
+</div>
+```
 
-// DEPOIS:
-<DialogTitle>{contact ? 'Editar Cliente/Fornecedor' : 'Novo Cliente/Fornecedor'}</DialogTitle>
+**Informações do Card - Todas com opção de cópia:**
+```tsx
+<div className="space-y-2 text-sm text-muted-foreground">
+  {/* CNPJ/CPF */}
+  {contact.document && (
+    <button 
+      onClick={() => copyToClipboard(contact.document!, 'CPF/CNPJ')} 
+      className="group flex items-center gap-2 w-full hover:text-primary transition-colors text-left"
+    >
+      <FileText className="h-3.5 w-3.5 flex-shrink-0" />
+      <span className="truncate flex-1 font-mono text-xs">{contact.document}</span>
+      <Copy className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+    </button>
+  )}
+  
+  {/* Telefone */}
+  {contact.phone && (
+    <button 
+      onClick={() => copyToClipboard(contact.phone!, 'Telefone')} 
+      className="group flex items-center gap-2 w-full hover:text-primary transition-colors text-left"
+    >
+      <Phone className="h-3.5 w-3.5 flex-shrink-0" />
+      <span className="flex-1">{contact.phone}</span>
+      <Copy className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+    </button>
+  )}
+  
+  {/* E-mail */}
+  {contact.email && (
+    <button 
+      onClick={() => copyToClipboard(contact.email!, 'E-mail')} 
+      className="group flex items-center gap-2 w-full hover:text-primary transition-colors text-left"
+    >
+      <Mail className="h-3.5 w-3.5 flex-shrink-0" />
+      <span className="truncate flex-1">{contact.email}</span>
+      <Copy className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+    </button>
+  )}
+</div>
 ```
 
 ---
 
-#### 4. `src/hooks/useContacts.ts` (linhas 86, 89, 157, 160, 176, 179)
+### Mudanças Visuais
 
-| Linha | Antes | Depois |
-|-------|-------|--------|
-| 86 | `Contato criado com sucesso!` | `Cliente/Fornecedor criado!` |
-| 89 | `Erro ao criar contato` | `Erro ao criar cliente/fornecedor` |
-| 157 | `Contato atualizado com sucesso!` | `Cliente/Fornecedor atualizado!` |
-| 160 | `Erro ao atualizar contato` | `Erro ao atualizar cliente/fornecedor` |
-| 176 | `Contato excluído com sucesso!` | `Cliente/Fornecedor excluído!` |
-| 179 | `Erro ao excluir contato` | `Erro ao excluir cliente/fornecedor` |
-
----
-
-#### 5. `src/components/recurring/RecurringFormDialog.tsx` (linha 438)
-
-```tsx
-// ANTES:
-Novo contato
-
-// DEPOIS:
-Novo cliente/fornecedor
-```
+| Elemento | Antes | Depois |
+|----------|-------|--------|
+| Nome | Texto estático | Clicável para copiar com ícone ao hover |
+| CPF/CNPJ | Texto estático (sem ícone) | Clicável com ícone FileText + cópia |
+| Telefone | Clicável para copiar | Mantido (já estava funcional) |
+| E-mail | Clicável para copiar | Mantido (já estava funcional) |
+| Status (Adimplente/Inadimplente) | Badge grande e colorido | Pequeno círculo colorido com tooltip |
+| Regime Tributário | Badge abaixo do nome | Removido (não solicitado) |
+| Localização (Cidade/Estado) | Exibido | Removido (não solicitado) |
 
 ---
 
-#### 6. `src/components/notifications/InadimplentToast.tsx` (linha 36)
+### Ordem de Exibição das Informações
 
-```tsx
-// ANTES:
-description: `Total em atraso: ${formatCurrency(totalAmount)}. Acesse CRM > Contatos para detalhes.`,
-
-// DEPOIS:
-description: `Total em atraso: ${formatCurrency(totalAmount)}. Acesse CRM > Cliente/Fornecedor para detalhes.`,
-```
+1. **Nome** (em destaque, clicável)
+2. **CPF/CNPJ** (com ícone de documento)
+3. **Telefone** (com ícone de telefone)
+4. **E-mail** (com ícone de e-mail)
+5. **Status** (indicador discreto no canto superior direito)
 
 ---
 
-#### 7. `src/pages/ContactProfile.tsx` (linha 77)
+### Indicador de Status Discreto
 
-```tsx
-// ANTES:
-<p className="text-muted-foreground">Contato não encontrado</p>
+O badge atual (`Adimplente`/`Inadimplente`) será substituído por um pequeno círculo colorido:
 
-// DEPOIS:
-<p className="text-muted-foreground">Cliente/Fornecedor não encontrado</p>
-```
+| Status | Cor | Comportamento |
+|--------|-----|---------------|
+| Adimplente | Verde (`bg-emerald-500`) | Círculo pequeno |
+| Inadimplente | Vermelho (`bg-destructive`) | Círculo pequeno |
 
----
-
-#### 8. `src/components/contacts/ContactFinancialTab.tsx` (linha 216)
-
-```tsx
-// ANTES:
-Nenhuma transação encontrada para este contato
-
-// DEPOIS:
-Nenhuma transação encontrada para este cliente/fornecedor
-```
-
----
-
-#### 9. `src/pages/CrmDispatches.tsx` (linhas 83, 258, 405)
-
-| Linha | Antes | Depois |
-|-------|-------|--------|
-| 83 | `Todos os Contatos` | `Todos os Clientes` |
-| 258 | `Contatos impactados` | `Clientes impactados` |
-| 405 | `Contatos` (header tabela) | `Clientes` |
-
----
-
-#### 10. `src/pages/Reports.tsx` (linha 353)
-
-```tsx
-// ANTES:
-<TableHead>Contato</TableHead>
-
-// DEPOIS:
-<TableHead>Cliente/Fornecedor</TableHead>
-```
-
----
-
-#### 11. `src/hooks/useReportData.ts` (linha 212)
-
-```tsx
-// ANTES:
-const headers = ['Data', 'Descrição', 'Tipo', 'Categoria', 'Banco', 'Contato', 'Valor', 'Status'];
-
-// DEPOIS:
-const headers = ['Data', 'Descrição', 'Tipo', 'Categoria', 'Banco', 'Cliente/Fornecedor', 'Valor', 'Status'];
-```
+O tooltip ao passar o mouse mostrará o texto completo do status.
 
 ---
 
 ### Resumo das Alterações
 
-| Arquivo | Quantidade de Alterações |
-|---------|--------------------------|
-| `src/components/layout/AppSidebar.tsx` | 1 |
-| `src/pages/Contacts.tsx` | 7 |
-| `src/components/contacts/ContactFormDialog.tsx` | 1 |
-| `src/hooks/useContacts.ts` | 6 |
-| `src/components/recurring/RecurringFormDialog.tsx` | 1 |
-| `src/components/notifications/InadimplentToast.tsx` | 1 |
-| `src/pages/ContactProfile.tsx` | 1 |
-| `src/components/contacts/ContactFinancialTab.tsx` | 1 |
-| `src/pages/CrmDispatches.tsx` | 3 |
-| `src/pages/Reports.tsx` | 1 |
-| `src/hooks/useReportData.ts` | 1 |
+| Arquivo | Alteração |
+|---------|-----------|
+| `src/pages/Contacts.tsx` | Reestruturar ContactCard: nome clicável, CPF/CNPJ com cópia, status discreto, remover localização e regime tributário |
 
-**Total**: 11 arquivos, 24 alterações de texto
-
+**Total**: 1 arquivo
