@@ -42,9 +42,13 @@ import {
 import { cn } from '@/lib/utils';
 
 const MODULE_OPTIONS = [
-  { key: 'financeiro', label: 'Financeiro' },
-  { key: 'crm', label: 'CRM / Clientes' },
-  { key: 'relatorios', label: 'Relatórios' },
+  { key: 'financeiro', label: 'Financeiro', soon: false },
+  { key: 'crm', label: 'CRM / Clientes', soon: false },
+  { key: 'relatorios', label: 'Relatórios', soon: false },
+  { key: 'comercial', label: 'Comercial', soon: true },
+  { key: 'fiscal', label: 'Fiscal', soon: true },
+  { key: 'pessoal_rh', label: 'Pessoal / RH', soon: true },
+  { key: 'configuracoes', label: 'Configurações', soon: false },
 ];
 
 const maskCNPJ = (v: string) =>
@@ -368,7 +372,7 @@ export default function ClientCompaniesTab() {
                         className={cn(
                           'text-xs',
                           company.status === 'active'
-                            ? 'border-emerald-500/50 text-emerald-600 bg-emerald-500/10'
+                            ? 'border-primary/50 text-primary bg-primary/10'
                             : 'border-destructive/50 text-destructive bg-destructive/10'
                         )}
                       >

@@ -21,12 +21,24 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
+const MODULE_LABELS: Record<string, string> = {
+  financeiro: 'Financeiro',
+  crm: 'CRM',
+  relatorios: 'Relatórios',
+  comercial: 'Comercial',
+  fiscal: 'Fiscal',
+  pessoal_rh: 'Pessoal/RH',
+  configuracoes: 'Config.',
+};
+
 interface Profile {
   id: string;
   user_id: string;
   full_name: string | null;
   username: string | null;
   email: string;
+  is_super_admin: boolean;
+  allowed_modules: string[];
   created_at: string;
 }
 
@@ -45,7 +57,7 @@ export default function UsersTab({ companyId, currentUserId }: UsersTabProps) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, user_id, full_name, username, email, is_super_admin, allowed_modules, created_at')
         .eq('company_id', companyId)
         .order('created_at', { ascending: false });
 
@@ -130,7 +142,7 @@ export default function UsersTab({ companyId, currentUserId }: UsersTabProps) {
               <TableRow>
                 <TableHead>Nome Completo</TableHead>
                 <TableHead>Nome de Usuário</TableHead>
-                <TableHead>Nível de Acesso</TableHead>
+                <TableHead>Módulos de Acesso</TableHead>
                 <TableHead>Data de Criação</TableHead>
                 <TableHead className="w-[80px]">Ações</TableHead>
               </TableRow>
@@ -148,10 +160,23 @@ export default function UsersTab({ companyId, currentUserId }: UsersTabProps) {
                     {user.username || user.email.split('@')[0]}
                   </TableCell>
                   <TableCell>
-                    <Badge className="bg-primary/10 text-primary hover:bg-primary/20">
-                      <Shield className="w-3 h-3 mr-1" />
-                      Admin
-                    </Badge>
+                    {user.is_super_admin ? (
+                      <Badge className="bg-primary/10 text-primary hover:bg-primary/20">
+                        <Shield className="w-3 h-3 mr-1" />
+                        Super Admin
+                      </Badge>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {(user.allowed_modules ?? []).map(mod => (
+                          <Badge key={mod} variant="outline" className="text-xs px-1.5 py-0">
+                            {MODULE_LABELS[mod] ?? mod}
+                          </Badge>
+                        ))}
+                        {(user.allowed_modules ?? []).length === 0 && (
+                          <span className="text-muted-foreground text-xs">Nenhum</span>
+                        )}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {format(new Date(user.created_at), "dd/MM/yyyy", { locale: ptBR })}

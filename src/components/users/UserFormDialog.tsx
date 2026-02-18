@@ -3,12 +3,24 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Eye, EyeOff, User, Lock, AtSign } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, Eye, EyeOff, User, Lock, AtSign, ShieldCheck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { z } from 'zod';
 import { PasswordStrength, isPasswordStrong } from '@/components/ui/PasswordStrength';
+
+const ALL_MODULES = [
+  { key: 'financeiro', label: 'Financeiro', soon: false },
+  { key: 'crm', label: 'CRM / Clientes', soon: false },
+  { key: 'relatorios', label: 'Relatórios', soon: false },
+  { key: 'comercial', label: 'Comercial', soon: true },
+  { key: 'fiscal', label: 'Fiscal', soon: true },
+  { key: 'pessoal_rh', label: 'Pessoal / RH', soon: true },
+  { key: 'configuracoes', label: 'Configurações', soon: false },
+];
 
 const userSchema = z.object({
   fullName: z.string().min(2, 'Nome completo é obrigatório'),
@@ -46,10 +58,20 @@ export default function UserFormDialog({ open, onOpenChange, companyId, onSucces
     password: '',
     confirmPassword: ''
   });
+  const [allowedModules, setAllowedModules] = useState<string[]>(
+    ALL_MODULES.map(m => m.key)
+  );
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const toggleModule = (key: string) => {
+    setAllowedModules(prev =>
+      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+    );
+  };
 
   const resetForm = () => {
     setFormData({ fullName: '', username: '', password: '', confirmPassword: '' });
+    setAllowedModules(ALL_MODULES.map(m => m.key));
     setErrors({});
     setShowPassword(false);
     setShowConfirmPassword(false);
@@ -76,6 +98,11 @@ export default function UserFormDialog({ open, onOpenChange, companyId, onSucces
 
     if (!isPasswordStrong(formData.password)) {
       setErrors({ password: 'A senha não atende aos requisitos mínimos de segurança' });
+      return;
+    }
+
+    if (allowedModules.length === 0) {
+      toast.error('Selecione pelo menos um módulo de acesso');
       return;
     }
 
@@ -115,7 +142,7 @@ export default function UserFormDialog({ open, onOpenChange, companyId, onSucces
             fullName: formData.fullName,
             companyId,
             username: formData.username.toLowerCase(),
-            allowedModules: ['financeiro', 'crm', 'relatorios'],
+            allowedModules,
           }),
         }
       );
@@ -143,7 +170,7 @@ export default function UserFormDialog({ open, onOpenChange, companyId, onSucces
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Novo Usuário Interno</DialogTitle>
         </DialogHeader>
@@ -183,7 +210,7 @@ export default function UserFormDialog({ open, onOpenChange, companyId, onSucces
             </div>
           </div>
 
-          {/* Password — full width for strength indicator */}
+          {/* Password */}
           <div className="space-y-2">
             <Label htmlFor="password">Senha *</Label>
             <div className="relative">
@@ -232,7 +259,37 @@ export default function UserFormDialog({ open, onOpenChange, companyId, onSucces
             {errors.confirmPassword && <p className="text-destructive text-sm">{errors.confirmPassword}</p>}
           </div>
 
-          <div className="flex justify-end gap-3 pt-4">
+          {/* Módulos de Acesso */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-primary" />
+              <Label className="font-semibold">Módulos de Acesso *</Label>
+            </div>
+            <div className="grid grid-cols-2 gap-2 rounded-lg border border-border p-3 bg-muted/30">
+              {ALL_MODULES.map(mod => (
+                <label
+                  key={mod.key}
+                  className="flex items-center gap-2 cursor-pointer select-none"
+                >
+                  <Checkbox
+                    checked={allowedModules.includes(mod.key)}
+                    onCheckedChange={() => toggleModule(mod.key)}
+                  />
+                  <span className="text-sm">{mod.label}</span>
+                  {mod.soon && (
+                    <Badge variant="outline" className="text-xs px-1 py-0 h-4">
+                      Em breve
+                    </Badge>
+                  )}
+                </label>
+              ))}
+            </div>
+            {allowedModules.length === 0 && (
+              <p className="text-destructive text-sm">Selecione pelo menos um módulo</p>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
             <Button type="button" variant="outline" onClick={handleClose}>
               Cancelar
             </Button>
