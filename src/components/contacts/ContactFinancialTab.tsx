@@ -86,7 +86,7 @@ export function ContactFinancialTab({ contactId, contactName }: ContactFinancial
       ?.filter(t => t.is_paid)
       .reduce((acc, t) => acc + Number(t.amount), 0) || 0,
     totalPendente: transactions
-      ?.filter(t => !t.is_paid)
+      ?.filter(t => !t.is_paid && !(t.due_date && t.due_date < today))
       .reduce((acc, t) => acc + Number(t.amount), 0) || 0,
     totalVencido: transactions
       ?.filter(t => t.type === 'receita' && !t.is_paid && t.due_date && t.due_date < today)
