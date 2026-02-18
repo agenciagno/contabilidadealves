@@ -52,21 +52,61 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Parse body
-    const { email, password, fullName, companyId, allowedModules = ['financeiro', 'crm', 'relatorios'], username } = await req.json();
+    // Use service role for admin operations
+    const adminClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
 
+    // Parse body
+    const body = await req.json();
+    const { userId, email, password, fullName, companyId, allowedModules = ['financeiro', 'crm', 'relatorios'], username } = body;
+
+    // ─── UPDATE MODE ───────────────────────────────────────────────
+    if (userId) {
+      // Update profile
+      const profileUpdate: Record<string, unknown> = {
+        full_name: fullName,
+        allowed_modules: allowedModules,
+      };
+      if (username !== undefined) profileUpdate.username = username;
+
+      const { error: updateProfileError } = await adminClient
+        .from('profiles')
+        .update(profileUpdate)
+        .eq('user_id', userId);
+
+      if (updateProfileError) {
+        return new Response(JSON.stringify({ error: updateProfileError.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Optionally update password
+      if (password) {
+        const { error: passwordError } = await adminClient.auth.admin.updateUserById(userId, { password });
+        if (passwordError) {
+          return new Response(JSON.stringify({ error: passwordError.message }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      }
+
+      return new Response(JSON.stringify({ success: true, userId }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // ─── CREATE MODE ───────────────────────────────────────────────
     if (!email || !password || !fullName || !companyId) {
       return new Response(JSON.stringify({ error: 'Missing required fields: email, password, fullName, companyId' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-
-    // Use service role to create auth user
-    const adminClient = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
 
     const { data: authData, error: createError } = await adminClient.auth.admin.createUser({
       email,
