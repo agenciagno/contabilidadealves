@@ -107,6 +107,10 @@ const menuModules: MenuModule[] = [
       { title: 'Relatórios', url: '/relatorios', icon: FileBarChart, iconName: 'file-bar-chart' },
     ],
   },
+  // Módulos futuros — prontos para quando as páginas forem criadas
+  // { title: 'Comercial', icon: BarChart3, moduleKey: 'comercial', items: [] },
+  // { title: 'Fiscal', icon: FileBarChart, moduleKey: 'fiscal', items: [] },
+  // { title: 'Pessoal / RH', icon: Users, moduleKey: 'pessoal_rh', items: [] },
 ];
 
 export function AppSidebar() {
@@ -118,7 +122,7 @@ export function AppSidebar() {
   const { isSuperAdmin, allowedModules } = useSuperAdmin();
 
   // Dynamic module filtering based on company plan + user permissions
-  const planModules: string[] = (company as any)?.plan_modules ?? ['financeiro', 'crm', 'relatorios'];
+  const planModules: string[] = (company as any)?.plan_modules ?? ['financeiro', 'crm', 'relatorios', 'configuracoes'];
   const visibleModules = isSuperAdmin
     ? menuModules
     : menuModules.filter((m) => {
@@ -302,18 +306,20 @@ export function AppSidebar() {
       <SidebarFooter className="p-4">
         <Separator className="bg-sidebar-border mb-4" />
         <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip="Configurações">
-              <NavLink 
-                to="/configuracoes"
-                className="flex items-center gap-3 px-3 py-2 rounded-lg text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
-                activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-              >
-                <Settings className="w-5 h-5 shrink-0" />
-                {!collapsed && <span>Configurações</span>}
-              </NavLink>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+          {(isSuperAdmin || allowedModules.includes('configuracoes')) && (
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip="Configurações">
+                <NavLink 
+                  to="/configuracoes"
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+                  activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                >
+                  <Settings className="w-5 h-5 shrink-0" />
+                  {!collapsed && <span>Configurações</span>}
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
         </SidebarMenu>
         <Button 
           variant="ghost" 
