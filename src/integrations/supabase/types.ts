@@ -70,6 +70,39 @@ export type Database = {
           },
         ]
       }
+      boleto_controls: {
+        Row: {
+          company_id: string
+          contact_id: string
+          created_at: string
+          generated_at: string | null
+          id: string
+          reference_month: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          contact_id: string
+          created_at?: string
+          generated_at?: string | null
+          id?: string
+          reference_month: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          contact_id?: string
+          created_at?: string
+          generated_at?: string | null
+          id?: string
+          reference_month?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           color: string | null

@@ -5,9 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
 import { Contact, ContactInsert } from '@/hooks/useContacts';
 import { maskCPFCNPJ, maskPhone } from '@/lib/utils';
-import { Search, Loader2 } from 'lucide-react';
+import { Search, Loader2, FileCheck } from 'lucide-react';
 import { fetchCnpjData } from '@/lib/cnpj-api';
 import { useToast } from '@/hooks/use-toast';
 
@@ -39,6 +41,10 @@ export function ContactFormDialog({
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
   const [notes, setNotes] = useState('');
+  const [boletoActive, setBoletoActive] = useState(false);
+  const [boletoValue, setBoletoValue] = useState('');
+  const [boletoDueDay, setBoletoDueDay] = useState('');
+  const [boletoStartDate, setBoletoStartDate] = useState('');
   const [isFetchingCnpj, setIsFetchingCnpj] = useState(false);
   const [addressFieldsLocked, setAddressFieldsLocked] = useState(false);
   const { toast } = useToast();
@@ -53,6 +59,10 @@ export function ContactFormDialog({
       setCity(contact.city || '');
       setState(contact.state || '');
       setNotes(contact.notes || '');
+      setBoletoActive(contact.boleto_active || false);
+      setBoletoValue(contact.boleto_value?.toString() || '');
+      setBoletoDueDay(contact.boleto_due_day?.toString() || '');
+      setBoletoStartDate(contact.boleto_start_date || '');
     } else {
       setName('');
       setDocument('');
@@ -62,6 +72,10 @@ export function ContactFormDialog({
       setCity('');
       setState('');
       setNotes('');
+      setBoletoActive(false);
+      setBoletoValue('');
+      setBoletoDueDay('');
+      setBoletoStartDate('');
     }
   }, [contact, open]);
 
@@ -129,6 +143,10 @@ export function ContactFormDialog({
       notes: notes.trim() || null,
       is_active: true,
       representative_legal: null,
+      boleto_active: boletoActive,
+      boleto_value: boletoActive && boletoValue ? parseFloat(boletoValue) : null,
+      boleto_due_day: boletoActive && boletoDueDay ? parseInt(boletoDueDay) : null,
+      boleto_start_date: boletoActive && boletoStartDate ? boletoStartDate : null,
     });
   };
 
@@ -136,13 +154,13 @@ export function ContactFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{contact ? 'Editar Cliente/Fornecedor' : 'Novo Cliente/Fornecedor'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-3 gap-4">
-            {/* Linha 1: CPF/CNPJ (100% largura) */}
+            {/* Linha 1: CPF/CNPJ */}
             <div className="col-span-3">
               <Label htmlFor="document">CPF/CNPJ</Label>
               <div className="flex gap-2">
@@ -171,7 +189,7 @@ export function ContactFormDialog({
               </div>
             </div>
 
-            {/* Linha 2: Nome do Cliente/Fornecedor (100% largura) */}
+            {/* Linha 2: Nome */}
             <div className="col-span-3">
               <Label htmlFor="name">Nome do Cliente/Fornecedor <span className="text-destructive">*</span></Label>
               <Input
@@ -183,7 +201,7 @@ export function ContactFormDialog({
               />
             </div>
 
-            {/* Linha 3: E-mail + Telefone (50% cada) */}
+            {/* Linha 3: E-mail + Telefone */}
             <div className="col-span-3 grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="email">E-mail</Label>
@@ -207,7 +225,7 @@ export function ContactFormDialog({
               </div>
             </div>
 
-            {/* Linha 4: Endereço + Cidade + Estado (33% cada) */}
+            {/* Linha 4: Endereço + Cidade + Estado */}
             <div className="col-span-3 grid grid-cols-3 gap-4">
               <div>
                 <Label htmlFor="address">Endereço</Label>
@@ -244,7 +262,7 @@ export function ContactFormDialog({
               </div>
             </div>
 
-            {/* Linha 5: Observações (100% largura, 1 linha) */}
+            {/* Linha 5: Observações */}
             <div className="col-span-3">
               <Label htmlFor="notes">Observações</Label>
               <Textarea
@@ -256,6 +274,64 @@ export function ContactFormDialog({
                 className="min-h-[40px] resize-none"
               />
             </div>
+          </div>
+
+          {/* Seção: Configuração de Boletos */}
+          <div className="space-y-3">
+            <Separator />
+            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <FileCheck className="w-4 h-4 text-primary" />
+              Configuração de Boletos
+            </div>
+
+            <div className="flex items-center justify-between">
+              <Label htmlFor="boleto-active" className="cursor-pointer">
+                Gerar Boleto Mensal?
+              </Label>
+              <Switch
+                id="boleto-active"
+                checked={boletoActive}
+                onCheckedChange={setBoletoActive}
+              />
+            </div>
+
+            {boletoActive && (
+              <div className="grid grid-cols-3 gap-4 pt-1">
+                <div>
+                  <Label htmlFor="boleto-value">Valor (R$)</Label>
+                  <Input
+                    id="boleto-value"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={boletoValue}
+                    onChange={(e) => setBoletoValue(e.target.value)}
+                    placeholder="0,00"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="boleto-due-day">Dia de Vencimento</Label>
+                  <Input
+                    id="boleto-due-day"
+                    type="number"
+                    min="1"
+                    max="31"
+                    value={boletoDueDay}
+                    onChange={(e) => setBoletoDueDay(e.target.value)}
+                    placeholder="Ex: 10"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="boleto-start-date">Data de Início</Label>
+                  <Input
+                    id="boleto-start-date"
+                    type="date"
+                    value={boletoStartDate}
+                    onChange={(e) => setBoletoStartDate(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-2 pt-4">

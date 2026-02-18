@@ -16,7 +16,8 @@ import {
   Send,
   Wallet,
   UserCircle,
-  BarChart3
+  BarChart3,
+  FileCheck,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
@@ -55,6 +56,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   'send': Send,
   'user-circle': UserCircle,
   'bar-chart-3': BarChart3,
+  'file-check': FileCheck,
 };
 
 interface MenuItem {
@@ -80,6 +82,7 @@ const menuModules: MenuModule[] = [
       { title: 'Painel Financeiro', url: '/painel-financeiro', icon: LayoutDashboard, iconName: 'layout-dashboard' },
       { title: 'Movimentações', url: '/movimentacoes', icon: ArrowLeftRight, iconName: 'arrow-left-right' },
       { title: 'Contas Recorrentes', url: '/recorrentes', icon: CalendarClock, iconName: 'calendar-clock' },
+      { title: 'Boletos', url: '/boletos', icon: FileCheck, iconName: 'file-check' },
       { title: 'Bancos', url: '/bancos', icon: Building2, iconName: 'building-2' },
       { title: 'Eventos Contábeis', url: '/categorias', icon: Tags, iconName: 'tags' },
     ],
