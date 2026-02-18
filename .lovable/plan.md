@@ -1,208 +1,72 @@
 
-# Reestruturação SaaS Multi-Tenant — Painel Super Admin (Plano Revisado)
+# Correções: Super Admin, Sessão e Senha Forte
 
-## Mudança Central em Relação ao Plano Anterior
+## Diagnóstico dos 3 Problemas
 
-As antigas **Aba 3 (Empresas Clientes)** e **Aba 4 (Usuários Clientes)** são **unificadas em uma única aba** chamada **"Empresas Clientes"**, com layout de painel expandível (accordion ou cards expandidos). Dentro do modal de **"Nova Empresa"**, há uma seção para vincular um cliente já cadastrado no CRM (tabela `contacts`), puxando Nome, CNPJ e Email automaticamente.
+### Problema 1 — Aba "Empresas Clientes" não aparece
+O banco confirma que `is_super_admin = true` para `gwalves13@gmail.com`. O problema é de **cache no hook**: `useSuperAdmin` tem `staleTime: 60000` (1 minuto). Se o hook carregou antes da migration ser aplicada, ele ficou cacheado com `false` e a aba não renderiza. Correção: remover o `staleTime` alto e forçar `refetchOnMount: 'always'`.
 
-A estrutura final de abas no Settings será:
+### Problema 2 — Criar usuário interno substitui a sessão atual
+`UserFormDialog` usa `supabase.auth.signUp()`, que além de criar o usuário **faz login automático** com a nova conta, expulsando o usuário atual. A aba "Empresas Clientes" já usa corretamente a edge function `create-user-v2`, que usa service role sem tocar na sessão. A aba "Minha Equipe" precisa receber o mesmo tratamento.
 
-```text
-Configurações
-├── Aba 1: Perfil & Conta
-├── Aba 2: Minha Equipe
-├── Aba 3: Empresas Clientes  ← Abas 3+4 unificadas (só Super Admin)
-└── Aba 4: Logs Globais
-```
+### Problema 3 — Senha fraca permitida
+O schema atual valida apenas 6+ caracteres. Os requisitos pedidos (8+ chars, maiúscula, minúscula, número) precisam ser aplicados com indicadores visuais em tempo real nos dois pontos de criação de usuário: `UserFormDialog` (Aba 2) e `ClientCompaniesTab` (Aba 3).
 
 ---
 
-## Parte 1 — Banco de Dados (Migrations)
+## Solução Técnica
 
-### Migration: Adicionar colunas nas tabelas existentes
+### Arquivo 1: `src/hooks/useSuperAdmin.ts`
+Remover `staleTime: 60000` e adicionar `refetchOnMount: 'always'` para garantir que o status de super admin seja sempre buscado do servidor na montagem do componente, sem depender de cache.
 
-```sql
--- companies: status e módulos do plano
-ALTER TABLE public.companies
-  ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'active',
-  ADD COLUMN IF NOT EXISTS plan_modules text[] NOT NULL DEFAULT ARRAY['financeiro','crm','relatorios'];
+### Arquivo 2: `src/components/ui/PasswordStrength.tsx` (novo componente reutilizável)
+Um componente dedicado que recebe a senha atual via prop e exibe os 4 requisitos em tempo real:
 
--- profiles: super admin e módulos permitidos
-ALTER TABLE public.profiles
-  ADD COLUMN IF NOT EXISTS is_super_admin boolean NOT NULL DEFAULT false,
-  ADD COLUMN IF NOT EXISTS allowed_modules text[] NOT NULL DEFAULT ARRAY['financeiro','crm','relatorios'];
-
--- Promover Gabriel Alves a Super Admin
-UPDATE public.profiles
-  SET is_super_admin = true
-  WHERE email = 'gwalves13@gmail.com';
+```
+Requisitos da senha:
+✓ Mínimo 8 caracteres
+✗ Uma letra maiúscula (A-Z)
+✓ Uma letra minúscula (a-z)
+✗ Um número (0-9)
 ```
 
-### Migration: Função `is_super_admin` + RLS atualizado
+Cada linha mostra um ícone `CheckCircle2` (verde) quando satisfeito, ou `Circle` (cinza/vermelho) quando não. A validação é feita via regex em cada `onChange` da senha.
 
-Criar função `is_super_admin(uuid)` como `SECURITY DEFINER` que lê da tabela `profiles`. Em seguida, adicionar `OR is_super_admin(auth.uid())` em todas as políticas RLS de SELECT, INSERT, UPDATE e DELETE das tabelas: `contacts`, `transactions`, `banks`, `categories`, `recurring_transactions`, `contact_documents`, `contact_notes`, `contact_logs`, `contact_messages`, `transaction_attachments`, `boleto_controls`, `global_logs`, `companies`.
+Uma função utilitária exportada `isPasswordStrong(password: string): boolean` será usada pelo schema Zod e pelos handlers para bloquear o submit se algum requisito não estiver satisfeito.
 
-**RLS para bloquear empresas inativas** — usuários de empresas com `status = 'inactive'` perdem acesso:
-```sql
--- Exemplo para contacts:
-USING (
-  (company_id = get_user_company_id(auth.uid())
-    AND EXISTS (SELECT 1 FROM companies WHERE id = company_id AND status = 'active'))
-  OR is_super_admin(auth.uid())
-)
-```
+### Arquivo 3: `src/components/users/UserFormDialog.tsx`
+Três mudanças:
 
-**RLS de `profiles`** — Super Admin pode ver e inserir profiles em qualquer empresa:
-```sql
--- SELECT
-USING (company_id = get_user_company_id(auth.uid()) OR is_super_admin(auth.uid()))
--- INSERT
-WITH CHECK (is_super_admin(auth.uid()) OR company_id = get_user_company_id(auth.uid()))
-```
+**A) Substituir `supabase.auth.signUp` pela edge function `create-user-v2`:**
+- Remover todo o bloco `supabase.auth.signUp` + inserção manual de profile + inserção de role
+- Substituir pelo mesmo padrão de `fetch` já usado em `ClientCompaniesTab`:
+  ```typescript
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user-v2`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ email: internalEmail, password, fullName, companyId, allowedModules: ['financeiro','crm','relatorios'] }),
+  });
+  ```
+- O email interno (`username@internal.local`) continua sendo gerado a partir do username para evitar emails reais
 
----
+**B) Atualizar a validação Zod:** senha mínimo 8 chars + regex para maiúscula, minúscula e número
 
-## Parte 2 — Edge Function `create-user-v2`
+**C) Adicionar o componente `PasswordStrength` abaixo do campo de senha**
 
-**Arquivo:** `supabase/functions/create-user-v2/index.ts`
-
-Usa `SUPABASE_SERVICE_ROLE_KEY` para criar usuários no sistema de autenticação do backend com email já confirmado (`email_confirm: true`), sem expor a chave no cliente.
-
-**Fluxo da função:**
-1. Recebe via POST: `{ email, password, fullName, companyId, allowedModules }`
-2. Valida o JWT do caller — verifica `is_super_admin = true` no banco
-3. Chama `supabase.auth.admin.createUser({ email, password, email_confirm: true })`
-4. Insere profile em `profiles` com `company_id`, `allowed_modules`, `is_super_admin: false`
-5. Insere role em `user_roles` com `role: 'admin'`
-6. Retorna `{ success: true, userId }`
-
-A função é chamada tanto para criar membros da equipe interna (Aba 2) quanto para criar usuários de clientes (Aba 3 expandida).
-
----
-
-## Parte 3 — Hook `useSuperAdmin`
-
-**Arquivo novo:** `src/hooks/useSuperAdmin.ts`
-
-```typescript
-export function useSuperAdmin() {
-  // lê is_super_admin e allowed_modules do profile atual
-  return { isSuperAdmin, allowedModules };
-}
-```
-
-Usado na SettingsPage para mostrar/ocultar abas e na Sidebar para filtrar módulos.
-
----
-
-## Parte 4 — Refatoração de `SettingsPage.tsx`
-
-### Aba 1: Perfil & Conta
-
-Reorganiza o conteúdo atual em cards mais limpos:
-
-- **Card Perfil Pessoal**: campos `full_name` (editável, salva via `supabase.from('profiles').update`) e email atual (read-only)
-- **Card Alterar Email**: Input para novo email + botão → `supabase.auth.updateUser({ email })` → banner amarelo "Verifique seu novo email para confirmar"
-- **Card Segurança**: Alterar senha (já existe)
-- **Card Aparência**: Tema (já existe)
-- **Card Dados da Empresa**: Nome, CNPJ, Logo, Telefone (já existe)
-
-### Aba 2: Minha Equipe
-
-Reutiliza o `UsersTab` atual com pequenas melhorias:
-
-- Lista usuários da empresa da Contabilidade Alves
-- Botão "Novo Membro" agora chama a edge function `create-user-v2` (em vez de `supabase.auth.signUp` diretamente), garantindo que o email seja confirmado automaticamente
-- Colunas extras: Módulos de Acesso (chips coloridos)
-
-### Aba 3: Empresas Clientes (Unificada) — Apenas Super Admin
-
-Componente novo: `src/components/settings/ClientCompaniesTab.tsx`
-
-Layout em dois painéis lado a lado (ou empilhados em mobile):
-
-**Painel esquerdo — Lista de Empresas:**
-- Cards de cada empresa com: Nome, CNPJ, badge de Status (Verde "Ativo" / Vermelho "Inativo")
-- Contador de usuários vinculados
-- Switch Ativo/Inativo que atualiza `companies.status`
-- Ao clicar em uma empresa, o painel direito se atualiza
-
-**Painel direito — Usuários da Empresa Selecionada:**
-- Tabela de usuários filtrada pela empresa clicada
-- Botão "Adicionar Usuário" abre modal de criação
-- Colunas: Nome, Email, Módulos, Data de Criação, Excluir
-
-**Botão "Nova Empresa"** abre um modal com 2 seções:
-
-**Seção A — Dados da Empresa (manual OU importado do CRM):**
-- Toggle: "Criar nova" / "Vincular cliente existente do CRM"
-- Quando "Vincular cliente existente": Searchable Select listando todos os `contacts` onde `type IN ('cliente', 'ambos')`. Ao selecionar, preenche automaticamente: Nome, CNPJ (`document`), Email
-- Campos editáveis: Nome, CNPJ, Email da Empresa
-- Módulos do Plano (checkboxes): Financeiro, CRM, Relatórios
-
-**Seção B — Criar Primeiro Usuário para esta Empresa (opcional):**
-- Toggle "Criar usuário administrador agora?"
-- Se ativado, exibe: Nome completo, Email, Senha provisória
-- Ao salvar: cria a empresa em `companies` E (se toggle ativo) chama `create-user-v2`
-
-### Aba 4: Logs Globais
-
-Mantida como está (apenas renumerada).
-
----
-
-## Parte 5 — Sidebar Dinâmica
-
-**Arquivo:** `src/components/layout/AppSidebar.tsx`
-
-```typescript
-const { isSuperAdmin, allowedModules } = useSuperAdmin();
-const { company } = useCompany();
-
-const planModules = company?.plan_modules ?? ['financeiro', 'crm', 'relatorios'];
-
-const moduleKeys: Record<string, string> = {
-  'Financeiro': 'financeiro',
-  'CRM / Clientes': 'crm',
-  'Relatórios': 'relatorios',
-};
-
-const filteredModules = isSuperAdmin
-  ? menuModules
-  : menuModules.filter(m => {
-      const key = moduleKeys[m.title];
-      if (!key) return true; // Home, Configurações — sempre visível
-      return planModules.includes(key) && allowedModules.includes(key);
-    });
-```
-
-Super Admin vê todos os módulos sempre, sem filtro.
+### Arquivo 4: `src/components/settings/ClientCompaniesTab.tsx`
+Apenas adicionar o componente `PasswordStrength` nos dois campos de senha existentes (criação de admin para nova empresa e criação de usuário avulso). A lógica de criação via edge function já está correta — não será alterada. Adicionar validação de senha forte antes do submit de cada modal.
 
 ---
 
 ## Resumo de Arquivos
 
-| Ação | Arquivo |
-|---|---|
-| Criar (migration 1) | Schema: colunas em `companies` e `profiles`, UPDATE super admin |
-| Criar (migration 2) | Função `is_super_admin` + RLS atualizado em todas as tabelas |
-| Criar | `supabase/functions/create-user-v2/index.ts` |
-| Criar | `src/hooks/useSuperAdmin.ts` |
-| Modificar | `src/pages/SettingsPage.tsx` — 4 abas reestruturadas |
-| Modificar | `src/components/users/UsersTab.tsx` — integrar `create-user-v2` + mostrar módulos |
-| Criar | `src/components/settings/ClientCompaniesTab.tsx` — abas 3 unificada |
-| Modificar | `src/components/layout/AppSidebar.tsx` — sidebar dinâmica |
+| Arquivo | Tipo | Mudança |
+|---|---|---|
+| `src/hooks/useSuperAdmin.ts` | Modificar | Remover staleTime, adicionar refetchOnMount |
+| `src/components/ui/PasswordStrength.tsx` | Criar | Componente reutilizável de força de senha |
+| `src/components/users/UserFormDialog.tsx` | Modificar | Trocar signUp → edge function; validação forte; PasswordStrength |
+| `src/components/settings/ClientCompaniesTab.tsx` | Modificar | Adicionar PasswordStrength nos campos de senha; validação forte no submit |
 
----
-
-## Ordem de Implementação
-
-1. Migrations (schema + RLS)
-2. Edge Function `create-user-v2`
-3. Hook `useSuperAdmin`
-4. `ClientCompaniesTab.tsx` (componente mais complexo, com busca de contacts do CRM)
-5. `SettingsPage.tsx` refatorado
-6. `UsersTab.tsx` atualizado
-7. `AppSidebar.tsx` dinâmico
-
-Nenhum dado existente será perdido. Gabriel Alves continuará com acesso total como Super Admin.
+Nenhuma migration de banco de dados é necessária — o usuário já está marcado como super admin no banco.
