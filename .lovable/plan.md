@@ -1,97 +1,66 @@
 
-## Melhorias nos Cards e Toggle de Visualização em Clientes/Fornecedores
+## Padronização de Tamanho de Fonte nos Cards de Contato
 
-### O que será mudado
+### Diagnóstico
 
-Três melhorias distintas na página `src/pages/Contacts.tsx`:
+No componente `ContactCard` em `src/pages/Contacts.tsx`, os três campos do card possuem tamanhos de fonte diferentes:
 
----
+| Campo | Classes do `<span>` | Tamanho efetivo |
+|---|---|---|
+| CNPJ (`contact.document`) | `font-mono text-xs` | **12px** (explicitamente menor) |
+| Telefone (`contact.phone`) | *(nenhuma)* | **14px** (herda `text-sm` do `div` pai na linha 155) |
+| E-mail (`contact.email`) | *(nenhuma)* | **14px** (herda `text-sm` do `div` pai na linha 155) |
 
-### 1. Campos de contato com altura uniforme (Documento, Telefone, E-mail)
+O campo de CNPJ usa `text-xs` (12px) para imitar o estilo monoespaçado de documentos, enquanto Telefone e E-mail herdam `text-sm` (14px) — gerando a inconsistência visual percebida.
 
-**Problema atual:** Os campos só renderizam se existirem (`{contact.document && ...}`), então cards com dados incompletos ficam com alturas diferentes.
+### Solução
 
-**Solução:** Renderizar sempre as 3 linhas de informação, exibindo um traço (`—`) ou espaço reservado quando o campo estiver vazio. Isso garante que todos os cards ocupem a mesma altura na área de informações.
+Padronizar todos os três campos para `text-xs` dentro do card, que é o tamanho mais adequado para informações secundárias em cards compactos. O `font-mono` no CNPJ pode ser mantido (é uma convenção visual para documentos), mas o tamanho deve ser igual para os três.
 
+Também padronizar os placeholders `—` (que já usam `text-xs` corretamente).
+
+### Mudança em `src/pages/Contacts.tsx`
+
+**Linha 180 — Telefone:** Adicionar `text-xs` ao `<span>`:
 ```tsx
-// Cada linha sempre renderizada — com ou sem dado
-<div className="flex items-center gap-2 h-5">
-  <FileText className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/50" />
-  {contact.document
-    ? <button onClick={...}>...</button>
-    : <span className="text-muted-foreground/30 text-xs">—</span>
-  }
-</div>
+// Antes
+<span className="flex-1">{contact.phone}</span>
+
+// Depois
+<span className="flex-1 text-xs">{contact.phone}</span>
 ```
 
----
-
-### 2. Botão "Ver Perfil" → ícone `Eye` (igual a Editar e Excluir)
-
-**Antes:** Um botão `flex-1` com texto "Ver Perfil" e ícone `Eye`.
-
-**Depois:** Três ícones lado a lado de tamanho igual (`size="icon"`, `variant="ghost"`):
-
-```text
-[ 👁 ]  [ ✏ ]  [ 🗑 ]
-```
-
+**Linha 196 — E-mail:** Adicionar `text-xs` ao `<span>`:
 ```tsx
-<div className="flex gap-1 mt-4 pt-3 border-t border-border/50 justify-end">
-  <Button variant="ghost" size="icon" title="Ver Perfil" onClick={() => navigate(...)}>
-    <Eye className="h-4 w-4" />
-  </Button>
-  <Button variant="ghost" size="icon" title="Editar" onClick={() => handleEdit(contact)}>
-    <Edit2 className="h-4 w-4" />
-  </Button>
-  <Button variant="ghost" size="icon" title="Excluir" onClick={() => setDeleteId(contact.id)}>
-    <Trash2 className="h-4 w-4 text-destructive" />
-  </Button>
-</div>
+// Antes
+<span className="truncate flex-1">{contact.email}</span>
+
+// Depois
+<span className="truncate flex-1 text-xs">{contact.email}</span>
 ```
 
----
+O CNPJ na linha 164 já tem `text-xs` e permanece inalterado.
 
-### 3. Toggle de Visualização: Cards ↔ Lista
+### Resultado Visual
 
-**Estado:** `viewMode: 'card' | 'list'` (padrão `'card'`).
-
-**Toggle no cabeçalho** — dois ícones, `LayoutGrid` (cards) e `List` (lista), usando o componente `ToggleGroup` já instalado no projeto:
-
-```text
-[ Cliente/Fornecedor ]              [ ⊞ ☰ ]  [ + Novo Cliente/Fornecedor ]
+Antes:
+```
+📄 12.345.678/0001-90   ← text-xs (12px)
+📞 (11) 99999-9999      ← text-sm (14px) — maior
+✉  contato@email.com   ← text-sm (14px) — maior
 ```
 
-**Visualização em Lista** (`viewMode === 'list'`):
-
-Uma tabela compacta com colunas: Nome | Documento | Telefone | E-mail | Status | Ações. Cada linha tem os mesmos 3 ícones de ação (Ver Perfil, Editar, Excluir) alinhados à direita.
-
-```text
-┌─────────────────┬──────────────────┬──────────────┬──────────────────────┬──────┬───────────┐
-│ Nome            │ CPF/CNPJ         │ Telefone     │ E-mail               │ ●    │ Ações     │
-├─────────────────┼──────────────────┼──────────────┼──────────────────────┼──────┼───────────┤
-│ Empresa XYZ     │ 12.345.678/0001  │ (11) 9xxxx   │ contato@empresa.com  │ 🟢   │ 👁 ✏ 🗑  │
-└─────────────────┴──────────────────┴──────────────┴──────────────────────┴──────┴───────────┘
+Depois:
+```
+📄 12.345.678/0001-90   ← text-xs (12px)
+📞 (11) 99999-9999      ← text-xs (12px) ✓
+✉  contato@email.com   ← text-xs (12px) ✓
 ```
 
-A visualização em lista usa `<table>` com as classes `Table`, `TableHeader`, `TableRow`, `TableCell` do projeto.
+### Arquivo Modificado
 
----
-
-### Arquivos Modificados
-
-| Arquivo | Mudança |
+| Arquivo | Linhas alteradas |
 |---|---|
-| `src/pages/Contacts.tsx` | Todas as 3 melhorias (estado `viewMode`, componente `ContactCard` atualizado, novo componente `ContactRow` para lista, toggle no header) |
+| `src/pages/Contacts.tsx` | 180 (Telefone) e 196 (E-mail) — adicionar `text-xs` |
 
 Nenhuma migração de banco de dados. Nenhum outro arquivo alterado.
-
----
-
-### Novos imports necessários
-
-```typescript
-import { LayoutGrid, List } from 'lucide-react'; // já no lucide-react instalado
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'; // já no projeto
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'; // já no projeto
-```
