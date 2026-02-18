@@ -79,7 +79,7 @@ const menuModules: MenuModule[] = [
     icon: Wallet,
     defaultOpen: true,
     items: [
-      { title: 'Painel Financeiro', url: '/painel-financeiro', icon: LayoutDashboard, iconName: 'layout-dashboard' },
+      { title: 'Dasboard', url: '/painel-financeiro', icon: LayoutDashboard, iconName: 'layout-dashboard' },
       { title: 'Lançamenbtos', url: '/movimentacoes', icon: ArrowLeftRight, iconName: 'arrow-left-right' },
       { title: 'Contas Recorrentes', url: '/recorrentes', icon: CalendarClock, iconName: 'calendar-clock' },
       { title: 'Boletos', url: '/boletos', icon: FileCheck, iconName: 'file-check' },
