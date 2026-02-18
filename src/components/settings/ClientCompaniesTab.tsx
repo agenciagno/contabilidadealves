@@ -22,6 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { PasswordStrength, isPasswordStrong } from '@/components/ui/PasswordStrength';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -178,6 +179,10 @@ export default function ClientCompaniesTab() {
       toast.error('Nome da empresa é obrigatório');
       return;
     }
+    if (createAdmin && adminForm.password && !isPasswordStrong(adminForm.password)) {
+      toast.error('A senha do administrador não atende aos requisitos de segurança');
+      return;
+    }
     setCreatingCompany(true);
     try {
       // Insert company
@@ -245,6 +250,10 @@ export default function ClientCompaniesTab() {
     if (!selectedCompanyId) return;
     if (!userForm.fullName || !userForm.email || !userForm.password) {
       toast.error('Preencha todos os campos obrigatórios');
+      return;
+    }
+    if (!isPasswordStrong(userForm.password)) {
+      toast.error('A senha não atende aos requisitos de segurança (8+ chars, maiúscula, minúscula, número)');
       return;
     }
     setCreatingUser(true);
@@ -623,7 +632,7 @@ export default function ClientCompaniesTab() {
                     <div className="relative">
                       <Input
                         type={showPassword ? 'text' : 'password'}
-                        placeholder="Mínimo 6 caracteres"
+                        placeholder="Mínimo 8 caracteres"
                         value={adminForm.password}
                         onChange={(e) => setAdminForm((p) => ({ ...p, password: e.target.value }))}
                         className="pr-10"
@@ -636,6 +645,7 @@ export default function ClientCompaniesTab() {
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
+                    <PasswordStrength password={adminForm.password} />
                   </div>
                 </div>
               )}
@@ -686,7 +696,7 @@ export default function ClientCompaniesTab() {
               <div className="relative">
                 <Input
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder="Mínimo 8 caracteres"
                   value={userForm.password}
                   onChange={(e) => setUserForm((p) => ({ ...p, password: e.target.value }))}
                   className="pr-10"
@@ -699,6 +709,7 @@ export default function ClientCompaniesTab() {
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+              <PasswordStrength password={userForm.password} />
             </div>
 
             <div className="space-y-2">

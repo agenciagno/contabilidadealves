@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
     }
 
     // Parse body
-    const { email, password, fullName, companyId, allowedModules = ['financeiro', 'crm', 'relatorios'] } = await req.json();
+    const { email, password, fullName, companyId, allowedModules = ['financeiro', 'crm', 'relatorios'], username } = await req.json();
 
     if (!email || !password || !fullName || !companyId) {
       return new Response(JSON.stringify({ error: 'Missing required fields: email, password, fullName, companyId' }), {
@@ -88,16 +88,19 @@ Deno.serve(async (req) => {
     const newUserId = authData.user.id;
 
     // Insert profile
+    const profileData: Record<string, unknown> = {
+      user_id: newUserId,
+      company_id: companyId,
+      full_name: fullName,
+      email: email,
+      is_super_admin: false,
+      allowed_modules: allowedModules,
+    };
+    if (username) profileData.username = username;
+
     const { error: profileInsertError } = await adminClient
       .from('profiles')
-      .insert({
-        user_id: newUserId,
-        company_id: companyId,
-        full_name: fullName,
-        email: email,
-        is_super_admin: false,
-        allowed_modules: allowedModules,
-      });
+      .insert(profileData);
 
     if (profileInsertError) {
       // Rollback: delete auth user
