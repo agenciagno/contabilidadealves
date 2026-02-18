@@ -1,19 +1,27 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   Plus,
   Pencil,
   Trash2,
   TrendingUp,
   TrendingDown,
-  Check,
   Receipt,
   LayoutGrid,
   List,
   Download,
   FileSpreadsheet,
   FileText,
+  SlidersHorizontal,
+  AlertTriangle,
+  Landmark,
+  BarChart3,
+  CalendarCheck,
+  ChevronDown,
+  ChevronUp,
+  Building2,
 } from 'lucide-react';
 import { useTransactions, Transaction, TransactionInsert } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
@@ -40,19 +48,15 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   startOfMonth,
   endOfMonth,
-  subMonths,
-  subDays,
-  addDays,
-  addMonths,
-  startOfYear,
-  endOfYear,
   isWithinInterval,
   parseISO,
+  isBefore,
+  isToday,
+  format,
 } from 'date-fns';
 
 function formatCurrency(value: number) {
@@ -62,12 +66,8 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
-function formatDate(dateStr: string) {
-  return new Date(dateStr + 'T12:00:00').toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
+function formatDateShort(dateStr: string) {
+  return format(new Date(dateStr + 'T12:00:00'), 'dd/MM');
 }
 
 type SortField = 'date';
@@ -84,6 +84,7 @@ export default function Transactions() {
   const [searchTerm, setSearchTerm] = useState('');
   const [customStartDate, setCustomStartDate] = useState<Date | null>(null);
   const [customEndDate, setCustomEndDate] = useState<Date | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Sort states
   const [sortField, setSortField] = useState<SortField>('date');
@@ -111,6 +112,19 @@ export default function Transactions() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [defaultType, setDefaultType] = useState<'receita' | 'despesa'>('despesa');
 
+  // Count active filters for badge
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (typeFilter !== 'all') count++;
+    if (categoryFilter !== 'all') count++;
+    if (bankFilter !== 'all') count++;
+    if (contactFilter !== 'all') count++;
+    if (paymentStatusFilter !== 'all') count++;
+    if (searchTerm) count++;
+    if (period !== 'thisMonth') count++;
+    return count;
+  }, [typeFilter, categoryFilter, bankFilter, contactFilter, paymentStatusFilter, searchTerm, period]);
+
   // Calculate date range based on period
   const getDateRange = (periodValue: PeriodFilter): { start: Date; end: Date } | null => {
     if (periodValue === 'custom' && customStartDate && customEndDate) {
@@ -132,63 +146,102 @@ export default function Transactions() {
       });
     }
 
-    // Type filter
-    if (typeFilter !== 'all') {
-      result = result.filter((t) => t.type === typeFilter);
-    }
-
-    // Category filter
-    if (categoryFilter !== 'all') {
-      result = result.filter((t) => t.category_id === categoryFilter);
-    }
-
-    // Bank filter
-    if (bankFilter !== 'all') {
-      result = result.filter((t) => t.bank_id === bankFilter);
-    }
-
-    // Contact filter
-    if (contactFilter !== 'all') {
-      result = result.filter((t) => t.contact_id === contactFilter);
-    }
-
-    // Payment status filter
-    if (paymentStatusFilter === 'paid') {
-      result = result.filter((t) => t.is_paid);
-    } else if (paymentStatusFilter === 'pending') {
-      result = result.filter((t) => !t.is_paid);
-    }
-
-    // Search filter
+    if (typeFilter !== 'all') result = result.filter((t) => t.type === typeFilter);
+    if (categoryFilter !== 'all') result = result.filter((t) => t.category_id === categoryFilter);
+    if (bankFilter !== 'all') result = result.filter((t) => t.bank_id === bankFilter);
+    if (contactFilter !== 'all') result = result.filter((t) => t.contact_id === contactFilter);
+    if (paymentStatusFilter === 'paid') result = result.filter((t) => t.is_paid);
+    else if (paymentStatusFilter === 'pending') result = result.filter((t) => !t.is_paid);
     if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      result = result.filter((t) => t.description.toLowerCase().includes(search));
+      const s = searchTerm.toLowerCase();
+      result = result.filter((t) => t.description.toLowerCase().includes(s));
     }
 
-    // Sort
     result.sort((a, b) => {
-      const comparison = a.date.localeCompare(b.date);
-      return sortOrder === 'asc' ? comparison : -comparison;
+      const cmp = a.date.localeCompare(b.date);
+      return sortOrder === 'asc' ? cmp : -cmp;
     });
 
     return result;
   }, [allTransactions, period, typeFilter, categoryFilter, bankFilter, contactFilter, paymentStatusFilter, searchTerm, sortField, sortOrder, customStartDate, customEndDate]);
 
-  // Calculate totals from filtered transactions
-  const totals = useMemo(() => {
+  // KPI totals from filteredTransactions (respects UI filters)
+  const kpiTotals = useMemo(() => {
     return filteredTransactions.reduce(
       (acc, t) => {
         const amount = Number(t.amount);
         if (t.type === 'receita') {
-          acc.receitas += amount;
+          if (t.is_paid) acc.receitasPagas += amount;
+          else acc.receitasPendentes += amount;
         } else {
-          acc.despesas += amount;
+          if (t.is_paid) acc.despesasPagas += amount;
+          else acc.despesasPendentes += amount;
         }
         return acc;
       },
-      { receitas: 0, despesas: 0 }
+      { receitasPagas: 0, receitasPendentes: 0, despesasPagas: 0, despesasPendentes: 0 }
     );
   }, [filteredTransactions]);
+
+  // Global bank totals (ignores UI filters)
+  const bankTotals = useMemo(() => {
+    const activeBanks = banks.filter((b) => b.is_active);
+    const totalBalance = activeBanks.reduce((sum, b) => sum + Number(b.current_balance), 0);
+    const caixaGeral = activeBanks.find((b) => b.is_caixa_geral);
+    return {
+      totalBalance,
+      caixaGeralBalance: caixaGeral ? Number(caixaGeral.current_balance) : null,
+      caixaGeralName: caixaGeral?.name ?? null,
+    };
+  }, [banks]);
+
+  // BI Ticker metrics (global — ignores UI filters, uses allTransactions + current month)
+  const biMetrics = useMemo(() => {
+    const today = new Date();
+    const monthStart = startOfMonth(today);
+    const monthEnd = endOfMonth(today);
+    const todayStr = format(today, 'yyyy-MM-dd');
+    const monthStartStr = format(monthStart, 'yyyy-MM-dd');
+    const monthEndStr = format(monthEnd, 'yyyy-MM-dd');
+
+    let contasEmAtraso = 0;
+    let receitasHoje = 0;
+    let despesasHoje = 0;
+    let receitasMes = 0;
+    let despesasMes = 0;
+    let receitasPagasMes = 0;
+    let despesasPagasMes = 0;
+
+    for (const t of allTransactions) {
+      const amount = Number(t.amount);
+      // Contas em atraso: despesas não pagas com due_date antes de hoje
+      if (t.type === 'despesa' && !t.is_paid && t.due_date && t.due_date < todayStr) {
+        contasEmAtraso += amount;
+      }
+      // Capital de giro: receitas/despesas com due_date hoje
+      if (t.due_date === todayStr) {
+        if (t.type === 'receita') receitasHoje += amount;
+        else despesasHoje += amount;
+      }
+      // Mês corrente
+      if (t.date >= monthStartStr && t.date <= monthEndStr) {
+        if (t.type === 'receita') {
+          receitasMes += amount;
+          if (t.is_paid) receitasPagasMes += amount;
+        } else {
+          despesasMes += amount;
+          if (t.is_paid) despesasPagasMes += amount;
+        }
+      }
+    }
+
+    const capitalDeGiro = bankTotals.totalBalance + receitasHoje - despesasHoje;
+    const lucroPrevisto = receitasMes - despesasMes;
+    const acumuladoReceitas = receitasPagasMes;
+    const acumuladoDespesas = despesasPagasMes;
+
+    return { contasEmAtraso, capitalDeGiro, lucroPrevisto, acumuladoReceitas, acumuladoDespesas };
+  }, [allTransactions, bankTotals]);
 
   const handleClearFilters = () => {
     setPeriod('thisMonth');
@@ -258,7 +311,8 @@ export default function Transactions() {
     }
   };
 
-  const saldo = totals.receitas - totals.despesas;
+  // For export
+  const totals = { receitas: kpiTotals.receitasPagas + kpiTotals.receitasPendentes, despesas: kpiTotals.despesasPagas + kpiTotals.despesasPendentes };
 
   if (isLoading) {
     return (
@@ -277,8 +331,8 @@ export default function Transactions() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-5">
+      {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Movimentações</h1>
@@ -304,7 +358,24 @@ export default function Transactions() {
               <List className="w-4 h-4" />
             </Button>
           </div>
-          {/* Export Dropdown */}
+
+          {/* Filters Toggle */}
+          <Button
+            variant="outline"
+            className="gap-2 relative"
+            onClick={() => setFiltersOpen((v) => !v)}
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            Filtros Avançados
+            {activeFilterCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 bg-primary text-primary-foreground text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                {activeFilterCount}
+              </span>
+            )}
+            {filtersOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          </Button>
+
+          {/* Export */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="gap-2">
@@ -313,9 +384,9 @@ export default function Transactions() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 onClick={() => {
-                  const reportTransactions: ReportTransaction[] = filteredTransactions.map(t => ({
+                  const rt: ReportTransaction[] = filteredTransactions.map((t) => ({
                     id: t.id,
                     description: t.description,
                     amount: Number(t.amount),
@@ -326,16 +397,15 @@ export default function Transactions() {
                     bank: t.bank ? { id: t.bank.id, name: t.bank.name, color: t.bank.color || '#3B82F6' } : null,
                     contact: t.contact ? { id: t.contact.id, name: t.contact.name, type: t.contact.type } : null,
                   }));
-                  exportToCSV(reportTransactions);
+                  exportToCSV(rt);
                 }}
                 className="gap-2"
               >
-                <FileSpreadsheet className="w-4 h-4" />
-                Exportar CSV
+                <FileSpreadsheet className="w-4 h-4" /> Exportar CSV
               </DropdownMenuItem>
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 onClick={() => {
-                  const reportTransactions: ReportTransaction[] = filteredTransactions.map(t => ({
+                  const rt: ReportTransaction[] = filteredTransactions.map((t) => ({
                     id: t.id,
                     description: t.description,
                     amount: Number(t.amount),
@@ -347,16 +417,15 @@ export default function Transactions() {
                     contact: t.contact ? { id: t.contact.id, name: t.contact.name, type: t.contact.type } : null,
                   }));
                   const dateRange = getDateRange(period);
-                  exportToPDF(reportTransactions, totals, dateRange?.start, dateRange?.end);
+                  exportToPDF(rt, totals, dateRange?.start, dateRange?.end);
                 }}
                 className="gap-2"
               >
-                <FileText className="w-4 h-4" />
-                Exportar PDF
+                <FileText className="w-4 h-4" /> Exportar PDF
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          {/* New Transaction Button - Highlighted */}
+
           <Button
             onClick={() => handleNewTransaction('despesa')}
             className="gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg"
@@ -367,90 +436,157 @@ export default function Transactions() {
         </div>
       </div>
 
-      {/* Filters */}
-      <UnifiedFilterBox
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        period={period}
-        onPeriodChange={setPeriod}
-        customStartDate={customStartDate}
-        customEndDate={customEndDate}
-        onCustomStartDateChange={setCustomStartDate}
-        onCustomEndDateChange={setCustomEndDate}
-        bankId={bankFilter}
-        onBankChange={setBankFilter}
-        banks={banks}
-        categoryId={categoryFilter}
-        onCategoryChange={setCategoryFilter}
-        categories={categories}
-        paymentStatus={paymentStatusFilter}
-        onPaymentStatusChange={setPaymentStatusFilter}
-        contactId={contactFilter}
-        onContactChange={setContactFilter}
-        contacts={contacts}
-        onClearFilters={handleClearFilters}
-        type={typeFilter}
-        onTypeChange={setTypeFilter}
-        showTypeFilter={true}
-      />
+      {/* ── Collapsible Filters ── */}
+      <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
+        <CollapsibleContent>
+          <UnifiedFilterBox
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            period={period}
+            onPeriodChange={setPeriod}
+            customStartDate={customStartDate}
+            customEndDate={customEndDate}
+            onCustomStartDateChange={setCustomStartDate}
+            onCustomEndDateChange={setCustomEndDate}
+            bankId={bankFilter}
+            onBankChange={setBankFilter}
+            banks={banks}
+            categoryId={categoryFilter}
+            onCategoryChange={setCategoryFilter}
+            categories={categories}
+            paymentStatus={paymentStatusFilter}
+            onPaymentStatusChange={setPaymentStatusFilter}
+            contactId={contactFilter}
+            onContactChange={setContactFilter}
+            contacts={contacts}
+            onClearFilters={handleClearFilters}
+            type={typeFilter}
+            onTypeChange={setTypeFilter}
+            showTypeFilter={true}
+          />
+        </CollapsibleContent>
+      </Collapsible>
 
-      {/* Summary Cards */}
+      {/* ── KPI Cards (3 columns) ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Receitas */}
         <Card className="bg-card border-border/50">
           <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Receitas</p>
-                <p className="text-2xl font-bold text-emerald-500">{formatCurrency(totals.receitas)}</p>
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">A Receber</p>
+                <p className="text-2xl font-bold text-emerald-500">{formatCurrency(kpiTotals.receitasPendentes)}</p>
                 <p className="text-xs text-muted-foreground">
-                  {filteredTransactions.filter(t => t.type === 'receita').length} transação(ões)
+                  Recebido: <span className="text-emerald-400">{formatCurrency(kpiTotals.receitasPagas)}</span>
                 </p>
               </div>
-              <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-emerald-500" />
+              <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
+                <TrendingUp className="w-5 h-5 text-emerald-500" />
               </div>
             </div>
           </CardContent>
         </Card>
 
+        {/* Despesas */}
         <Card className="bg-card border-border/50">
           <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Despesas</p>
-                <p className="text-2xl font-bold text-red-500">{formatCurrency(totals.despesas)}</p>
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">A Pagar</p>
+                <p className="text-2xl font-bold text-red-500">{formatCurrency(kpiTotals.despesasPendentes)}</p>
                 <p className="text-xs text-muted-foreground">
-                  {filteredTransactions.filter(t => t.type === 'despesa').length} transação(ões)
+                  Pago: <span className="text-red-400">{formatCurrency(kpiTotals.despesasPagas)}</span>
                 </p>
               </div>
-              <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center">
-                <TrendingDown className="w-6 h-6 text-red-500" />
+              <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center shrink-0">
+                <TrendingDown className="w-5 h-5 text-red-500" />
               </div>
             </div>
           </CardContent>
         </Card>
 
+        {/* Saldo Bancário Real (global) */}
         <Card className="bg-card border-border/50">
           <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Saldo do Período</p>
-                <p className={`text-2xl font-bold ${saldo >= 0 ? 'text-primary' : 'text-red-500'}`}>
-                  {saldo < 0 ? '-' : ''}{formatCurrency(Math.abs(saldo))}
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Saldo Bancário Real</p>
+                <p className={`text-2xl font-bold ${bankTotals.totalBalance >= 0 ? 'text-primary' : 'text-red-500'}`}>
+                  {formatCurrency(bankTotals.totalBalance)}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {saldo >= 0 ? 'Positivo' : 'Negativo'}
+                  {bankTotals.caixaGeralName
+                    ? <>Caixa Geral: <span className="text-primary">{formatCurrency(bankTotals.caixaGeralBalance ?? 0)}</span></>
+                    : 'Total em todos os bancos'
+                  }
                 </p>
               </div>
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${saldo >= 0 ? 'bg-primary/10' : 'bg-red-500/10'}`}>
-                <Receipt className={`w-6 h-6 ${saldo >= 0 ? 'text-primary' : 'text-red-500'}`} />
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <Landmark className="w-5 h-5 text-primary" />
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Sort Options */}
+      {/* ── BI Ticker (4 metrics) ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* Contas em Atraso */}
+        <Card className="bg-card border-border/50 border-l-2 border-l-red-500">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />
+              <p className="text-xs text-muted-foreground">Em Atraso</p>
+            </div>
+            <p className="text-base font-bold text-red-500">{formatCurrency(biMetrics.contasEmAtraso)}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Despesas vencidas não pagas</p>
+          </CardContent>
+        </Card>
+
+        {/* Capital de Giro */}
+        <Card className="bg-card border-border/50 border-l-2 border-l-blue-500">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <Building2 className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+              <p className="text-xs text-muted-foreground">Capital de Giro</p>
+            </div>
+            <p className={`text-base font-bold ${biMetrics.capitalDeGiro >= 0 ? 'text-blue-400' : 'text-red-500'}`}>
+              {formatCurrency(biMetrics.capitalDeGiro)}
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Bancos ± vencimentos hoje</p>
+          </CardContent>
+        </Card>
+
+        {/* Lucro Previsto do Mês */}
+        <Card className="bg-card border-border/50 border-l-2 border-l-emerald-500">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <BarChart3 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+              <p className="text-xs text-muted-foreground">Lucro Previsto</p>
+            </div>
+            <p className={`text-base font-bold ${biMetrics.lucroPrevisto >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+              {formatCurrency(biMetrics.lucroPrevisto)}
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Receitas − Despesas (mês)</p>
+          </CardContent>
+        </Card>
+
+        {/* Acumulado do Mês */}
+        <Card className="bg-card border-border/50 border-l-2 border-l-amber-500">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <CalendarCheck className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <p className="text-xs text-muted-foreground">Acumulado (Mês)</p>
+            </div>
+            <p className="text-base font-bold text-amber-400">{formatCurrency(biMetrics.acumuladoReceitas)}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              Rec. pagas — Desp. pagas: {formatCurrency(biMetrics.acumuladoDespesas)}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ── Sort Options ── */}
       <div className="flex items-center gap-2 text-sm">
         <span className="text-muted-foreground">Ordenar por:</span>
         <Button
@@ -459,12 +595,14 @@ export default function Transactions() {
           onClick={() => handleSort('date')}
           className="gap-1"
         >
-          Data
-          {sortField === 'date' && (sortOrder === 'asc' ? '↑' : '↓')}
+          Data {sortField === 'date' && (sortOrder === 'asc' ? '↑' : '↓')}
         </Button>
+        <span className="text-muted-foreground text-xs ml-auto">
+          {filteredTransactions.length} transação(ões)
+        </span>
       </div>
 
-      {/* Transactions List/Grid */}
+      {/* ── Transactions List/Grid ── */}
       {filteredTransactions.length === 0 ? (
         <Card className="bg-card border-border/50">
           <CardContent className="text-muted-foreground text-center py-16">
@@ -474,6 +612,7 @@ export default function Transactions() {
           </CardContent>
         </Card>
       ) : viewMode === 'grid' ? (
+        /* ── Grid Mode (unchanged) ── */
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filteredTransactions.map((transaction) => (
             <Card key={transaction.id} className="bg-card border-border/50 hover:border-primary/30 transition-colors">
@@ -493,41 +632,25 @@ export default function Transactions() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-medium truncate">{transaction.description}</span>
-                      <span
-                        className={`font-bold whitespace-nowrap ${
-                          transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'
-                        }`}
-                      >
+                      <span className={`font-bold whitespace-nowrap ${transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'}`}>
                         {transaction.type === 'receita' ? '+' : '-'} {formatCurrency(Number(transaction.amount))}
                       </span>
                     </div>
-                    {/* Metadata line */}
                     <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1 flex-wrap">
                       {transaction.category && (
                         <span className="flex items-center gap-1">
-                          <span
-                            className="w-2 h-2 rounded-full inline-block"
-                            style={{ backgroundColor: transaction.category.color }}
-                          />
+                          <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: transaction.category.color }} />
                           {transaction.category.name}
                         </span>
                       )}
                       {transaction.bank && (
-                        <>
-                          {transaction.category && <span className="text-muted-foreground/50">|</span>}
-                          <span>{transaction.bank.name}</span>
-                        </>
+                        <>{transaction.category && <span className="text-muted-foreground/50">|</span>}<span>{transaction.bank.name}</span></>
                       )}
                       {transaction.contact && (
-                        <>
-                          {(transaction.category || transaction.bank) && <span className="text-muted-foreground/50">|</span>}
-                          <span className="text-primary">{transaction.contact.name}</span>
-                        </>
+                        <>{(transaction.category || transaction.bank) && <span className="text-muted-foreground/50">|</span>}<span className="text-primary">{transaction.contact.name}</span></>
                       )}
                     </p>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      📅 {formatDate(transaction.date)}
-                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">📅 {formatDateShort(transaction.date)}</div>
                   </div>
                   <div className="flex flex-col gap-1">
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(transaction)}>
@@ -543,94 +666,92 @@ export default function Transactions() {
           ))}
         </div>
       ) : (
+        /* ── List Mode — New Horizontal Card Design ── */
         <Card className="bg-card border-border/50">
           <CardContent className="p-0">
-            <div className="divide-y divide-border/50">
+            <div className="divide-y divide-border/40">
               {filteredTransactions.map((transaction) => (
                 <div
                   key={transaction.id}
-                  className="flex items-center gap-4 p-4 hover:bg-muted/50 transition-colors"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors group"
                 >
-                  {/* Checkbox */}
-                  <Checkbox
-                    checked={transaction.is_paid}
-                    onCheckedChange={(checked) =>
-                      togglePaid.mutate({ id: transaction.id, is_paid: !!checked })
-                    }
-                  />
-
                   {/* Type Icon */}
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      transaction.type === 'receita' ? 'bg-emerald-500/20' : 'bg-red-500/20'
-                    }`}
-                  >
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
+                    transaction.type === 'receita' ? 'bg-emerald-500/15' : 'bg-red-500/15'
+                  }`}>
                     {transaction.type === 'receita' ? (
-                      <TrendingUp className="w-5 h-5 text-emerald-500" />
+                      <TrendingUp className="w-4 h-4 text-emerald-500" />
                     ) : (
-                      <TrendingDown className="w-5 h-5 text-red-500" />
+                      <TrendingDown className="w-4 h-4 text-red-500" />
                     )}
                   </div>
 
-                  {/* Details */}
+                  {/* Central Info */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className={`font-medium ${transaction.is_paid ? 'text-foreground' : 'text-muted-foreground'}`}>
-                        {transaction.description}
+                    {/* Line 1: Date • Contact/Description */}
+                    <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                      <span className="text-muted-foreground shrink-0 tabular-nums">
+                        {formatDateShort(transaction.date)}
                       </span>
-                      {transaction.is_paid && (
-                        <Badge variant="secondary" className="text-xs gap-1">
-                          <Check className="w-3 h-3" />
-                          {transaction.type === 'receita' ? 'Recebido' : 'Pago'}
-                        </Badge>
-                      )}
+                      <span className="text-muted-foreground/40">•</span>
+                      <span className="truncate">
+                        {transaction.contact?.name ?? transaction.description}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span>{formatDate(transaction.date)}</span>
+                    {/* Line 2: Event Badge • Bank • Type */}
+                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                       {transaction.category && (
-                        <>
-                          <span>•</span>
-                          <div className="flex items-center gap-1">
-                            <div
-                              className="w-2 h-2 rounded-full"
-                              style={{ backgroundColor: transaction.category.color }}
-                            />
-                            <span>{transaction.category.name}</span>
-                          </div>
-                        </>
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] px-1.5 py-0 h-4 rounded-sm font-normal"
+                          style={{ backgroundColor: `${transaction.category.color}22`, color: transaction.category.color, borderColor: `${transaction.category.color}44` }}
+                        >
+                          {transaction.category.name}
+                        </Badge>
                       )}
                       {transaction.bank && (
                         <>
-                          <span>•</span>
-                          <span>{transaction.bank.name}</span>
+                          {transaction.category && <span className="text-muted-foreground/30 text-xs">•</span>}
+                          <span className="text-[11px] text-muted-foreground">{transaction.bank.name}</span>
                         </>
                       )}
-                      {transaction.contact && (
-                        <>
-                          <span>•</span>
-                          <span className="text-primary">{transaction.contact.name}</span>
-                        </>
-                      )}
+                      <span className="text-muted-foreground/30 text-xs">•</span>
+                      <span className="text-[11px] text-muted-foreground">
+                        {transaction.type === 'receita' ? 'Receita' : 'Despesa'}
+                      </span>
                     </div>
                   </div>
 
-                  {/* Amount */}
-                  <span
-                    className={`font-bold text-lg ${
+                  {/* Right: Value + Status */}
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <span className={`font-bold text-sm tabular-nums ${
                       transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'
-                    }`}
-                  >
-                    {transaction.type === 'receita' ? '+' : '-'}
-                    {formatCurrency(Number(transaction.amount))}
-                  </span>
+                    }`}>
+                      {transaction.type === 'receita' ? '+' : '-'}{formatCurrency(Number(transaction.amount))}
+                    </span>
+                    {/* Interactive Status Pill */}
+                    <button
+                      onClick={() => togglePaid.mutate({ id: transaction.id, is_paid: !transaction.is_paid })}
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-all cursor-pointer ${
+                        transaction.is_paid
+                          ? 'bg-emerald-500 border-emerald-500 text-white'
+                          : 'border-amber-500 text-amber-500 bg-transparent hover:bg-amber-500/10'
+                      }`}
+                    >
+                      {transaction.is_paid
+                        ? (transaction.type === 'receita' ? 'Recebido' : 'Pago')
+                        : 'Pendente'
+                      }
+                    </button>
+                  </div>
 
-                  {/* Actions */}
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(transaction)}>
-                      <Pencil className="w-4 h-4" />
+                  {/* Edit/Delete Actions */}
+                  <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(transaction)}>
+                      <Pencil className="w-3.5 h-3.5" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => setDeleteId(transaction.id)}>
-                      <Trash2 className="w-4 h-4 text-destructive" />
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteId(transaction.id)}>
+                      <Trash2 className="w-3.5 h-3.5 text-destructive" />
                     </Button>
                   </div>
                 </div>
