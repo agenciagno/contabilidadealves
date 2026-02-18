@@ -25,10 +25,10 @@ export function UnifiedStatementAccordion({ banks }: UnifiedStatementAccordionPr
 
   const today = new Date();
   const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-  const lastOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+  const todayStr = today.toISOString().split('T')[0];
 
   const [startDate, setStartDate] = useState(firstOfMonth);
-  const [endDate, setEndDate] = useState(lastOfMonth);
+  const [endDate, setEndDate] = useState(todayStr);
   const [contactId, setContactId] = useState('all');
   const [categoryId, setCategoryId] = useState('all');
   const [bankId, setBankId] = useState('all');

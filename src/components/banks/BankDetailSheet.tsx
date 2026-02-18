@@ -27,10 +27,10 @@ export function BankDetailSheet({ bank, open, onOpenChange }: BankDetailSheetPro
 
   const today = new Date();
   const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-  const lastOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+  const todayStr = today.toISOString().split('T')[0];
 
   const [startDate, setStartDate] = useState(firstOfMonth);
-  const [endDate, setEndDate] = useState(lastOfMonth);
+  const [endDate, setEndDate] = useState(todayStr);
   const [contactId, setContactId] = useState<string>('all');
   const [categoryId, setCategoryId] = useState<string>('all');
 
@@ -51,7 +51,7 @@ export function BankDetailSheet({ bank, open, onOpenChange }: BankDetailSheetPro
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full max-w-4xl p-0 flex flex-col">
+      <SheetContent side="right" className="w-full sm:max-w-5xl p-0 flex flex-col overflow-hidden">
         {/* Header */}
         <SheetHeader className="p-6 pb-4 border-b border-border/50 bg-muted/30 flex-shrink-0">
           <div className="flex items-start gap-4">
