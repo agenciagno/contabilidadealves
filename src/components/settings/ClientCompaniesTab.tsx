@@ -38,6 +38,7 @@ import {
   EyeOff,
   ChevronRight,
   RefreshCw,
+  Pencil,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -87,7 +88,18 @@ export default function ClientCompaniesTab() {
   const [crmMode, setCrmMode] = useState(false);
   const [createAdmin, setCreateAdmin] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showEditPassword, setShowEditPassword] = useState(false);
   const [crmSearch, setCrmSearch] = useState('');
+
+  // Edit user state
+  const [editUserOpen, setEditUserOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<Profile | null>(null);
+  const [editUserForm, setEditUserForm] = useState({
+    fullName: '',
+    password: '',
+    allowedModules: [] as string[],
+  });
+  const [savingUser, setSavingUser] = useState(false);
 
   // Company form
   const [companyForm, setCompanyForm] = useState({
@@ -294,6 +306,60 @@ export default function ClientCompaniesTab() {
     }
   };
 
+  // Edit user
+  const openEditUser = (u: Profile) => {
+    setEditingUser(u);
+    setEditUserForm({ fullName: u.full_name || '', password: '', allowedModules: u.allowed_modules ?? [] });
+    setShowEditPassword(false);
+    setEditUserOpen(true);
+  };
+
+  const handleEditUser = async () => {
+    if (!editingUser) return;
+    if (!editUserForm.fullName.trim()) {
+      toast.error('Nome completo é obrigatório');
+      return;
+    }
+    if (editUserForm.password && !isPasswordStrong(editUserForm.password)) {
+      toast.error('A senha não atende aos requisitos de segurança (8+ chars, maiúscula, minúscula, número)');
+      return;
+    }
+    if (editUserForm.allowedModules.length === 0) {
+      toast.error('Selecione pelo menos um módulo de acesso');
+      return;
+    }
+    setSavingUser(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const payload: Record<string, unknown> = {
+        userId: editingUser.user_id,
+        fullName: editUserForm.fullName,
+        allowedModules: editUserForm.allowedModules,
+      };
+      if (editUserForm.password) payload.password = editUserForm.password;
+
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user-v2`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(payload),
+        }
+      );
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Erro ao atualizar usuário');
+      toast.success('Usuário atualizado com sucesso!');
+      queryClient.invalidateQueries({ queryKey: ['company-users', selectedCompanyId] });
+      setEditUserOpen(false);
+      setEditingUser(null);
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao atualizar usuário');
+    } finally {
+      setSavingUser(false);
+    }
+  };
+
   // Delete user
   const deleteUser = useMutation({
     mutationFn: async (userId: string) => {
@@ -450,19 +516,19 @@ export default function ClientCompaniesTab() {
                       <TableHead>Email</TableHead>
                       <TableHead>Módulos</TableHead>
                       <TableHead>Criado em</TableHead>
-                      <TableHead className="w-[60px]">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {companyUsers.map((u) => (
-                      <TableRow key={u.id}>
-                        <TableCell className="font-medium">{u.full_name || '-'}</TableCell>
-                        <TableCell className="text-muted-foreground text-sm">{u.email}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {(u.allowed_modules as string[] || []).map((m) => (
-                              <Badge key={m} variant="secondary" className="text-xs">
-                                {MODULE_OPTIONS.find((o) => o.key === m)?.label || m}
+                         <TableHead className="w-[90px]">Ações</TableHead>
+                     </TableRow>
+                   </TableHeader>
+                   <TableBody>
+                     {companyUsers.map((u) => (
+                       <TableRow key={u.id}>
+                         <TableCell className="font-medium">{u.full_name || '-'}</TableCell>
+                         <TableCell className="text-muted-foreground text-sm">{u.email}</TableCell>
+                         <TableCell>
+                           <div className="flex flex-wrap gap-1">
+                             {(u.allowed_modules as string[] || []).map((m) => (
+                               <Badge key={m} variant="secondary" className="text-xs">
+                                 {MODULE_OPTIONS.find((o) => o.key === m)?.label || m}
                               </Badge>
                             ))}
                           </div>
@@ -471,16 +537,28 @@ export default function ClientCompaniesTab() {
                           {format(new Date(u.created_at), 'dd/MM/yyyy', { locale: ptBR })}
                         </TableCell>
                         <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setDeleteUserId(u.user_id)}
-                            className="text-muted-foreground hover:text-destructive"
-                            disabled={u.user_id === user?.id}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </TableCell>
+                           <div className="flex items-center gap-1">
+                             <Button
+                               variant="ghost"
+                               size="icon"
+                               onClick={() => openEditUser(u)}
+                               className="text-muted-foreground hover:text-primary"
+                               title="Editar usuário"
+                             >
+                               <Pencil className="w-4 h-4" />
+                             </Button>
+                             <Button
+                               variant="ghost"
+                               size="icon"
+                               onClick={() => setDeleteUserId(u.user_id)}
+                               className="text-muted-foreground hover:text-destructive"
+                               disabled={u.user_id === user?.id}
+                               title="Excluir usuário"
+                             >
+                               <Trash2 className="w-4 h-4" />
+                             </Button>
+                           </div>
+                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -773,6 +851,84 @@ export default function ClientCompaniesTab() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* MODAL — Editar Usuário */}
+      <Dialog open={editUserOpen} onOpenChange={(o) => { setEditUserOpen(o); if (!o) setEditingUser(null); }}>
+        <DialogContent className="sm:max-w-[480px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar Usuário — {editingUser?.full_name || editingUser?.email}</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Nome Completo *</Label>
+              <Input
+                placeholder="Nome completo"
+                value={editUserForm.fullName}
+                onChange={(e) => setEditUserForm((p) => ({ ...p, fullName: e.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Nova Senha (deixe em branco para manter)</Label>
+              <div className="relative">
+                <Input
+                  type={showEditPassword ? 'text' : 'password'}
+                  placeholder="Deixe em branco para manter"
+                  value={editUserForm.password}
+                  onChange={(e) => setEditUserForm((p) => ({ ...p, password: e.target.value }))}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowEditPassword(!showEditPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                >
+                  {showEditPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {editUserForm.password && <PasswordStrength password={editUserForm.password} />}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Módulos de Acesso *</Label>
+              <div className="grid grid-cols-2 gap-2 rounded-lg border border-border p-3 bg-muted/30">
+                {MODULE_OPTIONS.map((m) => (
+                  <div key={m.key} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`edit-mod-${m.key}`}
+                      checked={editUserForm.allowedModules.includes(m.key)}
+                      onCheckedChange={() =>
+                        setEditUserForm((p) => ({
+                          ...p,
+                          allowedModules: toggleModule(p.allowedModules, m.key),
+                        }))
+                      }
+                    />
+                    <Label htmlFor={`edit-mod-${m.key}`} className="cursor-pointer font-normal text-sm">
+                      {m.label}
+                      {m.soon && (
+                        <Badge variant="outline" className="ml-1 text-xs px-1 py-0 h-4">Em breve</Badge>
+                      )}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <Button variant="outline" onClick={() => setEditUserOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleEditUser} disabled={savingUser}>
+                {savingUser && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Salvar Alterações
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+

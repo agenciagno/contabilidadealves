@@ -4,12 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Plus, Trash2, Users, Shield } from 'lucide-react';
+import { Loader2, Plus, Trash2, Users, Shield, Pencil } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import UserFormDialog from './UserFormDialog';
+import UserFormDialog, { EditUserData } from './UserFormDialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,6 +50,7 @@ interface UsersTabProps {
 export default function UsersTab({ companyId, currentUserId }: UsersTabProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
+  const [editUser, setEditUser] = useState<EditUserData | undefined>(undefined);
   const queryClient = useQueryClient();
 
   const { data: users = [], isLoading } = useQuery({
@@ -69,15 +70,9 @@ export default function UsersTab({ companyId, currentUserId }: UsersTabProps) {
 
   const deleteUser = useMutation({
     mutationFn: async (userId: string) => {
-      // Delete user role
       await supabase.from('user_roles').delete().eq('user_id', userId);
-      
-      // Delete profile
       const { error } = await supabase.from('profiles').delete().eq('user_id', userId);
       if (error) throw error;
-
-      // Note: The auth user will remain but won't have access to any data
-      // In a production environment, you'd use an edge function to delete the auth user
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['company-users'] });
@@ -95,6 +90,21 @@ export default function UsersTab({ companyId, currentUserId }: UsersTabProps) {
       return;
     }
     setDeleteUserId(userId);
+  };
+
+  const handleEdit = (user: Profile) => {
+    setEditUser({
+      userId: user.user_id,
+      fullName: user.full_name || '',
+      username: user.username || user.email.split('@')[0],
+      allowedModules: user.allowed_modules ?? [],
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleDialogClose = (open: boolean) => {
+    setIsDialogOpen(open);
+    if (!open) setEditUser(undefined);
   };
 
   const confirmDelete = () => {
@@ -116,7 +126,7 @@ export default function UsersTab({ companyId, currentUserId }: UsersTabProps) {
               <CardDescription>Gerencie os usuários que podem acessar o sistema</CardDescription>
             </div>
           </div>
-          <Button onClick={() => setIsDialogOpen(true)}>
+          <Button onClick={() => { setEditUser(undefined); setIsDialogOpen(true); }}>
             <Plus className="w-4 h-4 mr-2" />
             Novo Usuário
           </Button>
@@ -144,7 +154,7 @@ export default function UsersTab({ companyId, currentUserId }: UsersTabProps) {
                 <TableHead>Nome de Usuário</TableHead>
                 <TableHead>Módulos de Acesso</TableHead>
                 <TableHead>Data de Criação</TableHead>
-                <TableHead className="w-[80px]">Ações</TableHead>
+                <TableHead className="w-[100px]">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -182,15 +192,27 @@ export default function UsersTab({ companyId, currentUserId }: UsersTabProps) {
                     {format(new Date(user.created_at), "dd/MM/yyyy", { locale: ptBR })}
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(user.user_id)}
-                      disabled={user.user_id === currentUserId || deleteUser.isPending}
-                      className="text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEdit(user)}
+                        className="text-muted-foreground hover:text-primary"
+                        title="Editar usuário"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(user.user_id)}
+                        disabled={user.user_id === currentUserId || deleteUser.isPending}
+                        className="text-muted-foreground hover:text-destructive"
+                        title="Excluir usuário"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -201,9 +223,10 @@ export default function UsersTab({ companyId, currentUserId }: UsersTabProps) {
 
       <UserFormDialog
         open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
+        onOpenChange={handleDialogClose}
         companyId={companyId}
         onSuccess={() => queryClient.invalidateQueries({ queryKey: ['company-users'] })}
+        editUser={editUser}
       />
 
       <AlertDialog open={!!deleteUserId} onOpenChange={() => setDeleteUserId(null)}>

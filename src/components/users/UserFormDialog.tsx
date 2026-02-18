@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,7 +22,7 @@ const ALL_MODULES = [
   { key: 'configuracoes', label: 'Configurações', soon: false },
 ];
 
-const userSchema = z.object({
+const createSchema = z.object({
   fullName: z.string().min(2, 'Nome completo é obrigatório'),
   username: z.string()
     .min(3, 'Mínimo 3 caracteres')
@@ -39,14 +39,41 @@ const userSchema = z.object({
   path: ['confirmPassword']
 });
 
+const editSchema = z.object({
+  fullName: z.string().min(2, 'Nome completo é obrigatório'),
+  username: z.string()
+    .min(3, 'Mínimo 3 caracteres')
+    .max(50, 'Máximo 50 caracteres')
+    .regex(/^[a-zA-Z0-9_]+$/, 'Apenas letras, números e underline'),
+  password: z.string().optional(),
+  confirmPassword: z.string().optional(),
+}).refine(data => {
+  if (data.password && data.password.length > 0) {
+    return data.password === data.confirmPassword;
+  }
+  return true;
+}, {
+  message: 'As senhas não coincidem',
+  path: ['confirmPassword']
+});
+
+export interface EditUserData {
+  userId: string;
+  fullName: string;
+  username: string;
+  allowedModules: string[];
+}
+
 interface UserFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   companyId: string;
   onSuccess: () => void;
+  editUser?: EditUserData;
 }
 
-export default function UserFormDialog({ open, onOpenChange, companyId, onSuccess }: UserFormDialogProps) {
+export default function UserFormDialog({ open, onOpenChange, companyId, onSuccess, editUser }: UserFormDialogProps) {
+  const isEditMode = !!editUser;
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -62,6 +89,22 @@ export default function UserFormDialog({ open, onOpenChange, companyId, onSucces
     ALL_MODULES.map(m => m.key)
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Pre-fill form when in edit mode
+  useEffect(() => {
+    if (open && editUser) {
+      setFormData({
+        fullName: editUser.fullName,
+        username: editUser.username,
+        password: '',
+        confirmPassword: '',
+      });
+      setAllowedModules(editUser.allowedModules);
+      setErrors({});
+    } else if (open && !editUser) {
+      resetForm();
+    }
+  }, [open, editUser]);
 
   const toggleModule = (key: string) => {
     setAllowedModules(prev =>
@@ -86,7 +129,8 @@ export default function UserFormDialog({ open, onOpenChange, companyId, onSucces
     e.preventDefault();
     setErrors({});
 
-    const result = userSchema.safeParse(formData);
+    const schema = isEditMode ? editSchema : createSchema;
+    const result = schema.safeParse(formData);
     if (!result.success) {
       const fieldErrors: Record<string, string> = {};
       result.error.errors.forEach(err => {
@@ -96,7 +140,7 @@ export default function UserFormDialog({ open, onOpenChange, companyId, onSucces
       return;
     }
 
-    if (!isPasswordStrong(formData.password)) {
+    if (formData.password && !isPasswordStrong(formData.password)) {
       setErrors({ password: 'A senha não atende aos requisitos mínimos de segurança' });
       return;
     }
@@ -108,61 +152,83 @@ export default function UserFormDialog({ open, onOpenChange, companyId, onSucces
 
     setIsLoading(true);
     try {
-      // Check if username is already taken
-      const { data: existingUser } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('username', formData.username.toLowerCase())
-        .maybeSingle();
-
-      if (existingUser) {
-        setErrors({ username: 'Este nome de usuário já está em uso' });
-        setIsLoading(false);
-        return;
-      }
-
-      // Use internal email format from username
-      const internalEmail = `${formData.username.toLowerCase()}@internal.local`;
-
-      // Call edge function to create user without replacing current session
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
 
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user-v2`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            email: internalEmail,
-            password: formData.password,
-            fullName: formData.fullName,
-            companyId,
-            username: formData.username.toLowerCase(),
-            allowedModules,
-          }),
+      if (isEditMode) {
+        // EDIT MODE
+        const payload: Record<string, unknown> = {
+          userId: editUser!.userId,
+          fullName: formData.fullName,
+          username: formData.username.toLowerCase(),
+          allowedModules,
+        };
+        if (formData.password) payload.password = formData.password;
+
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user-v2`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify(payload),
+          }
+        );
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao atualizar usuário');
+
+        toast.success('Usuário atualizado com sucesso!');
+        onSuccess();
+        handleClose();
+      } else {
+        // CREATE MODE
+        // Check if username is already taken
+        const { data: existingUser } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('username', formData.username.toLowerCase())
+          .maybeSingle();
+
+        if (existingUser) {
+          setErrors({ username: 'Este nome de usuário já está em uso' });
+          setIsLoading(false);
+          return;
         }
-      );
 
-      const result2 = await res.json();
-      if (!res.ok) throw new Error(result2.error || 'Erro ao criar usuário');
+        const internalEmail = `${formData.username.toLowerCase()}@internal.local`;
 
-      addNotification({
-        title: 'Novo Usuário Criado',
-        description: `Usuário "${formData.fullName}" criado com sucesso.`,
-        type: 'success',
-        category: 'sucesso'
-      });
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user-v2`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              email: internalEmail,
+              password: formData.password,
+              fullName: formData.fullName,
+              companyId,
+              username: formData.username.toLowerCase(),
+              allowedModules,
+            }),
+          }
+        );
 
-      toast.success('Usuário criado com sucesso!');
-      onSuccess();
-      handleClose();
+        const result2 = await res.json();
+        if (!res.ok) throw new Error(result2.error || 'Erro ao criar usuário');
+
+        addNotification({
+          title: 'Novo Usuário Criado',
+          description: `Usuário "${formData.fullName}" criado com sucesso.`,
+          type: 'success',
+          category: 'sucesso'
+        });
+
+        toast.success('Usuário criado com sucesso!');
+        onSuccess();
+        handleClose();
+      }
     } catch (error: any) {
-      console.error('Erro ao criar usuário:', error);
-      toast.error(error.message || 'Erro ao criar usuário');
+      console.error('Erro:', error);
+      toast.error(error.message || (isEditMode ? 'Erro ao atualizar usuário' : 'Erro ao criar usuário'));
     } finally {
       setIsLoading(false);
     }
@@ -172,7 +238,7 @@ export default function UserFormDialog({ open, onOpenChange, companyId, onSucces
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Novo Usuário Interno</DialogTitle>
+          <DialogTitle>{isEditMode ? 'Editar Usuário' : 'Novo Usuário Interno'}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -212,13 +278,15 @@ export default function UserFormDialog({ open, onOpenChange, companyId, onSucces
 
           {/* Password */}
           <div className="space-y-2">
-            <Label htmlFor="password">Senha *</Label>
+            <Label htmlFor="password">
+              {isEditMode ? 'Nova Senha (deixe em branco para manter)' : 'Senha *'}
+            </Label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 id="password"
                 type={showPassword ? 'text' : 'password'}
-                placeholder="••••••••"
+                placeholder={isEditMode ? 'Deixe em branco para manter' : '••••••••'}
                 className="pl-10 pr-10"
                 value={formData.password}
                 onChange={e => setFormData(prev => ({ ...prev, password: e.target.value }))}
@@ -232,32 +300,34 @@ export default function UserFormDialog({ open, onOpenChange, companyId, onSucces
               </button>
             </div>
             {errors.password && <p className="text-destructive text-sm">{errors.password}</p>}
-            <PasswordStrength password={formData.password} />
+            {formData.password && <PasswordStrength password={formData.password} />}
           </div>
 
           {/* Confirm Password */}
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirmar Senha *</Label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                id="confirmPassword"
-                type={showConfirmPassword ? 'text' : 'password'}
-                placeholder="••••••••"
-                className="pl-10 pr-10"
-                value={formData.confirmPassword}
-                onChange={e => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
+          {(!isEditMode || formData.password) && (
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirmar Senha {!isEditMode && '*'}</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  className="pl-10 pr-10"
+                  value={formData.confirmPassword}
+                  onChange={e => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {errors.confirmPassword && <p className="text-destructive text-sm">{errors.confirmPassword}</p>}
             </div>
-            {errors.confirmPassword && <p className="text-destructive text-sm">{errors.confirmPassword}</p>}
-          </div>
+          )}
 
           {/* Módulos de Acesso */}
           <div className="space-y-3">
@@ -295,7 +365,7 @@ export default function UserFormDialog({ open, onOpenChange, companyId, onSucces
             </Button>
             <Button type="submit" disabled={isLoading}>
               {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Criar Usuário
+              {isEditMode ? 'Salvar Alterações' : 'Criar Usuário'}
             </Button>
           </div>
         </form>
