@@ -23,6 +23,7 @@ import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCompany } from '@/hooks/useCompany';
 import { usePinnedShortcuts, PinnedShortcut } from '@/hooks/usePinnedShortcuts';
+import { useSuperAdmin } from '@/hooks/useSuperAdmin';
 import {
   Sidebar,
   SidebarContent,
@@ -70,6 +71,7 @@ interface MenuModule {
   title: string;
   icon: React.ComponentType<{ className?: string }>;
   defaultOpen?: boolean;
+  moduleKey?: string;
   items: MenuItem[];
 }
 
@@ -77,6 +79,7 @@ const menuModules: MenuModule[] = [
   {
     title: 'Financeiro',
     icon: Wallet,
+    moduleKey: 'financeiro',
     defaultOpen: true,
     items: [
       { title: 'Dashboard', url: '/painel-financeiro', icon: LayoutDashboard, iconName: 'layout-dashboard' },
@@ -90,6 +93,7 @@ const menuModules: MenuModule[] = [
   {
     title: 'CRM / Clientes',
     icon: Users,
+    moduleKey: 'crm',
     items: [
       { title: 'Cliente/Fornecedor', url: '/contatos', icon: UserCircle, iconName: 'user-circle' },
       { title: 'Disparos', url: '/disparos', icon: Send, iconName: 'send' },
@@ -98,6 +102,7 @@ const menuModules: MenuModule[] = [
   {
     title: 'Relatórios',
     icon: BarChart3,
+    moduleKey: 'relatorios',
     items: [
       { title: 'Relatórios', url: '/relatorios', icon: FileBarChart, iconName: 'file-bar-chart' },
     ],
@@ -108,9 +113,19 @@ export function AppSidebar() {
   const { signOut } = useAuth();
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
-  const { companyName, companyCnpj } = useCompany();
+  const { companyName, companyCnpj, company } = useCompany();
   const { pinnedShortcuts, isPinned, togglePin } = usePinnedShortcuts();
-  
+  const { isSuperAdmin, allowedModules } = useSuperAdmin();
+
+  // Dynamic module filtering based on company plan + user permissions
+  const planModules: string[] = (company as any)?.plan_modules ?? ['financeiro', 'crm', 'relatorios'];
+  const visibleModules = isSuperAdmin
+    ? menuModules
+    : menuModules.filter((m) => {
+        if (!m.moduleKey) return true;
+        return planModules.includes(m.moduleKey) && allowedModules.includes(m.moduleKey);
+      });
+
   const [openModules, setOpenModules] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
     menuModules.forEach(mod => {
@@ -223,7 +238,7 @@ export function AppSidebar() {
         <Separator className="bg-sidebar-border my-2" />
 
         {/* Módulos com Acordeão */}
-        {menuModules.map((module) => (
+        {visibleModules.map((module) => (
           <SidebarGroup key={module.title}>
             <Collapsible
               open={openModules[module.title]}
