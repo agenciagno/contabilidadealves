@@ -1,74 +1,100 @@
 
-## Melhorias na Página de Controle de Boletos
+## Busca Automática de CEP no Formulário de Clientes
 
-### Resumo das 4 Alterações
+### Visão Geral
 
-Todas as mudanças são exclusivamente na página `src/pages/Boletos.tsx`. Nenhuma alteração de banco de dados ou outros arquivos é necessária.
-
----
-
-### Alteração 1 — Remover botão "Mês atual"
-
-Remover o `<Button>` com texto "Mês atual" (linhas 141–148) da seção de filtros. O usuário ainda consegue navegar pelo seletor de mês com as setas, sem precisar do atalho.
+A implementação exige dois tipos de mudanças: expansão do banco de dados para armazenar os novos campos de endereço, e atualização do formulário com a lógica de busca de CEP integrada à busca de CNPJ já existente.
 
 ---
 
-### Alteração 2 — Filtro de status como botões (Toggle Group)
+### Parte 1 — Migração do Banco de Dados
 
-Substituir o `<Select>` de status por um grupo de 3 botões visuais lado a lado:
+O campo `address` atual mistura logradouro + número + bairro em um único texto. Será preciso separar esses dados em colunas distintas para suportar a busca por CEP corretamente.
 
-```
-[ Todos (12) ]  [ Pendentes (8) ]  [ Gerados (4) ]
-```
+**Novos campos na tabela `contacts`:**
 
-- **Estilo inativo**: `variant="outline"` com texto neutro
-- **Estilo ativo — Todos**: borda + fundo primário  
-- **Estilo ativo — Pendentes**: borda âmbar + fundo âmbar claro + texto âmbar  
-- **Estilo ativo — Gerados**: borda verde + fundo verde claro + texto verde  
+| Coluna | Tipo | Descrição |
+|---|---|---|
+| `cep` | `VARCHAR(9)` | CEP formatado (ex: 01310-100) |
+| `address_number` | `VARCHAR(20)` | Número do endereço |
+| `neighborhood` | `VARCHAR` | Bairro |
 
-Ao clicar em qualquer botão, o `statusFilter` muda e a lista é filtrada instantaneamente.
-
----
-
-### Alteração 3 — Card em linha única, sem Badge de tipo
-
-Reestruturar o layout interno do card de múltiplas linhas para **uma linha horizontal compacta**:
-
-```
-[👤] Nome do Cliente  |  CNPJ: 00.000... [📋]  Email: email@... [📋]  Tel: (11)... [📋]  |  R$ 1.500,00  Venc. dia 10  |  [Badge Status]
-```
-
-Mudanças específicas:
-- **Remover** o `<Badge>` de tipo (Cliente/Fornecedor/Cliente/Forn.)
-- **Col 2 (contato)**: mudar de `space-y-0.5` (vertical) para `flex items-center gap-3 flex-wrap` (horizontal), colocando CNPJ, Email e Tel na mesma linha com separadores visuais
-- **Ajustar altura do card**: `p-3` para ficar mais compacto
-- O ícone de avatar (`<User>`) permanece para identificação visual
+O campo `address` existente passa a guardar apenas o logradouro (nome da rua), sem quebrar dados de clientes já cadastrados.
 
 ---
 
-### Alteração 4 — Badge "Pendente" mais legível
+### Parte 2 — Atualização do Hook `useContacts.ts`
 
-O problema atual: o badge Pendente usa `text-warning-foreground` sobre `bg-background`, que em modo claro resulta em texto quase invisível.
-
-Novo estilo para o estado PENDING:
-
-```tsx
-// Antes (difícil de ler)
-'bg-background border border-warning/60 text-warning-foreground'
-
-// Depois (legível e contrastado)
-'bg-amber-100 border border-amber-400 text-amber-800 hover:bg-amber-200'
-// Em dark mode: 'dark:bg-amber-900/30 dark:border-amber-500 dark:text-amber-300'
-```
-
-O badge GENERATED permanece como está (verde, já legível).
+- Adicionar `cep`, `address_number` e `neighborhood` à interface `Contact` e ao tipo `ContactInsert`.
+- Adicionar os rótulos dos novos campos (`cep`, `address_number`, `neighborhood`) ao mapa de `fieldLabels` dentro de `updateContact`, para que o log de auditoria registre corretamente as alterações nesses campos.
 
 ---
 
-### Arquivo modificado
+### Parte 3 — Reformulação do Layout de Endereço
 
-| Arquivo | Tipo de mudança |
+O layout atual (Endereço | Cidade | Estado em 3 colunas) será expandido para dois grupos de linha:
+
+**Linha 4a — CEP + Logradouro:**
+```text
+[ CEP (1 col) ]  [ Logradouro / Rua (2 cols) ]
+```
+
+**Linha 4b — Número + Bairro + Cidade + Estado:**
+```text
+[ Nº (0.75) ]  [ Bairro (1.25) ]  [ Cidade (1) ]  [ Estado (1) ]
+```
+
+A grade externa `grid-cols-3` será mantida com as linhas internas usando `grid-cols-4` para acomodar todos os campos sem comprometer a legibilidade.
+
+---
+
+### Parte 4 — Lógica de Busca de CEP (`handleFetchCep`)
+
+**Novos estados adicionados ao componente:**
+- `cep` — valor digitado (com máscara `99999-999`)
+- `addressNumber` — número do endereço
+- `neighborhood` — bairro
+- `isLoadingCep` — controla o spinner no campo CEP
+
+**Fluxo da função `handleFetchCep` (disparada no `onBlur` do campo CEP):**
+
+1. Remove caracteres não numéricos do CEP.
+2. Se tiver menos de 8 dígitos, retorna silenciosamente (sem toast).
+3. Ativa `isLoadingCep = true` (exibe spinner).
+4. Faz `fetch` para `https://brasilapi.com.br/api/cep/v2/{cep}`.
+5. Se a resposta for bem-sucedida:
+   - Sobrescreve `address` com `data.street`
+   - Sobrescreve `neighborhood` com `data.neighborhood`
+   - Sobrescreve `city` com `data.city`
+   - Sobrescreve `state` com `data.state`
+   - **Não limpa** `addressNumber` (preserva o que o usuário já digitou)
+   - Move o foco para o campo Número via `document.getElementById('address-number')?.focus()`
+6. Se a resposta falhar:
+   - Exibe Toast com título "CEP não encontrado" e instrução para preenchimento manual
+   - **Não limpa nenhum campo** de endereço existente
+7. Desativa `isLoadingCep = false` no bloco `finally`.
+
+**Regra de Conflito CNPJ vs. CEP:**
+- A busca CNPJ preenche os campos de endereço com os dados fiscais.
+- A busca de CEP (por `onBlur`) sempre sobrescreve o endereço, pois representa a escolha explícita do usuário — permitindo cadastrar um endereço diferente do endereço fiscal do CNPJ.
+- A busca CNPJ será atualizada para preencher `address`, `addressNumber` e `neighborhood` separadamente (atualmente ela os concatena em um único campo).
+
+---
+
+### Parte 5 — UI do Campo CEP
+
+- Máscara automática aplicada no `onChange`: `99999-999`.
+- Indicador visual de loading com `Loader2` (spinner) posicionado absolutamente dentro do input à direita, visível apenas quando `isLoadingCep === true`.
+- O campo CEP fica habilitado independentemente de `addressFieldsLocked` (que só bloqueia durante a busca CNPJ ativa).
+
+---
+
+### Arquivos Modificados
+
+| Arquivo | Tipo de Mudança |
 |---|---|
-| `src/pages/Boletos.tsx` | Remoção + Refatoração de layout + Correção de estilo |
+| Nova migração SQL | Adicionar colunas `cep`, `address_number`, `neighborhood` à tabela `contacts` |
+| `src/hooks/useContacts.ts` | Adicionar novos campos à interface `Contact` e `ContactInsert` |
+| `src/components/contacts/ContactFormDialog.tsx` | Novos estados, função `handleFetchCep`, novo layout de endereço, máscara CEP e spinner |
 
-**Nenhuma migração de banco de dados necessária.**
+**Nenhuma alteração na página `Boletos.tsx` ou em outros arquivos é necessária.**
