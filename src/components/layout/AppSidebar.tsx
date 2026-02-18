@@ -80,7 +80,7 @@ const menuModules: MenuModule[] = [
     defaultOpen: true,
     items: [
       { title: 'Painel Financeiro', url: '/painel-financeiro', icon: LayoutDashboard, iconName: 'layout-dashboard' },
-      { title: 'Movimentações', url: '/movimentacoes', icon: ArrowLeftRight, iconName: 'arrow-left-right' },
+      { title: 'Lançamenbtos', url: '/movimentacoes', icon: ArrowLeftRight, iconName: 'arrow-left-right' },
       { title: 'Contas Recorrentes', url: '/recorrentes', icon: CalendarClock, iconName: 'calendar-clock' },
       { title: 'Boletos', url: '/boletos', icon: FileCheck, iconName: 'file-check' },
       { title: 'Bancos', url: '/bancos', icon: Building2, iconName: 'building-2' },
