@@ -21,6 +21,10 @@ export interface Contact {
   tax_regime: TaxRegime | null;
   is_active: boolean;
   representative_legal: string | null;
+  boleto_active: boolean;
+  boleto_value: number | null;
+  boleto_due_day: number | null;
+  boleto_start_date: string | null;
   created_at: string;
   updated_at: string;
 }

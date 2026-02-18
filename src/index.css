@@ -134,3 +134,26 @@
     background: hsl(var(--muted-foreground) / 0.5);
   }
 }
+
+@media print {
+  [data-sidebar],
+  nav,
+  header,
+  .print-hidden {
+    display: none !important;
+  }
+
+  * {
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+  }
+
+  .card {
+    border: 1px solid #ddd !important;
+  }
+
+  .boleto-card {
+    page-break-inside: avoid;
+  }
+}

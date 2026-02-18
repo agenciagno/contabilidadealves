@@ -22,6 +22,7 @@ import Reports from "@/pages/Reports";
 import SettingsPage from "@/pages/SettingsPage";
 import CrmDispatches from "@/pages/CrmDispatches";
 import ClientReport from "@/pages/ClientReport";
+import Boletos from "@/pages/Boletos";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -49,6 +50,7 @@ const App = () => (
               <Route path="/configuracoes" element={<AppLayout><SettingsPage /></AppLayout>} />
               <Route path="/disparos" element={<AppLayout><CrmDispatches /></AppLayout>} />
               <Route path="/relatorio-clientes" element={<AppLayout><ClientReport /></AppLayout>} />
+              <Route path="/boletos" element={<AppLayout><Boletos /></AppLayout>} />
               <Route path="*" element={<NotFound />} />
               </Routes>
             </NotificationProvider>
