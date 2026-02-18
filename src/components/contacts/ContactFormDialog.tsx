@@ -144,7 +144,7 @@ export function ContactFormDialog({
       is_active: true,
       representative_legal: null,
       boleto_active: boletoActive,
-      boleto_value: boletoActive && boletoValue ? parseFloat(boletoValue) : null,
+      boleto_value: boletoActive && boletoValue ? parseFloat(boletoValue.replace(/\./g, '').replace(',', '.')) : null,
       boleto_due_day: boletoActive && boletoDueDay ? parseInt(boletoDueDay) : null,
       boleto_start_date: boletoActive && boletoStartDate ? boletoStartDate : null,
     });
@@ -299,15 +299,23 @@ export function ContactFormDialog({
               <div className="grid grid-cols-3 gap-4 pt-1">
                 <div>
                   <Label htmlFor="boleto-value">Valor (R$)</Label>
-                  <Input
-                    id="boleto-value"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={boletoValue}
-                    onChange={(e) => setBoletoValue(e.target.value)}
-                    placeholder="0,00"
-                  />
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
+                    <Input
+                      id="boleto-value"
+                      type="text"
+                      inputMode="numeric"
+                      value={boletoValue}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/\D/g, '');
+                        if (raw === '') { setBoletoValue(''); return; }
+                        const num = parseInt(raw, 10) / 100;
+                        setBoletoValue(num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+                      }}
+                      placeholder="0,00"
+                      className="pl-9"
+                    />
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="boleto-due-day">Dia de Vencimento</Label>
