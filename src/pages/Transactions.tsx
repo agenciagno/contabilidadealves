@@ -677,11 +677,11 @@ export default function Transactions() {
             <div className="divide-y divide-border/40">
               {filteredTransactions.map((transaction) => (
                 <div
-                  key={transaction.id}
-                  className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/30 transition-colors group"
+                   key={transaction.id}
+                   className="flex items-center gap-4 px-4 py-4 hover:bg-muted/30 transition-colors group"
                 >
                   {/* Type Icon */}
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                  <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${
                     transaction.type === 'receita' ? 'bg-emerald-500/20' : 'bg-red-500/20'
                   }`}>
                     {transaction.type === 'receita' ? (
@@ -693,22 +693,22 @@ export default function Transactions() {
 
                   {/* Central Info */}
                   <div className="flex-1 min-w-0">
-                    {/* Line 1: Date • Contact/Description */}
-                    <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-                      <span className="text-muted-foreground shrink-0 tabular-nums">
+                    {/* Line 1: Date • Contact/Description — maior destaque */}
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-mono text-sm font-semibold text-muted-foreground shrink-0 tabular-nums bg-muted/60 px-1.5 py-0.5 rounded">
                         {formatDateShort(transaction.date)}
                       </span>
-                      <span className="text-muted-foreground/40">•</span>
-                      <span className="truncate">
+                      <span className="text-muted-foreground/50 text-sm">•</span>
+                      <span className="truncate text-base font-semibold text-foreground">
                         {transaction.contact?.name ?? transaction.description}
                       </span>
                     </div>
-                    {/* Line 2: Event Badge • Bank • Type */}
-                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                    {/* Line 2: Event Badge • Bank • Type — hierarquia secundária */}
+                    <div className="flex items-center gap-2 flex-wrap">
                       {transaction.category && (
                         <Badge
                           variant="secondary"
-                          className="text-[10px] px-1.5 py-0 h-4 rounded-sm font-normal"
+                          className="text-xs px-2 py-0.5 h-5 rounded font-medium"
                           style={{ backgroundColor: `${transaction.category.color}22`, color: transaction.category.color, borderColor: `${transaction.category.color}44` }}
                         >
                           {transaction.category.name}
@@ -716,28 +716,23 @@ export default function Transactions() {
                       )}
                       {transaction.bank && (
                         <>
-                          {transaction.category && <span className="text-zinc-400/40 text-xs">•</span>}
-                          <span className="text-[11px] text-zinc-400">{transaction.bank.name}</span>
+                          {transaction.category && <span className="text-muted-foreground/40 text-sm">•</span>}
+                          <span className="text-sm text-muted-foreground font-medium">{transaction.bank.name}</span>
                         </>
                       )}
-                      <span className="text-zinc-400/40 text-xs">•</span>
-                      <span className="text-[11px] text-zinc-400">
+                      <span className="text-muted-foreground/40 text-sm">•</span>
+                      <span className={`text-sm font-medium ${transaction.type === 'receita' ? 'text-emerald-500/80' : 'text-red-500/80'}`}>
                         {transaction.type === 'receita' ? 'Receita' : 'Despesa'}
                       </span>
                     </div>
                   </div>
 
-                  {/* Right: Value + Status */}
-                  <div className="flex flex-col items-end gap-1 shrink-0">
-                    <span className={`font-extrabold text-xl tabular-nums tracking-tight ${
-                      transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'
-                    }`}>
-                      {transaction.type === 'receita' ? '+' : '-'}{formatCurrency(Number(transaction.amount))}
-                    </span>
+                  {/* Right: Status Pill + Value — mesma linha */}
+                  <div className="flex items-center gap-3 shrink-0">
                     {/* Interactive Status Pill */}
                     <button
                       onClick={() => togglePaid.mutate({ id: transaction.id, is_paid: !transaction.is_paid })}
-                      className={`text-xs font-semibold px-2.5 py-1 rounded-full border transition-all cursor-pointer ${
+                      className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-all cursor-pointer whitespace-nowrap ${
                         transaction.is_paid
                           ? 'bg-emerald-500 border-emerald-500 text-white'
                           : 'border-amber-500 text-amber-500 bg-transparent hover:bg-amber-500/10'
@@ -748,15 +743,21 @@ export default function Transactions() {
                         : 'Pendente'
                       }
                     </button>
+                    {/* Value */}
+                    <span className={`font-extrabold text-xl tabular-nums tracking-tight ${
+                      transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'
+                    }`}>
+                      {transaction.type === 'receita' ? '+' : '-'}{formatCurrency(Number(transaction.amount))}
+                    </span>
                   </div>
 
-                  {/* Edit/Delete Actions */}
-                  <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(transaction)}>
-                      <Pencil className="w-3.5 h-3.5" />
+                  {/* Edit/Delete Actions — always visible */}
+                  <div className="flex gap-1 shrink-0">
+                    <Button variant="ghost" size="icon" className="h-9 w-9 hover:bg-muted" onClick={() => handleEdit(transaction)}>
+                      <Pencil className="w-4 h-4 text-muted-foreground" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteId(transaction.id)}>
-                      <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                    <Button variant="ghost" size="icon" className="h-9 w-9 hover:bg-destructive/10" onClick={() => setDeleteId(transaction.id)}>
+                      <Trash2 className="w-4 h-4 text-destructive" />
                     </Button>
                   </div>
                 </div>
