@@ -42,7 +42,7 @@ export function useBoletoControls(referenceMonth: string) {
   const generatingRef = useRef(false);
 
   // 1. Busca boleto_controls do mês
-  const { data: boletoControls = [], isLoading: isLoadingControls } = useQuery({
+  const { data: boletoControls = [], isLoading: isLoadingControls, refetch: refetchControls } = useQuery({
     queryKey: ['boleto-controls', referenceMonth],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -57,7 +57,7 @@ export function useBoletoControls(referenceMonth: string) {
   });
 
   // 2. Busca contacts com boleto_active = true
-  const { data: activeContacts = [], isLoading: isLoadingContacts } = useQuery({
+  const { data: activeContacts = [], isLoading: isLoadingContacts, refetch: refetchContacts } = useQuery({
     queryKey: ['contacts-boleto-active'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -150,10 +150,16 @@ export function useBoletoControls(referenceMonth: string) {
     };
   });
 
+  const refreshAll = async () => {
+    await Promise.all([refetchControls(), refetchContacts()]);
+  };
+
   return {
     boletoList,
     isLoading,
     isGenerating: generateMonth.isPending,
     toggleStatus,
+    refresh: refreshAll,
+    isRefreshing: isLoadingControls || isLoadingContacts,
   };
 }
