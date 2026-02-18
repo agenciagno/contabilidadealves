@@ -14,13 +14,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { useBoletoControls } from '@/hooks/useBoletoControls';
@@ -125,27 +118,46 @@ export default function Boletos() {
           </PopoverContent>
         </Popover>
 
-        {/* Filtro de Status */}
-        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">Todos ({boletoList.length})</SelectItem>
-            <SelectItem value="PENDING">Pendentes ({pendingCount})</SelectItem>
-            <SelectItem value="GENERATED">Gerados ({generatedCount})</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {/* Botão Hoje */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setCurrentMonth(today)}
-          className="text-muted-foreground"
-        >
-          Mês atual
-        </Button>
+        {/* Filtro de Status como botões */}
+        <div className="flex items-center gap-1">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setStatusFilter('ALL')}
+            className={cn(
+              'transition-all',
+              statusFilter === 'ALL' && 'bg-primary text-primary-foreground border-primary hover:bg-primary/90 hover:text-primary-foreground'
+            )}
+          >
+            Todos ({boletoList.length})
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setStatusFilter('PENDING')}
+            className={cn(
+              'transition-all',
+              statusFilter === 'PENDING'
+                ? 'bg-amber-100 border-amber-400 text-amber-800 hover:bg-amber-200 dark:bg-amber-900/30 dark:border-amber-500 dark:text-amber-300'
+                : 'hover:border-amber-300 hover:text-amber-700'
+            )}
+          >
+            Pendentes ({pendingCount})
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setStatusFilter('GENERATED')}
+            className={cn(
+              'transition-all',
+              statusFilter === 'GENERATED'
+                ? 'bg-green-100 border-green-400 text-green-800 hover:bg-green-200 dark:bg-green-900/30 dark:border-green-500 dark:text-green-300'
+                : 'hover:border-green-300 hover:text-green-700'
+            )}
+          >
+            Gerados ({generatedCount})
+          </Button>
+        </div>
       </div>
 
       {/* Título de impressão (visível apenas ao imprimir) */}
@@ -185,45 +197,36 @@ export default function Boletos() {
                   boleto.status === 'GENERATED' && 'bg-success/5 border-success/30'
                 )}
               >
-                <CardContent className="p-4">
+                <CardContent className="p-3">
                   <div className="flex items-center gap-4">
-                    {/* Col 1: Cliente */}
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center print:hidden">
-                        <User className="w-4 h-4 text-muted-foreground" />
+                    {/* Col 1: Avatar + Nome */}
+                    <div className="flex items-center gap-2 min-w-[160px] shrink-0">
+                      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-muted flex items-center justify-center print:hidden">
+                        <User className="w-3.5 h-3.5 text-muted-foreground" />
                       </div>
-                      <div className="min-w-0">
-                        <p className="font-semibold text-sm truncate">{boleto.contact_name}</p>
-                        <Badge variant="outline" className="text-xs mt-0.5">
-                          {boleto.contact_type === 'cliente'
-                            ? 'Cliente'
-                            : boleto.contact_type === 'fornecedor'
-                            ? 'Fornecedor'
-                            : 'Cliente/Forn.'}
-                        </Badge>
-                      </div>
+                      <p className="font-semibold text-sm truncate">{boleto.contact_name}</p>
                     </div>
 
-                    {/* Col 2: Dados de contato */}
-                    <div className="flex-1 min-w-0 space-y-0.5">
+                    {/* Col 2: Dados de contato — horizontal */}
+                    <div className="flex items-center gap-3 flex-wrap flex-1 min-w-0">
                       {boleto.contact_document && (
                         <div className="flex items-center text-xs text-muted-foreground">
-                          <span className="font-medium text-foreground/70 w-10 shrink-0">CNPJ:</span>
-                          <span className="truncate">{boleto.contact_document}</span>
+                          <span className="font-medium text-foreground/70 mr-1">CNPJ:</span>
+                          <span>{boleto.contact_document}</span>
                           <CopyButton text={boleto.contact_document} fieldId={`${boleto.id}-doc`} />
                         </div>
                       )}
                       {boleto.contact_email && (
                         <div className="flex items-center text-xs text-muted-foreground">
-                          <span className="font-medium text-foreground/70 w-10 shrink-0">Email:</span>
-                          <span className="truncate">{boleto.contact_email}</span>
+                          <span className="font-medium text-foreground/70 mr-1">Email:</span>
+                          <span className="truncate max-w-[180px]">{boleto.contact_email}</span>
                           <CopyButton text={boleto.contact_email} fieldId={`${boleto.id}-email`} />
                         </div>
                       )}
                       {boleto.contact_phone && (
                         <div className="flex items-center text-xs text-muted-foreground">
-                          <span className="font-medium text-foreground/70 w-10 shrink-0">Tel:</span>
-                          <span className="truncate">{boleto.contact_phone}</span>
+                          <span className="font-medium text-foreground/70 mr-1">Tel:</span>
+                          <span>{boleto.contact_phone}</span>
                           <CopyButton text={boleto.contact_phone} fieldId={`${boleto.id}-tel`} />
                         </div>
                       )}
@@ -252,7 +255,7 @@ export default function Boletos() {
                         className={cn(
                           'cursor-pointer select-none transition-all text-xs font-medium px-3 py-1',
                           boleto.status === 'PENDING'
-                            ? 'bg-background border border-warning/60 text-warning-foreground hover:bg-warning/10'
+                            ? 'bg-amber-100 border border-amber-400 text-amber-800 hover:bg-amber-200 dark:bg-amber-900/30 dark:border-amber-500 dark:text-amber-300'
                             : 'bg-success text-success-foreground hover:bg-success/90 border-transparent'
                         )}
                         onClick={() => {
