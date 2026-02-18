@@ -10,7 +10,9 @@ import {
   Loader2,
   FileCheck,
   User,
+  Search,
 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -28,6 +30,7 @@ export default function Boletos() {
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState(today);
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'GENERATED'>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -35,8 +38,9 @@ export default function Boletos() {
   const { boletoList, isLoading, isGenerating, toggleStatus } = useBoletoControls(referenceMonth);
 
   const filteredList = boletoList.filter(b => {
-    if (statusFilter === 'ALL') return true;
-    return b.status === statusFilter;
+    const matchesStatus = statusFilter === 'ALL' || b.status === statusFilter;
+    const matchesSearch = !searchQuery || b.contact_name.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesStatus && matchesSearch;
   });
 
   const pendingCount = boletoList.filter(b => b.status === 'PENDING').length;
@@ -85,6 +89,16 @@ export default function Boletos() {
 
       {/* Filtros */}
       <div className="flex items-center gap-3 px-6 pb-4 flex-wrap print-hidden">
+        {/* Campo de pesquisa */}
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Pesquisar por nome..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-8 h-9 w-[220px] text-sm"
+          />
+        </div>
         {/* Seletor de Mês */}
         <Popover>
           <PopoverTrigger asChild>
