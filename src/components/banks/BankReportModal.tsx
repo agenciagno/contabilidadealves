@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { FileText, Table2, Download, Image, TrendingUp, TrendingDown, Wallet } from 'lucide-react';
 import { Bank } from '@/hooks/useBanks';
@@ -41,16 +40,15 @@ export function BankReportModal({ open, onOpenChange, banks }: BankReportModalPr
 
   const today = new Date();
   const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-  const lastOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+  const todayStr = today.toISOString().split('T')[0];
 
   const [startDate, setStartDate] = useState(firstOfMonth);
-  const [endDate, setEndDate] = useState(lastOfMonth);
+  const [endDate, setEndDate] = useState(todayStr);
   const [categoryId, setCategoryId] = useState('all');
   const [selectedBankIds, setSelectedBankIds] = useState<string[]>([]);
 
   const banksList = banks.map(b => ({ id: b.id, initial_balance: b.initial_balance, is_active: b.is_active }));
 
-  // For multi-bank, we run the query with 'all' and filter client-side OR use single bank
   const effectiveBankId = selectedBankIds.length === 1 ? selectedBankIds[0] : 'all';
 
   const { rows, openingBalance, totalIncome, totalExpense, closingBalance, isLoading } = useBankTransactions(
@@ -64,8 +62,7 @@ export function BankReportModal({ open, onOpenChange, banks }: BankReportModalPr
     banksList
   );
 
-  // Filter rows by selected banks (when multiple selected)
-  const filteredRows = selectedBankIds.length > 0 && selectedBankIds.length > 1
+  const filteredRows = selectedBankIds.length > 1
     ? rows.filter(r => r.bank_id && selectedBankIds.includes(r.bank_id))
     : rows;
 
@@ -82,7 +79,6 @@ export function BankReportModal({ open, onOpenChange, banks }: BankReportModalPr
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const emittedAt = `Emitido em ${pad2(today.getDate())}/${pad2(today.getMonth() + 1)}/${today.getFullYear()} às ${pad2(today.getHours())}:${pad2(today.getMinutes())}`;
 
-    // Header
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.text(company?.name || 'Empresa', 14, 18);
@@ -101,7 +97,6 @@ export function BankReportModal({ open, onOpenChange, banks }: BankReportModalPr
     doc.setFont('helvetica', 'normal');
     doc.text(`Período: ${periodLabel}`, 14, 40);
 
-    // Summary
     doc.setFontSize(9);
     const summaryY = 48;
     doc.text(`Saldo Inicial: ${formatCurrency(openingBalance)}`, 14, summaryY);
@@ -109,7 +104,6 @@ export function BankReportModal({ open, onOpenChange, banks }: BankReportModalPr
     doc.text(`Saídas: ${formatCurrency(totalExpense)}`, 140, summaryY);
     doc.text(`Saldo Final: ${formatCurrency(closingBalance)}`, 14, summaryY + 6);
 
-    // Table
     autoTable(doc, {
       startY: summaryY + 14,
       head: [['Data', 'Banco', 'Cliente/Fornecedor', 'Evento', 'Entrada', 'Saída', 'Saldo']],
@@ -145,11 +139,10 @@ export function BankReportModal({ open, onOpenChange, banks }: BankReportModalPr
     doc.save(`extrato-bancario-${startDate}-${endDate}.pdf`);
   };
 
-  // ─── CSV/Excel Export ─────────────────────────────────────────────
-  const exportCSV = () => {
-    const BOM = '\uFEFF';
+  // ─── XLS Export ───────────────────────────────────────────────────
+  const exportXLS = () => {
     const headers = ['Data', 'Banco', 'Histórico', 'Cliente/Fornecedor', 'Evento Contábil', 'Valor Entrada', 'Valor Saída', 'Saldo'];
-    const csvRows = filteredRows.map(r => [
+    const tableRows = filteredRows.map(r => [
       r.date,
       r.bank_name || '',
       r.description,
@@ -160,15 +153,14 @@ export function BankReportModal({ open, onOpenChange, banks }: BankReportModalPr
       r.running_balance.toFixed(2).replace('.', ','),
     ]);
 
-    const csv = BOM + [headers, ...csvRows]
-      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';'))
-      .join('\r\n');
+    const table = `<table><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>${tableRows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')}</table>`;
+    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body>${table}</body></html>`;
 
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `extrato-bancario-${startDate}-${endDate}.csv`;
+    a.download = `extrato-bancario-${startDate}-${endDate}.xls`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -181,7 +173,7 @@ export function BankReportModal({ open, onOpenChange, banks }: BankReportModalPr
 
     const transactions = filteredRows
       .map(r => {
-        const dtPosted = r.date.split('/').reverse().join(''); // DD/MM/YYYY → YYYYMMDD
+        const dtPosted = r.date.split('/').reverse().join('');
         const trnType = r.type === 'receita' ? 'CREDIT' : 'DEBIT';
         const amount = r.type === 'receita' ? r.amount.toFixed(2) : `-${r.amount.toFixed(2)}`;
         const memo = `${r.description}${r.contact_name ? ` - ${r.contact_name}` : ''}`;
@@ -239,8 +231,8 @@ ${transactions}
     URL.revokeObjectURL(url);
   };
 
-  // ─── PNG Export ───────────────────────────────────────────────────
-  const exportPNG = async () => {
+  // ─── JPEG Export ──────────────────────────────────────────────────
+  const exportImage = async () => {
     if (!summaryRef.current) return;
     try {
       const html2canvas = (await import('html2canvas')).default;
@@ -249,13 +241,13 @@ ${transactions}
         backgroundColor: '#ffffff',
         useCORS: true,
       });
-      const url = canvas.toDataURL('image/png');
+      const url = canvas.toDataURL('image/jpeg', 0.92);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `resumo-extrato-${startDate}-${endDate}.png`;
+      a.download = `resumo-extrato-${startDate}-${endDate}.jpg`;
       a.click();
     } catch (err) {
-      console.error('Erro ao gerar PNG:', err);
+      console.error('Erro ao gerar imagem:', err);
     }
   };
 
@@ -399,51 +391,39 @@ ${transactions}
             <div className="grid grid-cols-2 gap-3">
               <Button
                 variant="outline"
-                className="flex items-center gap-2 h-auto py-3 flex-col"
+                className="flex items-center gap-2 h-10"
                 onClick={exportPDF}
                 disabled={isLoading}
               >
-                <FileText className="w-5 h-5 text-red-500" />
-                <div className="text-left">
-                  <p className="text-xs font-semibold">PDF Gestão</p>
-                  <p className="text-xs text-muted-foreground">Formal, pronto para impressão</p>
-                </div>
+                <FileText className="w-4 h-4 text-red-500" />
+                <span className="text-sm font-medium">PDF / Impressão</span>
               </Button>
               <Button
                 variant="outline"
-                className="flex items-center gap-2 h-auto py-3 flex-col"
-                onClick={exportCSV}
+                className="flex items-center gap-2 h-10"
+                onClick={exportXLS}
                 disabled={isLoading}
               >
-                <Table2 className="w-5 h-5 text-green-600" />
-                <div className="text-left">
-                  <p className="text-xs font-semibold">Excel Analítico</p>
-                  <p className="text-xs text-muted-foreground">CSV com colunas separadas</p>
-                </div>
+                <Table2 className="w-4 h-4 text-green-600" />
+                <span className="text-sm font-medium">Excel</span>
               </Button>
               <Button
                 variant="outline"
-                className="flex items-center gap-2 h-auto py-3 flex-col"
+                className="flex items-center gap-2 h-10"
                 onClick={exportOFX}
                 disabled={isLoading}
               >
-                <Download className="w-5 h-5 text-blue-500" />
-                <div className="text-left">
-                  <p className="text-xs font-semibold">OFX Contábil</p>
-                  <p className="text-xs text-muted-foreground">Domínio / Contmatic</p>
-                </div>
+                <Download className="w-4 h-4 text-blue-500" />
+                <span className="text-sm font-medium">OFX</span>
               </Button>
               <Button
                 variant="outline"
-                className="flex items-center gap-2 h-auto py-3 flex-col"
-                onClick={exportPNG}
+                className="flex items-center gap-2 h-10"
+                onClick={exportImage}
                 disabled={isLoading}
               >
-                <Image className="w-5 h-5 text-purple-500" />
-                <div className="text-left">
-                  <p className="text-xs font-semibold">Imagem PNG</p>
-                  <p className="text-xs text-muted-foreground">Resumo para WhatsApp</p>
-                </div>
+                <Image className="w-4 h-4 text-purple-500" />
+                <span className="text-sm font-medium">Imagem</span>
               </Button>
             </div>
           </div>
