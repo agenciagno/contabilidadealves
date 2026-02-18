@@ -26,6 +26,13 @@ const STATES = [
   'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'
 ];
 
+function maskCep(value: string): string {
+  return value
+    .replace(/\D/g, '')
+    .replace(/^(\d{5})(\d)/, '$1-$2')
+    .slice(0, 9);
+}
+
 export function ContactFormDialog({
   open,
   onOpenChange,
@@ -37,7 +44,10 @@ export function ContactFormDialog({
   const [document, setDocument] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [cep, setCep] = useState('');
   const [address, setAddress] = useState('');
+  const [addressNumber, setAddressNumber] = useState('');
+  const [neighborhood, setNeighborhood] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
   const [notes, setNotes] = useState('');
@@ -46,6 +56,7 @@ export function ContactFormDialog({
   const [boletoDueDay, setBoletoDueDay] = useState('');
   const [boletoStartDate, setBoletoStartDate] = useState('');
   const [isFetchingCnpj, setIsFetchingCnpj] = useState(false);
+  const [isLoadingCep, setIsLoadingCep] = useState(false);
   const [addressFieldsLocked, setAddressFieldsLocked] = useState(false);
   const { toast } = useToast();
 
@@ -55,7 +66,10 @@ export function ContactFormDialog({
       setDocument(contact.document || '');
       setEmail(contact.email || '');
       setPhone(contact.phone || '');
+      setCep(contact.cep || '');
       setAddress(contact.address || '');
+      setAddressNumber(contact.address_number || '');
+      setNeighborhood(contact.neighborhood || '');
       setCity(contact.city || '');
       setState(contact.state || '');
       setNotes(contact.notes || '');
@@ -68,7 +82,10 @@ export function ContactFormDialog({
       setDocument('');
       setEmail('');
       setPhone('');
+      setCep('');
       setAddress('');
+      setAddressNumber('');
+      setNeighborhood('');
       setCity('');
       setState('');
       setNotes('');
@@ -81,7 +98,7 @@ export function ContactFormDialog({
 
   const handleFetchCnpj = async () => {
     const cleanDoc = document.replace(/\D/g, '');
-    
+
     if (cleanDoc.length !== 14) {
       toast({
         title: 'CNPJ inválido',
@@ -90,28 +107,25 @@ export function ContactFormDialog({
       });
       return;
     }
-    
+
     setIsFetchingCnpj(true);
     setAddressFieldsLocked(true);
-    
+
     try {
       const data = await fetchCnpjData(cleanDoc);
-      
+
       setName(data.nome_fantasia || data.razao_social);
-      
-      const addressParts = [data.logradouro, data.numero, data.bairro].filter(Boolean);
-      if (addressParts.length > 0) {
-        setAddress(`${data.logradouro || ''}${data.numero ? ', ' + data.numero : ''}${data.bairro ? ' - ' + data.bairro : ''}`);
-      }
-      
+      setAddress(data.logradouro || '');
+      setAddressNumber(data.numero || '');
+      setNeighborhood(data.bairro || '');
       setCity(data.municipio || '');
       setState(data.uf || '');
-      
+
       if (data.ddd_telefone_1) {
         const phoneClean = data.ddd_telefone_1.replace(/\D/g, '');
         setPhone(maskPhone(phoneClean));
       }
-      
+
       toast({
         title: 'Dados carregados!',
         description: 'Confira as informações e complete os campos restantes.',
@@ -128,6 +142,43 @@ export function ContactFormDialog({
     }
   };
 
+  const handleFetchCep = async () => {
+    const cleanCep = cep.replace(/\D/g, '');
+
+    if (cleanCep.length !== 8) return;
+
+    setIsLoadingCep(true);
+
+    try {
+      const response = await fetch(`https://brasilapi.com.br/api/cep/v2/${cleanCep}`);
+
+      if (!response.ok) {
+        throw new Error('CEP não encontrado');
+      }
+
+      const data = await response.json();
+
+      setAddress(data.street || '');
+      setNeighborhood(data.neighborhood || '');
+      setCity(data.city || '');
+      setState(data.state || '');
+      // Não limpa addressNumber — preserva o que o usuário já digitou
+
+      setTimeout(() => {
+        window.document.getElementById('address-number')?.focus();
+      }, 50);
+    } catch {
+      toast({
+        title: 'CEP não encontrado',
+        description: 'Não conseguimos localizar este CEP. Por favor, preencha o endereço manualmente.',
+        variant: 'destructive',
+      });
+      // Não limpa campos já preenchidos
+    } finally {
+      setIsLoadingCep(false);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit({
@@ -137,7 +188,10 @@ export function ContactFormDialog({
       tax_regime: null,
       email: email.trim() || null,
       phone: phone.trim() || null,
+      cep: cep.trim() || null,
       address: address.trim() || null,
+      address_number: addressNumber.trim() || null,
+      neighborhood: neighborhood.trim() || null,
       city: city.trim() || null,
       state: state || null,
       notes: notes.trim() || null,
@@ -225,15 +279,56 @@ export function ContactFormDialog({
               </div>
             </div>
 
-            {/* Linha 4: Endereço + Cidade + Estado */}
+            {/* Linha 4a: CEP + Logradouro */}
             <div className="col-span-3 grid grid-cols-3 gap-4">
               <div>
-                <Label htmlFor="address">Endereço</Label>
+                <Label htmlFor="cep">CEP</Label>
+                <div className="relative">
+                  <Input
+                    id="cep"
+                    value={cep}
+                    onChange={(e) => setCep(maskCep(e.target.value))}
+                    onBlur={handleFetchCep}
+                    placeholder="00000-000"
+                    maxLength={9}
+                    className={isLoadingCep ? 'pr-9' : ''}
+                  />
+                  {isLoadingCep && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                </div>
+              </div>
+              <div className="col-span-2">
+                <Label htmlFor="address">Logradouro</Label>
                 <Input
                   id="address"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Rua, número, bairro"
+                  placeholder="Rua, Av., Alameda..."
+                  disabled={addressFieldsLocked}
+                />
+              </div>
+            </div>
+
+            {/* Linha 4b: Número + Bairro + Cidade + Estado */}
+            <div className="col-span-3 grid grid-cols-4 gap-4">
+              <div>
+                <Label htmlFor="address-number">Número</Label>
+                <Input
+                  id="address-number"
+                  value={addressNumber}
+                  onChange={(e) => setAddressNumber(e.target.value)}
+                  placeholder="Nº"
+                  disabled={addressFieldsLocked}
+                />
+              </div>
+              <div>
+                <Label htmlFor="neighborhood">Bairro</Label>
+                <Input
+                  id="neighborhood"
+                  value={neighborhood}
+                  onChange={(e) => setNeighborhood(e.target.value)}
+                  placeholder="Bairro"
                   disabled={addressFieldsLocked}
                 />
               </div>
