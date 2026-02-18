@@ -724,6 +724,11 @@ export default function Transactions() {
                       <span className={`text-sm font-medium ${transaction.type === 'receita' ? 'text-emerald-500/80' : 'text-red-500/80'}`}>
                         {transaction.type === 'receita' ? 'Receita' : 'Despesa'}
                       </span>
+                      {!transaction.is_paid && transaction.due_date && transaction.due_date < new Date().toISOString().split('T')[0] && (
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-500/20 text-red-500 border border-red-500/40 whitespace-nowrap">
+                          Vencido
+                        </span>
+                      )}
                     </div>
                   </div>
 
