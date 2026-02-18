@@ -205,6 +205,7 @@ export default function Transactions() {
     const monthEndStr = format(monthEnd, 'yyyy-MM-dd');
 
     let contasEmAtraso = 0;
+    let receitasEmAtraso = 0;
     let receitasHoje = 0;
     let despesasHoje = 0;
     let receitasMes = 0;
@@ -217,6 +218,10 @@ export default function Transactions() {
       // Contas em atraso: despesas não pagas com due_date antes de hoje
       if (t.type === 'despesa' && !t.is_paid && t.due_date && t.due_date < todayStr) {
         contasEmAtraso += amount;
+      }
+      // Receitas em atraso: receitas não recebidas com due_date antes de hoje
+      if (t.type === 'receita' && !t.is_paid && t.due_date && t.due_date < todayStr) {
+        receitasEmAtraso += amount;
       }
       // Capital de giro: receitas/despesas com due_date hoje
       if (t.due_date === todayStr) {
@@ -240,7 +245,7 @@ export default function Transactions() {
     const acumuladoReceitas = receitasPagasMes;
     const acumuladoDespesas = despesasPagasMes;
 
-    return { contasEmAtraso, capitalDeGiro, lucroPrevisto, acumuladoReceitas, acumuladoDespesas };
+    return { contasEmAtraso, receitasEmAtraso, capitalDeGiro, lucroPrevisto, acumuladoReceitas, acumuladoDespesas };
   }, [allTransactions, bankTotals]);
 
   const handleClearFilters = () => {
@@ -471,11 +476,11 @@ export default function Transactions() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Receitas */}
         <Card className="bg-card border-border/50">
-          <CardContent className="p-4">
+          <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">A Receber</p>
-                <p className="text-2xl font-bold text-emerald-500">{formatCurrency(kpiTotals.receitasPendentes)}</p>
+                <p className="text-4xl font-extrabold tracking-tight text-emerald-500">{formatCurrency(kpiTotals.receitasPendentes)}</p>
                 <p className="text-xs text-muted-foreground">
                   Recebido: <span className="text-emerald-400">{formatCurrency(kpiTotals.receitasPagas)}</span>
                 </p>
@@ -489,11 +494,11 @@ export default function Transactions() {
 
         {/* Despesas */}
         <Card className="bg-card border-border/50">
-          <CardContent className="p-4">
+          <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">A Pagar</p>
-                <p className="text-2xl font-bold text-red-500">{formatCurrency(kpiTotals.despesasPendentes)}</p>
+                <p className="text-4xl font-extrabold tracking-tight text-red-500">{formatCurrency(kpiTotals.despesasPendentes)}</p>
                 <p className="text-xs text-muted-foreground">
                   Pago: <span className="text-red-400">{formatCurrency(kpiTotals.despesasPagas)}</span>
                 </p>
@@ -507,11 +512,11 @@ export default function Transactions() {
 
         {/* Saldo Bancário Real (global) */}
         <Card className="bg-card border-border/50">
-          <CardContent className="p-4">
+          <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Saldo Bancário Real</p>
-                <p className={`text-2xl font-bold ${bankTotals.totalBalance >= 0 ? 'text-primary' : 'text-red-500'}`}>
+                <p className={`text-4xl font-extrabold tracking-tight ${bankTotals.totalBalance >= 0 ? 'text-primary' : 'text-red-500'}`}>
                   {formatCurrency(bankTotals.totalBalance)}
                 </p>
                 <p className="text-xs text-muted-foreground">
@@ -538,8 +543,8 @@ export default function Transactions() {
               <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />
               <p className="text-xs text-muted-foreground">Em Atraso</p>
             </div>
-            <p className="text-base font-bold text-red-500">{formatCurrency(biMetrics.contasEmAtraso)}</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Despesas vencidas não pagas</p>
+            <p className="text-sm font-bold text-orange-400">⬇ Receber: {formatCurrency(biMetrics.receitasEmAtraso)}</p>
+            <p className="text-sm font-bold text-red-500">⬆ Pagar: {formatCurrency(biMetrics.contasEmAtraso)}</p>
           </CardContent>
         </Card>
 
@@ -571,17 +576,17 @@ export default function Transactions() {
           </CardContent>
         </Card>
 
-        {/* Acumulado do Mês */}
+        {/* Resultado Realizado */}
         <Card className="bg-card border-border/50 border-l-2 border-l-amber-500">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
               <CalendarCheck className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-              <p className="text-xs text-muted-foreground">Acumulado (Mês)</p>
+              <p className="text-xs text-muted-foreground">Resultado Realizado</p>
             </div>
-            <p className="text-base font-bold text-amber-400">{formatCurrency(biMetrics.acumuladoReceitas)}</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">
-              Rec. pagas — Desp. pagas: {formatCurrency(biMetrics.acumuladoDespesas)}
+            <p className={`text-base font-bold ${(biMetrics.acumuladoReceitas - biMetrics.acumuladoDespesas) >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+              {formatCurrency(biMetrics.acumuladoReceitas - biMetrics.acumuladoDespesas)}
             </p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Realizado no mês corrente</p>
           </CardContent>
         </Card>
       </div>
@@ -711,12 +716,12 @@ export default function Transactions() {
                       )}
                       {transaction.bank && (
                         <>
-                          {transaction.category && <span className="text-muted-foreground/30 text-xs">•</span>}
-                          <span className="text-[11px] text-muted-foreground">{transaction.bank.name}</span>
+                          {transaction.category && <span className="text-zinc-400/40 text-xs">•</span>}
+                          <span className="text-[11px] text-zinc-400">{transaction.bank.name}</span>
                         </>
                       )}
-                      <span className="text-muted-foreground/30 text-xs">•</span>
-                      <span className="text-[11px] text-muted-foreground">
+                      <span className="text-zinc-400/40 text-xs">•</span>
+                      <span className="text-[11px] text-zinc-400">
                         {transaction.type === 'receita' ? 'Receita' : 'Despesa'}
                       </span>
                     </div>
@@ -724,7 +729,7 @@ export default function Transactions() {
 
                   {/* Right: Value + Status */}
                   <div className="flex flex-col items-end gap-1 shrink-0">
-                    <span className={`font-bold text-sm tabular-nums ${
+                    <span className={`font-bold text-base tabular-nums ${
                       transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'
                     }`}>
                       {transaction.type === 'receita' ? '+' : '-'}{formatCurrency(Number(transaction.amount))}
