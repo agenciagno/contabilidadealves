@@ -8,10 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Bank } from '@/hooks/useBanks';
 import { formatCurrencyInput, parseCurrencyInput } from '@/lib/utils';
 
-const COLORS = [
-  '#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', 
-  '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1'
-];
+const DEFAULT_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316'];
 
 interface BankFormDialogProps {
   open: boolean;
@@ -36,7 +33,6 @@ export function BankFormDialog({ open, onOpenChange, bank, onSubmit, isLoading }
   const [agency, setAgency] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
   const [initialBalance, setInitialBalance] = useState('0');
-  const [color, setColor] = useState(COLORS[0]);
   const [isActive, setIsActive] = useState(true);
   const [isCaixaGeral, setIsCaixaGeral] = useState(false);
 
@@ -47,7 +43,6 @@ export function BankFormDialog({ open, onOpenChange, bank, onSubmit, isLoading }
       setAgency(bank.agency || '');
       setAccountNumber(bank.account_number || '');
       setInitialBalance(formatCurrencyInput((bank.initial_balance * 100).toString()));
-      setColor(bank.color);
       setIsActive(bank.is_active);
       setIsCaixaGeral(bank.is_caixa_geral || false);
     } else {
@@ -56,7 +51,6 @@ export function BankFormDialog({ open, onOpenChange, bank, onSubmit, isLoading }
       setAgency('');
       setAccountNumber('');
       setInitialBalance('0,00');
-      setColor(COLORS[0]);
       setIsActive(true);
       setIsCaixaGeral(false);
     }
@@ -64,6 +58,7 @@ export function BankFormDialog({ open, onOpenChange, bank, onSubmit, isLoading }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const color = bank?.color || DEFAULT_COLORS[Math.floor(Math.random() * DEFAULT_COLORS.length)];
     onSubmit({
       name,
       bank_code: bankCode || null,
@@ -136,31 +131,16 @@ export function BankFormDialog({ open, onOpenChange, bank, onSubmit, isLoading }
             />
           </div>
 
-          <div className="space-y-2">
-            <Label>Cor</Label>
-            <div className="flex gap-2 flex-wrap">
-              {COLORS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  className={`w-8 h-8 rounded-full transition-all ${color === c ? 'ring-2 ring-offset-2 ring-primary' : ''}`}
-                  style={{ backgroundColor: c }}
-                  onClick={() => setColor(c)}
-                />
-              ))}
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <Label htmlFor="active">Conta ativa</Label>
+          <div className="flex items-center justify-between py-1">
+            <Label htmlFor="active" className="cursor-pointer">Conta ativa</Label>
             <Switch id="active" checked={isActive} onCheckedChange={setIsActive} />
           </div>
 
           <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="is_caixa_geral" 
-              checked={isCaixaGeral} 
-              onCheckedChange={(checked) => setIsCaixaGeral(!!checked)} 
+            <Checkbox
+              id="is_caixa_geral"
+              checked={isCaixaGeral}
+              onCheckedChange={(checked) => setIsCaixaGeral(!!checked)}
             />
             <Label htmlFor="is_caixa_geral" className="cursor-pointer">
               Marcar como Caixa Geral
