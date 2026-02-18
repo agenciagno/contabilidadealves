@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -39,7 +39,6 @@ async function getCompanyId(): Promise<string> {
 export function useBoletoControls(referenceMonth: string) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const generatingRef = useRef(false);
 
   // 1. Busca boleto_controls do mês
   const { data: boletoControls = [], isLoading: isLoadingControls, refetch: refetchControls } = useQuery({
@@ -95,17 +94,16 @@ export function useBoletoControls(referenceMonth: string) {
     },
   });
 
-  // 4. Lazy Generation: se não há registros e há contatos ativos, gera automaticamente
+  // 4. Sincronização incremental: gera entradas para contatos ainda não listados no mês
   useEffect(() => {
-    if (
-      !isLoading &&
-      boletoControls.length === 0 &&
-      activeContacts.length > 0 &&
-      !generatingRef.current &&
-      !generateMonth.isPending
-    ) {
-      generatingRef.current = true;
-      generateMonth.mutate(activeContacts);
+    if (isLoading || generateMonth.isPending) return;
+    if (activeContacts.length === 0) return;
+
+    const existingContactIds = new Set(boletoControls.map(bc => bc.contact_id));
+    const missingContacts = activeContacts.filter(c => !existingContactIds.has(c.id));
+
+    if (missingContacts.length > 0) {
+      generateMonth.mutate(missingContacts);
     }
   }, [isLoading, boletoControls.length, activeContacts.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -151,6 +149,8 @@ export function useBoletoControls(referenceMonth: string) {
   });
 
   const refreshAll = async () => {
+    queryClient.invalidateQueries({ queryKey: ['boleto-controls', referenceMonth] });
+    queryClient.invalidateQueries({ queryKey: ['contacts-boleto-active'] });
     await Promise.all([refetchControls(), refetchContacts()]);
   };
 
