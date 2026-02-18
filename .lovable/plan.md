@@ -1,91 +1,77 @@
 
-## Botão de Atualização Manual na Página de Boletos
+## Correção do Botão Refresh em Boletos
 
-### Diagnóstico do Problema
+### Diagnóstico Completo
 
-Quando um novo contato é habilitado para boleto (`boleto_active = true`) e o mês atual já possui registros gerados, o sistema NÃO adiciona automaticamente esse novo contato à listagem por dois motivos:
+O botão de refresh executa corretamente o `refetchControls()` e `refetchContacts()` — os dados chegam atualizados do banco. O problema está em **dois pontos do hook**:
 
-1. **`staleTime: 1000 * 30`** nas queries — o cache não expira por 30 segundos.
-2. **Lazy Generation só funciona quando `boletoControls.length === 0`** — se o mês já tem registros, o efeito não dispara para contatos novos.
+**Problema 1 — `generatingRef` nunca é resetado:**
+O `useRef(false)` é definido uma vez e marcado como `true` no primeiro carregamento. Após o refresh, o `useEffect` de Lazy Generation verifica `!generatingRef.current` — mas como ele já é `true`, o efeito nunca dispara novamente para novos contatos.
 
-A solução mais direta e robusta é expor uma função `refetch` do hook e adicionar um botão de atualização manual visível na interface.
+**Problema 2 — Lazy Generation apaga e recria tudo:**
+Mesmo que o efeito disparasse, a lógica atual só funciona quando `boletoControls.length === 0`. Se o mês já tem 5 registros e um novo contato foi habilitado, a condição `boletoControls.length === 0` é `false`, então nada acontece.
+
+**Resultado:** O novo contato aparece em `activeContacts`, mas não tem entrada em `boleto_controls`, então a mesclagem `boletoList` simplesmente não o inclui.
 
 ---
 
-### Mudanças Planejadas
+### Solução
 
-#### 1. `src/hooks/useBoletoControls.ts`
+Substituir a lógica de "geração inicial do mês inteiro" por uma lógica de **sincronização incremental**: detectar quais contatos ativos ainda não têm entrada para o mês e inserir apenas esses registros ausentes.
 
-Exportar a função `refetch` de ambas as queries (`boleto-controls` e `contacts-boleto-active`) e combiná-las em uma única função `refreshAll` que invalida os dois caches simultaneamente:
+#### Mudanças em `src/hooks/useBoletoControls.ts`
+
+**1. Remover o `generatingRef`** — ele não é mais necessário com a nova abordagem.
+
+**2. Alterar o `useEffect` para sincronização incremental:**
 
 ```typescript
-// Extrair refetch das queries
-const { data: boletoControls, isLoading: isLoadingControls, refetch: refetchControls } = useQuery(...)
-const { data: activeContacts, isLoading: isLoadingContacts, refetch: refetchContacts } = useQuery(...)
+useEffect(() => {
+  if (isLoading || generateMonth.isPending) return;
+  if (activeContacts.length === 0) return;
 
-// Função combinada exportada
+  // Encontrar contatos que ainda não têm entrada no mês
+  const existingContactIds = new Set(boletoControls.map(bc => bc.contact_id));
+  const missingContacts = activeContacts.filter(c => !existingContactIds.has(c.id));
+
+  if (missingContacts.length > 0) {
+    generateMonth.mutate(missingContacts);
+  }
+}, [isLoading, boletoControls.length, activeContacts.length]);
+```
+
+Esta abordagem:
+- Funciona tanto na primeira carga (mês vazio) quanto após um refresh (novos contatos)
+- Não apaga registros existentes
+- Não usa `generatingRef` — a própria checagem `missingContacts.length > 0` previne loops
+
+**3. Atualizar a função `refreshAll`** para forçar a invalidação do cache antes de refetching, garantindo que os dados sejam sempre buscados do banco:
+
+```typescript
 const refreshAll = async () => {
+  queryClient.invalidateQueries({ queryKey: ['boleto-controls', referenceMonth] });
+  queryClient.invalidateQueries({ queryKey: ['contacts-boleto-active'] });
   await Promise.all([refetchControls(), refetchContacts()]);
 };
-
-return {
-  boletoList,
-  isLoading,
-  isGenerating: generateMonth.isPending,
-  toggleStatus,
-  refresh: refreshAll,          // ← novo
-  isRefreshing: isLoadingControls || isLoadingContacts,  // ← novo
-};
 ```
-
-#### 2. `src/pages/Boletos.tsx`
-
-Adicionar um botão de ícone `RefreshCw` (já disponível no `lucide-react`) no cabeçalho, ao lado do botão "Imprimir Lista". O ícone gira enquanto o recarregamento está em andamento:
-
-```tsx
-import { RefreshCw } from 'lucide-react';
-
-// No cabeçalho, ao lado do botão de impressão:
-<Button
-  variant="outline"
-  size="icon"
-  onClick={refresh}
-  disabled={isLoading || isGenerating}
-  title="Atualizar listagem"
->
-  <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
-</Button>
-```
-
----
-
-### Layout do Cabeçalho Após a Mudança
-
-```text
-[ ⊕ Controle de Boletos ]                    [ ↺ ] [ 🖨 Imprimir Lista ]
-  Geração e controle mensal de cobranças
-```
-
-O ícone `↺` fica discreto (apenas ícone, `size="icon"`) para não ocupar espaço, mas claramente identificável com o tooltip "Atualizar listagem" ao passar o mouse.
 
 ---
 
 ### Comportamento Resultante
 
-| Situação | Comportamento |
-|---|---|
-| Clica em `↺` | Recarrega contatos ativos + boleto_controls do mês |
-| Novo contato adicionado com boleto ativo | Aparece na lista após clicar em `↺` |
-| Clique durante carregamento | Botão fica desabilitado (não dispara dupla requisição) |
-| Ícone durante recarregamento | Gira (feedback visual) |
+| Situação | Comportamento Antes | Comportamento Depois |
+|---|---|---|
+| Primeiro acesso ao mês | Gera todos os registros ✓ | Gera todos os registros ✓ |
+| Refresh sem mudanças | Atualiza dados ✓ | Atualiza dados ✓ |
+| Novo contato habilitado + Refresh | Não aparece ✗ | Detecta contato sem entrada → insere → aparece ✓ |
+| Contato desabilitado entre refreshes | Continua aparecendo (registro existe) | Continua aparecendo (registro histórico preservado) ✓ |
 
 ---
 
-### Arquivos Modificados
+### Arquivo Modificado
 
 | Arquivo | Tipo de Mudança |
 |---|---|
-| `src/hooks/useBoletoControls.ts` | Expor `refresh` e `isRefreshing` |
-| `src/pages/Boletos.tsx` | Importar `RefreshCw`, adicionar botão no cabeçalho |
+| `src/hooks/useBoletoControls.ts` | Substituir lógica de geração inicial por sincronização incremental; melhorar `refreshAll` |
 
-Nenhuma migração de banco de dados necessária.
+Nenhuma migração de banco de dados necessária. Nenhuma mudança em `Boletos.tsx`.
