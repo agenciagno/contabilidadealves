@@ -1,145 +1,100 @@
 
-# Atualização do Perfil do Cliente — 4 Melhorias
+# Correções na Aba Documentos e Cadastro
 
-## Visão Geral das Mudanças
+## Diagnóstico
 
-São 4 áreas de modificação independentes. Cada uma afeta arquivos específicos sem sobrepor as demais.
+### Problema 1 — Botão "Upload" da tela inicial de Documentos
+O botão `+ Upload` (linha 225 de `ContactDocumentsTab.tsx`) abre um `Dialog` com um dropzone estático (linhas 419–431). Este dropzone **não possui** as animações de `isPending`/`uploadSuccess` que existem no dropzone interno das categorias.
 
----
-
-## Item 1 — Aba Financeiro: Card "Total Vencido"
-
-**Arquivo:** `src/components/contacts/ContactFinancialTab.tsx`
-
-**Lógica atual:** O componente já possui `transactions` com os campos `is_paid`, `due_date` e `type`. Basta adicionar um novo cálculo no objeto `summary`.
-
-**Nova métrica:**
-```
-totalVencido = receitas onde is_paid = false E due_date < hoje
-```
-
-**Mudança no objeto `summary`** (onde estão `totalPago` e `totalPendente`):
-- Adicionar `totalVencido` filtrando `t.type === 'receita' && !t.is_paid && t.due_date && t.due_date < today`
-
-**Novo card visual** — inserido após o card "Total Pendente", na mesma grid:
-- Ícone: `AlertTriangle` com fundo `bg-red-500/10` e cor `text-red-500`
-- Valor: `text-2xl font-bold text-red-500`
-- Título: "Total Vencido"
-- A grid passará de `sm:grid-cols-2` para `sm:grid-cols-3` para acomodar os 3 cards
+### Problema 2 — Aba Cadastro ainda com "Sócios"
+O `ContactDetailsTab.tsx` ainda contém o card Sócios (linhas 154–214) e **não usa** o `ContactEditSheet` que foi criado. Os 4 cards de informação não têm ícone de editar.
 
 ---
 
-## Item 2 — Aba Documentos: Feedback Visual de Upload
+## O Que Será Feito
 
-**Arquivo:** `src/components/contacts/ContactDocumentsTab.tsx`
+### Arquivo 1: `src/components/contacts/ContactDocumentsTab.tsx`
 
-**Estado atual:** O botão de upload chama `uploadDocument.mutateAsync` sem feedback visual. A flag `uploadDocument.isPending` já existe via TanStack Query mas não é utilizada na UI.
+#### Dropzone do Dialog (Upload Button)
 
-**Mudanças:**
+O dropzone dentro do `<Dialog>` (linhas 419–431) será substituído por um dropzone com os mesmos 3 estados já existentes no dropzone interno:
 
-**Estado "Enviando":** Quando `uploadDocument.isPending === true`, substituir o conteúdo da zona de drop por:
-- Spinner (`Loader2` com `animate-spin`)
-- Texto "Realizando upload..."
-- Botão de Upload desabilitado
-
-**Estado "Concluído":** Adicionar estado local `uploadSuccess: boolean` que é setado para `true` no `onSuccess` do `uploadDocument` e volta para `false` após 2 segundos via `setTimeout`. Quando `uploadSuccess === true`, exibir na zona de drop:
-- Ícone `CheckCircle2` em verde com classe `animate-bounce` (CSS nativo, sem dependência extra)
-- Texto "Upload concluído!" em `text-emerald-500`
-
-**A transição** ocorre por CSS usando `transition-all duration-300` na zona de drop, fazendo a mudança de cor suave.
-
----
-
-## Item 3 — Nova Aba "Certificados e Alvarás"
-
-**Arquivos afetados:**
-- `src/pages/ContactProfile.tsx` — adicionar TabsTrigger + TabsContent
-- Novo arquivo: `src/components/contacts/ContactCertificatesTab.tsx`
-
-**Posição na navegação:** Logo após a aba "Documentos" (entre "Documentos" e "Cadastro"), conforme o design definido em memória.
-
-**Ordem final das abas:**
-1. Financeiro
-2. Comunicação
-3. Documentos
-4. **Certificados e Alvarás** ← nova
-5. Cadastro
-6. Logs
-
-**Tab trigger:** Ícone `ShieldCheck` de `lucide-react` + texto "Certificados" (visível apenas em `sm:`)
-
-**Conteúdo do placeholder** (`ContactCertificatesTab.tsx`):
-```
-ícone: ShieldCheck (h-20 w-20 text-muted-foreground/30)
-texto grande: "EM BREVE" (text-4xl font-black tracking-widest)
-subtítulo: "Gestão de CNDs e Alvarás digitais" (text-muted-foreground)
-```
-Centralizado verticalmente com `min-h-[300px]` usando flexbox.
-
-**Nota:** A TabsList terá agora 6 colunas — ajuste de `grid-cols-5` para `grid-cols-6`.
-
----
-
-## Item 4 — Aba Cadastro: Remoção de Sócios + Edição com Sheet
-
-**Arquivos afetados:**
-- `src/components/contacts/ContactDetailsTab.tsx` — remover seção Sócios, adicionar botões de edição em cada card
-- Novo arquivo: `src/components/contacts/ContactEditSheet.tsx` — Sheet de edição genérico
-
-### 4a — Remoção da seção "Sócios"
-
-Remover completamente o Card "Sócios" (linhas 154–214 do arquivo atual), incluindo:
-- O import de `useContactPartners` e `PartnerFormDialog`
-- O import de `Users`, `Plus`, `Percent`
-- O AlertDialog de confirmação de exclusão de sócio
-- Todos os handlers: `handlePartnerSubmit`, `handleEditPartner`, `handleNewPartner`, `handleDeletePartner`
-- Os estados: `partnerDialogOpen`, `editingPartner`, `deletePartnerId`
-
-### 4b — Botão de edição em cada Card
-
-Cada um dos 4 cards existentes terá um ícone `Pencil` discreto no `CardHeader`, alinhado à direita:
-
-| Card | Campos editáveis no Sheet |
+| Estado | UI |
 |---|---|
-| Informações de Contato | email, phone, document, representative_legal |
-| Endereço | cep, address, address_number, neighborhood, city, state |
-| Dados Fiscais | tax_regime, is_active |
-| Observações | notes |
+| `isPending` | `Loader2 animate-spin` + "Realizando upload..." |
+| `uploadSuccess` | `CheckCircle2 animate-bounce text-emerald-500` + "Upload concluído!" |
+| Normal | `Upload` + texto de instrução |
 
-### 4c — Novo componente `ContactEditSheet.tsx`
+A `handleFileSelect` já chama `setUploadSuccess(true)` e o `setTimeout` — o dialog também fechará após o sucesso (já ocorre na linha 141: `setUploadDialogOpen(false)`). Como o dialog fecha logo após, a animação de sucesso aparecerá brevemente antes do fechamento — comportamento correto e natural.
 
-Um único Sheet genérico que recebe:
-- `contact: Contact` — dados atuais
-- `section: 'contato' | 'endereco' | 'fiscal' | 'observacoes'` — qual seção está sendo editada
-- `open: boolean` e `onOpenChange`
+O `onClick` do dropzone também precisa de guard: `!uploadDocument.isPending && !uploadSuccess`.
 
-O Sheet usa o componente `Sheet` existente em `src/components/ui/sheet.tsx`.
+As classes de transição `transition-all duration-300` serão aplicadas ao dropzone do dialog assim como no interno.
 
-**Dentro do Sheet:**
-- Título dinâmico conforme a seção
-- Campos pré-preenchidos com os dados atuais do contato
-- Botão "Salvar" que chama `useContacts().updateContact` (mutation já existente no hook)
-- Botão "Cancelar"
+---
 
-**Campos por seção:**
-- **Contato:** `Input` para email, phone, document; `Input` para representative_legal
-- **Endereço:** `Input` para CEP (com busca automática via ViaCEP, já implementada em `ContactFormDialog`), address, address_number, neighborhood, city; `Select` para state
-- **Fiscal:** `Select` para tax_regime; `Switch` para is_active
-- **Observações:** `Textarea` para notes
+### Arquivo 2: `src/components/contacts/ContactDetailsTab.tsx`
 
-**Mutation de update:** Usar `useContacts()` que já expõe `updateContact`. Após sucesso, chamar `onOpenChange(false)` e invalidar a query `['contacts']`.
+#### Remoção do Card "Sócios"
+Remover completamente as linhas 154–240:
+- Card de Sócios
+- `PartnerFormDialog`
+- `AlertDialog` de confirmação de exclusão
+- Imports: `useContactPartners`, `PartnerFormDialog`, `Users`, `Plus`, `Edit2`, `Trash2`, `Percent`, `Badge`, `Skeleton`
+- Estados: `partnerDialogOpen`, `editingPartner`, `deletePartnerId`
+- Handlers: `handlePartnerSubmit`, `handleEditPartner`, `handleNewPartner`, `handleDeletePartner`
+
+#### Adição de Ícone de Editar em Cada Card
+Cada `CardHeader` receberá um botão com ícone `Pencil` alinhado à direita via `flex items-center justify-between`:
+
+```tsx
+<CardHeader className="flex flex-row items-center justify-between pb-3">
+  <CardTitle className="text-base flex items-center gap-2">
+    <Mail className="h-4 w-4" />
+    Informações de Contato
+  </CardTitle>
+  <Button variant="ghost" size="icon" onClick={() => openSheet('contato')}>
+    <Pencil className="h-4 w-4" />
+  </Button>
+</CardHeader>
+```
+
+#### Estado de Controle do Sheet
+Um único estado controlará qual seção está aberta:
+
+```tsx
+const [editSection, setEditSection] = useState<Section | null>(null);
+```
+
+E um único `ContactEditSheet` no final do componente:
+
+```tsx
+{editSection && (
+  <ContactEditSheet
+    contact={contact}
+    section={editSection}
+    open={!!editSection}
+    onOpenChange={(open) => !open && setEditSection(null)}
+  />
+)}
+```
+
+#### Mapeamento Seção → Card
+
+| Card | section |
+|---|---|
+| Informações de Contato | `'contato'` |
+| Endereço | `'endereco'` |
+| Dados Fiscais | `'fiscal'` |
+| Observações | `'observacoes'` |
 
 ---
 
 ## Resumo de Arquivos
 
-| Ação | Arquivo |
+| Arquivo | Mudança |
 |---|---|
-| Modificar | `src/components/contacts/ContactFinancialTab.tsx` |
-| Modificar | `src/components/contacts/ContactDocumentsTab.tsx` |
-| Modificar | `src/pages/ContactProfile.tsx` |
-| Modificar | `src/components/contacts/ContactDetailsTab.tsx` |
-| Criar | `src/components/contacts/ContactCertificatesTab.tsx` |
-| Criar | `src/components/contacts/ContactEditSheet.tsx` |
+| `src/components/contacts/ContactDocumentsTab.tsx` | Adicionar estados de feedback (isPending/uploadSuccess) no dropzone do Dialog de upload |
+| `src/components/contacts/ContactDetailsTab.tsx` | Remover card Sócios + imports; adicionar ícone Pencil em cada card + conectar ContactEditSheet |
 
-Nenhuma mudança de banco de dados ou hooks principais é necessária — toda a lógica de update já existe em `useContacts`.
+Nenhuma mudança em banco de dados, hooks ou outros arquivos.
