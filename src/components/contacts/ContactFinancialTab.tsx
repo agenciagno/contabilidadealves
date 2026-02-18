@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { TrendingUp, Clock, CalendarPlus, ArrowUpDown } from 'lucide-react';
+import { TrendingUp, Clock, CalendarPlus, ArrowUpDown, AlertTriangle } from 'lucide-react';
 import { useContactTransactions } from '@/hooks/useContactTransactions';
 import { ContactContractsCard } from './ContactContractsCard';
 import { RecurringFormDialog } from '@/components/recurring/RecurringFormDialog';
@@ -88,6 +88,9 @@ export function ContactFinancialTab({ contactId, contactName }: ContactFinancial
     totalPendente: transactions
       ?.filter(t => !t.is_paid)
       .reduce((acc, t) => acc + Number(t.amount), 0) || 0,
+    totalVencido: transactions
+      ?.filter(t => t.type === 'receita' && !t.is_paid && t.due_date && t.due_date < today)
+      .reduce((acc, t) => acc + Number(t.amount), 0) || 0,
   };
 
   const formatCurrency = (value: number) => {
@@ -101,7 +104,7 @@ export function ContactFinancialTab({ contactId, contactName }: ContactFinancial
     <div className="space-y-6">
       {/* Summary Cards - With Generate Fees Button */}
       <div className="flex items-start justify-between gap-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 flex-1">
           <Card className="bg-card border-border/50">
             <CardContent className="p-6">
               <div className="flex items-center gap-3 mb-3">
@@ -126,6 +129,20 @@ export function ContactFinancialTab({ contactId, contactName }: ContactFinancial
               </div>
               <p className="text-2xl font-bold text-yellow-500">
                 {formatCurrency(summary.totalPendente)}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card border-border/50">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 rounded-lg bg-red-500/10">
+                  <AlertTriangle className="h-5 w-5 text-red-500" />
+                </div>
+                <span className="text-sm text-muted-foreground">Total Vencido</span>
+              </div>
+              <p className="text-2xl font-bold text-red-500">
+                {formatCurrency(summary.totalVencido)}
               </p>
             </CardContent>
           </Card>
