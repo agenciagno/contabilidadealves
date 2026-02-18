@@ -11,6 +11,7 @@ import {
   FileCheck,
   User,
   Search,
+  RefreshCw,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -35,7 +36,7 @@ export default function Boletos() {
   const { toast } = useToast();
 
   const referenceMonth = getFirstOfMonth(currentMonth);
-  const { boletoList, isLoading, isGenerating, toggleStatus } = useBoletoControls(referenceMonth);
+  const { boletoList, isLoading, isGenerating, toggleStatus, refresh, isRefreshing } = useBoletoControls(referenceMonth);
 
   const filteredList = boletoList.filter(b => {
     const matchesStatus = statusFilter === 'ALL' || b.status === statusFilter;
@@ -81,10 +82,21 @@ export default function Boletos() {
             Geração e controle mensal de cobranças
           </p>
         </div>
-        <Button variant="outline" onClick={() => window.print()} className="gap-2">
-          <Printer className="w-4 h-4" />
-          Imprimir Lista
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={refresh}
+            disabled={isLoading || isGenerating || isRefreshing}
+            title="Atualizar listagem"
+          >
+            <RefreshCw className={cn('w-4 h-4', isRefreshing && 'animate-spin')} />
+          </Button>
+          <Button variant="outline" onClick={() => window.print()} className="gap-2">
+            <Printer className="w-4 h-4" />
+            Imprimir Lista
+          </Button>
+        </div>
       </div>
 
       {/* Filtros */}
