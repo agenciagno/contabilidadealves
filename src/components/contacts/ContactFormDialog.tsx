@@ -115,6 +115,7 @@ export function ContactFormDialog({
       const data = await fetchCnpjData(cleanDoc);
 
       setName(data.nome_fantasia || data.razao_social);
+      setCep(data.cep ? maskCep(data.cep) : '');
       setAddress(data.logradouro || '');
       setAddressNumber(data.numero || '');
       setNeighborhood(data.bairro || '');
