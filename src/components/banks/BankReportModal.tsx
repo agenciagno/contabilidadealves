@@ -45,7 +45,7 @@ export function BankReportModal({ open, onOpenChange, banks }: BankReportModalPr
 
   const [startDate, setStartDate] = useState(firstOfMonth);
   const [endDate, setEndDate] = useState(lastOfMonth);
-  const [categoryId, setCategoryId] = useState('');
+  const [categoryId, setCategoryId] = useState('all');
   const [selectedBankIds, setSelectedBankIds] = useState<string[]>([]);
 
   const banksList = banks.map(b => ({ id: b.id, initial_balance: b.initial_balance, is_active: b.is_active }));
@@ -59,7 +59,7 @@ export function BankReportModal({ open, onOpenChange, banks }: BankReportModalPr
       startDate: startDate || null,
       endDate: endDate || null,
       contactId: null,
-      categoryId: categoryId || null,
+      categoryId: categoryId === 'all' ? null : categoryId,
     },
     banksList
   );
@@ -325,7 +325,7 @@ ${transactions}
                 <SelectValue placeholder="Todos os eventos contábeis" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos</SelectItem>
+                <SelectItem value="all">Todos</SelectItem>
                 {categories.map(c => (
                   <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                 ))}

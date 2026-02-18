@@ -29,8 +29,8 @@ export function UnifiedStatementAccordion({ banks }: UnifiedStatementAccordionPr
 
   const [startDate, setStartDate] = useState(firstOfMonth);
   const [endDate, setEndDate] = useState(lastOfMonth);
-  const [contactId, setContactId] = useState('');
-  const [categoryId, setCategoryId] = useState('');
+  const [contactId, setContactId] = useState('all');
+  const [categoryId, setCategoryId] = useState('all');
   const [bankId, setBankId] = useState('all');
 
   const banksList = banks.map(b => ({ id: b.id, initial_balance: b.initial_balance, is_active: b.is_active }));
@@ -40,8 +40,8 @@ export function UnifiedStatementAccordion({ banks }: UnifiedStatementAccordionPr
       bankId: bankId as string,
       startDate: startDate || null,
       endDate: endDate || null,
-      contactId: contactId || null,
-      categoryId: categoryId || null,
+      contactId: contactId === 'all' ? null : contactId,
+      categoryId: categoryId === 'all' ? null : categoryId,
     },
     banksList
   );
@@ -99,7 +99,7 @@ export function UnifiedStatementAccordion({ banks }: UnifiedStatementAccordionPr
                   <SelectValue placeholder="Todos os clientes" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
                   {contacts.map(c => (
                     <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                   ))}
@@ -111,7 +111,7 @@ export function UnifiedStatementAccordion({ banks }: UnifiedStatementAccordionPr
                 <SelectValue placeholder="Todos os eventos contábeis" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos os eventos</SelectItem>
+                <SelectItem value="all">Todos os eventos</SelectItem>
                 {categories.map(c => (
                   <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                 ))}
