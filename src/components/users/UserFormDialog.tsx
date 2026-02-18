@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { z } from 'zod';
+import { PasswordStrength, isPasswordStrong } from '@/components/ui/PasswordStrength';
 
 const userSchema = z.object({
   fullName: z.string().min(2, 'Nome completo é obrigatório'),
@@ -15,7 +16,11 @@ const userSchema = z.object({
     .min(3, 'Mínimo 3 caracteres')
     .max(50, 'Máximo 50 caracteres')
     .regex(/^[a-zA-Z0-9_]+$/, 'Apenas letras, números e underline'),
-  password: z.string().min(6, 'Mínimo 6 caracteres'),
+  password: z.string()
+    .min(8, 'Mínimo 8 caracteres')
+    .regex(/[A-Z]/, 'Necessária uma letra maiúscula')
+    .regex(/[a-z]/, 'Necessária uma letra minúscula')
+    .regex(/[0-9]/, 'Necessário um número'),
   confirmPassword: z.string()
 }).refine(data => data.password === data.confirmPassword, {
   message: 'As senhas não coincidem',
@@ -44,12 +49,7 @@ export default function UserFormDialog({ open, onOpenChange, companyId, onSucces
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const resetForm = () => {
-    setFormData({
-      fullName: '',
-      username: '',
-      password: '',
-      confirmPassword: ''
-    });
+    setFormData({ fullName: '', username: '', password: '', confirmPassword: '' });
     setErrors({});
     setShowPassword(false);
     setShowConfirmPassword(false);
@@ -74,6 +74,11 @@ export default function UserFormDialog({ open, onOpenChange, companyId, onSucces
       return;
     }
 
+    if (!isPasswordStrong(formData.password)) {
+      setErrors({ password: 'A senha não atende aos requisitos mínimos de segurança' });
+      return;
+    }
+
     setIsLoading(true);
     try {
       // Check if username is already taken
@@ -89,62 +94,45 @@ export default function UserFormDialog({ open, onOpenChange, companyId, onSucces
         return;
       }
 
-      // Create email from username for Supabase auth (internal use only)
+      // Use internal email format from username
       const internalEmail = `${formData.username.toLowerCase()}@internal.local`;
-      const redirectUrl = `${window.location.origin}/`;
 
-      // Create user in Supabase Auth
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email: internalEmail,
-        password: formData.password,
-        options: {
-          emailRedirectTo: redirectUrl,
-          data: {
-            company_id: companyId,
-            full_name: formData.fullName,
-            username: formData.username.toLowerCase()
-          }
+      // Call edge function to create user without replacing current session
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user-v2`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            email: internalEmail,
+            password: formData.password,
+            fullName: formData.fullName,
+            companyId,
+            username: formData.username.toLowerCase(),
+            allowedModules: ['financeiro', 'crm', 'relatorios'],
+          }),
         }
+      );
+
+      const result2 = await res.json();
+      if (!res.ok) throw new Error(result2.error || 'Erro ao criar usuário');
+
+      addNotification({
+        title: 'Novo Usuário Criado',
+        description: `Usuário "${formData.fullName}" criado com sucesso.`,
+        type: 'success',
+        category: 'sucesso'
       });
 
-      if (signUpError) throw signUpError;
-
-      if (authData.user) {
-        // Create profile
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            user_id: authData.user.id,
-            company_id: companyId,
-            full_name: formData.fullName,
-            email: internalEmail,
-            username: formData.username.toLowerCase()
-          });
-
-        if (profileError) throw profileError;
-
-        // Assign admin role
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .insert({
-            user_id: authData.user.id,
-            role: 'admin'
-          });
-
-        if (roleError) throw roleError;
-
-        // Trigger notification
-        addNotification({
-          title: 'Novo Usuário Criado',
-          description: `Usuário "${formData.fullName}" criado com sucesso.`,
-          type: 'success',
-          category: 'sucesso'
-        });
-
-        toast.success('Usuário criado com sucesso!');
-        onSuccess();
-        handleClose();
-      }
+      toast.success('Usuário criado com sucesso!');
+      onSuccess();
+      handleClose();
     } catch (error: any) {
       console.error('Erro ao criar usuário:', error);
       toast.error(error.message || 'Erro ao criar usuário');
@@ -193,54 +181,55 @@ export default function UserFormDialog({ open, onOpenChange, companyId, onSucces
               </div>
               {errors.username && <p className="text-destructive text-sm">{errors.username}</p>}
             </div>
+          </div>
 
-            {/* Password */}
-            <div className="space-y-2">
-              <Label htmlFor="password">Senha *</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••"
-                  className="pl-10 pr-10"
-                  value={formData.password}
-                  onChange={e => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-              {errors.password && <p className="text-destructive text-sm">{errors.password}</p>}
+          {/* Password — full width for strength indicator */}
+          <div className="space-y-2">
+            <Label htmlFor="password">Senha *</Label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                placeholder="••••••••"
+                className="pl-10 pr-10"
+                value={formData.password}
+                onChange={e => setFormData(prev => ({ ...prev, password: e.target.value }))}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
+            {errors.password && <p className="text-destructive text-sm">{errors.password}</p>}
+            <PasswordStrength password={formData.password} />
+          </div>
 
-            {/* Confirm Password */}
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirmar Senha *</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  id="confirmPassword"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  placeholder="••••••"
-                  className="pl-10 pr-10"
-                  value={formData.confirmPassword}
-                  onChange={e => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-              {errors.confirmPassword && <p className="text-destructive text-sm">{errors.confirmPassword}</p>}
+          {/* Confirm Password */}
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword">Confirmar Senha *</Label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                id="confirmPassword"
+                type={showConfirmPassword ? 'text' : 'password'}
+                placeholder="••••••••"
+                className="pl-10 pr-10"
+                value={formData.confirmPassword}
+                onChange={e => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
+            {errors.confirmPassword && <p className="text-destructive text-sm">{errors.confirmPassword}</p>}
           </div>
 
           <div className="flex justify-end gap-3 pt-4">

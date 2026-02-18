@@ -17,7 +17,8 @@ export function useSuperAdmin() {
       return data;
     },
     enabled: !!user?.id,
-    staleTime: 60000,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   return {
