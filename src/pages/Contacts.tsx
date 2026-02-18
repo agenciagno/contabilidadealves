@@ -177,7 +177,7 @@ export default function Contacts() {
                   onClick={() => copyToClipboard(contact.phone!, 'Telefone')}
                   className="group flex items-center gap-2 w-full hover:text-primary transition-colors text-left"
                 >
-                  <span className="flex-1">{contact.phone}</span>
+                  <span className="flex-1 text-xs">{contact.phone}</span>
                   <Copy className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
                 </button>
               ) : (
@@ -193,7 +193,7 @@ export default function Contacts() {
                   onClick={() => copyToClipboard(contact.email!, 'E-mail')}
                   className="group flex items-center gap-2 w-full hover:text-primary transition-colors text-left"
                 >
-                  <span className="truncate flex-1">{contact.email}</span>
+                  <span className="truncate flex-1 text-xs">{contact.email}</span>
                   <Copy className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
                 </button>
               ) : (
