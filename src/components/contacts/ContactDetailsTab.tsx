@@ -1,13 +1,11 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Mail, Phone, MapPin, FileText, Building2, Users, Plus, Edit2, Trash2, Percent } from 'lucide-react';
+import { Mail, MapPin, FileText, Building2, Pencil } from 'lucide-react';
 import { Contact } from '@/hooks/useContacts';
-import { useContactPartners, ContactPartnerInsert } from '@/hooks/useContactPartners';
-import { PartnerFormDialog } from './PartnerFormDialog';
+import { ContactEditSheet } from './ContactEditSheet';
+
+type Section = 'contato' | 'endereco' | 'fiscal' | 'observacoes';
 
 interface ContactDetailsTabProps {
   contact: Contact;
@@ -22,53 +20,20 @@ const taxRegimeLabels: Record<string, string> = {
 };
 
 export function ContactDetailsTab({ contact }: ContactDetailsTabProps) {
-  const { partners, isLoading: loadingPartners, totalParticipation, createPartner, updatePartner, deletePartner } = useContactPartners(contact.id);
-  const [partnerDialogOpen, setPartnerDialogOpen] = useState(false);
-  const [editingPartner, setEditingPartner] = useState<typeof partners[0] | undefined>();
-  const [deletePartnerId, setDeletePartnerId] = useState<string | null>(null);
-
-  const handlePartnerSubmit = (data: ContactPartnerInsert) => {
-    if (editingPartner) {
-      updatePartner.mutate({ id: editingPartner.id, ...data }, {
-        onSuccess: () => {
-          setPartnerDialogOpen(false);
-          setEditingPartner(undefined);
-        },
-      });
-    } else {
-      createPartner.mutate(data, {
-        onSuccess: () => setPartnerDialogOpen(false),
-      });
-    }
-  };
-
-  const handleEditPartner = (partner: typeof partners[0]) => {
-    setEditingPartner(partner);
-    setPartnerDialogOpen(true);
-  };
-
-  const handleNewPartner = () => {
-    setEditingPartner(undefined);
-    setPartnerDialogOpen(true);
-  };
-
-  const handleDeletePartner = () => {
-    if (deletePartnerId) {
-      deletePartner.mutate(deletePartnerId, {
-        onSuccess: () => setDeletePartnerId(null),
-      });
-    }
-  };
+  const [editSection, setEditSection] = useState<Section | null>(null);
 
   return (
     <div className="grid md:grid-cols-2 gap-6">
       {/* Informações de Contato */}
       <Card className="bg-card border-border/50">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Mail className="h-4 w-4" />
             Informações de Contato
           </CardTitle>
+          <Button variant="ghost" size="icon" onClick={() => setEditSection('contato')}>
+            <Pencil className="h-4 w-4" />
+          </Button>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
@@ -92,11 +57,14 @@ export function ContactDetailsTab({ contact }: ContactDetailsTabProps) {
 
       {/* Endereço */}
       <Card className="bg-card border-border/50">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <MapPin className="h-4 w-4" />
             Endereço
           </CardTitle>
+          <Button variant="ghost" size="icon" onClick={() => setEditSection('endereco')}>
+            <Pencil className="h-4 w-4" />
+          </Button>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
@@ -116,11 +84,14 @@ export function ContactDetailsTab({ contact }: ContactDetailsTabProps) {
 
       {/* Dados Fiscais */}
       <Card className="bg-card border-border/50">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             Dados Fiscais
           </CardTitle>
+          <Button variant="ghost" size="icon" onClick={() => setEditSection('fiscal')}>
+            <Pencil className="h-4 w-4" />
+          </Button>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
@@ -138,11 +109,14 @@ export function ContactDetailsTab({ contact }: ContactDetailsTabProps) {
 
       {/* Observações */}
       <Card className="bg-card border-border/50">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <FileText className="h-4 w-4" />
             Observações
           </CardTitle>
+          <Button variant="ghost" size="icon" onClick={() => setEditSection('observacoes')}>
+            <Pencil className="h-4 w-4" />
+          </Button>
         </CardHeader>
         <CardContent>
           <p className="text-foreground whitespace-pre-wrap">
@@ -151,93 +125,14 @@ export function ContactDetailsTab({ contact }: ContactDetailsTabProps) {
         </CardContent>
       </Card>
 
-      {/* Sócios */}
-      <Card className="bg-card border-border/50 md:col-span-2">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Sócios
-            {totalParticipation > 0 && (
-              <Badge variant="outline" className="ml-2">
-                {totalParticipation.toFixed(1)}% total
-              </Badge>
-            )}
-          </CardTitle>
-          <Button size="sm" onClick={handleNewPartner} className="gap-1">
-            <Plus className="h-4 w-4" />
-            Adicionar Sócio
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {loadingPartners ? (
-            <div className="space-y-2">
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
-            </div>
-          ) : partners.length > 0 ? (
-            <div className="space-y-3">
-              {partners.map((partner) => (
-                <div
-                  key={partner.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border/50"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium text-foreground">{partner.name}</p>
-                      <Badge variant="secondary" className="text-xs">
-                        <Percent className="h-3 w-3 mr-1" />
-                        {partner.participation_percentage || 0}%
-                      </Badge>
-                    </div>
-                    <div className="flex gap-4 mt-1 text-sm text-muted-foreground">
-                      {partner.cpf && <span className="font-mono text-xs">{partner.cpf}</span>}
-                      {partner.email && <span>{partner.email}</span>}
-                    </div>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => handleEditPartner(partner)}>
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => setDeletePartnerId(partner.id)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-center py-4">
-              Nenhum sócio cadastrado
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      <PartnerFormDialog
-        open={partnerDialogOpen}
-        onOpenChange={setPartnerDialogOpen}
-        partner={editingPartner}
-        contactId={contact.id}
-        onSubmit={handlePartnerSubmit}
-        isLoading={createPartner.isPending || updatePartner.isPending}
-      />
-
-      <AlertDialog open={!!deletePartnerId} onOpenChange={() => setDeletePartnerId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remover sócio?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação não pode ser desfeita. O sócio será removido permanentemente.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeletePartner} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Remover
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {editSection && (
+        <ContactEditSheet
+          contact={contact}
+          section={editSection}
+          open={!!editSection}
+          onOpenChange={(open) => !open && setEditSection(null)}
+        />
+      )}
     </div>
   );
 }

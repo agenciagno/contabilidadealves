@@ -417,17 +417,36 @@ export function ContactDocumentsTab({ contactId }: ContactDocumentsTabProps) {
               accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.png,.jpg,.jpeg"
             />
             <div
-              onClick={() => document.getElementById('upload-input')?.click()}
-              className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer
-                border-border hover:border-primary/50 hover:bg-muted/50 transition-colors"
+              onClick={() => !uploadDocument.isPending && !uploadSuccess && document.getElementById('upload-input')?.click()}
+              className={`
+                border-2 border-dashed rounded-lg p-8 text-center transition-all duration-300
+                ${uploadDocument.isPending ? 'cursor-not-allowed border-border bg-muted/30' :
+                  uploadSuccess ? 'cursor-default border-emerald-500/50 bg-emerald-500/5' :
+                  'cursor-pointer border-border hover:border-primary/50 hover:bg-muted/50'
+                }
+              `}
             >
-              <Upload className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
-              <p className="text-sm font-medium">
-                Clique para selecionar arquivos
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                PDF, DOC, XLS, PNG, JPG (máx. 10MB)
-              </p>
+              {uploadDocument.isPending ? (
+                <>
+                  <Loader2 className="h-10 w-10 mx-auto mb-3 text-muted-foreground animate-spin" />
+                  <p className="text-sm font-medium text-muted-foreground">Realizando upload...</p>
+                </>
+              ) : uploadSuccess ? (
+                <>
+                  <CheckCircle2 className="h-10 w-10 mx-auto mb-3 text-emerald-500 animate-bounce" />
+                  <p className="text-sm font-medium text-emerald-500">Upload concluído!</p>
+                </>
+              ) : (
+                <>
+                  <Upload className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
+                  <p className="text-sm font-medium">
+                    Clique para selecionar arquivos
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    PDF, DOC, XLS, PNG, JPG (máx. 10MB)
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </DialogContent>
