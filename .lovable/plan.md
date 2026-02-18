@@ -1,94 +1,86 @@
 
-# Refinamentos Visuais e de Conteúdo — Tela de Lançamentos
+# Plano: Destaque Visual do Valor nas Linhas de Transação
 
-## Estado Atual (Diagnóstico)
+## Diagnóstico Atual
 
-Após a transformação BI, o arquivo `src/pages/Transactions.tsx` (797 linhas) tem:
+Na linha 732 do `src/pages/Transactions.tsx`, o valor da transação está assim:
 
-- Cards KPI com `text-2xl font-bold` — valores financeiros com pouco destaque visual
-- Card "Em Atraso" mostrando apenas um valor somado (`biMetrics.contasEmAtraso` = somente despesas)
-- Card "Acumulado (Mês)" como título — terminologia informal
-- Textos secundários nas linhas usando `text-muted-foreground` (baixo contraste para telas com brilho reduzido)
-- Valor da transação na linha com `font-bold text-sm` — pouco destaque frente ao nome
-- `filtersOpen` inicializado como `false` — já correto
+```tsx
+<span className={`font-bold text-base tabular-nums ${...}`}>
+  {transaction.type === 'receita' ? '+' : '-'}{formatCurrency(...)}
+</span>
+```
 
----
-
-## Mudança 1 — Super Destaque nos Cards Principais (KPIs Superiores)
-
-**Linhas alvo:** 478, 496, 514
-
-**De:** `text-2xl font-bold`
-**Para:** `text-4xl font-extrabold tracking-tight`
-
-Aplicado nos 3 cards: A Receber (verde), A Pagar (vermelho) e Saldo Bancário (primário/vermelho condicional).
-
-O ícone circular à direita será mantido. O espaçamento interno do card pode crescer ligeiramente (`p-5` em vez de `p-4`) para acomodar os números maiores sem comprimir.
+- `text-base` = 16px — competindo com o nome do contato (também `text-sm`/`text-base`)
+- Sem diferença de escala entre o valor e os outros textos da coluna direita
+- O valor deveria ser o elemento dominante visualmente na coluna direita
 
 ---
 
-## Mudança 2 — Refinamento da Barra de Métricas (BI Ticker)
+## O Que Será Alterado
 
-### 2a — Card "Em Atraso": Split em duas linhas
+### Mudança no Valor (linha 732)
 
-**Problema:** o cálculo atual em `biMetrics` só computa `contasEmAtraso` para **despesas**. Precisamos adicionar `receitasEmAtraso` (receitas não recebidas com `due_date < hoje`).
-
-**Mudança no `useMemo` de `biMetrics`** (linhas 199–244):
-- Adicionar variável `receitasEmAtraso` dentro do loop `for (const t of allTransactions)`
-- Condição: `t.type === 'receita' && !t.is_paid && t.due_date && t.due_date < todayStr`
-- Retornar `receitasEmAtraso` junto com os demais valores
-
-**Mudança visual no card "Em Atraso"** (linhas 534–543):
-- Remover o valor único `{formatCurrency(biMetrics.contasEmAtraso)}`
-- Exibir duas linhas:
-  - `⬇ Receber: R$ X` — cor `text-orange-400` (inadimplência a receber)
-  - `⬆ Pagar: R$ Y` — cor `text-red-500` (dívida vencida)
-
-### 2b — Card "Acumulado": Renomear para "Resultado Realizado"
-
-**Linhas 574–586:**
-- Título: `text-xs text-muted-foreground` → trocar texto de `"Acumulado (Mês)"` para `"Resultado Realizado"`
-- Subtexto: de `"Rec. pagas — Desp. pagas: ..."` para `"Realizado no mês corrente"` (mais limpo)
-- Mostrar o resultado líquido em destaque: `receitasPagasMes - despesasPagasMes` com cor condicional (verde se positivo, vermelho se negativo)
-
----
-
-## Mudança 3 — Melhoria nas Linhas de Transação
-
-### 3a — Contraste nos textos secundários
-
-**Linhas 714–721** (subtext da linha): `text-muted-foreground` → `text-zinc-400`
-
-Afeta: nome do banco, separadores `•`, e o texto "Receita"/"Despesa".
-
-### 3b — Peso da fonte do valor na linha
-
-**Linha 727:** `font-bold text-sm` → `font-bold text-base`
-
-Isso faz o valor monetário (`+R$ 1.500,00`) se destacar mais do que o nome do contato ao lado.
-
----
-
-## Mudança 4 — Verificação do Estado do Accordion
-
-**Linha 87:** `const [filtersOpen, setFiltersOpen] = useState(false);`
-
-Já está `false`. Nenhuma alteração necessária aqui.
-
----
-
-## Resumo de Todos os Pontos de Mudança
-
-| # | Mudança | Linhas |
+| Propriedade | Antes | Depois |
 |---|---|---|
-| 1 | `text-2xl font-bold` → `text-4xl font-extrabold tracking-tight` nos 3 KPIs | 478, 496, 514 |
-| 1b | `p-4` → `p-5` nos cards KPI para acomodar fonte maior | 474, 492, 510 |
-| 2a | Adicionar `receitasEmAtraso` ao `useMemo` biMetrics | 207–236 |
-| 2a | Split visual do card "Em Atraso" em duas linhas coloridas | 534–543 |
-| 2b | Renomear "Acumulado (Mês)" para "Resultado Realizado" + lógica de resultado líquido | 574–586 |
-| 3a | `text-muted-foreground` → `text-zinc-400` nos subtextos das linhas | 714–721 |
-| 3b | `font-bold text-sm` → `font-bold text-base` no valor da linha | 727 |
+| Tamanho | `text-base` (16px) | `text-xl` (20px) |
+| Peso | `font-bold` | `font-extrabold` |
+| Tracking | — | `tracking-tight` |
 
-**Arquivo único modificado:** `src/pages/Transactions.tsx`
+A classe completa passará de:
+```
+font-bold text-base tabular-nums
+```
+Para:
+```
+font-extrabold text-xl tabular-nums tracking-tight
+```
 
-Sem mudanças de banco de dados, hooks ou novos arquivos.
+### Ajuste Complementar no Status Pill (linha 740)
+
+Para manter a hierarquia correta (valor > pill), o badge de status ganha um toque extra de tamanho:
+
+| Propriedade | Antes | Depois |
+|---|---|---|
+| Texto | `text-[10px]` | `text-xs` |
+| Padding vertical | `py-0.5` | `py-1` |
+| Padding horizontal | `px-2` | `px-2.5` |
+
+### Ajuste no Ícone (linha 684)
+
+O ícone à esquerda também sobe junto para equilibrar a hierarquia visual com o valor maior:
+
+| Propriedade | Antes | Depois |
+|---|---|---|
+| Container | `w-9 h-9` | `w-10 h-10` |
+| Ícone interno | `w-4 h-4` | `w-5 h-5` |
+| Fundo | `bg-xxx/15` | `bg-xxx/20` |
+
+### Padding do Row (linha 681)
+
+| Antes | Depois |
+|---|---|
+| `py-3` | `py-3.5` |
+
+---
+
+## Resultado Visual
+
+```
+┌───────────────────────────────────────────────────────────┐
+│  🟢  [03/06]  João Silva                  +R$ 1.500,00   │  ← valor em text-xl extrabold
+│      💼 Honorários • Banco X • Receita    [ Recebido  ]  │  ← pill legível
+└───────────────────────────────────────────────────────────┘
+```
+
+O `+R$ 1.500,00` em `text-xl font-extrabold` será imediatamente o ponto de foco da coluna direita, sem precisar procurar o número.
+
+---
+
+## Arquivo Modificado
+
+| Arquivo | Linhas |
+|---|---|
+| `src/pages/Transactions.tsx` | 681, 684–691, 732, 740 |
+
+Nenhuma mudança de lógica, banco de dados ou hooks. Apenas refinamento de classes Tailwind nas linhas de transação.
