@@ -152,6 +152,8 @@ export type Database = {
           logo_url: string | null
           name: string
           phone: string | null
+          plan_modules: string[]
+          status: string
           updated_at: string
         }
         Insert: {
@@ -161,6 +163,8 @@ export type Database = {
           logo_url?: string | null
           name: string
           phone?: string | null
+          plan_modules?: string[]
+          status?: string
           updated_at?: string
         }
         Update: {
@@ -170,6 +174,8 @@ export type Database = {
           logo_url?: string | null
           name?: string
           phone?: string | null
+          plan_modules?: string[]
+          status?: string
           updated_at?: string
         }
         Relationships: []
@@ -534,31 +540,37 @@ export type Database = {
       }
       profiles: {
         Row: {
+          allowed_modules: string[]
           company_id: string
           created_at: string
           email: string
           full_name: string | null
           id: string
+          is_super_admin: boolean
           updated_at: string
           user_id: string
           username: string | null
         }
         Insert: {
+          allowed_modules?: string[]
           company_id: string
           created_at?: string
           email: string
           full_name?: string | null
           id?: string
+          is_super_admin?: boolean
           updated_at?: string
           user_id: string
           username?: string | null
         }
         Update: {
+          allowed_modules?: string[]
           company_id?: string
           created_at?: string
           email?: string
           full_name?: string | null
           id?: string
+          is_super_admin?: boolean
           updated_at?: string
           user_id?: string
           username?: string | null
@@ -820,6 +832,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_super_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "colaborador" | "cliente"
