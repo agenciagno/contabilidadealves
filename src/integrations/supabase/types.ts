@@ -369,6 +369,10 @@ export type Database = {
       contacts: {
         Row: {
           address: string | null
+          boleto_active: boolean
+          boleto_due_day: number | null
+          boleto_start_date: string | null
+          boleto_value: number | null
           city: string | null
           company_id: string
           created_at: string
@@ -387,6 +391,10 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          boleto_active?: boolean
+          boleto_due_day?: number | null
+          boleto_start_date?: string | null
+          boleto_value?: number | null
           city?: string | null
           company_id: string
           created_at?: string
@@ -405,6 +413,10 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          boleto_active?: boolean
+          boleto_due_day?: number | null
+          boleto_start_date?: string | null
+          boleto_value?: number | null
           city?: string | null
           company_id?: string
           created_at?: string
