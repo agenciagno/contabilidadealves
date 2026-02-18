@@ -1,109 +1,94 @@
 
-# Transformação Completa da Tela de Lançamentos — Business Intelligence
+# Refinamentos Visuais e de Conteúdo — Tela de Lançamentos
 
-## Diagnóstico do Estado Atual
+## Estado Atual (Diagnóstico)
 
-A tela `src/pages/Transactions.tsx` hoje possui:
-- 3 cards KPI mostrando totais simples (Receitas, Despesas, Saldo do Período) sem distinção entre pago/a receber
-- Filtros `UnifiedFilterBox` sempre visíveis (ocupa espaço permanente)
-- Listagem em tabela/grid com Checkbox para alternar status
-- Nenhuma barra de métricas ou indicadores de BI
+Após a transformação BI, o arquivo `src/pages/Transactions.tsx` (797 linhas) tem:
 
-O hook `useBanks` já retorna `current_balance` e `is_caixa_geral` — aproveitaremos esses dados para o card de Saldo Bancário Real e para o ticker.
+- Cards KPI com `text-2xl font-bold` — valores financeiros com pouco destaque visual
+- Card "Em Atraso" mostrando apenas um valor somado (`biMetrics.contasEmAtraso` = somente despesas)
+- Card "Acumulado (Mês)" como título — terminologia informal
+- Textos secundários nas linhas usando `text-muted-foreground` (baixo contraste para telas com brilho reduzido)
+- Valor da transação na linha com `font-bold text-sm` — pouco destaque frente ao nome
+- `filtersOpen` inicializado como `false` — já correto
 
 ---
 
-## Mudança 1 — Refatoração dos Cards KPI
+## Mudança 1 — Super Destaque nos Cards Principais (KPIs Superiores)
 
-### Lógica dos Cálculos
+**Linhas alvo:** 478, 496, 514
 
-Os 3 cards usarão `filteredTransactions` (respeitando os filtros da tela), exceto o Saldo Bancário Real:
+**De:** `text-2xl font-bold`
+**Para:** `text-4xl font-extrabold tracking-tight`
 
-| Card | Destaque (Grande) | Rodapé (Discreto) |
+Aplicado nos 3 cards: A Receber (verde), A Pagar (vermelho) e Saldo Bancário (primário/vermelho condicional).
+
+O ícone circular à direita será mantido. O espaçamento interno do card pode crescer ligeiramente (`p-5` em vez de `p-4`) para acomodar os números maiores sem comprimir.
+
+---
+
+## Mudança 2 — Refinamento da Barra de Métricas (BI Ticker)
+
+### 2a — Card "Em Atraso": Split em duas linhas
+
+**Problema:** o cálculo atual em `biMetrics` só computa `contasEmAtraso` para **despesas**. Precisamos adicionar `receitasEmAtraso` (receitas não recebidas com `due_date < hoje`).
+
+**Mudança no `useMemo` de `biMetrics`** (linhas 199–244):
+- Adicionar variável `receitasEmAtraso` dentro do loop `for (const t of allTransactions)`
+- Condição: `t.type === 'receita' && !t.is_paid && t.due_date && t.due_date < todayStr`
+- Retornar `receitasEmAtraso` junto com os demais valores
+
+**Mudança visual no card "Em Atraso"** (linhas 534–543):
+- Remover o valor único `{formatCurrency(biMetrics.contasEmAtraso)}`
+- Exibir duas linhas:
+  - `⬇ Receber: R$ X` — cor `text-orange-400` (inadimplência a receber)
+  - `⬆ Pagar: R$ Y` — cor `text-red-500` (dívida vencida)
+
+### 2b — Card "Acumulado": Renomear para "Resultado Realizado"
+
+**Linhas 574–586:**
+- Título: `text-xs text-muted-foreground` → trocar texto de `"Acumulado (Mês)"` para `"Resultado Realizado"`
+- Subtexto: de `"Rec. pagas — Desp. pagas: ..."` para `"Realizado no mês corrente"` (mais limpo)
+- Mostrar o resultado líquido em destaque: `receitasPagasMes - despesasPagasMes` com cor condicional (verde se positivo, vermelho se negativo)
+
+---
+
+## Mudança 3 — Melhoria nas Linhas de Transação
+
+### 3a — Contraste nos textos secundários
+
+**Linhas 714–721** (subtext da linha): `text-muted-foreground` → `text-zinc-400`
+
+Afeta: nome do banco, separadores `•`, e o texto "Receita"/"Despesa".
+
+### 3b — Peso da fonte do valor na linha
+
+**Linha 727:** `font-bold text-sm` → `font-bold text-base`
+
+Isso faz o valor monetário (`+R$ 1.500,00`) se destacar mais do que o nome do contato ao lado.
+
+---
+
+## Mudança 4 — Verificação do Estado do Accordion
+
+**Linha 87:** `const [filtersOpen, setFiltersOpen] = useState(false);`
+
+Já está `false`. Nenhuma alteração necessária aqui.
+
+---
+
+## Resumo de Todos os Pontos de Mudança
+
+| # | Mudança | Linhas |
 |---|---|---|
-| Receitas | A Receber = soma de receitas com `is_paid = false` | Recebido: soma de receitas com `is_paid = true` |
-| Despesas | A Pagar = soma de despesas com `is_paid = false` | Pago: soma de despesas com `is_paid = true` |
-| Saldo Bancário | Soma de `current_balance` de todos os bancos ativos (global, ignora filtro) | Caixa Geral: saldo do banco marcado como `is_caixa_geral = true` |
+| 1 | `text-2xl font-bold` → `text-4xl font-extrabold tracking-tight` nos 3 KPIs | 478, 496, 514 |
+| 1b | `p-4` → `p-5` nos cards KPI para acomodar fonte maior | 474, 492, 510 |
+| 2a | Adicionar `receitasEmAtraso` ao `useMemo` biMetrics | 207–236 |
+| 2a | Split visual do card "Em Atraso" em duas linhas coloridas | 534–543 |
+| 2b | Renomear "Acumulado (Mês)" para "Resultado Realizado" + lógica de resultado líquido | 574–586 |
+| 3a | `text-muted-foreground` → `text-zinc-400` nos subtextos das linhas | 714–721 |
+| 3b | `font-bold text-sm` → `font-bold text-base` no valor da linha | 727 |
 
-O cálculo do `totals` em `useMemo` será expandido para incluir `receitasPendentes`, `receitasPagas`, `despesasPendentes` e `despesasPagas`.
+**Arquivo único modificado:** `src/pages/Transactions.tsx`
 
-O saldo bancário real virá diretamente de `banks` (já carregado via `useBanks`), somando `current_balance` de todos os bancos ativos.
-
----
-
-## Mudança 2 — Nova Barra de Métricas (Ticker Financeiro)
-
-Uma nova seção horizontal com 4 colunas, posicionada logo abaixo dos 3 cards KPI.
-
-Os valores são calculados via `useMemo` a partir de `allTransactions` (não filtrado), com as seguintes fórmulas:
-
-| Métrica | Fonte | Fórmula |
-|---|---|---|
-| Contas em Atraso | `allTransactions` | Soma de despesas com `due_date < hoje` E `is_paid = false` |
-| Capital de Giro Hoje | `allTransactions` + `banks` | (Saldo Total Bancos) + (receitas vencendo hoje) - (despesas vencendo hoje) |
-| Lucro Previsto (Mês) | `allTransactions` | (Total Receitas do mês corrente) - (Total Despesas do mês corrente) |
-| Acumulado do Mês | `allTransactions` | Receitas pagas no mês corrente vs Despesas pagas no mês corrente |
-
-A seção usará cards compactos com ícone colorido, valor em `font-bold` e label em `text-xs text-muted-foreground`.
-
----
-
-## Mudança 3 — Filtros em Accordion Colapsável + Novo Design de Linha
-
-### 3a — Filtros Recolhíveis
-
-O `UnifiedFilterBox` será envolto num `Collapsible` do Radix UI (já instalado e disponível em `src/components/ui/collapsible.tsx`).
-
-- Estado padrão: **fechado**
-- O trigger será um botão "Filtros Avançados" com ícone `SlidersHorizontal` (Lucide), posicionado na linha do cabeçalho, ao lado do botão "Nova Movimentação"
-- Um badge mostrará quantos filtros estão ativos quando o painel estiver fechado
-- O `UnifiedFilterBox` existente não precisa ser modificado — apenas envolto no Collapsible
-
-### 3b — Novo Design de Linha (Card Horizontal)
-
-O modo de listagem padrão (`viewMode === 'list'`) será redesenhado. Cada transação será um card horizontal com:
-
-**Estrutura Visual:**
-```
-┌────────────────────────────────────────────────────────┐
-│ [Ícone]  DD/MM • Nome do Contato (Truncado)   [VALOR]  │
-│          Badge Evento • Banco • Rec/Desp      [STATUS] │
-└────────────────────────────────────────────────────────┘
-```
-
-- **Coluna Esquerda:** ícone de tipo (receita/despesa)
-- **Coluna Central — Linha 1 (Destaque):** Data formatada `DD/MM` + separador `•` + nome do contato (ou a descrição, se sem contato). Font: `font-medium`
-- **Coluna Central — Linha 2 (Subtext):** Badge do Evento Contábil + `•` Nome do Banco + `•` tipo (Receita/Despesa). Font: `text-xs text-muted-foreground`
-- **Coluna Direita — Valor:** em destaque verde/vermelho, `font-bold`
-- **Coluna Direita — Status Badge (Pill Interativo):**
-  - Pago: `bg-emerald-500 text-white` (sólido)
-  - Pendente: `border border-amber-500 text-amber-500` (outline)
-  - Clique chama `togglePaid.mutate(...)` diretamente
-- **Ações (Editar/Excluir):** mantidas como ícones discretos à direita
-
-O modo grid (`viewMode === 'grid'`) permanece inalterado.
-
----
-
-## Arquitetura Técnica — Independência das Queries
-
-| Dado | Fonte | Filtrado? |
-|---|---|---|
-| KPI Receitas/Despesas | `filteredTransactions` | Sim (segue filtros da tela) |
-| Saldo Bancário Real | `banks` (via `useBanks`) | Não (global) |
-| Contas em Atraso | `allTransactions` | Não (global) |
-| Capital de Giro | `allTransactions` + `banks` | Não (global) |
-| Lucro Previsto do Mês | `allTransactions` | Não (mês corrente fixo) |
-| Acumulado do Mês | `allTransactions` | Não (mês corrente fixo) |
-
-Isso garante que os indicadores de BI reflitam a realidade financeira, não o recorte de visualização atual.
-
----
-
-## Arquivos a Modificar
-
-| Arquivo | Tipo de Mudança |
-|---|---|
-| `src/pages/Transactions.tsx` | Principal — todos os 4 pontos acima implementados aqui |
-
-Nenhuma mudança de banco de dados. Nenhum novo arquivo criado. Nenhum hook novo necessário — todos os dados já são carregados (`useBanks`, `useTransactions`). O componente `Collapsible` já existe em `src/components/ui/collapsible.tsx`.
+Sem mudanças de banco de dados, hooks ou novos arquivos.
