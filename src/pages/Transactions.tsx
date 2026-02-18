@@ -678,16 +678,16 @@ export default function Transactions() {
               {filteredTransactions.map((transaction) => (
                 <div
                   key={transaction.id}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors group"
+                  className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/30 transition-colors group"
                 >
                   {/* Type Icon */}
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
-                    transaction.type === 'receita' ? 'bg-emerald-500/15' : 'bg-red-500/15'
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                    transaction.type === 'receita' ? 'bg-emerald-500/20' : 'bg-red-500/20'
                   }`}>
                     {transaction.type === 'receita' ? (
-                      <TrendingUp className="w-4 h-4 text-emerald-500" />
+                      <TrendingUp className="w-5 h-5 text-emerald-500" />
                     ) : (
-                      <TrendingDown className="w-4 h-4 text-red-500" />
+                      <TrendingDown className="w-5 h-5 text-red-500" />
                     )}
                   </div>
 
@@ -729,7 +729,7 @@ export default function Transactions() {
 
                   {/* Right: Value + Status */}
                   <div className="flex flex-col items-end gap-1 shrink-0">
-                    <span className={`font-bold text-base tabular-nums ${
+                    <span className={`font-extrabold text-xl tabular-nums tracking-tight ${
                       transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'
                     }`}>
                       {transaction.type === 'receita' ? '+' : '-'}{formatCurrency(Number(transaction.amount))}
@@ -737,7 +737,7 @@ export default function Transactions() {
                     {/* Interactive Status Pill */}
                     <button
                       onClick={() => togglePaid.mutate({ id: transaction.id, is_paid: !transaction.is_paid })}
-                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-all cursor-pointer ${
+                      className={`text-xs font-semibold px-2.5 py-1 rounded-full border transition-all cursor-pointer ${
                         transaction.is_paid
                           ? 'bg-emerald-500 border-emerald-500 text-white'
                           : 'border-amber-500 text-amber-500 bg-transparent hover:bg-amber-500/10'
