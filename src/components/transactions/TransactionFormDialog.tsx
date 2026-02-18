@@ -76,7 +76,7 @@ export function TransactionFormDialog({
   const { createContact } = useContacts();
   const { attachments, uploadAttachment, deleteAttachment } = useTransactionAttachments(transaction?.id);
 
-  const filteredCategories = categories.filter(c => c.type === type);
+  const filteredCategories = categories;
   const activeBanks = banks.filter(b => b.is_active);
   const filteredContacts = contacts.filter(c => c.is_active);
 
@@ -143,7 +143,7 @@ export function TransactionFormDialog({
 
   // Inline creation handlers
   const handleCreateCategory = (data: CategoryInsert) => {
-    createCategory.mutate({ ...data, type }, {
+    createCategory.mutate(data, {
       onSuccess: (newCategory) => {
         setCategoryId(newCategory.id);
         setCategoryDialogOpen(false);
@@ -274,13 +274,7 @@ export function TransactionFormDialog({
                     </SelectItem>
                     {filteredCategories.map((cat) => (
                       <SelectItem key={cat.id} value={cat.id}>
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="w-3 h-3 rounded-full"
-                            style={{ backgroundColor: cat.color }}
-                          />
-                          {cat.name}
-                        </div>
+                        {cat.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
