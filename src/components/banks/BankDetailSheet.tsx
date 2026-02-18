@@ -31,8 +31,8 @@ export function BankDetailSheet({ bank, open, onOpenChange }: BankDetailSheetPro
 
   const [startDate, setStartDate] = useState(firstOfMonth);
   const [endDate, setEndDate] = useState(lastOfMonth);
-  const [contactId, setContactId] = useState<string>('');
-  const [categoryId, setCategoryId] = useState<string>('');
+  const [contactId, setContactId] = useState<string>('all');
+  const [categoryId, setCategoryId] = useState<string>('all');
 
   const banks = bank ? [{ id: bank.id, initial_balance: bank.initial_balance, is_active: bank.is_active }] : [];
 
@@ -41,8 +41,8 @@ export function BankDetailSheet({ bank, open, onOpenChange }: BankDetailSheetPro
       bankId: bank?.id ?? 'all',
       startDate: startDate || null,
       endDate: endDate || null,
-      contactId: contactId || null,
-      categoryId: categoryId || null,
+      contactId: contactId === 'all' ? null : contactId,
+      categoryId: categoryId === 'all' ? null : categoryId,
     },
     banks
   );
@@ -127,7 +127,7 @@ export function BankDetailSheet({ bank, open, onOpenChange }: BankDetailSheetPro
                 <SelectValue placeholder="Todos os clientes/fornecedores" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos</SelectItem>
+                <SelectItem value="all">Todos</SelectItem>
                 {contacts.map(c => (
                   <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                 ))}
@@ -138,7 +138,7 @@ export function BankDetailSheet({ bank, open, onOpenChange }: BankDetailSheetPro
                 <SelectValue placeholder="Todos os eventos contábeis" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos</SelectItem>
+                <SelectItem value="all">Todos</SelectItem>
                 {categories.map(c => (
                   <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                 ))}
