@@ -1,77 +1,97 @@
 
-## Correção do Botão Refresh em Boletos
+## Melhorias nos Cards e Toggle de Visualização em Clientes/Fornecedores
 
-### Diagnóstico Completo
+### O que será mudado
 
-O botão de refresh executa corretamente o `refetchControls()` e `refetchContacts()` — os dados chegam atualizados do banco. O problema está em **dois pontos do hook**:
-
-**Problema 1 — `generatingRef` nunca é resetado:**
-O `useRef(false)` é definido uma vez e marcado como `true` no primeiro carregamento. Após o refresh, o `useEffect` de Lazy Generation verifica `!generatingRef.current` — mas como ele já é `true`, o efeito nunca dispara novamente para novos contatos.
-
-**Problema 2 — Lazy Generation apaga e recria tudo:**
-Mesmo que o efeito disparasse, a lógica atual só funciona quando `boletoControls.length === 0`. Se o mês já tem 5 registros e um novo contato foi habilitado, a condição `boletoControls.length === 0` é `false`, então nada acontece.
-
-**Resultado:** O novo contato aparece em `activeContacts`, mas não tem entrada em `boleto_controls`, então a mesclagem `boletoList` simplesmente não o inclui.
+Três melhorias distintas na página `src/pages/Contacts.tsx`:
 
 ---
 
-### Solução
+### 1. Campos de contato com altura uniforme (Documento, Telefone, E-mail)
 
-Substituir a lógica de "geração inicial do mês inteiro" por uma lógica de **sincronização incremental**: detectar quais contatos ativos ainda não têm entrada para o mês e inserir apenas esses registros ausentes.
+**Problema atual:** Os campos só renderizam se existirem (`{contact.document && ...}`), então cards com dados incompletos ficam com alturas diferentes.
 
-#### Mudanças em `src/hooks/useBoletoControls.ts`
+**Solução:** Renderizar sempre as 3 linhas de informação, exibindo um traço (`—`) ou espaço reservado quando o campo estiver vazio. Isso garante que todos os cards ocupem a mesma altura na área de informações.
 
-**1. Remover o `generatingRef`** — ele não é mais necessário com a nova abordagem.
-
-**2. Alterar o `useEffect` para sincronização incremental:**
-
-```typescript
-useEffect(() => {
-  if (isLoading || generateMonth.isPending) return;
-  if (activeContacts.length === 0) return;
-
-  // Encontrar contatos que ainda não têm entrada no mês
-  const existingContactIds = new Set(boletoControls.map(bc => bc.contact_id));
-  const missingContacts = activeContacts.filter(c => !existingContactIds.has(c.id));
-
-  if (missingContacts.length > 0) {
-    generateMonth.mutate(missingContacts);
+```tsx
+// Cada linha sempre renderizada — com ou sem dado
+<div className="flex items-center gap-2 h-5">
+  <FileText className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/50" />
+  {contact.document
+    ? <button onClick={...}>...</button>
+    : <span className="text-muted-foreground/30 text-xs">—</span>
   }
-}, [isLoading, boletoControls.length, activeContacts.length]);
+</div>
 ```
 
-Esta abordagem:
-- Funciona tanto na primeira carga (mês vazio) quanto após um refresh (novos contatos)
-- Não apaga registros existentes
-- Não usa `generatingRef` — a própria checagem `missingContacts.length > 0` previne loops
+---
 
-**3. Atualizar a função `refreshAll`** para forçar a invalidação do cache antes de refetching, garantindo que os dados sejam sempre buscados do banco:
+### 2. Botão "Ver Perfil" → ícone `Eye` (igual a Editar e Excluir)
+
+**Antes:** Um botão `flex-1` com texto "Ver Perfil" e ícone `Eye`.
+
+**Depois:** Três ícones lado a lado de tamanho igual (`size="icon"`, `variant="ghost"`):
+
+```text
+[ 👁 ]  [ ✏ ]  [ 🗑 ]
+```
+
+```tsx
+<div className="flex gap-1 mt-4 pt-3 border-t border-border/50 justify-end">
+  <Button variant="ghost" size="icon" title="Ver Perfil" onClick={() => navigate(...)}>
+    <Eye className="h-4 w-4" />
+  </Button>
+  <Button variant="ghost" size="icon" title="Editar" onClick={() => handleEdit(contact)}>
+    <Edit2 className="h-4 w-4" />
+  </Button>
+  <Button variant="ghost" size="icon" title="Excluir" onClick={() => setDeleteId(contact.id)}>
+    <Trash2 className="h-4 w-4 text-destructive" />
+  </Button>
+</div>
+```
+
+---
+
+### 3. Toggle de Visualização: Cards ↔ Lista
+
+**Estado:** `viewMode: 'card' | 'list'` (padrão `'card'`).
+
+**Toggle no cabeçalho** — dois ícones, `LayoutGrid` (cards) e `List` (lista), usando o componente `ToggleGroup` já instalado no projeto:
+
+```text
+[ Cliente/Fornecedor ]              [ ⊞ ☰ ]  [ + Novo Cliente/Fornecedor ]
+```
+
+**Visualização em Lista** (`viewMode === 'list'`):
+
+Uma tabela compacta com colunas: Nome | Documento | Telefone | E-mail | Status | Ações. Cada linha tem os mesmos 3 ícones de ação (Ver Perfil, Editar, Excluir) alinhados à direita.
+
+```text
+┌─────────────────┬──────────────────┬──────────────┬──────────────────────┬──────┬───────────┐
+│ Nome            │ CPF/CNPJ         │ Telefone     │ E-mail               │ ●    │ Ações     │
+├─────────────────┼──────────────────┼──────────────┼──────────────────────┼──────┼───────────┤
+│ Empresa XYZ     │ 12.345.678/0001  │ (11) 9xxxx   │ contato@empresa.com  │ 🟢   │ 👁 ✏ 🗑  │
+└─────────────────┴──────────────────┴──────────────┴──────────────────────┴──────┴───────────┘
+```
+
+A visualização em lista usa `<table>` com as classes `Table`, `TableHeader`, `TableRow`, `TableCell` do projeto.
+
+---
+
+### Arquivos Modificados
+
+| Arquivo | Mudança |
+|---|---|
+| `src/pages/Contacts.tsx` | Todas as 3 melhorias (estado `viewMode`, componente `ContactCard` atualizado, novo componente `ContactRow` para lista, toggle no header) |
+
+Nenhuma migração de banco de dados. Nenhum outro arquivo alterado.
+
+---
+
+### Novos imports necessários
 
 ```typescript
-const refreshAll = async () => {
-  queryClient.invalidateQueries({ queryKey: ['boleto-controls', referenceMonth] });
-  queryClient.invalidateQueries({ queryKey: ['contacts-boleto-active'] });
-  await Promise.all([refetchControls(), refetchContacts()]);
-};
+import { LayoutGrid, List } from 'lucide-react'; // já no lucide-react instalado
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'; // já no projeto
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'; // já no projeto
 ```
-
----
-
-### Comportamento Resultante
-
-| Situação | Comportamento Antes | Comportamento Depois |
-|---|---|---|
-| Primeiro acesso ao mês | Gera todos os registros ✓ | Gera todos os registros ✓ |
-| Refresh sem mudanças | Atualiza dados ✓ | Atualiza dados ✓ |
-| Novo contato habilitado + Refresh | Não aparece ✗ | Detecta contato sem entrada → insere → aparece ✓ |
-| Contato desabilitado entre refreshes | Continua aparecendo (registro existe) | Continua aparecendo (registro histórico preservado) ✓ |
-
----
-
-### Arquivo Modificado
-
-| Arquivo | Tipo de Mudança |
-|---|---|
-| `src/hooks/useBoletoControls.ts` | Substituir lógica de geração inicial por sincronização incremental; melhorar `refreshAll` |
-
-Nenhuma migração de banco de dados necessária. Nenhuma mudança em `Boletos.tsx`.
