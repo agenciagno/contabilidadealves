@@ -14,7 +14,10 @@ export interface Contact {
   document: string | null;
   email: string | null;
   phone: string | null;
+  cep: string | null;
   address: string | null;
+  address_number: string | null;
+  neighborhood: string | null;
   city: string | null;
   state: string | null;
   notes: string | null;
@@ -113,7 +116,10 @@ export function useContacts() {
           tax_regime: 'Regime Tributário',
           email: 'E-mail',
           phone: 'Telefone',
-          address: 'Endereço',
+          cep: 'CEP',
+          address: 'Logradouro',
+          address_number: 'Número',
+          neighborhood: 'Bairro',
           city: 'Cidade',
           state: 'Estado',
           representative_legal: 'Representante Legal',

@@ -402,10 +402,12 @@ export type Database = {
       contacts: {
         Row: {
           address: string | null
+          address_number: string | null
           boleto_active: boolean
           boleto_due_day: number | null
           boleto_start_date: string | null
           boleto_value: number | null
+          cep: string | null
           city: string | null
           company_id: string
           created_at: string
@@ -414,6 +416,7 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          neighborhood: string | null
           notes: string | null
           phone: string | null
           representative_legal: string | null
@@ -424,10 +427,12 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          address_number?: string | null
           boleto_active?: boolean
           boleto_due_day?: number | null
           boleto_start_date?: string | null
           boleto_value?: number | null
+          cep?: string | null
           city?: string | null
           company_id: string
           created_at?: string
@@ -436,6 +441,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          neighborhood?: string | null
           notes?: string | null
           phone?: string | null
           representative_legal?: string | null
@@ -446,10 +452,12 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          address_number?: string | null
           boleto_active?: boolean
           boleto_due_day?: number | null
           boleto_start_date?: string | null
           boleto_value?: number | null
+          cep?: string | null
           city?: string | null
           company_id?: string
           created_at?: string
@@ -458,6 +466,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          neighborhood?: string | null
           notes?: string | null
           phone?: string | null
           representative_legal?: string | null
