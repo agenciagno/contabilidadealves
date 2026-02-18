@@ -1,150 +1,137 @@
 
-
-## Plano: Simplificação da Barra de Filtros e Cards de Resumo
+## Simplificação Total dos Eventos Contábeis
 
 ### Objetivo
-Remover o filtro por "Regime Tributário" e tornar a área de busca, filtros e cards de resumo mais discretos e minimalistas.
+Tornar os Eventos Contábeis completamente neutros (sem tipo receita/despesa), simplificar o modal de cadastro para apenas o campo "Nome", e fazer todos os formulários do sistema exibirem a lista unificada.
 
 ---
 
-### Novo Layout Proposto
-
-```text
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│  Cliente/Fornecedor                              [+ Novo Cliente/Fornecedor]    │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│  🔍 Buscar...          [Status ▼]  [Limpar]     12 total · 10 ✓ · 2 ⚠          │
-└─────────────────────────────────────────────────────────────────────────────────┘
-```
-
-**Características do novo design:**
-- Barra única e compacta integrando busca, filtro de status e contadores
-- Cards de resumo substituídos por indicadores inline discretos
-- Filtro de Regime Tributário removido
+### Arquivos a Modificar (4 arquivos)
 
 ---
 
-### Alterações Detalhadas
+#### 1. `src/components/categories/CategoryFormDialog.tsx`
 
-#### Arquivo: `src/pages/Contacts.tsx`
+**O que muda:** Remover os campos "Tipo" e "Cor". O formulário terá apenas o campo "Nome". Os valores `type` e `color` serão enviados com padrões fixos internamente, de forma transparente.
 
-**1. Remover estado e lógica do filtro de Regime Tributário**
+**Antes:**
+- Campo Nome
+- Campo Tipo (Select: Receita / Despesa)
+- Seletor de 10 cores
 
-| Item | Ação |
-|------|------|
-| Linha 43 | Remover `const [filterTaxRegime, setFilterTaxRegime] = useState('all');` |
-| Linha 95 | Remover `const matchesTaxRegime = filterTaxRegime === 'all' \|\| c.tax_regime === filterTaxRegime;` |
-| Linha 103 | Remover `matchesTaxRegime` do return |
-| Linha 105 | Remover `filterTaxRegime` da lista de dependências |
-| Linha 108 | Remover `filterTaxRegime !== 'all'` da verificação de hasActiveFilters |
-| Linha 111 | Remover `setFilterTaxRegime('all');` do clearFilters |
-| Linhas 16-22 | Remover constante `taxRegimeLabels` (não utilizada) |
-
-**2. Substituir Cards de Resumo por Indicadores Inline**
-
-Remover os 3 cards separados (linhas 263-298) e substituir por indicadores compactos integrados à barra de filtros:
+**Depois:**
+- Apenas campo Nome
 
 ```tsx
-{/* Barra de Filtros Minimalista */}
-<div className="flex flex-wrap gap-3 items-center">
-  {/* Busca */}
-  <div className="relative flex-1 min-w-[200px]">
-    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-    <Input 
-      placeholder="Buscar por nome ou CNPJ..." 
-      value={searchTerm} 
-      onChange={e => setSearchTerm(e.target.value)} 
-      className="pl-9 h-9 bg-background/50 border-border/50" 
-    />
-  </div>
-  
-  {/* Filtro de Status */}
-  <Select value={filterFinancialStatus} onValueChange={setFilterFinancialStatus}>
-    <SelectTrigger className="w-[140px] h-9 bg-background/50 border-border/50">
-      <SelectValue placeholder="Status" />
-    </SelectTrigger>
-    <SelectContent>
-      <SelectItem value="all">Todos</SelectItem>
-      <SelectItem value="adimplente">Adimplentes</SelectItem>
-      <SelectItem value="inadimplente">Inadimplentes</SelectItem>
-    </SelectContent>
-  </Select>
-  
-  {/* Limpar Filtros */}
-  {hasActiveFilters && (
-    <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 gap-1.5 text-muted-foreground">
-      <X className="h-3.5 w-3.5" />
-      Limpar
-    </Button>
-  )}
-  
-  {/* Separador */}
-  <div className="h-5 w-px bg-border/50 hidden sm:block" />
-  
-  {/* Indicadores de Resumo Inline */}
-  <div className="flex items-center gap-3 text-sm text-muted-foreground">
-    <span className="flex items-center gap-1.5">
-      <Users className="h-3.5 w-3.5" />
-      <span className="font-medium text-foreground">{summaryStats.total}</span>
-    </span>
-    <span className="flex items-center gap-1.5">
-      <span className="h-2 w-2 rounded-full bg-emerald-500" />
-      <span>{summaryStats.adimplentes}</span>
-    </span>
-    <span className="flex items-center gap-1.5">
-      <span className="h-2 w-2 rounded-full bg-destructive" />
-      <span>{summaryStats.inadimplentes}</span>
-    </span>
-  </div>
-</div>
+// handleSubmit sempre envia valores padrão — sem expor ao usuário
+onSubmit({ name, type: 'receita', color: '#3B82F6', icon: 'tag' });
 ```
 
-**3. Remover imports não utilizados**
+Imports removidos: `Select`, `SelectContent`, `SelectItem`, `SelectTrigger`, `SelectValue`, constante `COLORS`, estados `type` e `color`.
+
+---
+
+#### 2. `src/pages/Categories.tsx`
+
+**O que muda:** Substituir os dois cards separados (Receitas / Despesas) por uma única lista unificada ordenada alfabeticamente, com ícone neutro `Tag` e cor primária fixa.
+
+**Antes:**
+- `const receitas = categories.filter(c => c.type === 'receita')`
+- `const despesas = categories.filter(c => c.type === 'despesa')`
+- Grid de 2 colunas com cards separados
+
+**Depois:**
+- `const sortedCategories = [...categories].sort((a, b) => a.name.localeCompare(b.name))`
+- Um único card com lista completa
+- Ícone `Tag` com `text-primary` e `bg-primary/10` (sem cor dinâmica)
 
 ```tsx
-// ANTES (linha 10):
-import { ..., Users, CheckCircle, AlertTriangle, ... } from 'lucide-react';
+const CategoryCard = ({ category }) => (
+  <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border ...">
+    <div className="flex items-center gap-3">
+      <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+        <Tag className="w-4 h-4 text-primary" />
+      </div>
+      <span className="font-medium text-foreground">{category.name}</span>
+    </div>
+    <div className="flex gap-1">
+      <Button variant="ghost" size="icon" onClick={() => handleEdit(category)}>...</Button>
+      <Button variant="ghost" size="icon" onClick={() => setDeleteId(category.id)}>...</Button>
+    </div>
+  </div>
+);
+```
+
+Imports removidos: `TrendingUp`, `TrendingDown`.
+
+---
+
+#### 3. `src/components/transactions/TransactionFormDialog.tsx`
+
+**O que muda:** Remover o filtro por tipo na linha 79 para que todos os eventos apareçam independente se a transação é receita ou despesa.
+
+```tsx
+// ANTES (linha 79):
+const filteredCategories = categories.filter(c => c.type === type);
 
 // DEPOIS:
-// Manter apenas Users (usado no indicador inline)
-// CheckCircle e AlertTriangle podem ser removidos se não usados em outro lugar
+const filteredCategories = categories;
 ```
 
-Verificando uso:
-- `CheckCircle` - usado apenas nos cards removidos → **REMOVER**
-- `AlertTriangle` - usado no AlertDialog de exclusão → **MANTER**
-- `Users` - usado no indicador inline → **MANTER**
+Também remover o ponto colorido ao lado do nome da categoria no Select (já que os eventos não terão mais cor individual):
+
+```tsx
+// ANTES (linhas 277-285): exibe bolinha colorida
+<div className="w-3 h-3 rounded-full" style={{ backgroundColor: cat.color }} />
+
+// DEPOIS: apenas o nome
+{cat.name}
+```
+
+O `handleCreateCategory` (linha 146) também passa `type` — isso será ajustado para não depender do tipo atual:
+```tsx
+// ANTES:
+createCategory.mutate({ ...data, type }, { ... });
+
+// DEPOIS (type virá do próprio data, que já terá 'receita' como padrão):
+createCategory.mutate(data, { ... });
+```
 
 ---
 
-### Comparativo Visual
+#### 4. `src/components/recurring/RecurringFormDialog.tsx`
 
-| Elemento | Antes | Depois |
-|----------|-------|--------|
-| Cards de Resumo | 3 cards separados (ocupam 1 linha inteira) | Indicadores inline na barra de filtros |
-| Filtro Regime Tributário | Select com 5 opções | Removido |
-| Barra de Filtros | Card com padding grande | Barra compacta e discreta |
-| Altura do Input | Padrão | h-9 (menor) |
-| Estilo dos Elementos | bg-background | bg-background/50 (mais sutil) |
+**O que muda:** Remover o filtro por tipo na linha 171:
+
+```tsx
+// ANTES (linha 171):
+const filteredCategories = categories.filter(c => c.type === formData.type);
+
+// DEPOIS:
+const filteredCategories = categories;
+```
+
+Também remover a bolinha colorida no Select de categorias (linhas 280-283):
+```tsx
+// Antes: <div className="w-3 h-3 rounded-full" style={{ backgroundColor: category.color }} />
+// Depois: apenas {category.name}
+```
 
 ---
 
-### Resumo das Alterações
+### Nota sobre o Banco de Dados
 
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/pages/Contacts.tsx` | Remover filtro de Regime Tributário, substituir cards por indicadores inline, simplificar barra de filtros |
+O campo `type` na tabela `categories` **não será alterado**. Eventos existentes com `type = 'despesa'` continuarão funcionando normalmente — o sistema simplesmente passará a exibir todos independentemente do tipo. Novos eventos serão criados com `type = 'receita'` como padrão invisível.
 
-**Total**: 1 arquivo
+---
 
-**Itens removidos:**
-- Estado `filterTaxRegime`
-- Constante `taxRegimeLabels`
-- Select de Regime Tributário
-- 3 Cards de resumo separados
-- Import `CheckCircle`
+### Resumo
 
-**Itens adicionados:**
-- Indicadores de resumo inline (total, adimplentes, inadimplentes)
-- Separador visual entre filtros e indicadores
+| Arquivo | Alteração Principal |
+|---|---|
+| `CategoryFormDialog.tsx` | Formulário com apenas campo "Nome" |
+| `Categories.tsx` | Lista única unificada, sem separação |
+| `TransactionFormDialog.tsx` | Exibir todos os eventos (sem filtro por tipo) |
+| `RecurringFormDialog.tsx` | Exibir todos os eventos (sem filtro por tipo) |
 
+**Total: 4 arquivos**
