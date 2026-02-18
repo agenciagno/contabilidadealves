@@ -56,7 +56,9 @@ import {
   Receipt,
   Users,
   FileCheck,
-  Plus
+  Plus,
+  Loader2,
+  CheckCircle2,
 } from 'lucide-react';
 import { 
   useContactDocuments, 
@@ -112,6 +114,7 @@ export function ContactDocumentsTab({ contactId }: ContactDocumentsTabProps) {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<ContactDocument | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<DocumentCategory | null>(null);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
@@ -133,6 +136,8 @@ export function ContactDocumentsTab({ contactId }: ContactDocumentsTabProps) {
         category: selectedCategory || uploadCategory 
       });
     }
+    setUploadSuccess(true);
+    setTimeout(() => setUploadSuccess(false), 2000);
     setUploadDialogOpen(false);
   };
 
@@ -266,26 +271,40 @@ export function ContactDocumentsTab({ contactId }: ContactDocumentsTabProps) {
             accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.png,.jpg,.jpeg"
           />
           <div
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => !uploadDocument.isPending && !uploadSuccess && fileInputRef.current?.click()}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             className={`
-              border-2 border-dashed rounded-lg p-6 text-center cursor-pointer
-              transition-colors duration-200
-              ${isDragging 
-                ? 'border-primary bg-primary/5' 
-                : 'border-border hover:border-primary/50 hover:bg-muted/50'
+              border-2 border-dashed rounded-lg p-6 text-center transition-all duration-300
+              ${uploadDocument.isPending ? 'cursor-not-allowed border-border bg-muted/30' :
+                uploadSuccess ? 'cursor-default border-emerald-500/50 bg-emerald-500/5' :
+                isDragging ? 'cursor-pointer border-primary bg-primary/5' : 
+                'cursor-pointer border-border hover:border-primary/50 hover:bg-muted/50'
               }
             `}
           >
-            <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-            <p className="text-sm font-medium">
-              Arraste arquivos aqui ou clique para fazer upload
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              PDF, DOC, XLS, PNG, JPG (máx. 10MB) - Categoria: {selectedCategoryLabel}
-            </p>
+            {uploadDocument.isPending ? (
+              <>
+                <Loader2 className="h-8 w-8 mx-auto mb-2 text-muted-foreground animate-spin" />
+                <p className="text-sm font-medium text-muted-foreground">Realizando upload...</p>
+              </>
+            ) : uploadSuccess ? (
+              <>
+                <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-emerald-500 animate-bounce" />
+                <p className="text-sm font-medium text-emerald-500">Upload concluído!</p>
+              </>
+            ) : (
+              <>
+                <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                <p className="text-sm font-medium">
+                  Arraste arquivos aqui ou clique para fazer upload
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  PDF, DOC, XLS, PNG, JPG (máx. 10MB) - Categoria: {selectedCategoryLabel}
+                </p>
+              </>
+            )}
           </div>
 
           {/* Files Table */}
