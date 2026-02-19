@@ -118,9 +118,7 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
 
   // Running balance with juros/multa
   const rows = useMemo(() => {
-    let acumReceitas = 0;
-    let acumDespesas = 0;
-    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    let saldoAcumulado = totalBankBalance;
 
     return filtered.map(t => {
       const amt = Number(t.amount);
@@ -129,25 +127,27 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
       let displayAmount = amt;
       let hasJuros = false;
 
-      if (t.type === 'receita') {
-        // Juros e multa virtual
-        if (isHonorarios && status === 'vencido' && t.due_date) {
-          const diasAtraso = differenceInDays(new Date(), new Date(t.due_date + 'T12:00:00'));
-          if (diasAtraso > 0) {
-            const multa = amt * 0.02;
-            const juros = amt * 0.0015 * diasAtraso;
-            displayAmount = amt + multa + juros;
-            hasJuros = true;
-          }
+      // Juros e multa virtual (apenas visual)
+      if (t.type === 'receita' && isHonorarios && status === 'vencido' && t.due_date) {
+        const diasAtraso = differenceInDays(new Date(), new Date(t.due_date + 'T12:00:00'));
+        if (diasAtraso > 0) {
+          const multa = amt * 0.02;
+          const juros = amt * 0.0015 * diasAtraso;
+          displayAmount = amt + multa + juros;
+          hasJuros = true;
         }
-        acumReceitas += amt;
-      } else {
-        acumDespesas += amt;
       }
 
-      const saldoAtual = totalBankBalance + acumReceitas - acumDespesas;
+      // Running balance: apenas pendentes/vencidos alteram o saldo
+      if (status !== 'pago') {
+        if (t.type === 'receita') {
+          saldoAcumulado += amt;
+        } else {
+          saldoAcumulado -= amt;
+        }
+      }
 
-      return { ...t, status, displayAmount, hasJuros, originalAmount: amt, saldoAtual };
+      return { ...t, status, displayAmount, hasJuros, originalAmount: amt, saldoAtual: saldoAcumulado };
     });
   }, [filtered, totalBankBalance]);
 
