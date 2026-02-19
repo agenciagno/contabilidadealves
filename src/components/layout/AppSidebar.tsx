@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { 
   LayoutDashboard, 
   ArrowLeftRight, 
+  ArrowUpDown,
   CalendarClock, 
   Users, 
   Building2, 
@@ -49,6 +50,7 @@ import { cn } from '@/lib/utils';
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   'layout-dashboard': LayoutDashboard,
   'arrow-left-right': ArrowLeftRight,
+  'arrow-up-down': ArrowUpDown,
   'calendar-clock': CalendarClock,
   'users': Users,
   'building-2': Building2,
@@ -84,6 +86,7 @@ const menuModules: MenuModule[] = [
     items: [
       { title: 'Dashboard', url: '/painel-financeiro', icon: LayoutDashboard, iconName: 'layout-dashboard' },
       { title: 'Lançamentos', url: '/movimentacoes', icon: ArrowLeftRight, iconName: 'arrow-left-right' },
+      { title: 'Pagar/Receber', url: '/financeiro/pagar-receber', icon: ArrowUpDown, iconName: 'arrow-up-down' },
       { title: 'Contas Recorrentes', url: '/recorrentes', icon: CalendarClock, iconName: 'calendar-clock' },
       { title: 'Boletos', url: '/boletos', icon: FileCheck, iconName: 'file-check' },
       { title: 'Bancos', url: '/bancos', icon: Building2, iconName: 'building-2' },

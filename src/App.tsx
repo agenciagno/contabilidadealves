@@ -23,6 +23,7 @@ import SettingsPage from "@/pages/SettingsPage";
 import CrmDispatches from "@/pages/CrmDispatches";
 import ClientReport from "@/pages/ClientReport";
 import Boletos from "@/pages/Boletos";
+import PagarReceber from "@/pages/PagarReceber";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,6 +42,7 @@ const App = () => (
               <Route path="/" element={<AppLayout><Home /></AppLayout>} />
               <Route path="/painel-financeiro" element={<AppLayout><Dashboard /></AppLayout>} />
               <Route path="/movimentacoes" element={<AppLayout><Transactions /></AppLayout>} />
+              <Route path="/financeiro/pagar-receber" element={<AppLayout><PagarReceber /></AppLayout>} />
               <Route path="/recorrentes" element={<AppLayout><RecurringBills /></AppLayout>} />
               <Route path="/contatos" element={<AppLayout><Contacts /></AppLayout>} />
               <Route path="/crm/cliente/:id" element={<AppLayout><ContactProfile /></AppLayout>} />
