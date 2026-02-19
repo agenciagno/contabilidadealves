@@ -11,7 +11,7 @@ import { UnifiedFilterBox, PeriodFilter, getDateRangeFromPeriod } from '@/compon
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, SlidersHorizontal, ChevronDown, ChevronUp, Landmark, TrendingUp, TrendingDown } from 'lucide-react';
-import { format, differenceInDays, parseISO, isWithinInterval } from 'date-fns';
+import { format, differenceInDays, parseISO, isWithinInterval, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale/pt-BR';
 import type { Transaction } from '@/hooks/useTransactions';
 import type { Bank } from '@/hooks/useBanks';
@@ -98,8 +98,15 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
 
   // KPIs
   const kpis = useMemo(() => {
-    const todayStr = format(new Date(), 'yyyy-MM-dd');
-    let receitasHoje = 0, despesasHoje = 0, totalReceitas = 0, totalDespesas = 0;
+    const today = new Date();
+    const todayStr = format(today, 'yyyy-MM-dd');
+    const mesStart = startOfMonth(today);
+    const mesEnd = endOfMonth(today);
+
+    // Capital de Giro Hoje (from filtered)
+    let receitasHoje = 0, despesasHoje = 0;
+    // Necessidade de Caixa (from filtered)
+    let totalReceitas = 0, totalDespesas = 0;
     for (const t of filtered) {
       const amt = Number(t.amount);
       if (t.type === 'receita') {
@@ -110,11 +117,26 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
         if (t.due_date === todayStr) despesasHoje += amt;
       }
     }
+
+    // Capital de Giro Mês (from ALL transactions, not filtered)
+    let receitasMes = 0, despesasMes = 0;
+    for (const t of transactions) {
+      if (t.due_date) {
+        const d = parseISO(t.due_date);
+        if (isWithinInterval(d, { start: mesStart, end: mesEnd })) {
+          const amt = Number(t.amount);
+          if (t.type === 'receita') receitasMes += amt;
+          else despesasMes += amt;
+        }
+      }
+    }
+
     return {
-      capitalDeGiro: totalBankBalance + receitasHoje - despesasHoje,
+      capitalDeGiroMes: totalBankBalance + receitasMes - despesasMes,
+      capitalDeGiroHoje: totalBankBalance + receitasHoje - despesasHoje,
       necessidadeCaixa: totalReceitas - totalDespesas,
     };
-  }, [filtered, totalBankBalance]);
+  }, [filtered, transactions, totalBankBalance]);
 
   // Running balance with juros/multa
   const rows = useMemo(() => {
@@ -205,10 +227,11 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
           <CardContent className="p-4">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Capital de Giro (Hoje)</p>
-                <p className={`text-2xl font-extrabold ${kpis.capitalDeGiro >= 0 ? 'text-blue-400' : 'text-red-500'}`}>
-                  {formatCurrency(kpis.capitalDeGiro)}
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Capital de Giro (Mês)</p>
+                <p className={`text-2xl font-extrabold ${kpis.capitalDeGiroMes >= 0 ? 'text-blue-400' : 'text-red-500'}`}>
+                  {formatCurrency(kpis.capitalDeGiroMes)}
                 </p>
+                <p className="text-xs text-muted-foreground mt-1">Hoje: {formatCurrency(kpis.capitalDeGiroHoje)}</p>
               </div>
               <div className="w-9 h-9 rounded-full bg-blue-500/10 flex items-center justify-center">
                 <Landmark className="w-4 h-4 text-blue-500" />
@@ -221,14 +244,19 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
           <CardContent className="p-4">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Necessidade de Caixa</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  {kpis.necessidadeCaixa >= 0 ? 'Geração de Caixa' : 'Necessidade de Caixa'}
+                </p>
                 <p className={`text-2xl font-extrabold ${kpis.necessidadeCaixa >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
                   {formatCurrency(kpis.necessidadeCaixa)}
                 </p>
                 <p className="text-[10px] text-muted-foreground">Entradas − Saídas (período)</p>
               </div>
-              <div className="w-9 h-9 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                <TrendingUp className="w-4 h-4 text-emerald-500" />
+              <div className={`w-9 h-9 rounded-full flex items-center justify-center ${kpis.necessidadeCaixa >= 0 ? 'bg-emerald-500/10' : 'bg-red-500/10'}`}>
+                {kpis.necessidadeCaixa >= 0
+                  ? <TrendingUp className="w-4 h-4 text-emerald-500" />
+                  : <TrendingDown className="w-4 h-4 text-red-500" />
+                }
               </div>
             </div>
           </CardContent>
