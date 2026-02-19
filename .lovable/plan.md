@@ -1,139 +1,144 @@
 
-# Editar Dados e Módulos de Acesso de Usuários Existentes
 
-## Diagnóstico Atual
+# Refatorar Movimentacoes com Tabs + Nova Aba "Fluxo de Caixa"
 
-Nas duas abas de gerenciamento de usuários, a coluna "Ações" só tem o botão de excluir (lixeira). Não existe nenhum fluxo de edição — ao precisar alterar nome ou módulos de um usuário, o admin precisaria excluí-lo e recriá-lo.
+## Visao Geral
 
-Dois pontos precisam receber a funcionalidade:
-
-- **Aba "Minha Equipe"** → `UsersTab.tsx` (usa `UserFormDialog.tsx`)
-- **Aba "Empresas Clientes"** → `ClientCompaniesTab.tsx` (modal inline)
+Envolver o conteudo atual da pagina `Transactions.tsx` em um sistema de abas (Tabs), mantendo tudo que existe na Aba 1 ("Dashboard") e criando uma nova Aba 2 ("Fluxo de Caixa") com tabela estilo planilha, KPIs compactos e logica de saldo projetado (running balance).
 
 ---
 
-## O que será editável
+## Arquivos a Modificar/Criar
 
-| Campo | Minha Equipe | Empresas Clientes |
-|---|---|---|
-| Nome Completo | Sim | Sim |
-| Nome de Usuário | Sim | Não (usa email real) |
-| Módulos de Acesso | Sim | Sim |
-| Nova Senha (opcional) | Sim | Sim |
+| Arquivo | Acao |
+|---|---|
+| `src/pages/Transactions.tsx` | Modificar — envolver conteudo existente em `Tabs` + `TabsContent`, adicionar segunda aba |
+| `src/components/transactions/CashFlowTab.tsx` | Criar — componente da Aba 2 com KPIs, tabela e logica de running balance |
 
-A edição de senha é **opcional**: se o campo for deixado em branco, a senha atual é mantida. Se preenchida, precisa passar pela validação de senha forte.
-
-A edição de e-mail **não** será incluída por segurança (e-mail é o identificador de autenticação — mudá-lo exigiria re-autenticação no Supabase Auth).
+Nenhuma mudanca em `App.tsx`, `AppSidebar.tsx` ou rotas — tudo continua na mesma pagina `/movimentacoes`.
 
 ---
 
-## Mudanças por Arquivo
+## Mudancas em `src/pages/Transactions.tsx`
 
-### 1. `supabase/functions/create-user-v2/index.ts` — Ampliar para suportar modo "editar"
+- Importar `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` de `@/components/ui/tabs`
+- Importar o novo componente `CashFlowTab`
+- Envolver todo o JSX atual (do header ate o AlertDialog) dentro de `TabsContent value="dashboard"`
+- Adicionar `TabsContent value="cashflow"` com o componente `CashFlowTab`
+- Passar para `CashFlowTab` os dados ja disponiveis: `allTransactions`, `banks`, `categories`, `contacts`, estados de filtro e handlers existentes
+- O `TabsList` fica logo abaixo do titulo "Movimentacoes", com duas abas:
+  - "Dashboard" (aba ativa padrao)
+  - "Fluxo de Caixa (A Pagar e Receber)"
 
-A edge function atual só cria usuários. Ela precisa de um novo modo de atualização. A lógica será:
-
-- Se o body contiver `userId` (UUID do auth user), a função entra em modo de **edição**:
-  - Atualiza `profiles` com `full_name`, `username` (se presente), `allowed_modules`
-  - Se `password` for fornecida, usa a Admin API (`supabase.auth.admin.updateUserById`) para atualizar a senha sem invalidar a sessão do admin
-- Se não houver `userId`, mantém o comportamento atual de criação
-
-Isso evita criar uma segunda edge function e centraliza a lógica de provisionamento.
-
-### 2. `src/components/users/UserFormDialog.tsx` — Adaptar para modo criação E edição
-
-O componente atualmente só cria usuários. Será refatorado para suportar um modo de edição:
-
-**Novas props opcionais:**
-```typescript
-interface UserFormDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  companyId: string;
-  onSuccess: () => void;
-  // Novas:
-  editUser?: {
-    userId: string;      // auth user_id para chamar a edge function
-    fullName: string;
-    username: string;
-    allowedModules: string[];
-  };
-}
-```
-
-**Comportamento em modo edição (`editUser` presente):**
-- Título muda para "Editar Usuário"
-- Campos pré-preenchidos com dados do usuário
-- Campo `username` editável
-- Campos de senha tornam-se **opcionais** com label "Nova Senha (deixe em branco para manter)"
-- Botão de submit chama a edge function com `userId` no payload
-- Validação Zod separada para o schema de edição (senha não obrigatória)
-
-### 3. `src/components/users/UsersTab.tsx` — Adicionar botão de edição na tabela
-
-- Importar o ícone `Pencil` do lucide
-- Adicionar estado `editUser: Profile | null`
-- Na coluna "Ações", ao lado do botão de lixeira, adicionar botão de lápis (ghost, icon)
-- Usuário master (`is_super_admin`) pode ter o botão de edição, mas não de exclusão de si mesmo (já implementado)
-- Passar `editUser` ao `UserFormDialog` via a nova prop `editUser`
-- Ao fechar o dialog de edição, limpar `editUser` no estado
-
-### 4. `src/components/settings/ClientCompaniesTab.tsx` — Modal de edição inline
-
-Adicionar um novo dialog de edição embutido no mesmo arquivo (sem criar novo arquivo separado, mantendo o padrão atual do componente):
-
-**Novo estado:**
-```typescript
-const [editUserOpen, setEditUserOpen] = useState(false);
-const [editingUser, setEditingUser] = useState<Profile | null>(null);
-const [editUserForm, setEditUserForm] = useState({
-  fullName: '',
-  password: '',
-  allowedModules: [] as string[],
-});
-```
-
-**Handler `handleEditUser`:**
-- Chama a edge function `create-user-v2` com o `userId` do usuário
-- Se senha em branco, não envia o campo `password` no payload
-- Invalida a query `['company-users', selectedCompanyId]` ao sucesso
-
-**Na tabela de usuários:** adicionar botão de lápis ao lado da lixeira, que abre o modal de edição pré-preenchido.
-
-**Modal de edição:** Dialog com campos "Nome Completo", "Nova Senha (opcional)" + `PasswordStrength` e checkboxes de "Módulos de Acesso".
-
----
-
-## Fluxo de Dados
+Estrutura simplificada:
 
 ```text
-[Botão Editar na tabela]
-        ↓
-[Abre dialog pré-preenchido com dados do usuário]
-        ↓
-[Admin altera nome / módulos / senha (opcional)]
-        ↓
-[Clica "Salvar"]
-        ↓
-[Edge function create-user-v2 com { userId, fullName, allowedModules, password? }]
-        ↓
-[Edge function detecta userId → modo UPDATE]
-        ↓
-[UPDATE profiles SET full_name, allowed_modules WHERE user_id = userId]
-[Se password → auth.admin.updateUserById(userId, { password })]
-        ↓
-[Invalidate query → tabela atualiza automaticamente]
+<Tabs defaultValue="dashboard">
+  <TabsList>
+    <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+    <TabsTrigger value="cashflow">Fluxo de Caixa</TabsTrigger>
+  </TabsList>
+
+  <TabsContent value="dashboard">
+    {/* Todo o conteudo atual: KPIs, ticker, filtros, listagem */}
+  </TabsContent>
+
+  <TabsContent value="cashflow">
+    <CashFlowTab ... />
+  </TabsContent>
+</Tabs>
 ```
 
 ---
 
-## Resumo de Arquivos
+## Novo Componente: `CashFlowTab.tsx`
 
-| Arquivo | Tipo | Mudança |
-|---|---|---|
-| `supabase/functions/create-user-v2/index.ts` | Modificar | Adicionar modo UPDATE quando `userId` está presente no body |
-| `src/components/users/UserFormDialog.tsx` | Modificar | Suportar modo edição via prop `editUser`, senha opcional, pré-preencher campos |
-| `src/components/users/UsersTab.tsx` | Modificar | Botão de lápis na tabela, estado `editUser`, passar para `UserFormDialog` |
-| `src/components/settings/ClientCompaniesTab.tsx` | Modificar | Estado + modal + handler de edição + botão de lápis na tabela de usuários |
+### Props recebidas
 
-Nenhuma migration de banco de dados é necessária — as colunas `full_name` e `allowed_modules` já existem na tabela `profiles`.
+- `transactions: Transaction[]` (todas, sem filtro)
+- `banks: Bank[]`
+- `categories: Category[]`
+- `contacts: Contact[]`
+- `togglePaid` mutation
+
+### Filtros internos
+
+O componente tera seus proprios filtros de periodo (reutilizando `UnifiedFilterBox`), independentes da Aba 1. As transacoes sao filtradas internamente via `useMemo`.
+
+### KPIs de Topo (3 cards compactos, 1 linha)
+
+| KPI | Calculo |
+|---|---|
+| Capital de Giro (Hoje) | Saldo Total Bancario + Receitas com due_date == hoje - Despesas com due_date == hoje |
+| Necessidade de Caixa | Soma Receitas do periodo - Soma Despesas do periodo. Vermelho se negativo |
+| Saldos Atuais | Lista cada banco ativo com nome, cor e saldo + "Disponivel Total" |
+
+### Tabela (Data Grid denso)
+
+Colunas:
+
+| # | Coluna | Origem | Formato |
+|---|---|---|---|
+| 1 | Data Prevista | `transaction.date` | DD/MM/YYYY |
+| 2 | Cliente/Fornecedor | `transaction.contact?.name` ou `description` | Texto |
+| 3 | Receber | `amount` se `type === 'receita'` | Verde, R$ |
+| 4 | Pagar | `amount` se `type === 'despesa'` | Vermelho, R$ |
+| 5 | Vencimento | `transaction.due_date` | DD/MM/YYYY |
+| 6 | Evento Contabil | `transaction.category?.name` | Texto |
+| 7 | Historico | `transaction.notes` | Texto truncado |
+| 8 | Dia da Semana | derivado de `due_date` | ex: "quinta-feira" |
+| 9 | Status | `is_paid` + logica de vencido | Badge |
+| 10 | Saldo Atual | running balance calculado | R$, vermelho se negativo |
+
+Ordenacao padrao: `date` ASC (cronologica para projecao de caixa).
+
+### Logica do Running Balance (coluna "Saldo Atual")
+
+Calculado via `useMemo` sobre as transacoes filtradas e ordenadas:
+
+```text
+saldoTotalBancario = soma de current_balance de todos os bancos ativos
+
+Para cada linha i (ordenada por date ASC):
+  acumuladoReceitas += amount se tipo === 'receita'
+  acumuladoDespesas += amount se tipo === 'despesa'
+  saldoAtual[i] = saldoTotalBancario + acumuladoReceitas - acumuladoDespesas
+```
+
+Valores negativos exibidos em vermelho bold.
+
+### Juros e Multa (Coluna Virtual — apenas visual)
+
+Aplicada somente na coluna "Receber":
+
+```text
+SE category.name === "Honorarios Contabeis" E status visual === "Vencido":
+  diasAtraso = diferenca em dias entre due_date e hoje
+  multa = valorOriginal * 0.02
+  juros = valorOriginal * 0.0015 * diasAtraso
+  valorAtualizado = valorOriginal + multa + juros
+```
+
+Na celula "Receber":
+- Valor original em texto menor, riscado (line-through), cinza
+- Valor atualizado em verde bold
+- Icone `AlertTriangle` com tooltip "+ Juros e Multa"
+- Nenhuma alteracao no banco de dados
+
+### Status Visual (Badges)
+
+| Condicao | Badge |
+|---|---|
+| `is_paid === true` | "Pago" — fundo verde |
+| `is_paid === false` e `due_date >= hoje` | "Pendente" — fundo amarelo/outline |
+| `is_paid === false` e `due_date < hoje` | "Vencido" — fundo vermelho, texto branco |
+
+---
+
+## Detalhes Tecnicos
+
+- `date-fns` para formatar datas (`format`), calcular diferenca de dias (`differenceInDays`) e obter dia da semana (`format(date, 'EEEE', { locale: ptBR })`) — sera necessario importar `ptBR` de `date-fns/locale/pt-BR`
+- Componentes UI: `Table`, `TableHeader`, `TableRow`, `TableHead`, `TableCell`, `TableBody` do shadcn/ui + `Card`, `Badge`, `Tooltip`
+- Nenhuma migration de banco de dados necessaria
+- Nenhuma mudanca de rota ou sidebar
+
