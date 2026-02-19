@@ -49,8 +49,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { CashFlowTab } from '@/components/transactions/CashFlowTab';
 import {
   startOfMonth,
   endOfMonth,
@@ -347,13 +345,6 @@ export default function Transactions() {
         </div>
       </div>
 
-      <Tabs defaultValue="dashboard">
-        <TabsList>
-          <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-          <TabsTrigger value="cashflow">Fluxo de Caixa (A Pagar e Receber)</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="dashboard">
           <div className="space-y-5">
             {/* Action buttons */}
             <div className="flex items-center justify-end gap-2">
@@ -678,18 +669,6 @@ export default function Transactions() {
               </Card>
             )}
           </div>
-        </TabsContent>
-
-        <TabsContent value="cashflow">
-          <CashFlowTab
-            transactions={allTransactions}
-            banks={banks}
-            categories={categories}
-            contacts={contacts}
-            togglePaid={togglePaid}
-          />
-        </TabsContent>
-      </Tabs>
 
       <TransactionFormDialog
         open={dialogOpen}
