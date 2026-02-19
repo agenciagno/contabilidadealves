@@ -1,55 +1,53 @@
 
-
-# Corrigir Logica do Saldo Atual (Running Balance) — Apenas Pendentes
-
-## Problema
-
-A logica atual soma **todas** as transacoes (pagas e pendentes) ao saldo acumulado. Isso gera valores incorretos porque o saldo bancario atual (`totalBankBalance`) ja reflete as transacoes pagas. Somar novamente causa duplicacao.
-
-## Correcao
-
-Alterar o `useMemo` de `rows` em `CashFlowTab.tsx` (linhas ~120-150) para seguir o algoritmo contabil iterativo:
-
-1. Inicializar `let saldoAcumulado = totalBankBalance`
-2. Para cada transacao (ja ordenada por `date` ASC):
-   - Calcular o status (`pago`, `pendente`, `vencido`)
-   - Manter a logica de juros/multa virtual (sem alteracao)
-   - **SE status for `pago`**: nao alterar `saldoAcumulado` (o banco ja reflete)
-   - **SE status for `pendente` ou `vencido`**:
-     - Receita: `saldoAcumulado += amount`
-     - Despesa: `saldoAcumulado -= amount`
-   - Atribuir `saldoAcumulado` como `saldoAtual` da linha
+# Ajustar KPIs da Pagina Pagar/Receber
 
 ## Arquivo Modificado
 
 | Arquivo | Mudanca |
 |---|---|
-| `src/components/transactions/CashFlowTab.tsx` | Refatorar bloco `useMemo` de `rows` (~linhas 120-150) |
+| `src/components/transactions/CashFlowTab.tsx` | Refatorar calculo dos KPIs e renderizacao dos 2 primeiros cards |
 
-## Antes vs Depois (pseudocodigo)
+---
 
-**Antes (incorreto):**
-```text
-acumReceitas += amt   // sempre soma, mesmo se pago
-acumDespesas += amt   // sempre soma, mesmo se pago
-saldoAtual = totalBank + acumReceitas - acumDespesas
-```
+## 1. Card "Capital de Giro" — Dupla Visao
 
-**Depois (correto):**
-```text
-saldoAcumulado = totalBankBalance  // ponto de partida
+**Calculo (useMemo `kpis`):**
 
-Para cada linha:
-  SE status != 'pago':
-    SE receita: saldoAcumulado += amt
-    SE despesa: saldoAcumulado -= amt
-  linha.saldoAtual = saldoAcumulado  // iterativo
-```
+Adicionar duas novas metricas ao objeto retornado:
 
-## Impacto
+- `capitalDeGiroMes`: `totalBankBalance + (soma de TODAS as receitas do mes atual, independente do filtro de periodo) - (soma de TODAS as despesas do mes atual)`
+- `capitalDeGiroHoje`: manter a formula atual `totalBankBalance + receitasHoje - despesasHoje`
 
-- Apenas a coluna "Saldo Atual" muda de comportamento
-- KPIs permanecem inalterados
-- Juros/multa virtual permanece inalterado
-- Nenhuma alteracao visual ou de layout
+Para calcular o "mes atual", sera necessario filtrar `transactions` (o array completo, nao o `filtered`) pelas transacoes cujo `due_date` cai no mes corrente (usando `startOfMonth` e `endOfMonth` do `date-fns`).
 
+**Renderizacao:**
+
+- Titulo principal: "Capital de Giro (Mes)"
+- Valor em destaque (text-2xl font-extrabold): `capitalDeGiroMes`
+- Rodape discreto (text-xs text-muted-foreground): "Hoje: R$ X.XXX,XX" usando `capitalDeGiroHoje`
+
+---
+
+## 2. Card "Necessidade de Caixa" — Titulo Dinamico
+
+**Calculo:** Sem mudanca na formula (`totalReceitas - totalDespesas` do periodo filtrado).
+
+**Renderizacao:**
+
+- SE `necessidadeCaixa >= 0`:
+  - Titulo: "Geracao de Caixa"
+  - Cor do valor: verde (`text-emerald-500`)
+  - Icone: `TrendingUp` com fundo verde
+- SE `necessidadeCaixa < 0`:
+  - Titulo: "Necessidade de Caixa"
+  - Cor do valor: vermelho (`text-red-500`)
+  - Icone: `TrendingDown` com fundo vermelho
+
+---
+
+## Detalhes Tecnicos
+
+- Importar `startOfMonth`, `endOfMonth` de `date-fns` para delimitar o mes corrente
+- O calculo de "Capital de Giro (Mes)" usa o array `transactions` original (props), nao o `filtered`, para garantir que sempre reflita o mes inteiro independente dos filtros de periodo selecionados
+- O calculo de "Capital de Giro (Hoje)" permanece identico ao atual
+- Nenhuma mudanca no terceiro card (Saldos Atuais) nem na tabela
