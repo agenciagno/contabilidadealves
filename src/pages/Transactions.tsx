@@ -207,8 +207,10 @@ export default function Transactions() {
 
     let contasEmAtraso = 0;
     let receitasEmAtraso = 0;
-    let receitasHoje = 0;
-    let despesasHoje = 0;
+    let receitasPendentesMes = 0;
+    let despesasPendentesMes = 0;
+    let receitasPendentesAteHoje = 0;
+    let despesasPendentesAteHoje = 0;
     let receitasMes = 0;
     let despesasMes = 0;
     let receitasPagasMes = 0;
@@ -224,10 +226,18 @@ export default function Transactions() {
       if (t.type === 'receita' && !t.is_paid && t.due_date && t.due_date < todayStr) {
         receitasEmAtraso += amount;
       }
-      // Capital de giro: receitas/despesas com due_date hoje
-      if (t.due_date === todayStr) {
-        if (t.type === 'receita') receitasHoje += amount;else
-        despesasHoje += amount;
+      // Capital de giro: apenas transações NÃO pagas
+      if (!t.is_paid && t.due_date) {
+        // Variável A: pendentes no mês atual
+        if (t.due_date >= monthStartStr && t.due_date <= monthEndStr) {
+          if (t.type === 'receita') receitasPendentesMes += amount;
+          else despesasPendentesMes += amount;
+        }
+        // Variável B: pendentes até hoje
+        if (t.due_date <= todayStr) {
+          if (t.type === 'receita') receitasPendentesAteHoje += amount;
+          else despesasPendentesAteHoje += amount;
+        }
       }
       // Mês corrente
       if (t.date >= monthStartStr && t.date <= monthEndStr) {
@@ -241,12 +251,13 @@ export default function Transactions() {
       }
     }
 
-    const capitalDeGiro = bankTotals.totalBalance + receitasHoje - despesasHoje;
+    const capitalDeGiroMes = bankTotals.totalBalance + receitasPendentesMes - despesasPendentesMes;
+    const capitalDeGiroHoje = bankTotals.totalBalance + receitasPendentesAteHoje - despesasPendentesAteHoje;
     const lucroPrevisto = receitasMes - despesasMes;
     const acumuladoReceitas = receitasPagasMes;
     const acumuladoDespesas = despesasPagasMes;
 
-    return { contasEmAtraso, receitasEmAtraso, capitalDeGiro, lucroPrevisto, acumuladoReceitas, acumuladoDespesas };
+    return { contasEmAtraso, receitasEmAtraso, capitalDeGiroMes, capitalDeGiroHoje, lucroPrevisto, acumuladoReceitas, acumuladoDespesas };
   }, [allTransactions, bankTotals]);
 
   const handleClearFilters = () => {
@@ -526,10 +537,10 @@ export default function Transactions() {
                     <Building2 className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                     <p className="text-xs text-muted-foreground">Capital de Giro</p>
                   </div>
-                  <p className={`text-base font-bold ${biMetrics.capitalDeGiro >= 0 ? 'text-blue-400' : 'text-red-500'}`}>
-                    {formatCurrency(biMetrics.capitalDeGiro)}
+                  <p className={`text-base font-bold ${biMetrics.capitalDeGiroMes >= 0 ? 'text-blue-400' : 'text-red-500'}`}>
+                    {formatCurrency(biMetrics.capitalDeGiroMes)}
                   </p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">Bancos ± vencimentos hoje</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Até hoje: {formatCurrency(biMetrics.capitalDeGiroHoje)}</p>
                 </CardContent>
               </Card>
 
