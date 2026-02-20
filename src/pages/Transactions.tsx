@@ -550,7 +550,7 @@ export default function Transactions() {
                 <CardContent className="p-3">
                   <div className="flex items-center gap-2 mb-1">
                     <CalendarCheck className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                    <p className="text-xs text-muted-foreground">Resultado Realizado</p>
+                    <p className="text-xs text-muted-foreground">Lucro Realizado — {format(new Date(), 'MMMM', { locale: ptBR }).replace(/^\w/, c => c.toUpperCase())}</p>
                   </div>
                   <p className={`text-base font-bold ${biMetrics.acumuladoReceitas - biMetrics.acumuladoDespesas >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
                     {formatCurrency(biMetrics.acumuladoReceitas - biMetrics.acumuladoDespesas)}
