@@ -1,9 +1,10 @@
 
-# Filtrar Extrato Bancario para Mostrar Apenas Transacoes Realizadas
+
+# Transferir DRE, Comparativo e Fluxo de Caixa para o Dashboard
 
 ## Resumo
 
-Adicionar `.eq('is_paid', true)` na Query 2 (transacoes do periodo) no hook `useBankTransactions.ts`. A Query 1 (saldo anterior) ja filtra apenas realizadas. Com isso, tanto o extrato quanto os saldos refletirao exclusivamente movimentacoes confirmadas, permitindo conciliacao direta com o banco.
+Mover os componentes DRE, Comparativo de Periodos e Fluxo de Caixa Previsto da pagina Relatorios para o Dashboard, e reordenar os widgets do Dashboard conforme solicitado.
 
 ---
 
@@ -11,27 +12,87 @@ Adicionar `.eq('is_paid', true)` na Query 2 (transacoes do periodo) no hook `use
 
 | Arquivo | Mudanca |
 |---|---|
-| `src/hooks/useBankTransactions.ts` | Adicionar filtro `is_paid = true` na query do periodo |
+| `src/pages/Dashboard.tsx` | Adicionar imports, dados e componentes; reordenar layout |
 
 ---
 
-## Mudanca
+## 1. Novos Imports
 
-### Query 2 - Transacoes do Periodo (linha ~75-97)
+Adicionar ao Dashboard.tsx:
+- `import { DRECard } from '@/components/reports/DRECard';`
+- `import { PeriodComparison } from '@/components/reports/PeriodComparison';`
+- `import { CashFlowForecast } from '@/components/reports/CashFlowForecast';`
+- `import { subMonths, startOfMonth, endOfMonth } from 'date-fns'` (alguns ja importados, completar os faltantes)
+- `import { useReportData, processReportData } from '@/hooks/useReportData';`
 
-Adicionar `.eq('is_paid', true)` na query, logo apos o `.order('created_at', { ascending: true })`:
+---
+
+## 2. Novos Dados (useMemo / queries)
+
+### DRE
+Calcular `dreData` a partir dos totais filtrados do Dashboard (receitas e despesas), com impostos = 15% do faturamento bruto (mesma logica da pagina Relatorios):
 
 ```typescript
-let query = supabase
-  .from('transactions')
-  .select(`...`)
-  .eq('is_paid', true)       // <-- ADICIONAR ESTA LINHA
-  .order('date', { ascending: true })
-  .order('created_at', { ascending: true });
+const dreData = useMemo(() => {
+  const faturamentoBruto = transactions.filter(t => t.type === 'receita').reduce((s, t) => s + Number(t.amount), 0);
+  const impostos = faturamentoBruto * 0.15;
+  const despesasOperacionais = transactions.filter(t => t.type === 'despesa').reduce((s, t) => s + Number(t.amount), 0);
+  return { faturamentoBruto, impostos, despesasOperacionais };
+}, [transactions]);
 ```
 
-Isso garante que:
-- O extrato mostra apenas transacoes ja realizadas
-- O saldo acumulado (running balance) reflete apenas o realizado
-- Os totais de Entradas/Saidas e Saldo Final consideram apenas o realizado
-- Fica compativel com a Query 1 que ja filtra `is_paid = true`
+### Comparativo de Periodos
+Adicionar queries para mes atual e mes anterior usando `useReportData`:
+
+```typescript
+const thisMonthStart = startOfMonth(now);
+const lastMonthStart = startOfMonth(subMonths(now, 1));
+const lastMonthEnd = endOfMonth(subMonths(now, 1));
+
+const { data: thisMonthTx = [] } = useReportData({ startDate: thisMonthStart, endDate: now });
+const { data: lastMonthTx = [] } = useReportData({ startDate: lastMonthStart, endDate: lastMonthEnd });
+
+const thisMonthData = useMemo(() => processReportData(thisMonthTx), [thisMonthTx]);
+const lastMonthData = useMemo(() => processReportData(lastMonthTx), [lastMonthTx]);
+```
+
+---
+
+## 3. Nova Ordem dos Widgets no Layout
+
+Apos os cards de KPI e Ticker Anual, a nova ordem sera:
+
+1. **Contas Pendentes** (movido para cima, antes da Evolucao Mensal)
+2. **Evolucao Mensal** (grafico AreaChart existente)
+3. **Receitas/Despesas por Evento Contabil** (pie charts existentes, grid 2 colunas)
+4. **DRE** (novo - componente `DRECard`)
+5. **Comparativo de Periodos** (novo - componente `PeriodComparison`)
+6. **Fluxo de Caixa Previsto** (novo - componente `CashFlowForecast`)
+
+---
+
+## 4. Adicionar Widgets ao Config
+
+Adicionar 3 novos widgets ao `DEFAULT_WIDGETS` em `DashboardWidgets.tsx` para permitir ativar/desativar:
+- `{ id: 'dre', name: 'Resultado Operacional (DRE)', enabled: true }`
+- `{ id: 'periodComparison', name: 'Comparativo de Periodos', enabled: true }`
+- `{ id: 'cashFlowForecast', name: 'Fluxo de Caixa Previsto', enabled: true }`
+
+---
+
+## 5. Renderizacao dos Novos Componentes
+
+```text
+[KPIs 3 cols]
+[Ticker 4 cols]
+[Contas Pendentes]        <-- movido para cima
+[Evolucao Mensal]
+[Receitas por Cat | Despesas por Cat]
+[DRE]                     <-- novo
+[Comparativo de Periodos] <-- novo
+[Fluxo de Caixa Previsto] <-- novo
+[Dialogs]
+```
+
+Cada novo componente envolvido em `isWidgetEnabled('id')` para respeitar a personalizacao.
+
