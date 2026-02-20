@@ -21,8 +21,8 @@ import {
   CalendarCheck,
   ChevronDown,
   ChevronUp,
-  Building2,
-} from 'lucide-react';
+  Building2 } from
+'lucide-react';
 import { useTransactions, Transaction, TransactionInsert } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
 import { useBanks } from '@/hooks/useBanks';
@@ -39,14 +39,14 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+  AlertDialogTitle } from
+'@/components/ui/alert-dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+  DropdownMenuTrigger } from
+'@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
@@ -56,13 +56,13 @@ import {
   parseISO,
   isBefore,
   isToday,
-  format,
-} from 'date-fns';
+  format } from
+'date-fns';
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
-    currency: 'BRL',
+    currency: 'BRL'
   }).format(value);
 }
 
@@ -99,7 +99,7 @@ export default function Transactions() {
     createTransaction,
     updateTransaction,
     deleteTransaction,
-    togglePaid,
+    togglePaid
   } = useTransactions();
 
   const { categories } = useCategories();
@@ -126,7 +126,7 @@ export default function Transactions() {
   }, [typeFilter, categoryFilter, bankFilter, contactFilter, paymentStatusFilter, searchTerm, period]);
 
   // Calculate date range based on period
-  const getDateRange = (periodValue: PeriodFilter): { start: Date; end: Date } | null => {
+  const getDateRange = (periodValue: PeriodFilter): {start: Date;end: Date;} | null => {
     if (periodValue === 'custom' && customStartDate && customEndDate) {
       return { start: customStartDate, end: customEndDate };
     }
@@ -150,8 +150,8 @@ export default function Transactions() {
     if (categoryFilter !== 'all') result = result.filter((t) => t.category_id === categoryFilter);
     if (bankFilter !== 'all') result = result.filter((t) => t.bank_id === bankFilter);
     if (contactFilter !== 'all') result = result.filter((t) => t.contact_id === contactFilter);
-    if (paymentStatusFilter === 'paid') result = result.filter((t) => t.is_paid);
-    else if (paymentStatusFilter === 'pending') result = result.filter((t) => !t.is_paid);
+    if (paymentStatusFilter === 'paid') result = result.filter((t) => t.is_paid);else
+    if (paymentStatusFilter === 'pending') result = result.filter((t) => !t.is_paid);
     if (searchTerm) {
       const s = searchTerm.toLowerCase();
       result = result.filter((t) => t.description.toLowerCase().includes(s));
@@ -171,11 +171,11 @@ export default function Transactions() {
       (acc, t) => {
         const amount = Number(t.amount);
         if (t.type === 'receita') {
-          if (t.is_paid) acc.receitasPagas += amount;
-          else acc.receitasPendentes += amount;
+          if (t.is_paid) acc.receitasPagas += amount;else
+          acc.receitasPendentes += amount;
         } else {
-          if (t.is_paid) acc.despesasPagas += amount;
-          else acc.despesasPendentes += amount;
+          if (t.is_paid) acc.despesasPagas += amount;else
+          acc.despesasPendentes += amount;
         }
         return acc;
       },
@@ -191,7 +191,7 @@ export default function Transactions() {
     return {
       totalBalance,
       caixaGeralBalance: caixaGeral ? Number(caixaGeral.current_balance) : null,
-      caixaGeralName: caixaGeral?.name ?? null,
+      caixaGeralName: caixaGeral?.name ?? null
     };
   }, [banks]);
 
@@ -225,8 +225,8 @@ export default function Transactions() {
       }
       // Capital de giro: receitas/despesas com due_date hoje
       if (t.due_date === todayStr) {
-        if (t.type === 'receita') receitasHoje += amount;
-        else despesasHoje += amount;
+        if (t.type === 'receita') receitasHoje += amount;else
+        despesasHoje += amount;
       }
       // Mês corrente
       if (t.date >= monthStartStr && t.date <= monthEndStr) {
@@ -273,7 +273,7 @@ export default function Transactions() {
             }
             setDialogOpen(false);
             setEditingTransaction(null);
-          },
+          }
         }
       );
     } else {
@@ -285,7 +285,7 @@ export default function Transactions() {
             }
           }
           setDialogOpen(false);
-        },
+        }
       });
     }
   };
@@ -331,8 +331,8 @@ export default function Transactions() {
           <Skeleton className="h-24" />
         </div>
         <Skeleton className="h-96" />
-      </div>
-    );
+      </div>);
+
   }
 
   return (
@@ -360,11 +360,11 @@ export default function Transactions() {
               <Button variant="outline" className="gap-2 relative" onClick={() => setFiltersOpen((v) => !v)}>
                 <SlidersHorizontal className="w-4 h-4" />
                 Filtros Avançados
-                {activeFilterCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 bg-primary text-primary-foreground text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                {activeFilterCount > 0 &&
+            <span className="absolute -top-1.5 -right-1.5 bg-primary text-primary-foreground text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
                     {activeFilterCount}
                   </span>
-                )}
+            }
                 {filtersOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
               </Button>
 
@@ -377,34 +377,34 @@ export default function Transactions() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem
-                    onClick={() => {
-                      const rt: ReportTransaction[] = filteredTransactions.map((t) => ({
-                        id: t.id, description: t.description, amount: Number(t.amount), type: t.type as 'receita' | 'despesa',
-                        date: t.date, is_paid: t.is_paid,
-                        category: t.category ? { id: t.category.id, name: t.category.name, color: t.category.color || '#6B7280' } : null,
-                        bank: t.bank ? { id: t.bank.id, name: t.bank.name, color: t.bank.color || '#3B82F6' } : null,
-                        contact: t.contact ? { id: t.contact.id, name: t.contact.name, type: t.contact.type } : null,
-                      }));
-                      exportToCSV(rt);
-                    }}
-                    className="gap-2"
-                  >
+                onClick={() => {
+                  const rt: ReportTransaction[] = filteredTransactions.map((t) => ({
+                    id: t.id, description: t.description, amount: Number(t.amount), type: t.type as 'receita' | 'despesa',
+                    date: t.date, is_paid: t.is_paid,
+                    category: t.category ? { id: t.category.id, name: t.category.name, color: t.category.color || '#6B7280' } : null,
+                    bank: t.bank ? { id: t.bank.id, name: t.bank.name, color: t.bank.color || '#3B82F6' } : null,
+                    contact: t.contact ? { id: t.contact.id, name: t.contact.name, type: t.contact.type } : null
+                  }));
+                  exportToCSV(rt);
+                }}
+                className="gap-2">
+
                     <FileSpreadsheet className="w-4 h-4" /> Exportar CSV
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => {
-                      const rt: ReportTransaction[] = filteredTransactions.map((t) => ({
-                        id: t.id, description: t.description, amount: Number(t.amount), type: t.type as 'receita' | 'despesa',
-                        date: t.date, is_paid: t.is_paid,
-                        category: t.category ? { id: t.category.id, name: t.category.name, color: t.category.color || '#6B7280' } : null,
-                        bank: t.bank ? { id: t.bank.id, name: t.bank.name, color: t.bank.color || '#3B82F6' } : null,
-                        contact: t.contact ? { id: t.contact.id, name: t.contact.name, type: t.contact.type } : null,
-                      }));
-                      const dateRange = getDateRange(period);
-                      exportToPDF(rt, totals, dateRange?.start, dateRange?.end);
-                    }}
-                    className="gap-2"
-                  >
+                onClick={() => {
+                  const rt: ReportTransaction[] = filteredTransactions.map((t) => ({
+                    id: t.id, description: t.description, amount: Number(t.amount), type: t.type as 'receita' | 'despesa',
+                    date: t.date, is_paid: t.is_paid,
+                    category: t.category ? { id: t.category.id, name: t.category.name, color: t.category.color || '#6B7280' } : null,
+                    bank: t.bank ? { id: t.bank.id, name: t.bank.name, color: t.bank.color || '#3B82F6' } : null,
+                    contact: t.contact ? { id: t.contact.id, name: t.contact.name, type: t.contact.type } : null
+                  }));
+                  const dateRange = getDateRange(period);
+                  exportToPDF(rt, totals, dateRange?.start, dateRange?.end);
+                }}
+                className="gap-2">
+
                     <FileText className="w-4 h-4" /> Exportar PDF
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -420,30 +420,30 @@ export default function Transactions() {
             <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
               <CollapsibleContent>
                 <UnifiedFilterBox
-                  searchTerm={searchTerm}
-                  onSearchChange={setSearchTerm}
-                  period={period}
-                  onPeriodChange={setPeriod}
-                  customStartDate={customStartDate}
-                  customEndDate={customEndDate}
-                  onCustomStartDateChange={setCustomStartDate}
-                  onCustomEndDateChange={setCustomEndDate}
-                  bankId={bankFilter}
-                  onBankChange={setBankFilter}
-                  banks={banks}
-                  categoryId={categoryFilter}
-                  onCategoryChange={setCategoryFilter}
-                  categories={categories}
-                  paymentStatus={paymentStatusFilter}
-                  onPaymentStatusChange={setPaymentStatusFilter}
-                  contactId={contactFilter}
-                  onContactChange={setContactFilter}
-                  contacts={contacts}
-                  onClearFilters={handleClearFilters}
-                  type={typeFilter}
-                  onTypeChange={setTypeFilter}
-                  showTypeFilter={true}
-                />
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              period={period}
+              onPeriodChange={setPeriod}
+              customStartDate={customStartDate}
+              customEndDate={customEndDate}
+              onCustomStartDateChange={setCustomStartDate}
+              onCustomEndDateChange={setCustomEndDate}
+              bankId={bankFilter}
+              onBankChange={setBankFilter}
+              banks={banks}
+              categoryId={categoryFilter}
+              onCategoryChange={setCategoryFilter}
+              categories={categories}
+              paymentStatus={paymentStatusFilter}
+              onPaymentStatusChange={setPaymentStatusFilter}
+              contactId={contactFilter}
+              onContactChange={setContactFilter}
+              contacts={contacts}
+              onClearFilters={handleClearFilters}
+              type={typeFilter}
+              onTypeChange={setTypeFilter}
+              showTypeFilter={true} />
+
               </CollapsibleContent>
             </Collapsible>
 
@@ -487,15 +487,15 @@ export default function Transactions() {
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Saldo Bancário Real</p>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">SALDO BANCÁRIO</p>
                       <p className={`text-4xl font-extrabold tracking-tight ${bankTotals.totalBalance >= 0 ? 'text-primary' : 'text-red-500'}`}>
                         {formatCurrency(bankTotals.totalBalance)}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {bankTotals.caixaGeralName
-                          ? <>Caixa Geral: <span className="text-primary">{formatCurrency(bankTotals.caixaGeralBalance ?? 0)}</span></>
-                          : 'Total em todos os bancos'
-                        }
+                        {bankTotals.caixaGeralName ?
+                    <>Caixa Geral: <span className="text-primary">{formatCurrency(bankTotals.caixaGeralBalance ?? 0)}</span></> :
+                    'Total em todos os bancos'
+                    }
                       </p>
                     </div>
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -551,7 +551,7 @@ export default function Transactions() {
                     <CalendarCheck className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                     <p className="text-xs text-muted-foreground">Resultado Realizado</p>
                   </div>
-                  <p className={`text-base font-bold ${(biMetrics.acumuladoReceitas - biMetrics.acumuladoDespesas) >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                  <p className={`text-base font-bold ${biMetrics.acumuladoReceitas - biMetrics.acumuladoDespesas >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
                     {formatCurrency(biMetrics.acumuladoReceitas - biMetrics.acumuladoDespesas)}
                   </p>
                   <p className="text-[10px] text-muted-foreground mt-0.5">Realizado no mês corrente</p>
@@ -569,18 +569,18 @@ export default function Transactions() {
             </div>
 
             {/* Transactions List/Grid */}
-            {filteredTransactions.length === 0 ? (
-              <Card className="bg-card border-border/50">
+            {filteredTransactions.length === 0 ?
+        <Card className="bg-card border-border/50">
                 <CardContent className="text-muted-foreground text-center py-16">
                   <Receipt className="w-12 h-12 mx-auto mb-4 opacity-50" />
                   <p>Nenhuma transação encontrada</p>
                   <p className="text-sm mt-1">Ajuste os filtros ou clique em "Nova Movimentação" para começar</p>
                 </CardContent>
-              </Card>
-            ) : viewMode === 'grid' ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredTransactions.map((transaction) => (
-                  <Card key={transaction.id} className="bg-card border-border/50 hover:border-primary/30 transition-colors">
+              </Card> :
+        viewMode === 'grid' ?
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredTransactions.map((transaction) =>
+          <Card key={transaction.id} className="bg-card border-border/50 hover:border-primary/30 transition-colors">
                     <CardContent className="p-4">
                       <div className="flex items-start gap-4">
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${transaction.type === 'receita' ? 'bg-emerald-500/20' : 'bg-red-500/20'}`}>
@@ -594,14 +594,14 @@ export default function Transactions() {
                             </span>
                           </div>
                           <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1 flex-wrap">
-                            {transaction.category && (
-                              <span className="flex items-center gap-1">
+                            {transaction.category &&
+                    <span className="flex items-center gap-1">
                                 <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: transaction.category.color }} />
                                 {transaction.category.name}
                               </span>
-                            )}
-                            {transaction.bank && (<>{transaction.category && <span className="text-muted-foreground/50">|</span>}<span>{transaction.bank.name}</span></>)}
-                            {transaction.contact && (<>{(transaction.category || transaction.bank) && <span className="text-muted-foreground/50">|</span>}<span className="text-primary">{transaction.contact.name}</span></>)}
+                    }
+                            {transaction.bank && <>{transaction.category && <span className="text-muted-foreground/50">|</span>}<span>{transaction.bank.name}</span></>}
+                            {transaction.contact && <>{(transaction.category || transaction.bank) && <span className="text-muted-foreground/50">|</span>}<span className="text-primary">{transaction.contact.name}</span></>}
                           </p>
                           <div className="text-xs text-muted-foreground mt-1">📅 {formatDateShort(transaction.date)}</div>
                         </div>
@@ -612,14 +612,14 @@ export default function Transactions() {
                       </div>
                     </CardContent>
                   </Card>
-                ))}
-              </div>
-            ) : (
-              <Card className="bg-card border-border/50">
+          )}
+              </div> :
+
+        <Card className="bg-card border-border/50">
                 <CardContent className="p-0">
                   <div className="divide-y divide-border/40">
-                    {filteredTransactions.map((transaction) => (
-                      <div key={transaction.id} className="flex items-center gap-4 px-4 py-4 hover:bg-muted/30 transition-colors group">
+                    {filteredTransactions.map((transaction) =>
+              <div key={transaction.id} className="flex items-center gap-4 px-4 py-4 hover:bg-muted/30 transition-colors group">
                         <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${transaction.type === 'receita' ? 'bg-emerald-500/20' : 'bg-red-500/20'}`}>
                           {transaction.type === 'receita' ? <TrendingUp className="w-5 h-5 text-emerald-500" /> : <TrendingDown className="w-5 h-5 text-red-500" />}
                         </div>
@@ -630,29 +630,29 @@ export default function Transactions() {
                             <span className="truncate text-base font-semibold text-foreground">{transaction.contact?.name ?? transaction.description}</span>
                           </div>
                           <div className="flex items-center gap-2 flex-wrap">
-                            {transaction.category && (
-                              <Badge variant="secondary" className="text-xs px-2 py-0.5 h-5 rounded font-medium" style={{ backgroundColor: `${transaction.category.color}22`, color: transaction.category.color, borderColor: `${transaction.category.color}44` }}>
+                            {transaction.category &&
+                    <Badge variant="secondary" className="text-xs px-2 py-0.5 h-5 rounded font-medium" style={{ backgroundColor: `${transaction.category.color}22`, color: transaction.category.color, borderColor: `${transaction.category.color}44` }}>
                                 {transaction.category.name}
                               </Badge>
-                            )}
-                            {transaction.bank && (<>{transaction.category && <span className="text-muted-foreground/40 text-sm">•</span>}<span className="text-sm text-muted-foreground font-medium">{transaction.bank.name}</span></>)}
+                    }
+                            {transaction.bank && <>{transaction.category && <span className="text-muted-foreground/40 text-sm">•</span>}<span className="text-sm text-muted-foreground font-medium">{transaction.bank.name}</span></>}
                             <span className="text-muted-foreground/40 text-sm">•</span>
                             <span className={`text-sm font-medium ${transaction.type === 'receita' ? 'text-emerald-500/80' : 'text-red-500/80'}`}>
                               {transaction.type === 'receita' ? 'Receita' : 'Despesa'}
                             </span>
-                            {!transaction.is_paid && transaction.due_date && transaction.due_date < new Date().toISOString().split('T')[0] && (
-                              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-500/20 text-red-500 border border-red-500/40 whitespace-nowrap">Vencido</span>
-                            )}
+                            {!transaction.is_paid && transaction.due_date && transaction.due_date < new Date().toISOString().split('T')[0] &&
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-500/20 text-red-500 border border-red-500/40 whitespace-nowrap">Vencido</span>
+                    }
                           </div>
                         </div>
                         <div className="flex items-center gap-3 shrink-0">
                           <button
-                            onClick={() => togglePaid.mutate({ id: transaction.id, is_paid: !transaction.is_paid })}
-                            className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-all cursor-pointer whitespace-nowrap ${
-                              transaction.is_paid ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-amber-500 text-amber-500 bg-transparent hover:bg-amber-500/10'
-                            }`}
-                          >
-                            {transaction.is_paid ? (transaction.type === 'receita' ? 'Recebido' : 'Pago') : 'Pendente'}
+                    onClick={() => togglePaid.mutate({ id: transaction.id, is_paid: !transaction.is_paid })}
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-all cursor-pointer whitespace-nowrap ${
+                    transaction.is_paid ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-amber-500 text-amber-500 bg-transparent hover:bg-amber-500/10'}`
+                    }>
+
+                            {transaction.is_paid ? transaction.type === 'receita' ? 'Recebido' : 'Pago' : 'Pendente'}
                           </button>
                           <span className={`font-extrabold text-xl tabular-nums tracking-tight ${transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'}`}>
                             {transaction.type === 'receita' ? '+' : '-'}{formatCurrency(Number(transaction.amount))}
@@ -663,11 +663,11 @@ export default function Transactions() {
                           <Button variant="ghost" size="icon" className="h-9 w-9 hover:bg-destructive/10" onClick={() => setDeleteId(transaction.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
                         </div>
                       </div>
-                    ))}
+              )}
                   </div>
                 </CardContent>
               </Card>
-            )}
+        }
           </div>
 
       <TransactionFormDialog
@@ -679,8 +679,8 @@ export default function Transactions() {
         contacts={contacts}
         onSubmit={handleSubmit}
         isLoading={createTransaction.isPending || updateTransaction.isPending}
-        defaultType={defaultType}
-      />
+        defaultType={defaultType} />
+
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
@@ -698,6 +698,6 @@ export default function Transactions() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
-  );
+    </div>);
+
 }
