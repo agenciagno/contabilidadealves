@@ -46,7 +46,10 @@ import { ContactFormDialog } from '@/components/contacts/ContactFormDialog';
 import { CategoryFormDialog } from '@/components/categories/CategoryFormDialog';
 import { TransactionInsert } from '@/hooks/useTransactions';
 import { UnifiedFilterBox, PeriodFilter, getDateRangeFromPeriod } from '@/components/filters/UnifiedFilterBox';
-import { exportToCSV, exportToPDF } from '@/hooks/useReportData';
+import { exportToCSV, exportToPDF, useReportData, processReportData } from '@/hooks/useReportData';
+import { DRECard } from '@/components/reports/DRECard';
+import { PeriodComparison } from '@/components/reports/PeriodComparison';
+import { CashFlowForecast } from '@/components/reports/CashFlowForecast';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -340,6 +343,25 @@ export default function Dashboard() {
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .slice(0, 15);
   }, [allTransactions]);
+
+  // DRE data
+  const dreData = useMemo(() => {
+    const faturamentoBruto = transactions.filter(t => t.type === 'receita').reduce((s, t) => s + Number(t.amount), 0);
+    const impostos = faturamentoBruto * 0.15;
+    const despesasOperacionais = transactions.filter(t => t.type === 'despesa').reduce((s, t) => s + Number(t.amount), 0);
+    return { faturamentoBruto, impostos, despesasOperacionais };
+  }, [transactions]);
+
+  // Period comparison data
+  const thisMonthStart = startOfMonth(now);
+  const lastMonthStart = startOfMonth(subMonths(now, 1));
+  const lastMonthEnd = endOfMonth(subMonths(now, 1));
+
+  const { data: thisMonthTx = [] } = useReportData({ startDate: thisMonthStart, endDate: now });
+  const { data: lastMonthTx = [] } = useReportData({ startDate: lastMonthStart, endDate: lastMonthEnd });
+
+  const thisMonthData = useMemo(() => processReportData(thisMonthTx), [thisMonthTx]);
+  const lastMonthData = useMemo(() => processReportData(lastMonthTx), [lastMonthTx]);
 
 
   const isLoading = loadingTransactions || loadingBanks;
@@ -664,6 +686,87 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      {/* Lista Unificada de Contas Pendentes - moved above evolution */}
+      {isWidgetEnabled('pendingList') && (
+        <Card className="bg-card border-border/50">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Contas Pendentes
+              </CardTitle>
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/financeiro/pagar-receber" className="text-xs text-muted-foreground">
+                  Ver todas <ChevronRight className="w-4 h-4" />
+                </Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-14 w-full" />
+                ))}
+              </div>
+            ) : pendingTransactions.length > 0 ? (
+              <div className="space-y-2">
+                {pendingTransactions.map((transaction) => {
+                  const isReceita = transaction.type === 'receita';
+                  const txDate = new Date(transaction.date + 'T12:00:00');
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const isOverdue = isBefore(txDate, today);
+                  
+                  return (
+                    <div
+                      key={transaction.id}
+                      className={`flex items-center justify-between p-3 rounded-lg border ${
+                        isReceita 
+                          ? 'bg-emerald-500/10 border-emerald-500/20' 
+                          : 'bg-red-500/10 border-red-500/20'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                          isReceita ? 'bg-emerald-500/20' : 'bg-red-500/20'
+                        }`}>
+                          {isReceita ? (
+                            <TrendingUp className="w-4 h-4 text-emerald-500" />
+                          ) : (
+                            <TrendingDown className="w-4 h-4 text-red-500" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{transaction.description}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {transaction.contact?.name || 'Sem contato'} • Venc: {format(txDate, "dd/MM/yyyy")}
+                            {isOverdue && (
+                              <Badge variant="outline" className="ml-2 text-amber-500 border-amber-500/50">
+                                Vencido
+                              </Badge>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                      <span className={`font-semibold ml-3 ${
+                        isReceita ? 'text-emerald-500' : 'text-red-500'
+                      }`}>
+                        {formatCurrency(Number(transaction.amount))}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-center py-8">
+                Nenhuma conta pendente
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Monthly Evolution - Full Width & Larger */}
       {isWidgetEnabled('evolution') && (
         <Card className="bg-card border-border/50">
@@ -829,85 +932,34 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Lista Unificada de Contas Pendentes - 100% largura */}
-      {isWidgetEnabled('pendingList') && (
-        <Card className="bg-card border-border/50">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <FileText className="w-4 h-4" />
-                Contas Pendentes
-              </CardTitle>
-              <Button variant="ghost" size="sm" asChild>
-                <Link to="/financeiro/pagar-receber" className="text-xs text-muted-foreground">
-                  Ver todas <ChevronRight className="w-4 h-4" />
-                </Link>
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-14 w-full" />
-                ))}
-              </div>
-            ) : pendingTransactions.length > 0 ? (
-              <div className="space-y-2">
-                {pendingTransactions.map((transaction) => {
-                  const isReceita = transaction.type === 'receita';
-                  const txDate = new Date(transaction.date + 'T12:00:00');
-                  const today = new Date();
-                  today.setHours(0, 0, 0, 0);
-                  const isOverdue = isBefore(txDate, today);
-                  
-                  return (
-                    <div
-                      key={transaction.id}
-                      className={`flex items-center justify-between p-3 rounded-lg border ${
-                        isReceita 
-                          ? 'bg-emerald-500/10 border-emerald-500/20' 
-                          : 'bg-red-500/10 border-red-500/20'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                          isReceita ? 'bg-emerald-500/20' : 'bg-red-500/20'
-                        }`}>
-                          {isReceita ? (
-                            <TrendingUp className="w-4 h-4 text-emerald-500" />
-                          ) : (
-                            <TrendingDown className="w-4 h-4 text-red-500" />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">{transaction.description}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {transaction.contact?.name || 'Sem contato'} • Venc: {format(txDate, "dd/MM/yyyy")}
-                            {isOverdue && (
-                              <Badge variant="outline" className="ml-2 text-amber-500 border-amber-500/50">
-                                Vencido
-                              </Badge>
-                            )}
-                          </p>
-                        </div>
-                      </div>
-                      <span className={`font-semibold ml-3 ${
-                        isReceita ? 'text-emerald-500' : 'text-red-500'
-                      }`}>
-                        {formatCurrency(Number(transaction.amount))}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-center py-8">
-                Nenhuma conta pendente
-              </p>
-            )}
-          </CardContent>
-        </Card>
+      {/* DRE Card */}
+      {isWidgetEnabled('dre') && (
+        <DRECard
+          faturamentoBruto={dreData.faturamentoBruto}
+          impostos={dreData.impostos}
+          despesasOperacionais={dreData.despesasOperacionais}
+        />
+      )}
+
+      {/* Period Comparison */}
+      {isWidgetEnabled('periodComparison') && (
+        <PeriodComparison
+          currentPeriod={{
+            receitas: thisMonthData.totals.receitas,
+            despesas: thisMonthData.totals.despesas,
+            saldo: thisMonthData.totals.receitas - thisMonthData.totals.despesas,
+          }}
+          previousPeriod={{
+            receitas: lastMonthData.totals.receitas,
+            despesas: lastMonthData.totals.despesas,
+            saldo: lastMonthData.totals.receitas - lastMonthData.totals.despesas,
+          }}
+        />
+      )}
+
+      {/* Cash Flow Forecast */}
+      {isWidgetEnabled('cashFlowForecast') && (
+        <CashFlowForecast />
       )}
 
       {/* Dialogs */}
