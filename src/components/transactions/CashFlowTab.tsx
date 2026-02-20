@@ -7,6 +7,7 @@ import {
 import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { UnifiedFilterBox, PeriodFilter, getDateRangeFromPeriod } from '@/components/filters/UnifiedFilterBox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
@@ -63,7 +64,7 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
   const [contactFilter, setContactFilter] = useState('all');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-
+  const [confirmModal, setConfirmModal] = useState<{ open: boolean; row: any | null }>({ open: false, row: null });
   const getDateRange = (p: PeriodFilter) => {
     if (p === 'custom' && customStartDate && customEndDate) return { start: customStartDate, end: customEndDate };
     return getDateRangeFromPeriod(p);
@@ -154,19 +155,21 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
       const isHonorarios = t.category?.name === 'Honorários Contábeis';
       let displayAmount = amt;
       let hasJuros = false;
+      let jurosValue = 0;
+      let multaValue = 0;
+      let diasAtrasoValue = 0;
 
-      // Juros e multa virtual (apenas visual)
       if (t.type === 'receita' && isHonorarios && status === 'vencido' && t.due_date) {
         const diasAtraso = differenceInDays(new Date(), new Date(t.due_date + 'T12:00:00'));
-        if (diasAtraso > 0) {
-          const multa = amt * 0.02;
-          const juros = amt * 0.0015 * diasAtraso;
-          displayAmount = amt + multa + juros;
+        if (diasAtraso >= 5) {
+          multaValue = amt * 0.02;
+          jurosValue = amt * 0.0015 * diasAtraso;
+          displayAmount = amt + multaValue + jurosValue;
           hasJuros = true;
+          diasAtrasoValue = diasAtraso;
         }
       }
 
-      // Running balance: apenas pendentes/vencidos alteram o saldo
       if (status !== 'pago') {
         if (t.type === 'receita') {
           saldoAcumulado += amt;
@@ -175,7 +178,7 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
         }
       }
 
-      return { ...t, status, displayAmount, hasJuros, originalAmount: amt, saldoAtual: saldoAcumulado };
+      return { ...t, status, displayAmount, hasJuros, originalAmount: amt, saldoAtual: saldoAcumulado, jurosValue, multaValue, diasAtrasoValue };
     });
   }, [filtered, totalBankBalance]);
 
@@ -347,14 +350,18 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
                           row.hasJuros ? (
                             <div className="flex items-center justify-end gap-1">
                               <div className="flex flex-col items-end">
-                                <span className="text-muted-foreground line-through text-[10px]">{formatCurrency(row.originalAmount)}</span>
+                                <span className="text-muted-foreground text-[10px]">{formatCurrency(row.originalAmount)}</span>
+                                <span className="text-amber-500 text-[10px]">J+M: {formatCurrency(row.jurosValue + row.multaValue)}</span>
                                 <span className="text-emerald-500 font-bold">{formatCurrency(row.displayAmount)}</span>
                               </div>
                               <Tooltip>
                                 <TooltipTrigger>
                                   <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
                                 </TooltipTrigger>
-                                <TooltipContent><p>+ Juros e Multa</p></TooltipContent>
+                                <TooltipContent>
+                                  <p>Multa 2%: {formatCurrency(row.multaValue)}</p>
+                                  <p>Juros 0,15%/dia ({row.diasAtrasoValue} dias): {formatCurrency(row.jurosValue)}</p>
+                                </TooltipContent>
                               </Tooltip>
                             </div>
                           ) : (
@@ -373,7 +380,13 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
                       {/* Status */}
                       <TableCell className="text-center">
                         <button
-                          onClick={() => togglePaid.mutate({ id: row.id, is_paid: !row.is_paid })}
+                          onClick={() => {
+                            if (!row.is_paid && row.hasJuros) {
+                              setConfirmModal({ open: true, row });
+                            } else {
+                              togglePaid.mutate({ id: row.id, is_paid: !row.is_paid });
+                            }
+                          }}
                           className="cursor-pointer"
                         >
                           {row.status === 'pago' ? (
@@ -398,6 +411,42 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
           </TooltipProvider>
         </CardContent>
       </Card>
+      {/* Modal de Confirmação de Pagamento */}
+      <Dialog open={confirmModal.open} onOpenChange={(open) => !open && setConfirmModal({ open: false, row: null })}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirmar Recebimento</DialogTitle>
+          </DialogHeader>
+          {confirmModal.row && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                O cliente <strong>{confirmModal.row.contact?.name ?? confirmModal.row.description}</strong> pagou o valor original ou com juros e multa?
+              </p>
+              <DialogFooter className="flex flex-col sm:flex-row gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    togglePaid.mutate({ id: confirmModal.row!.id, is_paid: true });
+                    setConfirmModal({ open: false, row: null });
+                  }}
+                >
+                  Valor Original — {formatCurrency(confirmModal.row.originalAmount)}
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={() => {
+                    togglePaid.mutate({ id: confirmModal.row!.id, is_paid: true });
+                    setConfirmModal({ open: false, row: null });
+                  }}
+                >
+                  Com J+M — {formatCurrency(confirmModal.row.displayAmount)}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
