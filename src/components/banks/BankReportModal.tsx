@@ -74,6 +74,14 @@ export function BankReportModal({ open, onOpenChange, banks }: BankReportModalPr
 
   const periodLabel = `${formatDateBR(startDate)} a ${formatDateBR(endDate)}`;
 
+  const accountsLabel = selectedBankIds.length > 0
+    ? banks.filter(b => selectedBankIds.includes(b.id)).map(b => b.name).join(', ')
+    : 'Todas';
+
+  const categoryLabel = categoryId !== 'all'
+    ? categories.find(c => c.id === categoryId)?.name || 'Todos'
+    : 'Todos';
+
   // ─── PDF Export ───────────────────────────────────────────────────
   const exportPDF = () => {
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -96,9 +104,11 @@ export function BankReportModal({ open, onOpenChange, banks }: BankReportModalPr
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.text(`Período: ${periodLabel}`, 14, 40);
+    doc.text(`Contas: ${accountsLabel}`, 14, 45);
+    doc.text(`Evento Contábil: ${categoryLabel}`, 14, 50);
 
     doc.setFontSize(9);
-    const summaryY = 48;
+    const summaryY = 58;
     doc.text(`Saldo Inicial: ${formatCurrency(openingBalance)}`, 14, summaryY);
     doc.text(`Entradas: ${formatCurrency(totalIncome)}`, 80, summaryY);
     doc.text(`Saídas: ${formatCurrency(totalExpense)}`, 140, summaryY);
@@ -153,7 +163,15 @@ export function BankReportModal({ open, onOpenChange, banks }: BankReportModalPr
       r.running_balance.toFixed(2).replace('.', ','),
     ]);
 
-    const table = `<table><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>${tableRows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')}</table>`;
+    const headerRows = `
+      <tr><td colspan="8"><b>${company?.name || 'Empresa'}</b></td></tr>
+      <tr><td colspan="8">Período: ${periodLabel}</td></tr>
+      <tr><td colspan="8">Contas: ${accountsLabel}</td></tr>
+      <tr><td colspan="8">Evento Contábil: ${categoryLabel}</td></tr>
+      <tr><td colspan="8"></td></tr>
+    `;
+
+    const table = `<table>${headerRows}<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>${tableRows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')}</table>`;
     const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body>${table}</body></html>`;
 
     const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
@@ -161,6 +179,39 @@ export function BankReportModal({ open, onOpenChange, banks }: BankReportModalPr
     const a = document.createElement('a');
     a.href = url;
     a.download = `extrato-bancario-${startDate}-${endDate}.xls`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // ─── CSV Export ───────────────────────────────────────────────────
+  const exportCSV = () => {
+    const metaLines = [
+      company?.name || 'Empresa',
+      `Período: ${periodLabel}`,
+      `Contas: ${accountsLabel}`,
+      `Evento Contábil: ${categoryLabel}`,
+      '',
+    ];
+
+    const headers = ['Data', 'Banco', 'Histórico', 'Cliente/Fornecedor', 'Evento Contábil', 'Valor Entrada', 'Valor Saída', 'Saldo'];
+    const dataLines = filteredRows.map(r => [
+      r.date,
+      r.bank_name || '',
+      `"${(r.description || '').replace(/"/g, '""')}"`,
+      `"${(r.contact_name || '').replace(/"/g, '""')}"`,
+      r.category_name || '',
+      r.type === 'receita' ? r.amount.toFixed(2).replace('.', ',') : '',
+      r.type === 'despesa' ? r.amount.toFixed(2).replace('.', ',') : '',
+      r.running_balance.toFixed(2).replace('.', ','),
+    ].join(';'));
+
+    const csv = [...metaLines, headers.join(';'), ...dataLines].join('\r\n');
+    const bom = '\uFEFF';
+    const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `extrato-bancario-${startDate}-${endDate}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -341,11 +392,8 @@ ${transactions}
                 <div>
                   <h3 className="font-bold text-gray-900 text-base">{company?.name || 'Extrato Bancário'}</h3>
                   <p className="text-xs text-gray-500">Período: {periodLabel}</p>
-                  {selectedBankIds.length > 0 && (
-                    <p className="text-xs text-gray-500">
-                      Contas: {banks.filter(b => selectedBankIds.includes(b.id)).map(b => b.name).join(', ')}
-                    </p>
-                  )}
+                  <p className="text-xs text-gray-500">Contas: {accountsLabel}</p>
+                  <p className="text-xs text-gray-500">Evento Contábil: {categoryLabel}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-gray-50 rounded-lg p-3">
@@ -388,7 +436,7 @@ ${transactions}
           {/* Export buttons */}
           <div>
             <Label className="text-sm font-semibold mb-3 block">Exportar</Label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <Button
                 variant="outline"
                 className="flex items-center gap-2 h-10"
@@ -405,7 +453,16 @@ ${transactions}
                 disabled={isLoading}
               >
                 <Table2 className="w-4 h-4 text-green-600" />
-                <span className="text-sm font-medium">Excel</span>
+                <span className="text-sm font-medium">Excel - XLS</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="flex items-center gap-2 h-10"
+                onClick={exportCSV}
+                disabled={isLoading}
+              >
+                <Table2 className="w-4 h-4 text-green-600" />
+                <span className="text-sm font-medium">Excel - CSV</span>
               </Button>
               <Button
                 variant="outline"
