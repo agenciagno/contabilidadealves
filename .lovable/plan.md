@@ -1,10 +1,10 @@
 
 
-# Redesenhar Cabecalho do PDF para Corresponder ao Preview
+# Melhorar Layout da Lista de Boletos
 
 ## Resumo
 
-Atualizar a funcao `exportPDF` em `BankReportModal.tsx` para que o cabecalho do PDF tenha o mesmo design visual da imagem de referencia (Preview), com cards coloridos para Saldo Inicial, Entradas, Saidas e Saldo Final.
+Redesenhar o layout dos cards de boleto e adicionar totalizador ao final da lista.
 
 ---
 
@@ -12,52 +12,84 @@ Atualizar a funcao `exportPDF` em `BankReportModal.tsx` para que o cabecalho do 
 
 | Arquivo | Mudanca |
 |---|---|
-| `src/components/banks/BankReportModal.tsx` | Redesenhar cabecalho do PDF com cards visuais |
+| `src/pages/Boletos.tsx` | Redesenhar card do boleto e adicionar total ao final |
 
 ---
 
-## Design Atual vs Desejado
+## Novo Layout do Card
 
-**Atual**: Cabecalho do PDF usa texto simples em uma unica linha ("Saldo Inicial: R$ 0,00 | Entradas: R$ 1.000,00 | ...").
+```text
++----------------------------------------------------------+------------------+
+| Nome do Cliente (negrito)                                 |                  |
+| CNPJ: XX.XXX  Email: x@x  Tel: (XX)XXXX  Venc: DD/MM/AA | R$ 1.500,00  GERADO |
++----------------------------------------------------------+------------------+
+```
 
-**Desejado**: Reproduzir o layout do Preview com:
-1. Nome da empresa em negrito (grande)
-2. Periodo, Contas, Evento Contabil em texto menor abaixo
-3. Grid 2x2 de cards coloridos com cantos arredondados:
-   - **Saldo Inicial**: fundo cinza claro (#F5F5F5), texto preto
-   - **Entradas**: fundo verde claro (#F0FFF4), label e valor em verde escuro (#15803D), prefixo "+"
-   - **Saidas**: fundo vermelho claro (#FFF5F5), label e valor em vermelho (#DC2626), prefixo "-"
-   - **Saldo Final**: fundo azul claro (#EFF6FF), label e valor em azul escuro (#1D4ED8)
-4. Separador fino
-5. Rodape do resumo: "X lancamentos - Gerado em DD/MM/YYYY"
+### Detalhes:
+- **Linha 1**: Nome do cliente (`text-sm font-bold`)
+- **Linha 2**: CNPJ, Email, Telefone, Vencimento completo (DD/MM/AAAA) - tudo em `text-xs text-muted-foreground`, com labels (CNPJ:, Email:, Tel:, Venc:)
+- **Lado direito isolado**: Valor em destaque (`font-bold text-sm`) e ao lado o Badge de status (Pendente/Gerado) - ambos alinhados verticalmente ao centro
+- Manter botoes de copia nos dados de contato (CNPJ, Email, Telefone)
+- Manter badge clicavel para alternar status
+
+### Calculo do vencimento completo:
+```typescript
+const dueDate = boleto.boleto_due_day != null
+  ? format(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), boleto.boleto_due_day), 'dd/MM/yyyy')
+  : null;
+```
 
 ---
 
-## Implementacao Tecnica
+## Total ao Final da Lista
 
-Substituir as linhas 110-115 (resumo financeiro em texto) por desenho com `jsPDF`:
-
-```text
-// Para cada card:
-doc.setFillColor(r, g, b);       // cor de fundo
-doc.roundedRect(x, y, w, h, 3, 3, 'F');  // retangulo arredondado
-doc.setTextColor(r, g, b);       // cor do texto
-doc.text(label, x+4, y+8);      // label pequeno
-doc.text(valor, x+4, y+16);     // valor em negrito
-```
-
-Layout dos 4 cards no PDF (2 colunas, 2 linhas):
+Apos o ultimo card, bloco de totalizacao:
 
 ```text
-Posicao no PDF (A4, margens 14mm):
-Col 1: x=14, largura=88
-Col 2: x=104, largura=88
-
-Linha 1: y=58  (Saldo Inicial | Entradas)
-Linha 2: y=80  (Saidas | Saldo Final)
++-------------------------------------------------------+
+|                              Total: R$ XX.XXX,XX       |
++-------------------------------------------------------+
 ```
 
-Apos os cards, desenhar linha separadora e texto de rodape do resumo com contagem de lancamentos e data.
+- Somar `boleto_value` de todos os itens em `filteredList`
+- `font-bold text-base` alinhado a direita
+- Visivel em tela e na impressao
 
-A tabela `autoTable` comecara apos o bloco de cards (~y=110).
+---
+
+## Secao Tecnica
+
+### Estrutura JSX do card:
+
+```text
+<Card>
+  <CardContent className="p-3">
+    <div className="flex items-center justify-between gap-4">
+      {/* Lado esquerdo: info */}
+      <div className="flex-1 min-w-0">
+        <p className="font-bold text-sm truncate">{nome}</p>
+        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
+          {CNPJ + CopyBtn}
+          {Email + CopyBtn}
+          {Tel + CopyBtn}
+          {Venc: DD/MM/AAAA}
+        </div>
+      </div>
+      {/* Lado direito: valor + status */}
+      <div className="flex items-center gap-3 shrink-0">
+        <p className="font-bold text-sm">R$ 1.500,00</p>
+        <Badge>PENDENTE / GERADO</Badge>
+      </div>
+    </div>
+  </CardContent>
+</Card>
+```
+
+### Totalizador:
+
+```typescript
+const totalValue = filteredList.reduce((sum, b) => sum + (b.boleto_value ?? 0), 0);
+```
+
+Renderizado apos o map dos cards, visivel tanto em tela quanto na impressao.
 
