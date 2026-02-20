@@ -80,6 +80,7 @@ export function useBankTransactions(
           categories:category_id (name),
           banks:bank_id (name)
         `)
+        .eq('is_paid', true)
         .order('date', { ascending: true })
         .order('created_at', { ascending: true });
 
