@@ -1,13 +1,10 @@
 
 
-# Melhorias no Relatorio de Bancos
+# Redesenhar Cabecalho do PDF para Corresponder ao Preview
 
 ## Resumo
 
-Tres ajustes no componente `BankReportModal.tsx`:
-1. Adicionar botao de exportacao CSV e renomear o botao Excel existente
-2. Padronizar cabecalho em todos os formatos de exportacao (PDF, XLS, CSV, OFX, Imagem)
-3. Exibir Evento Contabil no cabecalho (Preview e exportacoes)
+Atualizar a funcao `exportPDF` em `BankReportModal.tsx` para que o cabecalho do PDF tenha o mesmo design visual da imagem de referencia (Preview), com cards coloridos para Saldo Inicial, Entradas, Saidas e Saldo Final.
 
 ---
 
@@ -15,91 +12,52 @@ Tres ajustes no componente `BankReportModal.tsx`:
 
 | Arquivo | Mudanca |
 |---|---|
-| `src/components/banks/BankReportModal.tsx` | Adicionar CSV, renomear XLS, padronizar cabecalho, exibir evento contabil |
+| `src/components/banks/BankReportModal.tsx` | Redesenhar cabecalho do PDF com cards visuais |
 
 ---
 
-## 1. Renomear botao Excel e adicionar CSV
+## Design Atual vs Desejado
 
-- Botao existente "Excel" passa a ser **"Excel - XLS"**
-- Novo botao **"Excel - CSV"** ao lado, com icone `Table2` (mesma cor verde)
-- O grid de exportacao passa de `grid-cols-2` para layout que acomode 5 botoes
+**Atual**: Cabecalho do PDF usa texto simples em uma unica linha ("Saldo Inicial: R$ 0,00 | Entradas: R$ 1.000,00 | ...").
 
----
-
-## 2. Nova funcao `exportCSV`
-
-Gera arquivo `.csv` com separador ponto-e-virgula (padrao BR) contendo:
-- Cabecalho com nome da empresa, periodo, contas e evento contabil (como comentarios ou linhas iniciais)
-- Colunas: Data, Banco, Historico, Cliente/Fornecedor, Evento Contabil, Valor Entrada, Valor Saida, Saldo
-- Mesmos dados de `filteredRows`
-- Download automatico como `.csv`
-
----
-
-## 3. Padronizar cabecalho em todos os formatos
-
-Todas as exportacoes (PDF, XLS, CSV, OFX header, Imagem) passam a incluir:
-- **Empresa**: nome da empresa
-- **Periodo**: data inicio a data fim
-- **Contas**: nomes dos bancos selecionados, ou **"Todas"** se nenhum selecionado
-- **Evento Contabil**: nome da categoria selecionada, ou **"Todos"** se `categoryId === 'all'`
-
-### Ajustes por formato:
-
-**Preview (ref summaryRef)**:
-- Quando nenhum banco selecionado, exibir "Contas: Todas" (atualmente nao mostra nada)
-- Adicionar linha "Evento Contabil: [nome ou Todos]"
-
-**PDF** (jsPDF):
-- Adicionar linha de Contas e Evento Contabil abaixo do periodo (antes do resumo financeiro)
-
-**XLS**:
-- Adicionar linhas de cabecalho antes da tabela HTML (Empresa, Periodo, Contas, Evento Contabil)
-
-**CSV**:
-- Mesmas linhas de cabecalho no topo do arquivo
-
-**Imagem**:
-- Ja usa o summaryRef, entao herda automaticamente as mudancas do Preview
-
-**OFX**:
-- Formato tecnico, manter como esta (sem cabecalho visual)
+**Desejado**: Reproduzir o layout do Preview com:
+1. Nome da empresa em negrito (grande)
+2. Periodo, Contas, Evento Contabil em texto menor abaixo
+3. Grid 2x2 de cards coloridos com cantos arredondados:
+   - **Saldo Inicial**: fundo cinza claro (#F5F5F5), texto preto
+   - **Entradas**: fundo verde claro (#F0FFF4), label e valor em verde escuro (#15803D), prefixo "+"
+   - **Saidas**: fundo vermelho claro (#FFF5F5), label e valor em vermelho (#DC2626), prefixo "-"
+   - **Saldo Final**: fundo azul claro (#EFF6FF), label e valor em azul escuro (#1D4ED8)
+4. Separador fino
+5. Rodape do resumo: "X lancamentos - Gerado em DD/MM/YYYY"
 
 ---
 
-## 4. Logica de exibicao de Contas e Eventos
+## Implementacao Tecnica
+
+Substituir as linhas 110-115 (resumo financeiro em texto) por desenho com `jsPDF`:
 
 ```text
-Contas:
-  - Se selectedBankIds.length === 0 -> "Todas"
-  - Se selectedBankIds.length > 0   -> nomes separados por virgula
-
-Evento Contabil:
-  - Se categoryId === 'all' -> "Todos"
-  - Se categoryId !== 'all' -> nome da categoria (buscar em categories)
+// Para cada card:
+doc.setFillColor(r, g, b);       // cor de fundo
+doc.roundedRect(x, y, w, h, 3, 3, 'F');  // retangulo arredondado
+doc.setTextColor(r, g, b);       // cor do texto
+doc.text(label, x+4, y+8);      // label pequeno
+doc.text(valor, x+4, y+16);     // valor em negrito
 ```
 
-Variavel auxiliar para uso em todos os formatos:
-
-```typescript
-const accountsLabel = selectedBankIds.length > 0
-  ? banks.filter(b => selectedBankIds.includes(b.id)).map(b => b.name).join(', ')
-  : 'Todas';
-
-const categoryLabel = categoryId !== 'all'
-  ? categories.find(c => c.id === categoryId)?.name || 'Todos'
-  : 'Todos';
-```
-
----
-
-## Secao Tecnica - Estrutura dos Botoes de Exportacao
+Layout dos 4 cards no PDF (2 colunas, 2 linhas):
 
 ```text
-[PDF / Impressao]  [Excel - XLS]  [Excel - CSV]
-[OFX]              [Imagem]
+Posicao no PDF (A4, margens 14mm):
+Col 1: x=14, largura=88
+Col 2: x=104, largura=88
+
+Linha 1: y=58  (Saldo Inicial | Entradas)
+Linha 2: y=80  (Saidas | Saldo Final)
 ```
 
-Grid ajustado para `grid-cols-3` na primeira linha e `grid-cols-2` na segunda, ou `grid-cols-3` com 5 itens fluindo naturalmente.
+Apos os cards, desenhar linha separadora e texto de rodape do resumo com contagem de lancamentos e data.
+
+A tabela `autoTable` comecara apos o bloco de cards (~y=110).
 
