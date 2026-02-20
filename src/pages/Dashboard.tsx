@@ -14,10 +14,18 @@ import {
   Tag,
   Download,
   FileSpreadsheet,
+  SlidersHorizontal,
+  ChevronUp,
+  ChevronDown,
+  Landmark,
+  BarChart3,
+  CalendarCheck,
+  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useBanks } from '@/hooks/useBanks';
@@ -83,6 +91,7 @@ export default function Dashboard() {
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('all');
   const [customStartDate, setCustomStartDate] = useState<Date | null>(null);
   const [customEndDate, setCustomEndDate] = useState<Date | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const { transactions: allTransactions, isLoading: loadingTransactions, createTransaction } = useTransactions();
   const { banks, isLoading: loadingBanks, createBank } = useBanks();
@@ -193,7 +202,52 @@ export default function Dashboard() {
     };
   }, [transactions, banks]);
 
-  // Monthly evolution data (last 6 months)
+  // Active filter count for badge
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (selectedBankId !== 'all') count++;
+    if (categoryFilter !== 'all') count++;
+    if (contactFilter !== 'all') count++;
+    if (paymentStatusFilter !== 'all') count++;
+    if (searchTerm) count++;
+    if (period !== 'all') count++;
+    return count;
+  }, [selectedBankId, categoryFilter, contactFilter, paymentStatusFilter, searchTerm, period]);
+
+  // Annual metrics (independent of filters)
+  const annualMetrics = useMemo(() => {
+    const yearStr = format(new Date(), 'yyyy');
+    const yearStartStr = `${yearStr}-01-01`;
+    const yearEndStr = `${yearStr}-12-31`;
+
+    let receitasAno = 0;
+    let despesasAno = 0;
+    let receitasPagasAno = 0;
+    let despesasPagasAno = 0;
+
+    for (const t of allTransactions) {
+      if (t.date >= yearStartStr && t.date <= yearEndStr) {
+        const amount = Number(t.amount);
+        if (t.type === 'receita') {
+          receitasAno += amount;
+          if (t.is_paid) receitasPagasAno += amount;
+        } else {
+          despesasAno += amount;
+          if (t.is_paid) despesasPagasAno += amount;
+        }
+      }
+    }
+
+    return {
+      lucroPrevisto: receitasAno - despesasAno,
+      lucroRealizado: receitasPagasAno - despesasPagasAno,
+      receitasAcumuladas: receitasPagasAno,
+      despesasAcumuladas: despesasPagasAno,
+      year: yearStr,
+    };
+  }, [allTransactions]);
+
+
   const monthlyEvolution = useMemo(() => {
     const months = [];
     for (let i = 5; i >= 0; i--) {
@@ -452,147 +506,168 @@ export default function Dashboard() {
         </Button>
       </div>
 
-      {/* Filters */}
-      <UnifiedFilterBox
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        period={period}
-        onPeriodChange={setPeriod}
-        customStartDate={customStartDate}
-        customEndDate={customEndDate}
-        onCustomStartDateChange={setCustomStartDate}
-        onCustomEndDateChange={setCustomEndDate}
-        bankId={selectedBankId}
-        onBankChange={setSelectedBankId}
-        banks={banks}
-        categoryId={categoryFilter}
-        onCategoryChange={setCategoryFilter}
-        categories={categories}
-        paymentStatus={paymentStatusFilter}
-        onPaymentStatusChange={setPaymentStatusFilter}
-        contactId={contactFilter}
-        onContactChange={setContactFilter}
-        contacts={contacts}
-        onClearFilters={handleClearFilters}
-      />
+      {/* Collapsible Filters */}
+      <div className="flex items-center justify-end">
+        <Button variant="outline" className="gap-2 relative" onClick={() => setFiltersOpen((v) => !v)}>
+          <SlidersHorizontal className="w-4 h-4" />
+          Filtros Avançados
+          {activeFilterCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 bg-primary text-primary-foreground text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
+              {activeFilterCount}
+            </span>
+          )}
+          {filtersOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+        </Button>
+      </div>
 
-      {/* Main Stats Cards - Nova estrutura: 3 linhas x 2 colunas (50% cada) */}
-      
-      {/* Linha 1: Receitas */}
-      <div className="grid grid-cols-2 gap-4">
-        {isWidgetEnabled('receitasRecebidas') && (
-          <Card className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border-emerald-500/20">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-muted-foreground">Receitas Recebidas</span>
+      <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
+        <CollapsibleContent>
+          <UnifiedFilterBox
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            period={period}
+            onPeriodChange={setPeriod}
+            customStartDate={customStartDate}
+            customEndDate={customEndDate}
+            onCustomStartDateChange={setCustomStartDate}
+            onCustomEndDateChange={setCustomEndDate}
+            bankId={selectedBankId}
+            onBankChange={setSelectedBankId}
+            banks={banks}
+            categoryId={categoryFilter}
+            onCategoryChange={setCategoryFilter}
+            categories={categories}
+            paymentStatus={paymentStatusFilter}
+            onPaymentStatusChange={setPaymentStatusFilter}
+            contactId={contactFilter}
+            onContactChange={setContactFilter}
+            contacts={contacts}
+            onClearFilters={handleClearFilters}
+          />
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* KPI Cards - 3 columns matching Transactions page style */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card className="bg-card border-border/50">
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Receitas Recebidas</p>
+                {isLoading ? (
+                  <Skeleton className="h-10 w-32" />
+                ) : (
+                  <p className="text-4xl font-extrabold tracking-tight text-emerald-500">{formatCurrency(summary.receitasPagas)}</p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  A Receber: <span className="text-emerald-400">{formatCurrency(summary.aReceber)}</span>
+                </p>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
                 <TrendingUp className="w-5 h-5 text-emerald-500" />
               </div>
-              {isLoading ? (
-                <Skeleton className="h-8 w-32" />
-              ) : (
-                <p className="text-2xl font-bold text-emerald-500 transition-all duration-300">
-                  {formatCurrency(summary.receitasPagas)}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        )}
+            </div>
+          </CardContent>
+        </Card>
 
-        {isWidgetEnabled('receitasAReceber') && (
-          <Card className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border-emerald-500/20">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-muted-foreground">Receitas a Receber</span>
-                <PiggyBank className="w-5 h-5 text-emerald-500" />
+        <Card className="bg-card border-border/50">
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Contas Pagas</p>
+                {isLoading ? (
+                  <Skeleton className="h-10 w-32" />
+                ) : (
+                  <p className="text-4xl font-extrabold tracking-tight text-red-500">{formatCurrency(summary.despesasPagas)}</p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  A Pagar: <span className="text-red-400">{formatCurrency(summary.aPagar)}</span>
+                </p>
               </div>
-              {isLoading ? (
-                <Skeleton className="h-8 w-32" />
-              ) : (
-                <p className="text-2xl font-bold text-emerald-500 transition-all duration-300">
-                  {formatCurrency(summary.aReceber)}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      {/* Linha 2: Despesas */}
-      <div className="grid grid-cols-2 gap-4">
-        {isWidgetEnabled('contasPagas') && (
-          <Card className="bg-gradient-to-br from-red-500/10 to-red-500/5 border-red-500/20">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-muted-foreground">Contas Pagas</span>
+              <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center shrink-0">
                 <TrendingDown className="w-5 h-5 text-red-500" />
               </div>
-              {isLoading ? (
-                <Skeleton className="h-8 w-32" />
-              ) : (
-                <p className="text-2xl font-bold text-red-500 transition-all duration-300">
-                  {formatCurrency(summary.despesasPagas)}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        )}
+            </div>
+          </CardContent>
+        </Card>
 
-        {isWidgetEnabled('contasAPagar') && (
-          <Card className="bg-gradient-to-br from-red-500/10 to-red-500/5 border-red-500/20">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-muted-foreground">Contas a Pagar</span>
-                <CreditCard className="w-5 h-5 text-red-500" />
-              </div>
-              {isLoading ? (
-                <Skeleton className="h-8 w-32" />
-              ) : (
-                <p className="text-2xl font-bold text-red-500 transition-all duration-300">
-                  {formatCurrency(summary.aPagar)}
+        <Card className="bg-card border-border/50">
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Saldo Bancário</p>
+                {isLoading ? (
+                  <Skeleton className="h-10 w-32" />
+                ) : (
+                  <p className={`text-4xl font-extrabold tracking-tight ${summary.saldoBancario >= 0 ? 'text-primary' : 'text-red-500'}`}>
+                    {formatCurrency(summary.saldoBancario)}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Caixa Geral: <span className="text-primary">{formatCurrency(summary.caixaGeral)}</span>
                 </p>
-              )}
-            </CardContent>
-          </Card>
-        )}
+              </div>
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <Landmark className="w-5 h-5 text-primary" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Linha 3: Saldos */}
-      <div className="grid grid-cols-2 gap-4">
-        {isWidgetEnabled('saldoBancario') && (
-          <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-muted-foreground">Saldo Bancário</span>
-                <Wallet className="w-5 h-5 text-blue-500" />
-              </div>
-              {isLoading ? (
-                <Skeleton className="h-8 w-32" />
-              ) : (
-                <p className={`text-2xl font-bold transition-all duration-300 ${summary.saldoBancario >= 0 ? 'text-blue-500' : 'text-red-500'}`}>
-                  {formatCurrency(summary.saldoBancario)}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        )}
+      {/* Annual Ticker Cards - 4 columns */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Card className="bg-card border-border/50 border-l-2 border-l-emerald-500">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <BarChart3 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+              <p className="text-xs text-muted-foreground">Lucro Previsto — {annualMetrics.year}</p>
+            </div>
+            <p className={`text-base font-bold ${annualMetrics.lucroPrevisto >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+              {formatCurrency(annualMetrics.lucroPrevisto)}
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Receitas − Despesas (ano)</p>
+          </CardContent>
+        </Card>
 
-        {isWidgetEnabled('caixaGeral') && (
-          <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-muted-foreground">Caixa Geral</span>
-                <Wallet className="w-5 h-5 text-blue-500" />
-              </div>
-              {isLoading ? (
-                <Skeleton className="h-8 w-32" />
-              ) : (
-                <p className={`text-2xl font-bold transition-all duration-300 ${summary.caixaGeral >= 0 ? 'text-blue-500' : 'text-red-500'}`}>
-                  {formatCurrency(summary.caixaGeral)}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        )}
+        <Card className="bg-card border-border/50 border-l-2 border-l-amber-500">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <CalendarCheck className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <p className="text-xs text-muted-foreground">Lucro Realizado — {annualMetrics.year}</p>
+            </div>
+            <p className={`text-base font-bold ${annualMetrics.lucroRealizado >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+              {formatCurrency(annualMetrics.lucroRealizado)}
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Realizado no ano corrente</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card border-border/50 border-l-2 border-l-green-500">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <TrendingUp className="w-3.5 h-3.5 text-green-500 shrink-0" />
+              <p className="text-xs text-muted-foreground">Receitas Acumuladas — {annualMetrics.year}</p>
+            </div>
+            <p className="text-base font-bold text-emerald-500">
+              {formatCurrency(annualMetrics.receitasAcumuladas)}
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Receitas já realizadas</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card border-border/50 border-l-2 border-l-red-500">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <TrendingDown className="w-3.5 h-3.5 text-red-500 shrink-0" />
+              <p className="text-xs text-muted-foreground">Despesas Acumuladas — {annualMetrics.year}</p>
+            </div>
+            <p className="text-base font-bold text-red-500">
+              {formatCurrency(annualMetrics.despesasAcumuladas)}
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Despesas já realizadas</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Monthly Evolution - Full Width & Larger */}
