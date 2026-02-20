@@ -341,12 +341,6 @@ export default function Dashboard() {
       .slice(0, 15);
   }, [allTransactions]);
 
-  // Recent transactions (last 10)
-  const recentTransactions = useMemo(() => {
-    return [...allTransactions]
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 10);
-  }, [allTransactions]);
 
   const isLoading = loadingTransactions || loadingBanks;
 
@@ -845,7 +839,7 @@ export default function Dashboard() {
                 Contas Pendentes
               </CardTitle>
               <Button variant="ghost" size="sm" asChild>
-                <Link to="/movimentacoes" className="text-xs text-muted-foreground">
+                <Link to="/financeiro/pagar-receber" className="text-xs text-muted-foreground">
                   Ver todas <ChevronRight className="w-4 h-4" />
                 </Link>
               </Button>
@@ -910,75 +904,6 @@ export default function Dashboard() {
             ) : (
               <p className="text-muted-foreground text-center py-8">
                 Nenhuma conta pendente
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Recent Transactions */}
-      {isWidgetEnabled('recentTransactions') && (
-        <Card className="bg-card border-border/50">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <TrendingUp className="w-4 h-4" />
-                Últimas 10 Movimentações
-              </CardTitle>
-              <Button variant="ghost" size="sm" asChild>
-                <Link to="/movimentacoes" className="text-xs text-muted-foreground">
-                  Ver todas <ChevronRight className="w-4 h-4" />
-                </Link>
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-14 w-full" />
-                ))}
-              </div>
-            ) : recentTransactions.length > 0 ? (
-              <div className="space-y-2">
-                {recentTransactions.map((transaction) => (
-                  <div
-                    key={transaction.id}
-                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-                  >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                          transaction.type === 'receita' ? 'bg-emerald-500/20' : 'bg-red-500/20'
-                        }`}
-                      >
-                        {transaction.type === 'receita' ? (
-                          <TrendingUp className="w-4 h-4 text-emerald-500" />
-                        ) : (
-                          <TrendingDown className="w-4 h-4 text-red-500" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-foreground truncate">{transaction.description}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {transaction.category?.name || 'Sem categoria'} • {format(new Date(transaction.date + 'T12:00:00'), "dd/MM")}
-                        </p>
-                      </div>
-                    </div>
-                    <span
-                      className={`font-semibold ml-3 ${
-                        transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'
-                      }`}
-                    >
-                      {transaction.type === 'receita' ? '+' : '-'}
-                      {formatCurrency(Number(transaction.amount))}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-center py-8">
-                Nenhuma movimentação encontrada
               </p>
             )}
           </CardContent>
