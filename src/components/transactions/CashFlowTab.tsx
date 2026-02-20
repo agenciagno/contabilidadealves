@@ -10,7 +10,7 @@ import {
 import { UnifiedFilterBox, PeriodFilter, getDateRangeFromPeriod } from '@/components/filters/UnifiedFilterBox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, SlidersHorizontal, ChevronDown, ChevronUp, Landmark, TrendingUp, TrendingDown } from 'lucide-react';
+import { AlertTriangle, SlidersHorizontal, ChevronDown, ChevronUp, Landmark, TrendingUp, TrendingDown, Building2 } from 'lucide-react';
 import { format, differenceInDays, parseISO, isWithinInterval, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale/pt-BR';
 import type { Transaction } from '@/hooks/useTransactions';
@@ -103,38 +103,44 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
     const mesStart = startOfMonth(today);
     const mesEnd = endOfMonth(today);
 
-    // Capital de Giro Hoje (from filtered)
-    let receitasHoje = 0, despesasHoje = 0;
-    // Necessidade de Caixa (from filtered)
-    let totalReceitas = 0, totalDespesas = 0;
-    for (const t of filtered) {
+    // Capital de Giro — from ALL transactions (not filtered), only !is_paid
+    let receitasPendentesMes = 0, despesasPendentesMes = 0;
+    let receitasPendentesHoje = 0, despesasPendentesHoje = 0;
+    for (const t of transactions) {
+      if (t.is_paid || !t.due_date) continue;
+      const d = parseISO(t.due_date);
       const amt = Number(t.amount);
-      if (t.type === 'receita') {
-        totalReceitas += amt;
-        if (t.due_date === todayStr) receitasHoje += amt;
-      } else {
-        totalDespesas += amt;
-        if (t.due_date === todayStr) despesasHoje += amt;
+      if (isWithinInterval(d, { start: mesStart, end: mesEnd })) {
+        if (t.type === 'receita') receitasPendentesMes += amt;
+        else despesasPendentesMes += amt;
+      }
+      if (t.due_date <= todayStr) {
+        if (t.type === 'receita') receitasPendentesHoje += amt;
+        else despesasPendentesHoje += amt;
       }
     }
 
-    // Capital de Giro Mês (from ALL transactions, not filtered)
-    let receitasMes = 0, despesasMes = 0;
-    for (const t of transactions) {
-      if (t.due_date) {
-        const d = parseISO(t.due_date);
-        if (isWithinInterval(d, { start: mesStart, end: mesEnd })) {
-          const amt = Number(t.amount);
-          if (t.type === 'receita') receitasMes += amt;
-          else despesasMes += amt;
-        }
+    // Entradas/Saídas — from filtered, split by is_paid
+    let receitasPendentes = 0, receitasPagas = 0;
+    let despesasPendentes = 0, despesasPagas = 0;
+    for (const t of filtered) {
+      const amt = Number(t.amount);
+      if (t.type === 'receita') {
+        if (t.is_paid) receitasPagas += amt;
+        else receitasPendentes += amt;
+      } else {
+        if (t.is_paid) despesasPagas += amt;
+        else despesasPendentes += amt;
       }
     }
 
     return {
-      capitalDeGiroMes: totalBankBalance + receitasMes - despesasMes,
-      capitalDeGiroHoje: totalBankBalance + receitasHoje - despesasHoje,
-      necessidadeCaixa: totalReceitas - totalDespesas,
+      capitalDeGiroMes: totalBankBalance + receitasPendentesMes - despesasPendentesMes,
+      capitalDeGiroHoje: totalBankBalance + receitasPendentesHoje - despesasPendentesHoje,
+      receitasPendentes,
+      receitasPagas,
+      despesasPendentes,
+      despesasPagas,
     };
   }, [filtered, transactions, totalBankBalance]);
 
@@ -222,46 +228,62 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
       </Collapsible>
 
       {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="bg-card border-border/50">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Capital de Giro */}
+        <Card className="bg-card border-border/50 border-l-2 border-l-blue-500">
           <CardContent className="p-4">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Capital de Giro (Mês)</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Capital de Giro</p>
                 <p className={`text-2xl font-extrabold ${kpis.capitalDeGiroMes >= 0 ? 'text-blue-400' : 'text-red-500'}`}>
                   {formatCurrency(kpis.capitalDeGiroMes)}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">Hoje: {formatCurrency(kpis.capitalDeGiroHoje)}</p>
+                <p className="text-xs text-muted-foreground mt-1">Até hoje: {formatCurrency(kpis.capitalDeGiroHoje)}</p>
               </div>
               <div className="w-9 h-9 rounded-full bg-blue-500/10 flex items-center justify-center">
-                <Landmark className="w-4 h-4 text-blue-500" />
+                <Building2 className="w-4 h-4 text-blue-500" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-card border-border/50">
+        {/* Entradas (A Receber) */}
+        <Card className="bg-card border-border/50 border-l-2 border-l-emerald-500">
           <CardContent className="p-4">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  {kpis.necessidadeCaixa >= 0 ? 'Geração de Caixa' : 'Necessidade de Caixa'}
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Entradas</p>
+                <p className="text-2xl font-extrabold text-emerald-500">
+                  {formatCurrency(kpis.receitasPendentes)}
                 </p>
-                <p className={`text-2xl font-extrabold ${kpis.necessidadeCaixa >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                  {formatCurrency(kpis.necessidadeCaixa)}
-                </p>
-                <p className="text-[10px] text-muted-foreground">Entradas − Saídas (período)</p>
+                <p className="text-xs text-muted-foreground mt-1">Recebido: {formatCurrency(kpis.receitasPagas)}</p>
               </div>
-              <div className={`w-9 h-9 rounded-full flex items-center justify-center ${kpis.necessidadeCaixa >= 0 ? 'bg-emerald-500/10' : 'bg-red-500/10'}`}>
-                {kpis.necessidadeCaixa >= 0
-                  ? <TrendingUp className="w-4 h-4 text-emerald-500" />
-                  : <TrendingDown className="w-4 h-4 text-red-500" />
-                }
+              <div className="w-9 h-9 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                <TrendingUp className="w-4 h-4 text-emerald-500" />
               </div>
             </div>
           </CardContent>
         </Card>
 
+        {/* Saídas (A Pagar) */}
+        <Card className="bg-card border-border/50 border-l-2 border-l-red-500">
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Saídas</p>
+                <p className="text-2xl font-extrabold text-red-500">
+                  {formatCurrency(kpis.despesasPendentes)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">Pago: {formatCurrency(kpis.despesasPagas)}</p>
+              </div>
+              <div className="w-9 h-9 rounded-full bg-red-500/10 flex items-center justify-center">
+                <TrendingDown className="w-4 h-4 text-red-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Saldos Atuais */}
         <Card className="bg-card border-border/50">
           <CardContent className="p-4">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Saldos Atuais</p>
