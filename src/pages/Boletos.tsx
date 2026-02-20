@@ -241,14 +241,14 @@ export default function Boletos() {
                             </div>
                           )}
                           {boleto.contact_email && (
-                            <div className="flex items-center">
+                            <div className="flex items-center print:hidden">
                               <span className="font-medium text-foreground/70 mr-1">Email:</span>
                               <span className="truncate max-w-[180px]">{boleto.contact_email}</span>
                               <CopyButton text={boleto.contact_email} fieldId={`${boleto.id}-email`} />
                             </div>
                           )}
                           {boleto.contact_phone && (
-                            <div className="flex items-center">
+                            <div className="flex items-center print:hidden">
                               <span className="font-medium text-foreground/70 mr-1">Tel:</span>
                               <span>{boleto.contact_phone}</span>
                               <CopyButton text={boleto.contact_phone} fieldId={`${boleto.id}-tel`} />
