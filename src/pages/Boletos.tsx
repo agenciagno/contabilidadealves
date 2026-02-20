@@ -215,104 +215,104 @@ export default function Boletos() {
           </div>
         ) : (
           <div className="space-y-2">
-            {filteredList.map((boleto) => (
-              <Card
-                key={boleto.id}
-                className={cn(
-                  'boleto-card border transition-colors',
-                  boleto.status === 'GENERATED' && 'bg-success/5 border-success/30'
-                )}
-              >
-                <CardContent className="p-3">
-                  <div className="flex items-center gap-4">
-                    {/* Col 1: Avatar + Nome */}
-                    <div className="flex items-center gap-2 min-w-[160px] shrink-0">
-                      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-muted flex items-center justify-center print:hidden">
-                        <User className="w-3.5 h-3.5 text-muted-foreground" />
+            {filteredList.map((boleto) => {
+              const dueDate = boleto.boleto_due_day != null
+                ? format(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), boleto.boleto_due_day), 'dd/MM/yyyy')
+                : null;
+              return (
+                <Card
+                  key={boleto.id}
+                  className={cn(
+                    'boleto-card border transition-colors',
+                    boleto.status === 'GENERATED' && 'bg-success/5 border-success/30'
+                  )}
+                >
+                  <CardContent className="p-3">
+                    <div className="flex items-center justify-between gap-4">
+                      {/* Lado esquerdo: info */}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-sm truncate">{boleto.contact_name}</p>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
+                          {boleto.contact_document && (
+                            <div className="flex items-center">
+                              <span className="font-medium text-foreground/70 mr-1">CNPJ:</span>
+                              <span>{boleto.contact_document}</span>
+                              <CopyButton text={boleto.contact_document} fieldId={`${boleto.id}-doc`} />
+                            </div>
+                          )}
+                          {boleto.contact_email && (
+                            <div className="flex items-center">
+                              <span className="font-medium text-foreground/70 mr-1">Email:</span>
+                              <span className="truncate max-w-[180px]">{boleto.contact_email}</span>
+                              <CopyButton text={boleto.contact_email} fieldId={`${boleto.id}-email`} />
+                            </div>
+                          )}
+                          {boleto.contact_phone && (
+                            <div className="flex items-center">
+                              <span className="font-medium text-foreground/70 mr-1">Tel:</span>
+                              <span>{boleto.contact_phone}</span>
+                              <CopyButton text={boleto.contact_phone} fieldId={`${boleto.id}-tel`} />
+                            </div>
+                          )}
+                          {dueDate && (
+                            <div className="flex items-center">
+                              <span className="font-medium text-foreground/70 mr-1">Venc:</span>
+                              <span>{dueDate}</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <p className="font-semibold text-sm truncate">{boleto.contact_name}</p>
-                    </div>
-
-                    {/* Col 2: Dados de contato — horizontal */}
-                    <div className="flex items-center gap-3 flex-wrap flex-1 min-w-0">
-                      {boleto.contact_document && (
-                        <div className="flex items-center text-xs text-muted-foreground">
-                          <span className="font-medium text-foreground/70 mr-1">CNPJ:</span>
-                          <span>{boleto.contact_document}</span>
-                          <CopyButton text={boleto.contact_document} fieldId={`${boleto.id}-doc`} />
-                        </div>
-                      )}
-                      {boleto.contact_email && (
-                        <div className="flex items-center text-xs text-muted-foreground">
-                          <span className="font-medium text-foreground/70 mr-1">Email:</span>
-                          <span className="truncate max-w-[180px]">{boleto.contact_email}</span>
-                          <CopyButton text={boleto.contact_email} fieldId={`${boleto.id}-email`} />
-                        </div>
-                      )}
-                      {boleto.contact_phone && (
-                        <div className="flex items-center text-xs text-muted-foreground">
-                          <span className="font-medium text-foreground/70 mr-1">Tel:</span>
-                          <span>{boleto.contact_phone}</span>
-                          <CopyButton text={boleto.contact_phone} fieldId={`${boleto.id}-tel`} />
-                        </div>
-                      )}
-                      {!boleto.contact_document && !boleto.contact_email && !boleto.contact_phone && (
-                        <span className="text-xs text-muted-foreground/50">Sem dados de contato</span>
-                      )}
-                    </div>
-
-                    {/* Col 3: Financeiro */}
-                    <div className="text-right shrink-0">
-                      {boleto.boleto_value != null && (
-                        <p className="text-sm font-bold text-foreground">
-                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(boleto.boleto_value)}
-                        </p>
-                      )}
-                      {boleto.boleto_due_day != null && (
-                        <p className="text-xs text-muted-foreground">
-                          Venc. dia {boleto.boleto_due_day}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Col 4: Status badge clicável */}
-                    <div className="shrink-0 print-hidden">
-                      <Badge
-                        className={cn(
-                          'cursor-pointer select-none transition-all text-xs font-medium px-3 py-1',
-                          boleto.status === 'PENDING'
-                            ? 'bg-amber-100 border border-amber-400 text-amber-800 hover:bg-amber-200 dark:bg-amber-900/30 dark:border-amber-500 dark:text-amber-300'
-                            : 'bg-success text-success-foreground hover:bg-success/90 border-transparent'
+                      {/* Lado direito: valor + status */}
+                      <div className="flex items-center gap-3 shrink-0">
+                        {boleto.boleto_value != null && (
+                          <p className="text-sm font-bold text-foreground whitespace-nowrap">
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(boleto.boleto_value)}
+                          </p>
                         )}
-                        onClick={() => {
-                          if (!toggleStatus.isPending) {
-                            toggleStatus.mutate({ id: boleto.id, currentStatus: boleto.status });
-                          }
-                        }}
-                      >
-                        {toggleStatus.isPending ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : boleto.status === 'PENDING' ? (
-                          'Pendente'
-                        ) : (
-                          'Gerado ✓'
-                        )}
-                      </Badge>
+                        {/* Badge interativo (tela) */}
+                        <div className="print-hidden">
+                          <Badge
+                            className={cn(
+                              'cursor-pointer select-none transition-all text-xs font-semibold px-3 py-1',
+                              boleto.status === 'PENDING'
+                                ? 'bg-amber-100 border border-amber-400 text-amber-800 hover:bg-amber-200 dark:bg-amber-900/30 dark:border-amber-500 dark:text-amber-300'
+                                : 'bg-success text-success-foreground hover:bg-success/90 border-transparent'
+                            )}
+                            onClick={() => {
+                              if (!toggleStatus.isPending) {
+                                toggleStatus.mutate({ id: boleto.id, currentStatus: boleto.status });
+                              }
+                            }}
+                          >
+                            {toggleStatus.isPending ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : boleto.status === 'PENDING' ? 'Pendente' : 'Gerado ✓'}
+                          </Badge>
+                        </div>
+                        {/* Status para impressão */}
+                        <span className={cn(
+                          'hidden print:inline-block text-xs font-medium px-2 py-1 border rounded',
+                          boleto.status === 'PENDING' ? 'border-border' : 'border-foreground bg-muted'
+                        )}>
+                          {boleto.status === 'PENDING' ? 'PENDENTE' : 'GERADO'}
+                        </span>
+                      </div>
                     </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
 
-                    {/* Status para impressão */}
-                    <div className="shrink-0 hidden print:block">
-                      <span className={cn(
-                        'text-xs font-medium px-2 py-1 border rounded',
-                        boleto.status === 'PENDING' ? 'border-border' : 'border-foreground bg-muted'
-                      )}>
-                        {boleto.status === 'PENDING' ? 'PENDENTE' : 'GERADO'}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+            {/* Totalizador */}
+            {filteredList.length > 0 && (
+              <div className="flex justify-end border-t pt-3 mt-4">
+                <p className="font-bold text-base">
+                  Total: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                    filteredList.reduce((sum, b) => sum + (b.boleto_value ?? 0), 0)
+                  )}
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>
