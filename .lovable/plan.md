@@ -1,10 +1,13 @@
 
 
-# Transferir DRE, Comparativo e Fluxo de Caixa para o Dashboard
+# Melhorias no Relatorio de Bancos
 
 ## Resumo
 
-Mover os componentes DRE, Comparativo de Periodos e Fluxo de Caixa Previsto da pagina Relatorios para o Dashboard, e reordenar os widgets do Dashboard conforme solicitado.
+Tres ajustes no componente `BankReportModal.tsx`:
+1. Adicionar botao de exportacao CSV e renomear o botao Excel existente
+2. Padronizar cabecalho em todos os formatos de exportacao (PDF, XLS, CSV, OFX, Imagem)
+3. Exibir Evento Contabil no cabecalho (Preview e exportacoes)
 
 ---
 
@@ -12,87 +15,91 @@ Mover os componentes DRE, Comparativo de Periodos e Fluxo de Caixa Previsto da p
 
 | Arquivo | Mudanca |
 |---|---|
-| `src/pages/Dashboard.tsx` | Adicionar imports, dados e componentes; reordenar layout |
+| `src/components/banks/BankReportModal.tsx` | Adicionar CSV, renomear XLS, padronizar cabecalho, exibir evento contabil |
 
 ---
 
-## 1. Novos Imports
+## 1. Renomear botao Excel e adicionar CSV
 
-Adicionar ao Dashboard.tsx:
-- `import { DRECard } from '@/components/reports/DRECard';`
-- `import { PeriodComparison } from '@/components/reports/PeriodComparison';`
-- `import { CashFlowForecast } from '@/components/reports/CashFlowForecast';`
-- `import { subMonths, startOfMonth, endOfMonth } from 'date-fns'` (alguns ja importados, completar os faltantes)
-- `import { useReportData, processReportData } from '@/hooks/useReportData';`
+- Botao existente "Excel" passa a ser **"Excel - XLS"**
+- Novo botao **"Excel - CSV"** ao lado, com icone `Table2` (mesma cor verde)
+- O grid de exportacao passa de `grid-cols-2` para layout que acomode 5 botoes
 
 ---
 
-## 2. Novos Dados (useMemo / queries)
+## 2. Nova funcao `exportCSV`
 
-### DRE
-Calcular `dreData` a partir dos totais filtrados do Dashboard (receitas e despesas), com impostos = 15% do faturamento bruto (mesma logica da pagina Relatorios):
-
-```typescript
-const dreData = useMemo(() => {
-  const faturamentoBruto = transactions.filter(t => t.type === 'receita').reduce((s, t) => s + Number(t.amount), 0);
-  const impostos = faturamentoBruto * 0.15;
-  const despesasOperacionais = transactions.filter(t => t.type === 'despesa').reduce((s, t) => s + Number(t.amount), 0);
-  return { faturamentoBruto, impostos, despesasOperacionais };
-}, [transactions]);
-```
-
-### Comparativo de Periodos
-Adicionar queries para mes atual e mes anterior usando `useReportData`:
-
-```typescript
-const thisMonthStart = startOfMonth(now);
-const lastMonthStart = startOfMonth(subMonths(now, 1));
-const lastMonthEnd = endOfMonth(subMonths(now, 1));
-
-const { data: thisMonthTx = [] } = useReportData({ startDate: thisMonthStart, endDate: now });
-const { data: lastMonthTx = [] } = useReportData({ startDate: lastMonthStart, endDate: lastMonthEnd });
-
-const thisMonthData = useMemo(() => processReportData(thisMonthTx), [thisMonthTx]);
-const lastMonthData = useMemo(() => processReportData(lastMonthTx), [lastMonthTx]);
-```
+Gera arquivo `.csv` com separador ponto-e-virgula (padrao BR) contendo:
+- Cabecalho com nome da empresa, periodo, contas e evento contabil (como comentarios ou linhas iniciais)
+- Colunas: Data, Banco, Historico, Cliente/Fornecedor, Evento Contabil, Valor Entrada, Valor Saida, Saldo
+- Mesmos dados de `filteredRows`
+- Download automatico como `.csv`
 
 ---
 
-## 3. Nova Ordem dos Widgets no Layout
+## 3. Padronizar cabecalho em todos os formatos
 
-Apos os cards de KPI e Ticker Anual, a nova ordem sera:
+Todas as exportacoes (PDF, XLS, CSV, OFX header, Imagem) passam a incluir:
+- **Empresa**: nome da empresa
+- **Periodo**: data inicio a data fim
+- **Contas**: nomes dos bancos selecionados, ou **"Todas"** se nenhum selecionado
+- **Evento Contabil**: nome da categoria selecionada, ou **"Todos"** se `categoryId === 'all'`
 
-1. **Contas Pendentes** (movido para cima, antes da Evolucao Mensal)
-2. **Evolucao Mensal** (grafico AreaChart existente)
-3. **Receitas/Despesas por Evento Contabil** (pie charts existentes, grid 2 colunas)
-4. **DRE** (novo - componente `DRECard`)
-5. **Comparativo de Periodos** (novo - componente `PeriodComparison`)
-6. **Fluxo de Caixa Previsto** (novo - componente `CashFlowForecast`)
+### Ajustes por formato:
+
+**Preview (ref summaryRef)**:
+- Quando nenhum banco selecionado, exibir "Contas: Todas" (atualmente nao mostra nada)
+- Adicionar linha "Evento Contabil: [nome ou Todos]"
+
+**PDF** (jsPDF):
+- Adicionar linha de Contas e Evento Contabil abaixo do periodo (antes do resumo financeiro)
+
+**XLS**:
+- Adicionar linhas de cabecalho antes da tabela HTML (Empresa, Periodo, Contas, Evento Contabil)
+
+**CSV**:
+- Mesmas linhas de cabecalho no topo do arquivo
+
+**Imagem**:
+- Ja usa o summaryRef, entao herda automaticamente as mudancas do Preview
+
+**OFX**:
+- Formato tecnico, manter como esta (sem cabecalho visual)
 
 ---
 
-## 4. Adicionar Widgets ao Config
-
-Adicionar 3 novos widgets ao `DEFAULT_WIDGETS` em `DashboardWidgets.tsx` para permitir ativar/desativar:
-- `{ id: 'dre', name: 'Resultado Operacional (DRE)', enabled: true }`
-- `{ id: 'periodComparison', name: 'Comparativo de Periodos', enabled: true }`
-- `{ id: 'cashFlowForecast', name: 'Fluxo de Caixa Previsto', enabled: true }`
-
----
-
-## 5. Renderizacao dos Novos Componentes
+## 4. Logica de exibicao de Contas e Eventos
 
 ```text
-[KPIs 3 cols]
-[Ticker 4 cols]
-[Contas Pendentes]        <-- movido para cima
-[Evolucao Mensal]
-[Receitas por Cat | Despesas por Cat]
-[DRE]                     <-- novo
-[Comparativo de Periodos] <-- novo
-[Fluxo de Caixa Previsto] <-- novo
-[Dialogs]
+Contas:
+  - Se selectedBankIds.length === 0 -> "Todas"
+  - Se selectedBankIds.length > 0   -> nomes separados por virgula
+
+Evento Contabil:
+  - Se categoryId === 'all' -> "Todos"
+  - Se categoryId !== 'all' -> nome da categoria (buscar em categories)
 ```
 
-Cada novo componente envolvido em `isWidgetEnabled('id')` para respeitar a personalizacao.
+Variavel auxiliar para uso em todos os formatos:
+
+```typescript
+const accountsLabel = selectedBankIds.length > 0
+  ? banks.filter(b => selectedBankIds.includes(b.id)).map(b => b.name).join(', ')
+  : 'Todas';
+
+const categoryLabel = categoryId !== 'all'
+  ? categories.find(c => c.id === categoryId)?.name || 'Todos'
+  : 'Todos';
+```
+
+---
+
+## Secao Tecnica - Estrutura dos Botoes de Exportacao
+
+```text
+[PDF / Impressao]  [Excel - XLS]  [Excel - CSV]
+[OFX]              [Imagem]
+```
+
+Grid ajustado para `grid-cols-3` na primeira linha e `grid-cols-2` na segunda, ou `grid-cols-3` com 5 itens fluindo naturalmente.
 
