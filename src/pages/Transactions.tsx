@@ -58,6 +58,7 @@ import {
   isToday,
   format } from
 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('pt-BR', {
@@ -536,7 +537,7 @@ export default function Transactions() {
                 <CardContent className="p-3">
                   <div className="flex items-center gap-2 mb-1">
                     <BarChart3 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                    <p className="text-xs text-muted-foreground">Lucro Previsto</p>
+                    <p className="text-xs text-muted-foreground">Lucro Previsto — {format(new Date(), 'MMMM', { locale: ptBR }).replace(/^\w/, c => c.toUpperCase())}</p>
                   </div>
                   <p className={`text-base font-bold ${biMetrics.lucroPrevisto >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
                     {formatCurrency(biMetrics.lucroPrevisto)}
