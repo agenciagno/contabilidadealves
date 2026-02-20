@@ -1,32 +1,39 @@
 
-# Ajustes no Dashboard: Contas Pendentes e Remoção de Card
+
+# Unificar Colunas Receber/Pagar em "Valor"
 
 ## Arquivo Modificado
 
-| Arquivo | Mudança |
+| Arquivo | Mudanca |
 |---|---|
-| `src/pages/Dashboard.tsx` | Alterar link "Ver Todos" e remover card "Últimas 10 Movimentações" |
+| `src/components/transactions/CashFlowTab.tsx` | Substituir colunas "Receber" e "Pagar" por uma unica coluna "Valor" |
 
 ---
 
-## 1. Redirecionar "Ver Todos" de Contas Pendentes
+## Mudancas
 
-**Linha 848**: Alterar o destino do link de `/movimentacoes` para `/financeiro/pagar-receber`.
+### 1. Header da Tabela (linha ~186-187)
 
-Antes:
+Remover as duas colunas:
 ```
-<Link to="/movimentacoes" ...>
-```
-
-Depois:
-```
-<Link to="/financeiro/pagar-receber" ...>
+<TableHead className="text-xs whitespace-nowrap text-right">Receber</TableHead>
+<TableHead className="text-xs whitespace-nowrap text-right">Pagar</TableHead>
 ```
 
----
+Substituir por uma unica:
+```
+<TableHead className="text-xs whitespace-nowrap text-right">Valor</TableHead>
+```
 
-## 2. Excluir Card "Últimas 10 Movimentações"
+### 2. Corpo da Tabela (linhas ~200-224)
 
-**Linhas 919-986**: Remover completamente o bloco do card "Últimas 10 Movimentações" (incluindo o wrapper `isWidgetEnabled('recentTransactions')`).
+Remover os dois `TableCell` separados (Receber e Pagar) e substituir por um unico `TableCell` que:
 
-Isso também permite remover a variável `recentTransactions` caso não seja mais utilizada em nenhum outro lugar do componente.
+- Exibe o valor em **verde** (`text-emerald-500`) se `row.type === 'receita'`
+- Exibe o valor em **vermelho** (`text-red-500`) se `row.type === 'despesa'`
+- Mantem a logica de juros/multa (linha tachada + tooltip) para receitas com `hasJuros`
+
+### 3. Ajuste do colSpan
+
+Atualizar o `colSpan` da linha vazia de 10 para 9.
+
