@@ -298,8 +298,7 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
                   <TableRow>
                     <TableHead className="text-xs whitespace-nowrap">Data Prevista</TableHead>
                     <TableHead className="text-xs whitespace-nowrap">Cliente/Fornecedor</TableHead>
-                    <TableHead className="text-xs whitespace-nowrap text-right">Receber</TableHead>
-                    <TableHead className="text-xs whitespace-nowrap text-right">Pagar</TableHead>
+                    <TableHead className="text-xs whitespace-nowrap text-right">Valor</TableHead>
                     <TableHead className="text-xs whitespace-nowrap">Vencimento</TableHead>
                     <TableHead className="text-xs whitespace-nowrap">Evento Contábil</TableHead>
                     <TableHead className="text-xs whitespace-nowrap">Histórico</TableHead>
@@ -311,7 +310,7 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
                 <TableBody>
                   {rows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                         Nenhuma transação encontrada no período.
                       </TableCell>
                     </TableRow>
@@ -320,7 +319,7 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
                       <TableCell className="font-mono tabular-nums whitespace-nowrap">{formatDate(row.date)}</TableCell>
                       <TableCell className="truncate max-w-[150px]">{row.contact?.name ?? row.description}</TableCell>
 
-                      {/* Receber */}
+                      {/* Valor */}
                       <TableCell className="text-right whitespace-nowrap">
                         {row.type === 'receita' ? (
                           row.hasJuros ? (
@@ -339,14 +338,9 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
                           ) : (
                             <span className="text-emerald-500 font-semibold">{formatCurrency(row.originalAmount)}</span>
                           )
-                        ) : null}
-                      </TableCell>
-
-                      {/* Pagar */}
-                      <TableCell className="text-right whitespace-nowrap">
-                        {row.type === 'despesa' ? (
+                        ) : (
                           <span className="text-red-500 font-semibold">{formatCurrency(row.originalAmount)}</span>
-                        ) : null}
+                        )}
                       </TableCell>
 
                       <TableCell className="font-mono tabular-nums whitespace-nowrap">{row.due_date ? formatDate(row.due_date) : '—'}</TableCell>
