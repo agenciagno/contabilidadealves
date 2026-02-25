@@ -1,181 +1,93 @@
 
 
-# Importacao em Massa via Excel (XLSX) - Pagina Lancamentos
+# Preview Intermediario na Importacao de Planilha
 
 ## Resumo
 
-Criar funcionalidade completa de importacao de transacoes via planilha Excel (.xlsx/.xls) com wizard de 2 passos: download do modelo e upload com drag-and-drop. Inclui validacao, mapeamento de dados e feedback visual.
+Adicionar um Step 3 (Preview) entre o upload e a confirmacao final. Apos o upload processar os dados, ao inves de importar diretamente, exibir uma tabela com os lancamentos lidos para o usuario revisar, com opcao de confirmar ou voltar.
 
 ---
 
-## Dependencia Nova
+## Arquivo Modificado
 
-Instalar a biblioteca `xlsx` (SheetJS) para leitura e geracao de arquivos Excel no frontend.
-
----
-
-## Arquivos
-
-| Arquivo | Acao |
+| Arquivo | Mudanca |
 |---|---|
-| `src/components/transactions/ImportSpreadsheetDialog.tsx` | **Novo** - Modal com wizard de 2 passos |
-| `src/pages/Transactions.tsx` | **Editar** - Adicionar botao "Importar Planilha" e integrar o modal |
+| `src/components/transactions/ImportSpreadsheetDialog.tsx` | Adicionar step 3 com tabela de preview, separar parsing de importacao |
 
 ---
 
-## 1. Novo Componente: ImportSpreadsheetDialog.tsx
+## Mudancas Detalhadas
 
-### Props
-
-```typescript
-interface ImportSpreadsheetDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  banks: Bank[];
-  categories: Category[];
-  contacts: Contact[];
-  onImport: (transactions: TransactionInsert[]) => Promise<void>;
-}
-```
-
-### Wizard - Step 1: Baixar Modelo
-
-- Titulo: "Importar Planilha"
-- Texto de apoio explicando os 3 passos (baixar, preencher, upload)
-- Botao "Baixar Planilha Modelo" que gera um .xlsx com cabecalhos usando a lib `xlsx`:
-  - Colunas: `Data Prevista`, `Cliente/Fornecedor`, `Tipo (Receita ou Despesa)`, `Valor`, `Status (Pendente ou Pago)`, `Data Vencimento`, `Data Pagamento`, `Conta Bancaria`, `Evento Contabil`, `Historico`
-- Botao "Proximo" para avancar ao Step 2
-
-### Wizard - Step 2: Upload
-
-- Area de drag-and-drop estilizada (borda tracejada, icone de upload, texto "Arraste e solte seu arquivo aqui")
-- Aceita apenas `.xlsx` e `.xls`
-- Input file oculto ativado por clique na area
-- Ao selecionar arquivo:
-  1. Exibe spinner "Processando..."
-  2. Le arquivo com `FileReader` + `xlsx.read()`
-  3. Converte primeira aba para JSON
-  4. Aplica mapeamento de dados (descrito abaixo)
-  5. Chama `onImport` com array de `TransactionInsert`
-  6. Exibe toast de sucesso com contagem
-  7. Fecha modal
-
-### Mapeamento de Dados (logica interna)
+### 1. Novo estado para armazenar dados parseados
 
 ```typescript
-// Datas: Excel serial number -> Date
-// Se valor for numero, converter com xlsx.SSF ou XLSX.utils.format_cell
-// Se string, parsear como dd/MM/yyyy
-
-// Tipo: 'Receita' -> 'receita', 'Despesa' -> 'despesa'
-
-// Status: 'Pago' -> is_paid: true, 'Pendente' -> is_paid: false
-
-// Valor: remover "R$", pontos de milhar, trocar virgula por ponto
-
-// Conta Bancaria: buscar bank por nome (case-insensitive) -> bank_id
-// Se nao encontrar, deixar null
-
-// Evento Contabil: buscar category por nome (case-insensitive) -> category_id
-// Se nao encontrar, deixar null
-
-// Cliente/Fornecedor: buscar contact por nome (case-insensitive) -> contact_id
-// Se nao encontrar, deixar null
-
-// Historico -> notes
-
-// Data Prevista -> date
-// Data Vencimento -> due_date
-// Data Pagamento -> ignorar (nao existe no schema, apenas informativa)
+const [parsedData, setParsedData] = useState<TransactionInsert[]>([]);
 ```
 
-### Tratamento de Erros
+### 2. Alterar `processFile` para nao importar direto
 
-- Se arquivo nao tiver cabecalhos esperados: toast de erro "Formato invalido. Use o modelo fornecido."
-- Se nenhuma linha valida: toast de erro "Nenhum lancamento valido encontrado."
-- Linhas sem Data Prevista ou Valor sao ignoradas silenciosamente
+Em vez de chamar `onImport(transactions)` ao final do parsing, salvar em `setParsedData(transactions)` e avancar para `setStep(3)`.
 
----
+### 3. Step indicator com 3 passos
 
-## 2. Alteracao: Transactions.tsx
+Adicionar terceiro circulo "Revisar" no indicador de progresso (Modelo -> Upload -> Revisar).
 
-### Botao de Importacao
+### 4. Step 3: Tabela de Preview
 
-Adicionar botao "Importar Planilha" ao lado do botao "Exportar", com icone `Upload` do lucide-react:
+- Dialog expandido para `sm:max-w-4xl` quando no step 3
+- Contador: "X lancamento(s) encontrado(s)"
+- Tabela com ScrollArea (max-height ~400px) contendo colunas:
+  - Data | Cliente | Tipo | Valor | Status | Vencimento | Banco | Categoria
+- Cada linha mostra dados legivel (data formatada dd/MM/yyyy, valor em R$, tipo como badge colorido Receita/Despesa, status como badge Pago/Pendente)
+- Lookup reverso de bank_id/category_id/contact_id para exibir nomes (ou "---" se nao vinculado)
+- Botoes: "Voltar" (ghost, volta ao step 2) e "Confirmar Importacao" (primary, chama onImport)
+- Ao confirmar: spinner de "Importando..." e fluxo existente de toast + fechar modal
 
-```typescript
-<Button variant="outline" className="gap-2" onClick={() => setImportOpen(true)}>
-  <Upload className="w-4 h-4" />
-  Importar Planilha
-</Button>
-```
+### 5. Ajuste no resetState
 
-### Estado e Handler
+Incluir `setParsedData([])` no reset.
 
-```typescript
-const [importOpen, setImportOpen] = useState(false);
+### 6. DialogDescription dinâmica
 
-const handleImport = async (transactions: TransactionInsert[]) => {
-  for (const t of transactions) {
-    await createTransaction.mutateAsync(t);
-  }
-};
-```
-
-### Integracao do Modal
-
-```typescript
-<ImportSpreadsheetDialog
-  open={importOpen}
-  onOpenChange={setImportOpen}
-  banks={banks}
-  categories={categories}
-  contacts={contacts}
-  onImport={handleImport}
-/>
-```
+Step 3 exibe: "Revise os dados antes de confirmar"
 
 ---
 
 ## Secao Tecnica
 
-### Conversao de Data Serial do Excel
+### Lookup reverso para exibicao
 
-O Excel armazena datas como numeros seriais (ex: 45678). A biblioteca `xlsx` fornece utilitarios para converter:
-
-```typescript
-function excelDateToJSDate(serial: number): string {
-  const utc_days = Math.floor(serial - 25569);
-  const date = new Date(utc_days * 86400 * 1000);
-  return format(date, 'yyyy-MM-dd');
-}
-```
-
-### Geracao do Template
+Para mostrar nomes na tabela de preview ao inves de IDs:
 
 ```typescript
-import * as XLSX from 'xlsx';
-
-const headers = [
-  'Data Prevista', 'Cliente/Fornecedor', 'Tipo (Receita ou Despesa)',
-  'Valor', 'Status (Pendente ou Pago)', 'Data Vencimento',
-  'Data Pagamento', 'Conta Bancária', 'Evento Contábil', 'Histórico'
-];
-const ws = XLSX.utils.aoa_to_sheet([headers]);
-const wb = XLSX.utils.book_new();
-XLSX.utils.book_append_sheet(wb, ws, 'Modelo');
-XLSX.writeFile(wb, 'modelo-lancamentos.xlsx');
+const bankName = (id: string | null) => banks.find(b => b.id === id)?.name ?? '—';
+const categoryName = (id: string | null) => categories.find(c => c.id === id)?.name ?? '—';
+const contactName = (id: string | null) => contacts.find(c => c.id === id)?.name ?? '—';
 ```
 
-### UI do Drag-and-Drop
+### Formatacao na tabela
 
-Area com `onDragOver`, `onDragLeave`, `onDrop` handlers. Estado `isDragging` para highlight visual. Input `<input type="file" accept=".xlsx,.xls">` oculto com ref.
+```typescript
+// Data: format(parseISO(row.date), 'dd/MM/yyyy')
+// Valor: row.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+// Tipo: Badge verde "Receita" ou vermelho "Despesa"
+// Status: Badge "Pago" ou "Pendente"
+```
 
-### Fluxo de Importacao
+### Handler de confirmacao
 
-```text
-Upload -> FileReader.readAsArrayBuffer -> XLSX.read(data)
--> XLSX.utils.sheet_to_json(sheet) -> map rows to TransactionInsert[]
--> loop createTransaction.mutateAsync() -> toast sucesso -> fechar modal
+```typescript
+const handleConfirmImport = async () => {
+  setIsProcessing(true);
+  try {
+    await onImport(parsedData);
+    toast({ title: `${parsedData.length} lançamento(s) importado(s) com sucesso!` });
+    handleClose(false);
+  } catch (err) {
+    toast({ title: 'Erro ao importar.', variant: 'destructive' });
+  } finally {
+    setIsProcessing(false);
+  }
+};
 ```
 
