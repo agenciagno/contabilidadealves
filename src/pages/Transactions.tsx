@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   Plus,
+  Upload,
   Pencil,
   Trash2,
   TrendingUp,
@@ -29,6 +30,7 @@ import { useBanks } from '@/hooks/useBanks';
 import { useContacts } from '@/hooks/useContacts';
 import { useTransactionAttachments } from '@/hooks/useTransactionAttachments';
 import { TransactionFormDialog } from '@/components/transactions/TransactionFormDialog';
+import { ImportSpreadsheetDialog } from '@/components/transactions/ImportSpreadsheetDialog';
 import { UnifiedFilterBox, PeriodFilter, getDateRangeFromPeriod } from '@/components/filters/UnifiedFilterBox';
 import { exportToCSV, exportToPDF, ReportTransaction } from '@/hooks/useReportData';
 import {
@@ -112,6 +114,7 @@ export default function Transactions() {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [defaultType, setDefaultType] = useState<'receita' | 'despesa'>('despesa');
+  const [importOpen, setImportOpen] = useState(false);
 
   // Count active filters for badge
   const activeFilterCount = useMemo(() => {
@@ -419,8 +422,13 @@ export default function Transactions() {
 
                     <FileText className="w-4 h-4" /> Exportar PDF
                   </DropdownMenuItem>
-                </DropdownMenuContent>
+              </DropdownMenuContent>
               </DropdownMenu>
+
+              <Button variant="outline" className="gap-2" onClick={() => setImportOpen(true)}>
+                <Upload className="w-4 h-4" />
+                Importar Planilha
+              </Button>
 
               <Button onClick={() => handleNewTransaction('despesa')} className="gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg">
                 <Plus className="w-4 h-4" />
@@ -710,6 +718,19 @@ export default function Transactions() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ImportSpreadsheetDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        banks={banks}
+        categories={categories}
+        contacts={contacts}
+        onImport={async (txns) => {
+          for (const t of txns) {
+            await createTransaction.mutateAsync(t);
+          }
+        }}
+      />
     </div>);
 
 }
