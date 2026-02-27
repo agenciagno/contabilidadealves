@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Plus,
   Upload,
@@ -22,7 +23,8 @@ import {
   CalendarCheck,
   ChevronDown,
   ChevronUp,
-  Building2 } from
+  Building2,
+  CheckCircle2 } from
 'lucide-react';
 import { useTransactions, Transaction, TransactionInsert } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
@@ -103,6 +105,7 @@ export default function Transactions() {
     updateTransaction,
     deleteTransaction,
     togglePaid,
+    bulkTogglePaid,
     bulkCreateTransactions
   } = useTransactions();
 
@@ -116,6 +119,7 @@ export default function Transactions() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [defaultType, setDefaultType] = useState<'receita' | 'despesa'>('despesa');
   const [importOpen, setImportOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Count active filters for badge
   const activeFilterCount = useMemo(() => {
