@@ -320,7 +320,7 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
     } finally {
       setIsProcessing(false);
     }
-  }, [banks, categories, contacts, toast]);
+  }, [banks, categories, contacts, toast, onCreateCategory, onCreateContact, onCreateBank]);
 
   const handleConfirmImport = async () => {
     setIsProcessing(true);
