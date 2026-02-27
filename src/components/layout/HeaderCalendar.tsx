@@ -46,9 +46,10 @@ export function HeaderCalendar() {
   // Get transactions for selected date
   const selectedDayTransactions = useMemo(() => {
     if (!selectedDate) return [];
-    return transactions.filter((t) => 
-      isSameDay(parseISO(t.date), selectedDate)
-    );
+    return transactions.filter((t) => {
+      const d = t.date || t.due_date || t.issue_date;
+      return d ? isSameDay(parseISO(d), selectedDate) : false;
+    });
   }, [transactions, selectedDate]);
 
   // Dates with revenues
