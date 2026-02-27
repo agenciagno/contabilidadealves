@@ -150,6 +150,39 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
 
       const transactions: TransactionInsert[] = [];
 
+      // Collect unique category names and auto-create missing ones
+      const newCatsMap = new Map<string, string>();
+      if (onCreateCategory) {
+        const uniqueCatNames = new Set<string>();
+        for (const row of rows) {
+          const key = Object.keys(row).find((k) => k.trim().toLowerCase() === 'evento contábil');
+          const val = key ? row[key] : undefined;
+          if (val && typeof val === 'string' && val.trim()) {
+            const lower = val.trim().toLowerCase();
+            if (!categories.find((c) => c.name.toLowerCase() === lower)) {
+              uniqueCatNames.add(val.trim());
+            }
+          }
+        }
+        for (const name of uniqueCatNames) {
+          try {
+            const created = await onCreateCategory(name);
+            newCatsMap.set(name.toLowerCase(), created.id);
+          } catch (err) {
+            console.error(`Failed to create category "${name}":`, err);
+          }
+        }
+        setCreatedCategories(newCatsMap);
+      }
+
+      const findCategoryId = (name: unknown): string | null => {
+        if (!name || typeof name !== 'string') return null;
+        const lower = name.trim().toLowerCase();
+        const existing = categories.find((c) => c.name.toLowerCase() === lower);
+        if (existing) return existing.id;
+        return newCatsMap.get(lower) ?? null;
+      };
+
       for (const row of rows) {
         const get = (header: string) => {
           const key = Object.keys(row).find((k) => k.trim().toLowerCase() === header.toLowerCase());
@@ -181,7 +214,7 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
           description,
           due_date: dueDateStr || null,
           bank_id: findByName(banks, get('Conta Bancária')),
-          category_id: findByName(categories, get('Evento Contábil')),
+          category_id: findCategoryId(get('Evento Contábil')),
           contact_id: findByName(contacts, get('Cliente/Fornecedor')),
           notes: get('Histórico') ? String(get('Histórico')) : null,
         });
