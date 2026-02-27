@@ -21,6 +21,7 @@ interface ImportSpreadsheetDialogProps {
   categories: Category[];
   contacts: Contact[];
   onImport: (transactions: TransactionInsert[]) => Promise<void>;
+  onCreateCategory?: (name: string) => Promise<{ id: string }>;
 }
 
 const TEMPLATE_HEADERS = [
@@ -81,16 +82,24 @@ function formatDateDisplay(dateStr: string | null | undefined): string {
   }
 }
 
-export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories, contacts, onImport }: ImportSpreadsheetDialogProps) {
+export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories, contacts, onImport, onCreateCategory }: ImportSpreadsheetDialogProps) {
   const [step, setStep] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [parsedData, setParsedData] = useState<TransactionInsert[]>([]);
+  const [createdCategories, setCreatedCategories] = useState<Map<string, string>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const bankName = (id: string | null | undefined) => banks.find(b => b.id === id)?.name ?? '—';
-  const categoryName = (id: string | null | undefined) => categories.find(c => c.id === id)?.name ?? '—';
+  const categoryName = (id: string | null | undefined) => {
+    const found = categories.find(c => c.id === id);
+    if (found) return found.name;
+    for (const [name, cId] of createdCategories) {
+      if (cId === id) return name;
+    }
+    return '—';
+  };
   const contactName = (id: string | null | undefined) => contacts.find(c => c.id === id)?.name ?? '—';
 
   const resetState = () => {
@@ -98,6 +107,7 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
     setIsProcessing(false);
     setIsDragging(false);
     setParsedData([]);
+    setCreatedCategories(new Map());
   };
 
   const handleClose = (val: boolean) => {

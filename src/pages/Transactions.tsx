@@ -105,7 +105,7 @@ export default function Transactions() {
     togglePaid
   } = useTransactions();
 
-  const { categories } = useCategories();
+  const { categories, createCategory } = useCategories();
   const { banks } = useBanks();
   const { contacts } = useContacts();
   const { uploadAttachment } = useTransactionAttachments();
@@ -729,6 +729,10 @@ export default function Transactions() {
           for (const t of txns) {
             await createTransaction.mutateAsync(t);
           }
+        }}
+        onCreateCategory={async (name) => {
+          const data = await createCategory.mutateAsync({ name, type: 'receita', color: '#3B82F6', icon: 'tag' });
+          return { id: data.id };
         }}
       />
     </div>);
