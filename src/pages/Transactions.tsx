@@ -627,15 +627,17 @@ export default function Transactions() {
 
             {/* Sort Options + Bulk Actions */}
             <div className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">Ordenar por:</span>
-              <Button variant={sortField === 'date' ? 'secondary' : 'ghost'} size="sm" onClick={() => handleSort('date')} className="gap-1">
-                Data {sortField === 'date' && (sortOrder === 'asc' ? '↑' : '↓')}
-              </Button>
               {selectedIds.size > 0 && (
-                <Button size="sm" className="gap-2 ml-4 bg-emerald-500 hover:bg-emerald-600 text-white" onClick={handleBulkPay} disabled={bulkTogglePaid.isPending}>
-                  <CheckCircle2 className="w-4 h-4" />
-                  Pagar {selectedIds.size} selecionado(s)
-                </Button>
+                <>
+                  <Button size="sm" className="gap-2 bg-emerald-500 hover:bg-emerald-600 text-white" onClick={handleBulkPay} disabled={bulkTogglePaid.isPending}>
+                    <CheckCircle2 className="w-4 h-4" />
+                    Pagar {selectedIds.size} selecionado(s)
+                  </Button>
+                  <Button size="sm" variant="destructive" className="gap-2" onClick={() => setBulkDeleteConfirm(true)}>
+                    <Trash2 className="w-4 h-4" />
+                    Excluir {selectedIds.size} selecionado(s)
+                  </Button>
+                </>
               )}
               <span className="text-muted-foreground text-xs ml-auto">{filteredTransactions.length} transação(ões)</span>
             </div>
