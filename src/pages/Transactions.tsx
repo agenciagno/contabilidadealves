@@ -253,7 +253,7 @@ export default function Transactions() {
         }
       }
       // Mês corrente
-      if (t.date >= monthStartStr && t.date <= monthEndStr) {
+      if (t.date && t.date >= monthStartStr && t.date <= monthEndStr) {
         if (t.type === 'receita') {
           receitasMes += amount;
           if (t.is_paid) receitasPagasMes += amount;
