@@ -24,12 +24,13 @@ interface ImportSpreadsheetDialogProps {
 }
 
 const TEMPLATE_HEADERS = [
-  'Data Prevista',
+  'Data Emissão',
   'Cliente/Fornecedor',
   'Tipo (Receita ou Despesa)',
   'Valor',
   'Status (Pendente ou Pago)',
   'Data Vencimento',
+  'Data Prevista',
   'Data Pagamento',
   'Conta Bancária',
   'Evento Contábil',
@@ -145,7 +146,10 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
           return key ? row[key] : undefined;
         };
 
-        const dateStr = excelDateToString(get('Data Prevista'));
+        const issueDateStr = excelDateToString(get('Data Emissão'));
+        const dueDateStr = excelDateToString(get('Data Vencimento'));
+        const expectedDateStr = excelDateToString(get('Data Prevista'));
+        const paymentDateStr = excelDateToString(get('Data Pagamento'));
         const amount = parseAmount(get('Valor'));
         if (amount == null) continue;
 
@@ -158,12 +162,14 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
         const description = String(get('Histórico') ?? get('Cliente/Fornecedor') ?? 'Importado via planilha');
 
         transactions.push({
-          date: dateStr || undefined,
+          date: paymentDateStr || undefined,
+          issue_date: issueDateStr || new Date().toISOString().split('T')[0],
+          expected_date: expectedDateStr || null,
           amount: Math.abs(amount),
           type,
           is_paid: isPaid,
           description,
-          due_date: excelDateToString(get('Data Vencimento')),
+          due_date: dueDateStr || null,
           bank_id: findByName(banks, get('Conta Bancária')),
           category_id: findByName(categories, get('Evento Contábil')),
           contact_id: findByName(contacts, get('Cliente/Fornecedor')),
@@ -327,12 +333,14 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Data</TableHead>
+                        <TableHead>Emissão</TableHead>
                         <TableHead>Cliente</TableHead>
                         <TableHead>Tipo</TableHead>
                         <TableHead className="text-right">Valor</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Vencimento</TableHead>
+                        <TableHead>Prevista</TableHead>
+                        <TableHead>Pagamento</TableHead>
                         <TableHead>Banco</TableHead>
                         <TableHead>Categoria</TableHead>
                       </TableRow>
@@ -340,7 +348,7 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
                     <TableBody>
                       {parsedData.map((row, idx) => (
                         <TableRow key={idx}>
-                          <TableCell className="whitespace-nowrap">{formatDateDisplay(row.date)}</TableCell>
+                          <TableCell className="whitespace-nowrap">{formatDateDisplay(row.issue_date)}</TableCell>
                           <TableCell>{contactName(row.contact_id)}</TableCell>
                           <TableCell>
                             <Badge className={row.type === 'receita' ? 'bg-emerald-500/15 text-emerald-700 border-emerald-200 hover:bg-emerald-500/20' : 'bg-red-500/15 text-red-700 border-red-200 hover:bg-red-500/20'}>
@@ -356,6 +364,8 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
                             </Badge>
                           </TableCell>
                           <TableCell className="whitespace-nowrap">{formatDateDisplay(row.due_date)}</TableCell>
+                          <TableCell className="whitespace-nowrap">{formatDateDisplay(row.expected_date)}</TableCell>
+                          <TableCell className="whitespace-nowrap">{formatDateDisplay(row.date)}</TableCell>
                           <TableCell>{bankName(row.bank_id)}</TableCell>
                           <TableCell>{categoryName(row.category_id)}</TableCell>
                         </TableRow>

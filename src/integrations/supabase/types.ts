@@ -729,6 +729,7 @@ export type Database = {
           date: string
           description: string
           due_date: string | null
+          expected_date: string | null
           id: string
           is_paid: boolean
           issue_date: string | null
@@ -746,6 +747,7 @@ export type Database = {
           date?: string
           description: string
           due_date?: string | null
+          expected_date?: string | null
           id?: string
           is_paid?: boolean
           issue_date?: string | null
@@ -763,6 +765,7 @@ export type Database = {
           date?: string
           description?: string
           due_date?: string | null
+          expected_date?: string | null
           id?: string
           is_paid?: boolean
           issue_date?: string | null

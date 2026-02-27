@@ -1,70 +1,93 @@
 
 
-# Renomear e Adicionar Campos de Data nas Movimentações
+# Preview Intermediario na Importacao de Planilha
 
 ## Resumo
 
-Renomear "Data de Transação" para "Data Pagamento", adicionar "Data Emissão" (com default hoje) e "Data Prevista" (auto +2 dias úteis da Data Vencimento). Atualizar importação de planilha.
+Adicionar um Step 3 (Preview) entre o upload e a confirmacao final. Apos o upload processar os dados, ao inves de importar diretamente, exibir uma tabela com os lancamentos lidos para o usuario revisar, com opcao de confirmar ou voltar.
 
-## Mudança no Banco de Dados
+---
 
-Adicionar coluna `expected_date` (date, nullable) à tabela `transactions` para armazenar a "Data Prevista".
+## Arquivo Modificado
 
-```sql
-ALTER TABLE transactions ADD COLUMN expected_date date;
-```
-
-## Arquivos a Modificar
-
-| Arquivo | Mudança |
+| Arquivo | Mudanca |
 |---|---|
-| `src/hooks/useTransactions.ts` | Adicionar `expected_date` nos tipos `Transaction` e `TransactionInsert` |
-| `src/components/transactions/TransactionFormDialog.tsx` | Renomear label, adicionar campos `issueDate` e `expectedDate`, lógica de dias úteis |
-| `src/components/transactions/ImportSpreadsheetDialog.tsx` | Atualizar headers do template e mapeamento para novos campos |
+| `src/components/transactions/ImportSpreadsheetDialog.tsx` | Adicionar step 3 com tabela de preview, separar parsing de importacao |
 
-## Detalhes
+---
 
-### TransactionFormDialog.tsx
+## Mudancas Detalhadas
 
-- **Label "Data da Transação" → "Data Pagamento"** (campo `date`)
-- **Novo campo "Data Emissão"** (`issue_date`): default `new Date().toISOString().split('T')[0]`, editável
-- **Novo campo "Data Prevista"** (`expected_date`): calculado automaticamente como `due_date + 2 dias úteis`, editável
-- Layout: reorganizar a linha de datas em grid de 4 colunas (Data Emissão, Data Vencimento, Data Prevista, Data Pagamento), mover Anexo para linha separada ou manter compacto
-- **Lógica de dias úteis**: função `addBusinessDays(date, days)` que pula sábados, domingos e feriados nacionais brasileiros fixos (Ano Novo, Tiradentes, Trabalho, Independência, N.S.Aparecida, Finados, Proclamação, Natal) + Carnaval e Corpus Christi calculados dinamicamente
-
-### ImportSpreadsheetDialog.tsx
-
-- Atualizar `TEMPLATE_HEADERS`: renomear "Data Pagamento" para manter, adicionar "Data Emissão" e "Data Prevista" como colunas
-- Headers finais: `Data Emissão`, `Data Vencimento`, `Data Prevista`, `Data Pagamento`, `Cliente/Fornecedor`, `Tipo`, `Valor`, `Status`, `Conta Bancária`, `Evento Contábil`, `Histórico`
-- Mapeamento: `Data Pagamento` → `date`, `Data Emissão` → `issue_date`, `Data Prevista` → `expected_date`, `Data Vencimento` → `due_date`
-- Preview table: adicionar colunas Emissão e Prevista
-
-### useTransactions.ts
-
-- `Transaction`: adicionar `expected_date: string | null`
-- `TransactionInsert`: adicionar `expected_date?: string | null`
-
-## Seção Técnica
-
-### Cálculo de Dias Úteis
+### 1. Novo estado para armazenar dados parseados
 
 ```typescript
-function isBusinessDay(date: Date): boolean {
-  const day = date.getDay();
-  if (day === 0 || day === 6) return false; // weekend
-  return !isBrazilianHoliday(date);
-}
-
-function addBusinessDays(from: Date, days: number): Date {
-  let result = new Date(from);
-  let added = 0;
-  while (added < days) {
-    result.setDate(result.getDate() + 1);
-    if (isBusinessDay(result)) added++;
-  }
-  return result;
-}
+const [parsedData, setParsedData] = useState<TransactionInsert[]>([]);
 ```
 
-Feriados brasileiros fixos + Carnaval/Corpus Christi via cálculo da Páscoa (algoritmo de Meeus).
+### 2. Alterar `processFile` para nao importar direto
+
+Em vez de chamar `onImport(transactions)` ao final do parsing, salvar em `setParsedData(transactions)` e avancar para `setStep(3)`.
+
+### 3. Step indicator com 3 passos
+
+Adicionar terceiro circulo "Revisar" no indicador de progresso (Modelo -> Upload -> Revisar).
+
+### 4. Step 3: Tabela de Preview
+
+- Dialog expandido para `sm:max-w-4xl` quando no step 3
+- Contador: "X lancamento(s) encontrado(s)"
+- Tabela com ScrollArea (max-height ~400px) contendo colunas:
+  - Data | Cliente | Tipo | Valor | Status | Vencimento | Banco | Categoria
+- Cada linha mostra dados legivel (data formatada dd/MM/yyyy, valor em R$, tipo como badge colorido Receita/Despesa, status como badge Pago/Pendente)
+- Lookup reverso de bank_id/category_id/contact_id para exibir nomes (ou "---" se nao vinculado)
+- Botoes: "Voltar" (ghost, volta ao step 2) e "Confirmar Importacao" (primary, chama onImport)
+- Ao confirmar: spinner de "Importando..." e fluxo existente de toast + fechar modal
+
+### 5. Ajuste no resetState
+
+Incluir `setParsedData([])` no reset.
+
+### 6. DialogDescription dinâmica
+
+Step 3 exibe: "Revise os dados antes de confirmar"
+
+---
+
+## Secao Tecnica
+
+### Lookup reverso para exibicao
+
+Para mostrar nomes na tabela de preview ao inves de IDs:
+
+```typescript
+const bankName = (id: string | null) => banks.find(b => b.id === id)?.name ?? '—';
+const categoryName = (id: string | null) => categories.find(c => c.id === id)?.name ?? '—';
+const contactName = (id: string | null) => contacts.find(c => c.id === id)?.name ?? '—';
+```
+
+### Formatacao na tabela
+
+```typescript
+// Data: format(parseISO(row.date), 'dd/MM/yyyy')
+// Valor: row.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+// Tipo: Badge verde "Receita" ou vermelho "Despesa"
+// Status: Badge "Pago" ou "Pendente"
+```
+
+### Handler de confirmacao
+
+```typescript
+const handleConfirmImport = async () => {
+  setIsProcessing(true);
+  try {
+    await onImport(parsedData);
+    toast({ title: `${parsedData.length} lançamento(s) importado(s) com sucesso!` });
+    handleClose(false);
+  } catch (err) {
+    toast({ title: 'Erro ao importar.', variant: 'destructive' });
+  } finally {
+    setIsProcessing(false);
+  }
+};
+```
 

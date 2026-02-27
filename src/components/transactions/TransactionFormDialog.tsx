@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { format } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +18,7 @@ import { BankFormDialog } from '@/components/banks/BankFormDialog';
 import { ContactFormDialog } from '@/components/contacts/ContactFormDialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TrendingUp, TrendingDown, User, Plus } from 'lucide-react';
+import { addBusinessDays } from '@/lib/business-days';
 
 interface TransactionFormDialogProps {
   open: boolean;
@@ -54,10 +56,14 @@ export function TransactionFormDialog({
   isLoading,
   defaultType = 'despesa',
 }: TransactionFormDialogProps) {
+  const todayStr = new Date().toISOString().split('T')[0];
+
   const [type, setType] = useState<'receita' | 'despesa'>(defaultType);
   const [amount, setAmount] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState('');
+  const [issueDate, setIssueDate] = useState(todayStr);
   const [dueDate, setDueDate] = useState('');
+  const [expectedDate, setExpectedDate] = useState('');
   const [categoryId, setCategoryId] = useState<string>('');
   const [bankId, setBankId] = useState<string>('');
   const [contactId, setContactId] = useState<string>('');
@@ -80,12 +86,25 @@ export function TransactionFormDialog({
   const activeBanks = banks.filter(b => b.is_active);
   const filteredContacts = contacts.filter(c => c.is_active);
 
+  // Auto-calculate expected_date when dueDate changes
+  useEffect(() => {
+    if (dueDate) {
+      const dueDateObj = new Date(dueDate + 'T00:00:00');
+      if (!isNaN(dueDateObj.getTime())) {
+        const expected = addBusinessDays(dueDateObj, 2);
+        setExpectedDate(format(expected, 'yyyy-MM-dd'));
+      }
+    }
+  }, [dueDate]);
+
   useEffect(() => {
     if (transaction) {
       setType(transaction.type);
       setAmount(formatCurrencyInput(String(Math.round(Number(transaction.amount) * 100))));
-      setDate(transaction.date);
-      setDueDate((transaction as any).due_date || '');
+      setDate(transaction.date || '');
+      setIssueDate(transaction.issue_date || todayStr);
+      setDueDate(transaction.due_date || '');
+      setExpectedDate(transaction.expected_date || '');
       setCategoryId(transaction.category_id || '');
       setBankId(transaction.bank_id || '');
       setContactId(transaction.contact_id || '');
@@ -95,8 +114,10 @@ export function TransactionFormDialog({
     } else {
       setType(defaultType);
       setAmount('');
-      setDate(new Date().toISOString().split('T')[0]);
+      setDate('');
+      setIssueDate(todayStr);
       setDueDate('');
+      setExpectedDate('');
       setCategoryId('');
       setBankId('');
       setContactId('');
@@ -122,7 +143,6 @@ export function TransactionFormDialog({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Auto-generate description from category name
     const selectedCategory = filteredCategories.find(c => c.id === categoryId);
     const autoDescription = selectedCategory?.name || 'Movimentação';
     
@@ -131,8 +151,9 @@ export function TransactionFormDialog({
       description: autoDescription,
       amount: parseCurrencyInput(amount),
       date: date || undefined,
-      issue_date: null,
+      issue_date: issueDate || null,
       due_date: dueDate || null,
+      expected_date: expectedDate || null,
       category_id: categoryId || null,
       bank_id: bankId || null,
       contact_id: contactId || null,
@@ -310,15 +331,15 @@ export function TransactionFormDialog({
               </div>
             </div>
 
-            {/* Line 3: Data da Transação + Vencimento + Anexo */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Line 3: Datas - 4 colunas */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="space-y-2">
-              <Label htmlFor="date">Data da Transação</Label>
+                <Label htmlFor="issueDate">Data Emissão</Label>
                 <Input
-                  id="date"
+                  id="issueDate"
                   type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
+                  value={issueDate}
+                  onChange={(e) => setIssueDate(e.target.value)}
                 />
               </div>
 
@@ -333,20 +354,41 @@ export function TransactionFormDialog({
               </div>
 
               <div className="space-y-2">
-                <Label>Anexo</Label>
-                <AttachmentUpload
-                  compact
-                  attachments={attachments}
-                  pendingFiles={pendingFiles}
-                  onAddFiles={(files) => setPendingFiles([...pendingFiles, ...files])}
-                  onRemovePendingFile={(index) => setPendingFiles(pendingFiles.filter((_, i) => i !== index))}
-                  onDeleteAttachment={(attachment) => deleteAttachment.mutate(attachment)}
-                  isUploading={uploadAttachment.isPending}
+                <Label htmlFor="expectedDate">Data Prevista</Label>
+                <Input
+                  id="expectedDate"
+                  type="date"
+                  value={expectedDate}
+                  onChange={(e) => setExpectedDate(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="date">Data Pagamento</Label>
+                <Input
+                  id="date"
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
                 />
               </div>
             </div>
 
-            {/* Line 4: Observações (100% width, reduced height) */}
+            {/* Line 4: Anexo */}
+            <div className="space-y-2">
+              <Label>Anexo</Label>
+              <AttachmentUpload
+                compact
+                attachments={attachments}
+                pendingFiles={pendingFiles}
+                onAddFiles={(files) => setPendingFiles([...pendingFiles, ...files])}
+                onRemovePendingFile={(index) => setPendingFiles(pendingFiles.filter((_, i) => i !== index))}
+                onDeleteAttachment={(attachment) => deleteAttachment.mutate(attachment)}
+                isUploading={uploadAttachment.isPending}
+              />
+            </div>
+
+            {/* Line 5: Observações */}
             <div className="space-y-2">
               <Label htmlFor="notes">Observações</Label>
               <Textarea
@@ -359,7 +401,7 @@ export function TransactionFormDialog({
               />
             </div>
 
-            {/* Line 5: Paid Switch */}
+            {/* Line 6: Paid Switch */}
             <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
               <div>
                 <Label htmlFor="paid" className="font-medium">
