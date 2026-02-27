@@ -77,7 +77,7 @@ function parseAmount(value: unknown): number | null {
 
 function findByName<T extends { id: string; name: string }>(list: T[], name: unknown): string | null {
   if (!name || typeof name !== 'string') return null;
-  const lower = name.trim().toLowerCase();
+  const lower = normalizeName(name).toLowerCase();
   const found = list.find((item) => item.name.toLowerCase() === lower);
   return found?.id ?? null;
 }

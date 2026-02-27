@@ -197,6 +197,22 @@ export function useTransactions() {
     },
   });
 
+  const bulkTogglePaid = useMutation({
+    mutationFn: async ({ ids, is_paid }: { ids: string[]; is_paid: boolean }) => {
+      const { error } = await supabase
+        .from('transactions')
+        .update({ is_paid })
+        .in('id', ids);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['banks'] });
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+    },
+  });
+
   const bulkCreateTransactions = useMutation({
     mutationFn: async (transactions: TransactionInsert[]) => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -270,6 +286,7 @@ export function useTransactions() {
     updateTransaction,
     deleteTransaction,
     togglePaid,
+    bulkTogglePaid,
     bulkCreateTransactions,
   };
 }
