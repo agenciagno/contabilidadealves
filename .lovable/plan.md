@@ -1,41 +1,93 @@
 
 
-# Auto-criar Clientes/Fornecedores e Contas Bancárias na Importação
+# Preview Intermediario na Importacao de Planilha
 
-## Arquivos a Modificar
+## Resumo
+
+Adicionar um Step 3 (Preview) entre o upload e a confirmacao final. Apos o upload processar os dados, ao inves de importar diretamente, exibir uma tabela com os lancamentos lidos para o usuario revisar, com opcao de confirmar ou voltar.
+
+---
+
+## Arquivo Modificado
 
 | Arquivo | Mudanca |
 |---|---|
-| `src/components/transactions/ImportSpreadsheetDialog.tsx` | Adicionar props `onCreateContact` e `onCreateBank`; no `processFile`, coletar nomes unicos inexistentes e criar antes de montar transacoes; atualizar helpers de nome no preview |
-| `src/pages/Transactions.tsx` | Passar `onCreateContact` e `onCreateBank` ao dialog, usando `createContact` e `createBank` dos hooks |
+| `src/components/transactions/ImportSpreadsheetDialog.tsx` | Adicionar step 3 com tabela de preview, separar parsing de importacao |
 
-## Detalhes
+---
 
-### ImportSpreadsheetDialog.tsx
+## Mudancas Detalhadas
 
-1. Novas props opcionais:
-   - `onCreateContact?: (name: string) => Promise<{ id: string }>`
-   - `onCreateBank?: (name: string) => Promise<{ id: string }>`
+### 1. Novo estado para armazenar dados parseados
 
-2. Novos estados: `createdContacts` e `createdBanks` (ambos `Map<string, string>`)
+```typescript
+const [parsedData, setParsedData] = useState<TransactionInsert[]>([]);
+```
 
-3. No `processFile`, apos criar categorias, repetir o mesmo padrao:
-   - Coletar nomes unicos da coluna "Cliente/Fornecedor" sem match em `contacts`
-   - Criar via `onCreateContact(name)`, armazenar no mapa
-   - Coletar nomes unicos da coluna "Conta Bancaria" sem match em `banks`
-   - Criar via `onCreateBank(name)`, armazenar no mapa
+### 2. Alterar `processFile` para nao importar direto
 
-4. Atualizar resolucao de `contact_id` e `bank_id` para consultar mapas de novos alem das listas existentes
+Em vez de chamar `onImport(transactions)` ao final do parsing, salvar em `setParsedData(transactions)` e avancar para `setStep(3)`.
 
-5. Atualizar `contactName` e `bankName` no preview para consultar os mapas
+### 3. Step indicator com 3 passos
 
-6. Resetar mapas no `resetState`
+Adicionar terceiro circulo "Revisar" no indicador de progresso (Modelo -> Upload -> Revisar).
 
-### Transactions.tsx
+### 4. Step 3: Tabela de Preview
 
-Passar as novas props:
-- `onCreateContact`: chama `createContact.mutateAsync({ name, type: 'cliente', is_active: true, ... campos obrigatorios com defaults })` e retorna `{ id }`
-- `onCreateBank`: chama `createBank.mutateAsync({ name, initial_balance: 0, color: '#10B981', is_active: true })` e retorna `{ id }`
+- Dialog expandido para `sm:max-w-4xl` quando no step 3
+- Contador: "X lancamento(s) encontrado(s)"
+- Tabela com ScrollArea (max-height ~400px) contendo colunas:
+  - Data | Cliente | Tipo | Valor | Status | Vencimento | Banco | Categoria
+- Cada linha mostra dados legivel (data formatada dd/MM/yyyy, valor em R$, tipo como badge colorido Receita/Despesa, status como badge Pago/Pendente)
+- Lookup reverso de bank_id/category_id/contact_id para exibir nomes (ou "---" se nao vinculado)
+- Botoes: "Voltar" (ghost, volta ao step 2) e "Confirmar Importacao" (primary, chama onImport)
+- Ao confirmar: spinner de "Importando..." e fluxo existente de toast + fechar modal
 
-Campos obrigatorios para `ContactInsert`: `name`, `type`, `is_active`, `boleto_active` — restante nullable.
+### 5. Ajuste no resetState
+
+Incluir `setParsedData([])` no reset.
+
+### 6. DialogDescription dinâmica
+
+Step 3 exibe: "Revise os dados antes de confirmar"
+
+---
+
+## Secao Tecnica
+
+### Lookup reverso para exibicao
+
+Para mostrar nomes na tabela de preview ao inves de IDs:
+
+```typescript
+const bankName = (id: string | null) => banks.find(b => b.id === id)?.name ?? '—';
+const categoryName = (id: string | null) => categories.find(c => c.id === id)?.name ?? '—';
+const contactName = (id: string | null) => contacts.find(c => c.id === id)?.name ?? '—';
+```
+
+### Formatacao na tabela
+
+```typescript
+// Data: format(parseISO(row.date), 'dd/MM/yyyy')
+// Valor: row.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+// Tipo: Badge verde "Receita" ou vermelho "Despesa"
+// Status: Badge "Pago" ou "Pendente"
+```
+
+### Handler de confirmacao
+
+```typescript
+const handleConfirmImport = async () => {
+  setIsProcessing(true);
+  try {
+    await onImport(parsedData);
+    toast({ title: `${parsedData.length} lançamento(s) importado(s) com sucesso!` });
+    handleClose(false);
+  } catch (err) {
+    toast({ title: 'Erro ao importar.', variant: 'destructive' });
+  } finally {
+    setIsProcessing(false);
+  }
+};
+```
 
