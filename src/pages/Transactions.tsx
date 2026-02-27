@@ -102,7 +102,8 @@ export default function Transactions() {
     createTransaction,
     updateTransaction,
     deleteTransaction,
-    togglePaid
+    togglePaid,
+    bulkCreateTransactions
   } = useTransactions();
 
   const { categories, createCategory } = useCategories();
