@@ -130,7 +130,7 @@ export function TransactionFormDialog({
       type,
       description: autoDescription,
       amount: parseCurrencyInput(amount),
-      date,
+      date: date || undefined,
       issue_date: null,
       due_date: dueDate || null,
       category_id: categoryId || null,
@@ -313,13 +313,12 @@ export function TransactionFormDialog({
             {/* Line 3: Data da Transação + Vencimento + Anexo */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="date">Data da Transação <span className="text-destructive">*</span></Label>
+              <Label htmlFor="date">Data da Transação</Label>
                 <Input
                   id="date"
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  required
                 />
               </div>
 

@@ -31,7 +31,7 @@ export type TransactionInsert = {
   description: string;
   amount: number;
   type: 'receita' | 'despesa';
-  date: string;
+  date?: string;
   issue_date?: string | null;
   due_date?: string | null;
   is_paid?: boolean;
