@@ -726,9 +726,7 @@ export default function Transactions() {
         categories={categories}
         contacts={contacts}
         onImport={async (txns) => {
-          for (const t of txns) {
-            await createTransaction.mutateAsync(t);
-          }
+          await bulkCreateTransactions.mutateAsync(txns);
         }}
         onCreateCategory={async (name) => {
           const data = await createCategory.mutateAsync({ name, type: 'receita', color: '#3B82F6', icon: 'tag' });

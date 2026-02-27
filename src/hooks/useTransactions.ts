@@ -261,5 +261,6 @@ export function useTransactions() {
     updateTransaction,
     deleteTransaction,
     togglePaid,
+    bulkCreateTransactions,
   };
 }
