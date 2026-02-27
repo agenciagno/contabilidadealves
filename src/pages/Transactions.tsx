@@ -118,6 +118,7 @@ export default function Transactions() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
   const [defaultType, setDefaultType] = useState<'receita' | 'despesa'>('despesa');
   const [importOpen, setImportOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -367,6 +368,16 @@ export default function Transactions() {
       onSuccess: () => setSelectedIds(new Set()),
     });
   };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    for (const id of selectedIds) {
+      await deleteTransaction.mutateAsync(id);
+    }
+    setSelectedIds(new Set());
+    setBulkDeleteConfirm(false);
+  };
+
   const totals = { receitas: kpiTotals.receitasPagas + kpiTotals.receitasPendentes, despesas: kpiTotals.despesasPagas + kpiTotals.despesasPendentes };
 
   if (isLoading) {
