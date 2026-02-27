@@ -188,6 +188,54 @@ export function useTransactions() {
     },
   });
 
+  const bulkCreateTransactions = useMutation({
+    mutationFn: async (transactions: TransactionInsert[]) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!profile) throw new Error('Perfil não encontrado');
+
+      const withCompany = transactions.map(t => ({
+        ...t,
+        company_id: profile.company_id,
+      }));
+
+      const BATCH_SIZE = 500;
+      let totalInserted = 0;
+      for (let i = 0; i < withCompany.length; i += BATCH_SIZE) {
+        const batch = withCompany.slice(i, i + BATCH_SIZE);
+        const { error } = await supabase.from('transactions').insert(batch);
+        if (error) throw error;
+        totalInserted += batch.length;
+      }
+
+      await createGlobalLog({
+        action: 'ADICAO',
+        module: 'FINANCEIRO',
+        details: `${totalInserted} transações importadas via planilha`,
+      });
+
+      return totalInserted;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['banks'] });
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['global-logs'] });
+      toast({ title: `${count} transações importadas com sucesso!` });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Erro na importação em massa', description: error.message, variant: 'destructive' });
+    },
+  });
+
   // Calculate totals
   const totals = transactions.reduce(
     (acc, t) => {
@@ -213,5 +261,6 @@ export function useTransactions() {
     updateTransaction,
     deleteTransaction,
     togglePaid,
+    bulkCreateTransactions,
   };
 }

@@ -288,10 +288,12 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
         const statusRaw = String(get('Status (Pendente ou Pago)') ?? '').trim().toLowerCase();
         const isPaid = statusRaw.includes('pago');
 
-        const description = String(get('Histórico') ?? get('Cliente/Fornecedor') ?? 'Importado via planilha');
+        const eventoContabil = get('Evento Contábil');
+        const historico = get('Histórico');
+        const description = String(eventoContabil ?? historico ?? get('Cliente/Fornecedor') ?? 'Importado via planilha');
 
         transactions.push({
-          date: paymentDateStr || undefined,
+          date: paymentDateStr || dueDateStr || issueDateStr || new Date().toISOString().split('T')[0],
           issue_date: issueDateStr || new Date().toISOString().split('T')[0],
           expected_date: expectedDateStr || null,
           amount: Math.abs(amount),
@@ -300,9 +302,9 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
           description,
           due_date: dueDateStr || null,
           bank_id: findBankId(get('Conta Bancária')),
-          category_id: findCategoryId(get('Evento Contábil')),
+          category_id: findCategoryId(eventoContabil),
           contact_id: findContactId(get('Cliente/Fornecedor')),
-          notes: get('Histórico') ? String(get('Histórico')) : null,
+          notes: historico ? String(historico) : null,
         });
       }
 
