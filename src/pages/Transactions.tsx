@@ -606,12 +606,18 @@ export default function Transactions() {
               </Card>
             </div>
 
-            {/* Sort Options */}
+            {/* Sort Options + Bulk Actions */}
             <div className="flex items-center gap-2 text-sm">
               <span className="text-muted-foreground">Ordenar por:</span>
               <Button variant={sortField === 'date' ? 'secondary' : 'ghost'} size="sm" onClick={() => handleSort('date')} className="gap-1">
                 Data {sortField === 'date' && (sortOrder === 'asc' ? '↑' : '↓')}
               </Button>
+              {selectedIds.size > 0 && (
+                <Button size="sm" className="gap-2 ml-4 bg-emerald-500 hover:bg-emerald-600 text-white" onClick={handleBulkPay} disabled={bulkTogglePaid.isPending}>
+                  <CheckCircle2 className="w-4 h-4" />
+                  Pagar {selectedIds.size} selecionado(s)
+                </Button>
+              )}
               <span className="text-muted-foreground text-xs ml-auto">{filteredTransactions.length} transação(ões)</span>
             </div>
 
@@ -662,55 +668,66 @@ export default function Transactions() {
           )}
               </div> :
 
-        <Card className="bg-card border-border/50">
+        <Card className="bg-card border-border/50 overflow-hidden">
                 <CardContent className="p-0">
-                  <div className="divide-y divide-border/40">
-                    {filteredTransactions.map((transaction) =>
-              <div key={transaction.id} className="flex items-center gap-4 px-4 py-4 hover:bg-muted/30 transition-colors group">
-                        <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${transaction.type === 'receita' ? 'bg-emerald-500/20' : 'bg-red-500/20'}`}>
-                          {transaction.type === 'receita' ? <TrendingUp className="w-5 h-5 text-emerald-500" /> : <TrendingDown className="w-5 h-5 text-red-500" />}
+                  {/* Table Header */}
+                  <div className="grid grid-cols-[40px_1fr_90px_90px_90px_80px_120px_80px] gap-2 px-4 py-2.5 bg-muted/40 border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    <div className="flex items-center justify-center">
+                      <Checkbox checked={selectedIds.size === filteredTransactions.length && filteredTransactions.length > 0} onCheckedChange={toggleSelectAll} />
+                    </div>
+                    <div>Cliente / Evento</div>
+                    <div className="text-center">Vencimento</div>
+                    <div className="text-center">Prevista</div>
+                    <div className="text-center">Pagamento</div>
+                    <div className="text-center">Status</div>
+                    <div className="text-right">Valor</div>
+                    <div className="text-center">Ações</div>
+                  </div>
+                  <div className="divide-y divide-border/30">
+                    {filteredTransactions.map((transaction) => {
+                      const isOverdue = !transaction.is_paid && transaction.due_date && transaction.due_date < new Date().toISOString().split('T')[0];
+                      return (
+                      <div key={transaction.id} className={`grid grid-cols-[40px_1fr_90px_90px_90px_80px_120px_80px] gap-2 px-4 py-3 hover:bg-muted/30 transition-colors items-center ${selectedIds.has(transaction.id) ? 'bg-primary/5' : ''}`}>
+                        <div className="flex items-center justify-center">
+                          <Checkbox checked={selectedIds.has(transaction.id)} onCheckedChange={() => toggleSelect(transaction.id)} />
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-mono text-sm font-semibold text-muted-foreground shrink-0 tabular-nums bg-muted/60 px-1.5 py-0.5 rounded">{formatDateShort(transaction.date)}</span>
-                            <span className="text-muted-foreground/50 text-sm">•</span>
-                            <span className="truncate text-base font-semibold text-foreground">{transaction.contact?.name ?? transaction.description}</span>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="truncate text-sm font-semibold text-foreground">{transaction.contact?.name ?? transaction.description}</span>
+                            {isOverdue && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-500 border border-red-500/40 whitespace-nowrap shrink-0">Vencido</span>}
                           </div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            {transaction.category &&
-                    <Badge variant="secondary" className="text-xs px-2 py-0.5 h-5 rounded font-medium" style={{ backgroundColor: `${transaction.category.color}22`, color: transaction.category.color, borderColor: `${transaction.category.color}44` }}>
-                                {transaction.category.name}
-                              </Badge>
-                    }
-                            {transaction.bank && <>{transaction.category && <span className="text-muted-foreground/40 text-sm">•</span>}<span className="text-sm text-muted-foreground font-medium">{transaction.bank.name}</span></>}
-                            <span className="text-muted-foreground/40 text-sm">•</span>
-                            <span className={`text-sm font-medium ${transaction.type === 'receita' ? 'text-emerald-500/80' : 'text-red-500/80'}`}>
+                          <div className="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground">
+                            {transaction.category && <span style={{ color: transaction.category.color }}>{transaction.category.name}</span>}
+                            {transaction.category && transaction.bank && <span className="text-muted-foreground/40">•</span>}
+                            {transaction.bank && <span>{transaction.bank.name}</span>}
+                            <span className="text-muted-foreground/40">•</span>
+                            <span className={transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'}>
                               {transaction.type === 'receita' ? 'Receita' : 'Despesa'}
                             </span>
-                            {!transaction.is_paid && transaction.due_date && transaction.due_date < new Date().toISOString().split('T')[0] &&
-                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-500/20 text-red-500 border border-red-500/40 whitespace-nowrap">Vencido</span>
-                    }
                           </div>
                         </div>
-                        <div className="flex items-center gap-3 shrink-0">
+                        <div className="text-center text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.due_date)}</div>
+                        <div className="text-center text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.expected_date)}</div>
+                        <div className="text-center text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.date)}</div>
+                        <div className="flex justify-center">
                           <button
-                    onClick={() => togglePaid.mutate({ id: transaction.id, is_paid: !transaction.is_paid })}
-                    className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-all cursor-pointer whitespace-nowrap ${
-                    transaction.is_paid ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-amber-500 text-amber-500 bg-transparent hover:bg-amber-500/10'}`
-                    }>
-
-                            {transaction.is_paid ? transaction.type === 'receita' ? 'Recebido' : 'Pago' : 'Pendente'}
+                            onClick={() => togglePaid.mutate({ id: transaction.id, is_paid: !transaction.is_paid })}
+                            className={`text-[10px] font-semibold px-2 py-1 rounded-full border transition-all cursor-pointer whitespace-nowrap ${
+                              transaction.is_paid ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-amber-500 text-amber-500 bg-transparent hover:bg-amber-500/10'
+                            }`}>
+                            {transaction.is_paid ? 'Pago' : 'Pendente'}
                           </button>
-                          <span className={`font-extrabold text-xl tabular-nums tracking-tight ${transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'}`}>
-                            {transaction.type === 'receita' ? '+' : '-'}{formatCurrency(Number(transaction.amount))}
-                          </span>
                         </div>
-                        <div className="flex gap-1 shrink-0">
-                          <Button variant="ghost" size="icon" className="h-9 w-9 hover:bg-muted" onClick={() => handleEdit(transaction)}><Pencil className="w-4 h-4 text-muted-foreground" /></Button>
-                          <Button variant="ghost" size="icon" className="h-9 w-9 hover:bg-destructive/10" onClick={() => setDeleteId(transaction.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                        <div className={`text-right font-bold text-sm tabular-nums ${transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'}`}>
+                          {transaction.type === 'receita' ? '+' : '-'}{formatCurrency(Number(transaction.amount))}
+                        </div>
+                        <div className="flex gap-0.5 justify-center">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted" onClick={() => handleEdit(transaction)}><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteId(transaction.id)}><Trash2 className="w-3.5 h-3.5 text-destructive" /></Button>
                         </div>
                       </div>
-              )}
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
