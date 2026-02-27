@@ -146,7 +146,10 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
           return key ? row[key] : undefined;
         };
 
-        const dateStr = excelDateToString(get('Data Prevista'));
+        const issueDateStr = excelDateToString(get('Data Emissão'));
+        const dueDateStr = excelDateToString(get('Data Vencimento'));
+        const expectedDateStr = excelDateToString(get('Data Prevista'));
+        const paymentDateStr = excelDateToString(get('Data Pagamento'));
         const amount = parseAmount(get('Valor'));
         if (amount == null) continue;
 
@@ -159,12 +162,14 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
         const description = String(get('Histórico') ?? get('Cliente/Fornecedor') ?? 'Importado via planilha');
 
         transactions.push({
-          date: dateStr || undefined,
+          date: paymentDateStr || undefined,
+          issue_date: issueDateStr || new Date().toISOString().split('T')[0],
+          expected_date: expectedDateStr || null,
           amount: Math.abs(amount),
           type,
           is_paid: isPaid,
           description,
-          due_date: excelDateToString(get('Data Vencimento')),
+          due_date: dueDateStr || null,
           bank_id: findByName(banks, get('Conta Bancária')),
           category_id: findByName(categories, get('Evento Contábil')),
           contact_id: findByName(contacts, get('Cliente/Fornecedor')),
@@ -328,12 +333,14 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Data</TableHead>
+                        <TableHead>Emissão</TableHead>
                         <TableHead>Cliente</TableHead>
                         <TableHead>Tipo</TableHead>
                         <TableHead className="text-right">Valor</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Vencimento</TableHead>
+                        <TableHead>Prevista</TableHead>
+                        <TableHead>Pagamento</TableHead>
                         <TableHead>Banco</TableHead>
                         <TableHead>Categoria</TableHead>
                       </TableRow>
