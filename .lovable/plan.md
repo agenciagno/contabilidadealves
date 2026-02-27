@@ -1,93 +1,78 @@
 
 
-# Preview Intermediario na Importacao de Planilha
+## Plano de Correções Críticas — Movimentações
 
-## Resumo
+### BLOCO 1: Importação — Datas vazias
 
-Adicionar um Step 3 (Preview) entre o upload e a confirmacao final. Apos o upload processar os dados, ao inves de importar diretamente, exibir uma tabela com os lancamentos lidos para o usuario revisar, com opcao de confirmar ou voltar.
+**Arquivo:** `src/components/transactions/ImportSpreadsheetDialog.tsx`
+
+O código atual na linha 306 já usa `date: paymentDateStr || null`. A função `excelDateToString` (linha 47) já retorna `null` para valores vazios. **A lógica de importação no frontend está correta.**
+
+O problema restante é o banco de dados. A migration anterior removeu o `DEFAULT CURRENT_DATE`, mas preciso confirmar que foi aplicada. Se não, criarei nova migration.
+
+**Ação:** Verificar e garantir que a coluna `date` não tem DEFAULT. Caso ainda tenha, aplicar migration.
 
 ---
 
-## Arquivo Modificado
+### BLOCO 2: Aba "Pagar/Receber" — Filtrar apenas pendentes/vencidos
 
-| Arquivo | Mudanca |
+**Arquivo:** `src/components/transactions/CashFlowTab.tsx` (linhas 78-100)
+
+**Problema:** O `filtered` useMemo não exclui transações pagas. Todas passam pela query.
+
+**Solução:** Adicionar filtro inicial na linha 80:
+```typescript
+let result = transactions.filter(t => !t.is_paid); // Apenas pendentes/vencidos
+```
+
+Isso garante que a tabela e os KPIs de Entradas/Saídas só considerem transações pendentes ou vencidas. O Capital de Giro já filtra `!t.is_paid` corretamente (linha 113).
+
+---
+
+### BLOCO 3: Reatividade de Filtros e Ordenação
+
+**Arquivo:** `src/pages/Transactions.tsx`
+
+**3a. Filtros:** Os filtros já estão no `useMemo` (linha 149) com as dependências corretas (linha 189). A busca por `searchTerm` (linha 171) já inclui `contact.name`. Os filtros de `contactFilter`, `categoryFilter`, `bankFilter` comparam por ID corretamente. **Os filtros já devem funcionar.** Vou verificar se a `UnifiedFilterBox` está passando os valores corretos.
+
+**3b. Ordenação (linhas 178-186):** A comparação `localeCompare` funciona para strings ISO `yyyy-MM-dd`, mas vou reforçar com comparação temporal real:
+
+```typescript
+result.sort((a, b) => {
+  const dateA = a[sortField];
+  const dateB = b[sortField];
+  if (!dateA && !dateB) return 0;
+  if (!dateA) return 1;
+  if (!dateB) return -1;
+  const timeA = new Date(dateA).getTime();
+  const timeB = new Date(dateB).getTime();
+  return sortOrder === 'asc' ? timeA - timeB : timeB - timeA;
+});
+```
+
+---
+
+### BLOCO 4: Sticky Header
+
+**Arquivo:** `src/pages/Transactions.tsx` (linha 699)
+
+O cabeçalho já tem `sticky top-0 z-10`. Porém, precisa de `bg-card` (não `bg-muted/40` sozinho que é translúcido) para não ter sobreposição visual durante scroll. O container pai (Card, linha 696) precisa de uma altura máxima com overflow para o sticky funcionar dentro dele.
+
+**Solução:** 
+- Adicionar `max-h-[70vh] overflow-auto` ao container da tabela (wrapping div)
+- Garantir que o header tenha `bg-card` sólido
+
+**Arquivo:** `src/components/transactions/CashFlowTab.tsx` (linha 322)
+
+- Adicionar `className="sticky top-0 z-10 bg-card"` ao `<TableHeader>`
+
+---
+
+### Resumo de Alterações
+
+| Arquivo | Mudança |
 |---|---|
-| `src/components/transactions/ImportSpreadsheetDialog.tsx` | Adicionar step 3 com tabela de preview, separar parsing de importacao |
-
----
-
-## Mudancas Detalhadas
-
-### 1. Novo estado para armazenar dados parseados
-
-```typescript
-const [parsedData, setParsedData] = useState<TransactionInsert[]>([]);
-```
-
-### 2. Alterar `processFile` para nao importar direto
-
-Em vez de chamar `onImport(transactions)` ao final do parsing, salvar em `setParsedData(transactions)` e avancar para `setStep(3)`.
-
-### 3. Step indicator com 3 passos
-
-Adicionar terceiro circulo "Revisar" no indicador de progresso (Modelo -> Upload -> Revisar).
-
-### 4. Step 3: Tabela de Preview
-
-- Dialog expandido para `sm:max-w-4xl` quando no step 3
-- Contador: "X lancamento(s) encontrado(s)"
-- Tabela com ScrollArea (max-height ~400px) contendo colunas:
-  - Data | Cliente | Tipo | Valor | Status | Vencimento | Banco | Categoria
-- Cada linha mostra dados legivel (data formatada dd/MM/yyyy, valor em R$, tipo como badge colorido Receita/Despesa, status como badge Pago/Pendente)
-- Lookup reverso de bank_id/category_id/contact_id para exibir nomes (ou "---" se nao vinculado)
-- Botoes: "Voltar" (ghost, volta ao step 2) e "Confirmar Importacao" (primary, chama onImport)
-- Ao confirmar: spinner de "Importando..." e fluxo existente de toast + fechar modal
-
-### 5. Ajuste no resetState
-
-Incluir `setParsedData([])` no reset.
-
-### 6. DialogDescription dinâmica
-
-Step 3 exibe: "Revise os dados antes de confirmar"
-
----
-
-## Secao Tecnica
-
-### Lookup reverso para exibicao
-
-Para mostrar nomes na tabela de preview ao inves de IDs:
-
-```typescript
-const bankName = (id: string | null) => banks.find(b => b.id === id)?.name ?? '—';
-const categoryName = (id: string | null) => categories.find(c => c.id === id)?.name ?? '—';
-const contactName = (id: string | null) => contacts.find(c => c.id === id)?.name ?? '—';
-```
-
-### Formatacao na tabela
-
-```typescript
-// Data: format(parseISO(row.date), 'dd/MM/yyyy')
-// Valor: row.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-// Tipo: Badge verde "Receita" ou vermelho "Despesa"
-// Status: Badge "Pago" ou "Pendente"
-```
-
-### Handler de confirmacao
-
-```typescript
-const handleConfirmImport = async () => {
-  setIsProcessing(true);
-  try {
-    await onImport(parsedData);
-    toast({ title: `${parsedData.length} lançamento(s) importado(s) com sucesso!` });
-    handleClose(false);
-  } catch (err) {
-    toast({ title: 'Erro ao importar.', variant: 'destructive' });
-  } finally {
-    setIsProcessing(false);
-  }
-};
-```
+| `CashFlowTab.tsx` | Filtrar `!t.is_paid` no início; sticky header na TableHeader |
+| `Transactions.tsx` | Ordenação com `getTime()`; container com `max-h` + `overflow-auto`; bg-card sólido no header |
+| Migration (se necessário) | Confirmar DROP DEFAULT na coluna `date` |
 
