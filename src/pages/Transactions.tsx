@@ -176,13 +176,14 @@ export default function Transactions() {
     }
 
     result.sort((a, b) => {
-      const dateA = a[sortField] || '';
-      const dateB = b[sortField] || '';
+      const dateA = a[sortField];
+      const dateB = b[sortField];
       if (!dateA && !dateB) return 0;
       if (!dateA) return 1;
       if (!dateB) return -1;
-      const cmp = dateA.localeCompare(dateB);
-      return sortOrder === 'asc' ? cmp : -cmp;
+      const timeA = new Date(dateA).getTime();
+      const timeB = new Date(dateB).getTime();
+      return sortOrder === 'asc' ? timeA - timeB : timeB - timeA;
     });
 
     return result;
@@ -694,9 +695,9 @@ export default function Transactions() {
               </div> :
 
         <Card className="bg-card border-border/50 overflow-hidden">
-                <CardContent className="p-0">
+                <CardContent className="p-0 max-h-[70vh] overflow-auto">
                   {/* Table Header */}
-                  <div className="grid grid-cols-[40px_80px_1fr_90px_90px_90px_80px_120px_80px] gap-2 px-4 py-2.5 bg-muted/40 border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 z-10">
+                  <div className="grid grid-cols-[40px_80px_1fr_90px_90px_90px_80px_120px_80px] gap-2 px-4 py-2.5 bg-card border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 z-10">
                     <div className="flex items-center justify-center">
                       <Checkbox checked={selectedIds.size === filteredTransactions.length && filteredTransactions.length > 0} onCheckedChange={toggleSelectAll} />
                     </div>

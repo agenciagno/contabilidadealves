@@ -77,7 +77,7 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
   // Filtered & sorted transactions
   const filtered = useMemo(() => {
     const range = getDateRange(period);
-    let result = [...transactions];
+    let result = transactions.filter(t => !t.is_paid);
     if (range) {
       result = result.filter(t => {
         const dateKey = t.date || t.due_date || t.issue_date;
@@ -317,9 +317,9 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
       <Card className="bg-card border-border/50">
         <CardContent className="p-0">
           <TooltipProvider>
-            <div className="overflow-auto">
+            <div className="overflow-auto max-h-[70vh]">
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-card">
                   <TableRow>
                     <TableHead className="text-xs whitespace-nowrap">Data Prevista</TableHead>
                     <TableHead className="text-xs whitespace-nowrap">Cliente/Fornecedor</TableHead>
