@@ -147,7 +147,7 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
 
         const dateStr = excelDateToString(get('Data Prevista'));
         const amount = parseAmount(get('Valor'));
-        if (!dateStr || amount == null) continue;
+        if (amount == null) continue;
 
         const tipoRaw = String(get('Tipo (Receita ou Despesa)') ?? '').trim().toLowerCase();
         const type: 'receita' | 'despesa' = tipoRaw.includes('receita') ? 'receita' : 'despesa';
@@ -158,7 +158,7 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
         const description = String(get('Histórico') ?? get('Cliente/Fornecedor') ?? 'Importado via planilha');
 
         transactions.push({
-          date: dateStr,
+          date: dateStr || undefined,
           amount: Math.abs(amount),
           type,
           is_paid: isPaid,
