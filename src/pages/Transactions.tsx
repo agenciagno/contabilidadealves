@@ -71,8 +71,9 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
-function formatDateShort(dateStr: string) {
-  return format(new Date(dateStr + 'T12:00:00'), 'dd/MM');
+function formatDateShort(dateStr: string | null | undefined) {
+  if (!dateStr) return '—';
+  return format(new Date(dateStr + 'T12:00:00'), 'dd/MM/yy');
 }
 
 type SortField = 'date';
