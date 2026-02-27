@@ -80,7 +80,9 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
     let result = [...transactions];
     if (range) {
       result = result.filter(t => {
-        const d = parseISO(t.date);
+        const dateKey = t.date || t.due_date || t.issue_date;
+        if (!dateKey) return false;
+        const d = parseISO(dateKey);
         return isWithinInterval(d, { start: range.start, end: range.end });
       });
     }
@@ -93,7 +95,7 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
       const s = searchTerm.toLowerCase();
       result = result.filter(t => t.description.toLowerCase().includes(s) || t.contact?.name?.toLowerCase().includes(s));
     }
-    result.sort((a, b) => a.date.localeCompare(b.date));
+    result.sort((a, b) => (a.date || a.due_date || a.issue_date || '').localeCompare(b.date || b.due_date || b.issue_date || ''));
     return result;
   }, [transactions, period, customStartDate, customEndDate, bankFilter, categoryFilter, contactFilter, paymentStatusFilter, searchTerm]);
 
@@ -339,7 +341,7 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
                     </TableRow>
                   ) : rows.map(row => (
                     <TableRow key={row.id} className="text-xs">
-                      <TableCell className="font-mono tabular-nums whitespace-nowrap">{formatDate(row.date)}</TableCell>
+                      <TableCell className="font-mono tabular-nums whitespace-nowrap">{row.date || row.due_date || row.issue_date ? formatDate(row.date || row.due_date || row.issue_date) : '—'}</TableCell>
                       <TableCell className="truncate max-w-[150px]">{row.contact?.name ?? row.description}</TableCell>
 
                       {/* Valor */}
