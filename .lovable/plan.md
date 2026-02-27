@@ -1,93 +1,115 @@
 
 
-# Preview Intermediario na Importacao de Planilha
+# Correção da Importação em Massa de Planilha
 
-## Resumo
+## Problemas Identificados
 
-Adicionar um Step 3 (Preview) entre o upload e a confirmacao final. Apos o upload processar os dados, ao inves de importar diretamente, exibir uma tabela com os lancamentos lidos para o usuario revisar, com opcao de confirmar ou voltar.
+### 1. Inserção Individual (Causa Raiz Principal)
+O `onImport` em `Transactions.tsx` (linha 728-732) insere **uma transação por vez** via `createTransaction.mutateAsync(t)`. Cada chamada executa:
+- 1 request para buscar o usuário
+- 1 request para buscar o perfil
+- 1 insert na tabela `transactions`
+- 1 insert na tabela `global_logs` (audit)
+- 1 invalidação de queries
 
----
+Para 2608 registros = ~13.000 requests HTTP. Isso causa timeout, falhas parciais e perda de dados.
 
-## Arquivo Modificado
+### 2. Trigger de Saldo Bancário Disparada 2608 Vezes
+O trigger `update_bank_balance` recalcula o saldo do banco a cada INSERT individual, causando lentidão exponencial.
 
-| Arquivo | Mudanca |
-|---|---|
-| `src/components/transactions/ImportSpreadsheetDialog.tsx` | Adicionar step 3 com tabela de preview, separar parsing de importacao |
+### 3. Campo `date` (Data Pagamento) Incorreto
+Quando a transação não tem Data Pagamento, o código envia `date: undefined`. O banco preenche com `CURRENT_DATE`, fazendo transações pendentes aparecerem com data de hoje em vez de sem data de pagamento. Isso distorce filtros e relatórios.
 
----
+### 4. Filtro Padrão "Mês Atual" em Lançamentos
+A página filtra por `date` (pagamento) no mês atual. Transações importadas com datas fora do mês não aparecem.
 
-## Mudancas Detalhadas
+## Plano de Correção
 
-### 1. Novo estado para armazenar dados parseados
+### Arquivo 1: `src/hooks/useTransactions.ts`
+- Adicionar nova mutation `bulkCreateTransactions` que:
+  - Busca user/profile **uma única vez**
+  - Insere em lotes de 500 registros via `supabase.from('transactions').insert(batch)`
+  - Cria **um único** log global resumido ("2608 transações importadas via planilha")
+  - Invalida queries **uma única vez** no `onSuccess`
 
-```typescript
-const [parsedData, setParsedData] = useState<TransactionInsert[]>([]);
-```
+### Arquivo 2: `src/pages/Transactions.tsx`
+- Substituir o loop `for...of` no `onImport` por chamada única ao `bulkCreateTransactions`
+- Após importação, invalidar manualmente `['banks']`, `['contacts']`, `['categories']` para sincronizar
 
-### 2. Alterar `processFile` para nao importar direto
+### Arquivo 3: `src/components/transactions/ImportSpreadsheetDialog.tsx`
+- Corrigir mapeamento de `date`: quando não há Data Pagamento e status é "pendente", enviar `date: dueDateStr || issueDateStr || new Date().toISOString().split('T')[0]` (garantir que sempre há uma data válida para ordenação)
+- Corrigir lógica de `description`: usar nome do Evento Contábil como description (conforme regra de negócio existente), com fallback para Histórico
 
-Em vez de chamar `onImport(transactions)` ao final do parsing, salvar em `setParsedData(transactions)` e avancar para `setStep(3)`.
+### Arquivo 4: `src/hooks/useTransactions.ts` (query)
+- Sem alteração na query — o `invalidateQueries` já atualiza todos os caches
 
-### 3. Step indicator com 3 passos
+## Detalhes Técnicos
 
-Adicionar terceiro circulo "Revisar" no indicador de progresso (Modelo -> Upload -> Revisar).
-
-### 4. Step 3: Tabela de Preview
-
-- Dialog expandido para `sm:max-w-4xl` quando no step 3
-- Contador: "X lancamento(s) encontrado(s)"
-- Tabela com ScrollArea (max-height ~400px) contendo colunas:
-  - Data | Cliente | Tipo | Valor | Status | Vencimento | Banco | Categoria
-- Cada linha mostra dados legivel (data formatada dd/MM/yyyy, valor em R$, tipo como badge colorido Receita/Despesa, status como badge Pago/Pendente)
-- Lookup reverso de bank_id/category_id/contact_id para exibir nomes (ou "---" se nao vinculado)
-- Botoes: "Voltar" (ghost, volta ao step 2) e "Confirmar Importacao" (primary, chama onImport)
-- Ao confirmar: spinner de "Importando..." e fluxo existente de toast + fechar modal
-
-### 5. Ajuste no resetState
-
-Incluir `setParsedData([])` no reset.
-
-### 6. DialogDescription dinâmica
-
-Step 3 exibe: "Revise os dados antes de confirmar"
-
----
-
-## Secao Tecnica
-
-### Lookup reverso para exibicao
-
-Para mostrar nomes na tabela de preview ao inves de IDs:
+### Bulk Insert (useTransactions.ts)
 
 ```typescript
-const bankName = (id: string | null) => banks.find(b => b.id === id)?.name ?? '—';
-const categoryName = (id: string | null) => categories.find(c => c.id === id)?.name ?? '—';
-const contactName = (id: string | null) => contacts.find(c => c.id === id)?.name ?? '—';
+const bulkCreateTransactions = useMutation({
+  mutationFn: async (transactions: TransactionInsert[]) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
+    const { data: profile } = await supabase
+      .from('profiles').select('company_id').eq('user_id', user.id).single();
+    if (!profile) throw new Error('Perfil não encontrado');
+
+    const withCompany = transactions.map(t => ({
+      ...t, company_id: profile.company_id
+    }));
+
+    // Insert in batches of 500
+    const BATCH_SIZE = 500;
+    let totalInserted = 0;
+    for (let i = 0; i < withCompany.length; i += BATCH_SIZE) {
+      const batch = withCompany.slice(i, i + BATCH_SIZE);
+      const { error } = await supabase.from('transactions').insert(batch);
+      if (error) throw error;
+      totalInserted += batch.length;
+    }
+
+    // Single audit log
+    await createGlobalLog({
+      action: 'IMPORTACAO',
+      module: 'FINANCEIRO',
+      entityId: null,
+      entityName: 'Importação em Massa',
+      details: `${totalInserted} transações importadas via planilha`,
+    });
+
+    return totalInserted;
+  },
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['transactions'] });
+    queryClient.invalidateQueries({ queryKey: ['banks'] });
+    queryClient.invalidateQueries({ queryKey: ['contacts'] });
+    queryClient.invalidateQueries({ queryKey: ['global-logs'] });
+    toast({ title: 'Importação concluída!' });
+  },
+});
 ```
 
-### Formatacao na tabela
+### Transactions.tsx — onImport simplificado
 
 ```typescript
-// Data: format(parseISO(row.date), 'dd/MM/yyyy')
-// Valor: row.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-// Tipo: Badge verde "Receita" ou vermelho "Despesa"
-// Status: Badge "Pago" ou "Pendente"
+onImport={async (txns) => {
+  await bulkCreateTransactions.mutateAsync(txns);
+}}
 ```
 
-### Handler de confirmacao
+### ImportSpreadsheetDialog — campo date corrigido
 
 ```typescript
-const handleConfirmImport = async () => {
-  setIsProcessing(true);
-  try {
-    await onImport(parsedData);
-    toast({ title: `${parsedData.length} lançamento(s) importado(s) com sucesso!` });
-    handleClose(false);
-  } catch (err) {
-    toast({ title: 'Erro ao importar.', variant: 'destructive' });
-  } finally {
-    setIsProcessing(false);
-  }
-};
+// Garantir date válido: priorizar Data Pagamento, fallback para Vencimento, Emissão
+date: paymentDateStr || dueDateStr || issueDateStr || new Date().toISOString().split('T')[0],
 ```
+
+## Resultado Esperado
+
+- 2608 transações inseridas em ~6 requests (500+500+500+500+500+108) em vez de ~13.000
+- Saldo bancário recalculado corretamente pelo trigger (menos disparos por batch)
+- Dashboard, Lançamentos, Pagar/Receber, Bancos e Eventos Contábeis atualizados e sincronizados
+- Todas as datas (Emissão, Vencimento, Prevista, Pagamento) preservadas da planilha
 
