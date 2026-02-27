@@ -23,6 +23,7 @@ import {
   CalendarCheck,
   ChevronDown,
   ChevronUp,
+  ArrowUpDown,
   Building2,
   CheckCircle2 } from
 'lucide-react';
@@ -177,6 +178,9 @@ export default function Transactions() {
     result.sort((a, b) => {
       const dateA = a[sortField] || '';
       const dateB = b[sortField] || '';
+      if (!dateA && !dateB) return 0;
+      if (!dateA) return 1;
+      if (!dateB) return -1;
       const cmp = dateA.localeCompare(dateB);
       return sortOrder === 'asc' ? cmp : -cmp;
     });
@@ -697,17 +701,17 @@ export default function Transactions() {
                       <Checkbox checked={selectedIds.size === filteredTransactions.length && filteredTransactions.length > 0} onCheckedChange={toggleSelectAll} />
                     </div>
                     <button onClick={() => handleSort('issue_date')} className="inline-flex items-center gap-0.5 hover:text-foreground transition-colors">
-                      Emissão {sortField === 'issue_date' && (sortOrder === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
+                      Emissão {sortField === 'issue_date' ? (sortOrder === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-40" />}
                     </button>
                     <div>Cliente / Evento</div>
                     <button onClick={() => handleSort('due_date')} className="inline-flex items-center justify-center gap-0.5 hover:text-foreground transition-colors">
-                      Vencimento {sortField === 'due_date' && (sortOrder === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
+                      Vencimento {sortField === 'due_date' ? (sortOrder === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-40" />}
                     </button>
                     <button onClick={() => handleSort('expected_date')} className="inline-flex items-center justify-center gap-0.5 hover:text-foreground transition-colors">
-                      Prevista {sortField === 'expected_date' && (sortOrder === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
+                      Prevista {sortField === 'expected_date' ? (sortOrder === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-40" />}
                     </button>
                     <button onClick={() => handleSort('date')} className="inline-flex items-center justify-center gap-0.5 hover:text-foreground transition-colors">
-                      Pagamento {sortField === 'date' && (sortOrder === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
+                      Pagamento {sortField === 'date' ? (sortOrder === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-40" />}
                     </button>
                     <div className="text-center">Status</div>
                     <div className="text-right">Valor</div>
@@ -717,7 +721,7 @@ export default function Transactions() {
                     {filteredTransactions.map((transaction) => {
                       const isOverdue = !transaction.is_paid && transaction.due_date && transaction.due_date < new Date().toISOString().split('T')[0];
                       return (
-                      <div key={transaction.id} className={`grid grid-cols-[40px_80px_1fr_90px_90px_90px_80px_120px_80px] gap-2 px-4 py-3 hover:bg-muted/30 transition-colors items-center ${selectedIds.has(transaction.id) ? 'bg-primary/5' : ''}`}>
+                      <div key={transaction.id} className={`grid grid-cols-[40px_80px_1fr_90px_90px_90px_80px_120px_80px] gap-2 px-4 py-3 hover:bg-muted/30 transition-colors items-center ${selectedIds.has(transaction.id) ? 'bg-primary/10 border-l-2 border-l-primary' : ''}`}>
                         <div className="flex items-center justify-center">
                           <Checkbox checked={selectedIds.has(transaction.id)} onCheckedChange={() => toggleSelect(transaction.id)} />
                         </div>
