@@ -12,7 +12,7 @@ export interface Transaction {
   description: string;
   amount: number;
   type: 'receita' | 'despesa';
-  date: string;
+  date: string | null;
   issue_date: string | null;
   due_date: string | null;
   expected_date: string | null;
