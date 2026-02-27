@@ -24,12 +24,13 @@ interface ImportSpreadsheetDialogProps {
 }
 
 const TEMPLATE_HEADERS = [
-  'Data Prevista',
+  'Data Emissão',
   'Cliente/Fornecedor',
   'Tipo (Receita ou Despesa)',
   'Valor',
   'Status (Pendente ou Pago)',
   'Data Vencimento',
+  'Data Prevista',
   'Data Pagamento',
   'Conta Bancária',
   'Evento Contábil',
