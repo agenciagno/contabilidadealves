@@ -28,7 +28,8 @@ export function HeaderCalendar() {
     const dates: { [key: string]: { receitas: number; despesas: number } } = {};
     
     transactions.forEach((t) => {
-      const dateKey = t.date;
+      const dateKey = t.date || t.due_date || t.issue_date;
+      if (!dateKey) return;
       if (!dates[dateKey]) {
         dates[dateKey] = { receitas: 0, despesas: 0 };
       }
