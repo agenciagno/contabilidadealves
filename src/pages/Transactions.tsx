@@ -76,7 +76,7 @@ function formatDateShort(dateStr: string | null | undefined) {
   return format(new Date(dateStr + 'T12:00:00'), 'dd/MM/yy');
 }
 
-type SortField = 'date';
+type SortField = 'issue_date' | 'due_date' | 'expected_date' | 'date';
 type SortOrder = 'asc' | 'desc';
 
 export default function Transactions() {
@@ -93,7 +93,7 @@ export default function Transactions() {
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Sort states
-  const [sortField, setSortField] = useState<SortField>('date');
+  const [sortField, setSortField] = useState<SortField>('due_date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
   // View states
@@ -118,6 +118,7 @@ export default function Transactions() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
   const [defaultType, setDefaultType] = useState<'receita' | 'despesa'>('despesa');
   const [importOpen, setImportOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -166,12 +167,16 @@ export default function Transactions() {
     if (paymentStatusFilter === 'pending') result = result.filter((t) => !t.is_paid);
     if (searchTerm) {
       const s = searchTerm.toLowerCase();
-      result = result.filter((t) => t.description.toLowerCase().includes(s));
+      result = result.filter((t) =>
+        t.description.toLowerCase().includes(s) ||
+        (t.contact?.name && t.contact.name.toLowerCase().includes(s)) ||
+        (t.notes && t.notes.toLowerCase().includes(s))
+      );
     }
 
     result.sort((a, b) => {
-      const dateA = a.due_date || a.date || a.issue_date || '';
-      const dateB = b.due_date || b.date || b.issue_date || '';
+      const dateA = a[sortField] || '';
+      const dateB = b[sortField] || '';
       const cmp = dateA.localeCompare(dateB);
       return sortOrder === 'asc' ? cmp : -cmp;
     });
@@ -363,6 +368,16 @@ export default function Transactions() {
       onSuccess: () => setSelectedIds(new Set()),
     });
   };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    for (const id of selectedIds) {
+      await deleteTransaction.mutateAsync(id);
+    }
+    setSelectedIds(new Set());
+    setBulkDeleteConfirm(false);
+  };
+
   const totals = { receitas: kpiTotals.receitasPagas + kpiTotals.receitasPendentes, despesas: kpiTotals.despesasPagas + kpiTotals.despesasPendentes };
 
   if (isLoading) {
@@ -612,15 +627,17 @@ export default function Transactions() {
 
             {/* Sort Options + Bulk Actions */}
             <div className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">Ordenar por:</span>
-              <Button variant={sortField === 'date' ? 'secondary' : 'ghost'} size="sm" onClick={() => handleSort('date')} className="gap-1">
-                Data {sortField === 'date' && (sortOrder === 'asc' ? '↑' : '↓')}
-              </Button>
               {selectedIds.size > 0 && (
-                <Button size="sm" className="gap-2 ml-4 bg-emerald-500 hover:bg-emerald-600 text-white" onClick={handleBulkPay} disabled={bulkTogglePaid.isPending}>
-                  <CheckCircle2 className="w-4 h-4" />
-                  Pagar {selectedIds.size} selecionado(s)
-                </Button>
+                <>
+                  <Button size="sm" className="gap-2 bg-emerald-500 hover:bg-emerald-600 text-white" onClick={handleBulkPay} disabled={bulkTogglePaid.isPending}>
+                    <CheckCircle2 className="w-4 h-4" />
+                    Pagar {selectedIds.size} selecionado(s)
+                  </Button>
+                  <Button size="sm" variant="destructive" className="gap-2" onClick={() => setBulkDeleteConfirm(true)}>
+                    <Trash2 className="w-4 h-4" />
+                    Excluir {selectedIds.size} selecionado(s)
+                  </Button>
+                </>
               )}
               <span className="text-muted-foreground text-xs ml-auto">{filteredTransactions.length} transação(ões)</span>
             </div>
@@ -675,14 +692,23 @@ export default function Transactions() {
         <Card className="bg-card border-border/50 overflow-hidden">
                 <CardContent className="p-0">
                   {/* Table Header */}
-                  <div className="grid grid-cols-[40px_1fr_90px_90px_90px_80px_120px_80px] gap-2 px-4 py-2.5 bg-muted/40 border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  <div className="grid grid-cols-[40px_80px_1fr_90px_90px_90px_80px_120px_80px] gap-2 px-4 py-2.5 bg-muted/40 border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 z-10">
                     <div className="flex items-center justify-center">
                       <Checkbox checked={selectedIds.size === filteredTransactions.length && filteredTransactions.length > 0} onCheckedChange={toggleSelectAll} />
                     </div>
+                    <button onClick={() => handleSort('issue_date')} className="inline-flex items-center gap-0.5 hover:text-foreground transition-colors">
+                      Emissão {sortField === 'issue_date' && (sortOrder === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
+                    </button>
                     <div>Cliente / Evento</div>
-                    <div className="text-center">Vencimento</div>
-                    <div className="text-center">Prevista</div>
-                    <div className="text-center">Pagamento</div>
+                    <button onClick={() => handleSort('due_date')} className="inline-flex items-center justify-center gap-0.5 hover:text-foreground transition-colors">
+                      Vencimento {sortField === 'due_date' && (sortOrder === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
+                    </button>
+                    <button onClick={() => handleSort('expected_date')} className="inline-flex items-center justify-center gap-0.5 hover:text-foreground transition-colors">
+                      Prevista {sortField === 'expected_date' && (sortOrder === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
+                    </button>
+                    <button onClick={() => handleSort('date')} className="inline-flex items-center justify-center gap-0.5 hover:text-foreground transition-colors">
+                      Pagamento {sortField === 'date' && (sortOrder === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
+                    </button>
                     <div className="text-center">Status</div>
                     <div className="text-right">Valor</div>
                     <div className="text-center">Ações</div>
@@ -691,10 +717,11 @@ export default function Transactions() {
                     {filteredTransactions.map((transaction) => {
                       const isOverdue = !transaction.is_paid && transaction.due_date && transaction.due_date < new Date().toISOString().split('T')[0];
                       return (
-                      <div key={transaction.id} className={`grid grid-cols-[40px_1fr_90px_90px_90px_80px_120px_80px] gap-2 px-4 py-3 hover:bg-muted/30 transition-colors items-center ${selectedIds.has(transaction.id) ? 'bg-primary/5' : ''}`}>
+                      <div key={transaction.id} className={`grid grid-cols-[40px_80px_1fr_90px_90px_90px_80px_120px_80px] gap-2 px-4 py-3 hover:bg-muted/30 transition-colors items-center ${selectedIds.has(transaction.id) ? 'bg-primary/5' : ''}`}>
                         <div className="flex items-center justify-center">
                           <Checkbox checked={selectedIds.has(transaction.id)} onCheckedChange={() => toggleSelect(transaction.id)} />
                         </div>
+                        <div className="text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.issue_date)}</div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="truncate text-sm font-semibold text-foreground">{transaction.contact?.name ?? transaction.description}</span>
@@ -762,6 +789,23 @@ export default function Transactions() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkDeleteConfirm} onOpenChange={setBulkDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir {selectedIds.size} transação(ões)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Todas as transações selecionadas serão removidas permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Excluir {selectedIds.size}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
