@@ -76,7 +76,7 @@ function formatDateShort(dateStr: string | null | undefined) {
   return format(new Date(dateStr + 'T12:00:00'), 'dd/MM/yy');
 }
 
-type SortField = 'date';
+type SortField = 'issue_date' | 'due_date' | 'expected_date' | 'date';
 type SortOrder = 'asc' | 'desc';
 
 export default function Transactions() {
@@ -93,7 +93,7 @@ export default function Transactions() {
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Sort states
-  const [sortField, setSortField] = useState<SortField>('date');
+  const [sortField, setSortField] = useState<SortField>('due_date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
   // View states
@@ -166,12 +166,16 @@ export default function Transactions() {
     if (paymentStatusFilter === 'pending') result = result.filter((t) => !t.is_paid);
     if (searchTerm) {
       const s = searchTerm.toLowerCase();
-      result = result.filter((t) => t.description.toLowerCase().includes(s));
+      result = result.filter((t) =>
+        t.description.toLowerCase().includes(s) ||
+        (t.contact?.name && t.contact.name.toLowerCase().includes(s)) ||
+        (t.notes && t.notes.toLowerCase().includes(s))
+      );
     }
 
     result.sort((a, b) => {
-      const dateA = a.due_date || a.date || a.issue_date || '';
-      const dateB = b.due_date || b.date || b.issue_date || '';
+      const dateA = a[sortField] || '';
+      const dateB = b[sortField] || '';
       const cmp = dateA.localeCompare(dateB);
       return sortOrder === 'asc' ? cmp : -cmp;
     });
