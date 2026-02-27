@@ -21,6 +21,7 @@ interface ImportSpreadsheetDialogProps {
   categories: Category[];
   contacts: Contact[];
   onImport: (transactions: TransactionInsert[]) => Promise<void>;
+  onCreateCategory?: (name: string) => Promise<{ id: string }>;
 }
 
 const TEMPLATE_HEADERS = [
@@ -81,16 +82,24 @@ function formatDateDisplay(dateStr: string | null | undefined): string {
   }
 }
 
-export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories, contacts, onImport }: ImportSpreadsheetDialogProps) {
+export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories, contacts, onImport, onCreateCategory }: ImportSpreadsheetDialogProps) {
   const [step, setStep] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [parsedData, setParsedData] = useState<TransactionInsert[]>([]);
+  const [createdCategories, setCreatedCategories] = useState<Map<string, string>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const bankName = (id: string | null | undefined) => banks.find(b => b.id === id)?.name ?? '—';
-  const categoryName = (id: string | null | undefined) => categories.find(c => c.id === id)?.name ?? '—';
+  const categoryName = (id: string | null | undefined) => {
+    const found = categories.find(c => c.id === id);
+    if (found) return found.name;
+    for (const [name, cId] of createdCategories) {
+      if (cId === id) return name;
+    }
+    return '—';
+  };
   const contactName = (id: string | null | undefined) => contacts.find(c => c.id === id)?.name ?? '—';
 
   const resetState = () => {
@@ -98,6 +107,7 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
     setIsProcessing(false);
     setIsDragging(false);
     setParsedData([]);
+    setCreatedCategories(new Map());
   };
 
   const handleClose = (val: boolean) => {
@@ -140,6 +150,39 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
 
       const transactions: TransactionInsert[] = [];
 
+      // Collect unique category names and auto-create missing ones
+      const newCatsMap = new Map<string, string>();
+      if (onCreateCategory) {
+        const uniqueCatNames = new Set<string>();
+        for (const row of rows) {
+          const key = Object.keys(row).find((k) => k.trim().toLowerCase() === 'evento contábil');
+          const val = key ? row[key] : undefined;
+          if (val && typeof val === 'string' && val.trim()) {
+            const lower = val.trim().toLowerCase();
+            if (!categories.find((c) => c.name.toLowerCase() === lower)) {
+              uniqueCatNames.add(val.trim());
+            }
+          }
+        }
+        for (const name of uniqueCatNames) {
+          try {
+            const created = await onCreateCategory(name);
+            newCatsMap.set(name.toLowerCase(), created.id);
+          } catch (err) {
+            console.error(`Failed to create category "${name}":`, err);
+          }
+        }
+        setCreatedCategories(newCatsMap);
+      }
+
+      const findCategoryId = (name: unknown): string | null => {
+        if (!name || typeof name !== 'string') return null;
+        const lower = name.trim().toLowerCase();
+        const existing = categories.find((c) => c.name.toLowerCase() === lower);
+        if (existing) return existing.id;
+        return newCatsMap.get(lower) ?? null;
+      };
+
       for (const row of rows) {
         const get = (header: string) => {
           const key = Object.keys(row).find((k) => k.trim().toLowerCase() === header.toLowerCase());
@@ -171,7 +214,7 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
           description,
           due_date: dueDateStr || null,
           bank_id: findByName(banks, get('Conta Bancária')),
-          category_id: findByName(categories, get('Evento Contábil')),
+          category_id: findCategoryId(get('Evento Contábil')),
           contact_id: findByName(contacts, get('Cliente/Fornecedor')),
           notes: get('Histórico') ? String(get('Histórico')) : null,
         });
