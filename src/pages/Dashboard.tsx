@@ -130,7 +130,9 @@ export default function Dashboard() {
     const dateRange = getDateRange();
     if (dateRange) {
       result = result.filter((t) => {
-        const txDate = parseISO(t.date);
+        const d = t.date || t.due_date || t.issue_date;
+        if (!d) return false;
+        const txDate = parseISO(d);
         return isWithinInterval(txDate, { start: dateRange.start, end: dateRange.end });
       });
     }
@@ -229,7 +231,8 @@ export default function Dashboard() {
     let despesasPagasAno = 0;
 
     for (const t of allTransactions) {
-      if (t.date >= yearStartStr && t.date <= yearEndStr) {
+      const tDateStr = t.date || t.due_date || t.issue_date;
+      if (tDateStr && tDateStr >= yearStartStr && tDateStr <= yearEndStr) {
         const amount = Number(t.amount);
         if (t.type === 'receita') {
           receitasAno += amount;
@@ -266,7 +269,9 @@ export default function Dashboard() {
     }
 
     allTransactions.forEach(t => {
-      const tDate = parseISO(t.date);
+      const d = t.date || t.due_date || t.issue_date;
+      if (!d) return;
+      const tDate = parseISO(d);
       const monthKey = format(tDate, 'yyyy-MM');
       const monthData = months.find(m => m.key === monthKey);
       if (monthData) {
@@ -340,7 +345,7 @@ export default function Dashboard() {
     
     return allTransactions
       .filter(t => !t.is_paid)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .sort((a, b) => new Date(a.due_date || a.date || '9999-12-31').getTime() - new Date(b.due_date || b.date || '9999-12-31').getTime())
       .slice(0, 15);
   }, [allTransactions]);
 
@@ -713,7 +718,8 @@ export default function Dashboard() {
               <div className="space-y-2">
                 {pendingTransactions.map((transaction) => {
                   const isReceita = transaction.type === 'receita';
-                  const txDate = new Date(transaction.date + 'T12:00:00');
+                  const txDateStr = transaction.due_date || transaction.date || transaction.issue_date;
+                  const txDate = txDateStr ? new Date(txDateStr + 'T12:00:00') : new Date();
                   const today = new Date();
                   today.setHours(0, 0, 0, 0);
                   const isOverdue = isBefore(txDate, today);
