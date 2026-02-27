@@ -1,39 +1,82 @@
 
 
-# Limpeza do Banco de Dados
+# Plano: Correções de Importação, Layout de Cards e Seleção em Massa
 
-## Dados Atuais
-| Tabela | Registros |
-|---|---|
-| transactions | 2.851 |
-| contacts | 223 |
-| banks | 2 |
-| categories | 52 |
-| recurring_transactions | 0 |
-| boleto_controls | 45 |
-| contact_logs | 7 |
-| contact_documents | 4 |
-| global_logs | 512 |
+## Problemas Identificados
 
-## Plano de Execução
+### 1. Datas erradas (emissão e vencimento off by 1 day)
+A função `excelDateToString` converte serial Excel para `Date` em UTC, mas `format()` do date-fns usa timezone local (UTC-3 Brasil). Resultado: todas as datas ficam 1 dia antes. Correção: ajustar para meia-noite local.
 
-Executar DELETEs na ordem correta (tabelas dependentes primeiro, depois as principais) via migration:
+### 2. Data de pagamento preenchida indevidamente
+Linha 296: `date: paymentDateStr || new Date().toISOString().split('T')[0]` preenche a data de pagamento com "hoje" se vazia na planilha. A coluna `date` é NOT NULL no banco. Precisamos torná-la nullable via migration e omitir o campo quando vazio.
 
-1. `DELETE FROM transaction_attachments` (anexos de transações)
-2. `DELETE FROM contact_logs` (logs de contatos)
-3. `DELETE FROM contact_notes` (notas de contatos)
-4. `DELETE FROM contact_partners` (sócios de contatos)
-5. `DELETE FROM contact_documents` (documentos de contatos)
-6. `DELETE FROM contact_messages` (mensagens de contatos)
-7. `DELETE FROM boleto_controls` (controle de boletos)
-8. `DELETE FROM global_logs` (logs globais)
-9. `DELETE FROM transactions` (lançamentos — isso também zera saldos via trigger)
-10. `DELETE FROM recurring_transactions` (contas recorrentes)
-11. `DELETE FROM contacts` (clientes/fornecedores)
-12. `DELETE FROM categories` (categorias/eventos contábeis)
-13. `UPDATE banks SET current_balance = initial_balance` (resetar saldos bancários)
+### 3. Contatos duplicados (10 vs 12)
+Possível problema de whitespace/encoding (espaços extras, non-breaking spaces). Normalizar o nome do contato removendo espaços múltiplos antes da comparação.
 
-**Nota:** Os bancos serão mantidos com saldo resetado (initial_balance). Se desejar excluir os bancos também, será adicionado `DELETE FROM banks`.
+### 4. Layout do card de transação
+Reestruturar completamente a linha de transação na view "list".
 
-Após a limpeza, o sistema estará pronto para receber uma nova importação sem conflitos.
+### 5. Seleção em massa para pagar
+Adicionar checkboxes e botão "Marcar como Pago".
+
+## Alterações
+
+| # | Arquivo | Mudança |
+|---|---|---|
+| 1 | Migration SQL | Tornar coluna `date` nullable (DROP NOT NULL, manter DEFAULT) |
+| 2 | `ImportSpreadsheetDialog.tsx` | Fix `excelDateToString` timezone; omitir `date` quando vazio; normalizar nomes (trim + collapse espaços) |
+| 3 | `Transactions.tsx` | Redesenhar card list view com novo layout de colunas; adicionar seleção múltipla com checkboxes e botão "Pagar Selecionados" |
+| 4 | `useTransactions.ts` | Adicionar mutation `bulkTogglePaid` para marcar múltiplas transações como pagas |
+
+## Detalhes Técnicos
+
+### Migration
+```sql
+ALTER TABLE transactions ALTER COLUMN date DROP NOT NULL;
+```
+
+### Fix excelDateToString
+```typescript
+function excelDateToString(value: unknown): string | null {
+  if (typeof value === 'number') {
+    const utcDays = Math.floor(value - 25569);
+    const date = new Date(utcDays * 86400 * 1000);
+    // Use UTC to avoid timezone shift
+    const y = date.getUTCFullYear();
+    const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(date.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  // ... rest unchanged
+}
+```
+
+### Import: omitir date quando vazio
+```typescript
+const txn: TransactionInsert = {
+  // date omitido se paymentDateStr é null → DB usa DEFAULT ou NULL
+  ...(paymentDateStr ? { date: paymentDateStr } : {}),
+  issue_date: issueDateStr || null,
+  // ...
+};
+```
+
+### Normalização de nomes
+```typescript
+function normalizeName(name: string): string {
+  return name.trim().replace(/\s+/g, ' ');
+}
+```
+
+### Novo layout do card (list view)
+```
+| ☐ | Col1: Nome + Evento/Banco/Tipo | Vencimento | Prevista | Pagamento | Status | Valor | ✏️🗑️ |
+```
+
+### Seleção em massa
+- State `selectedIds: Set<string>` no componente
+- Checkbox "Selecionar todos" no header
+- Checkbox individual por linha
+- Barra de ação fixa quando há seleção: "Pagar X selecionados"
+- Mutation `bulkTogglePaid` faz UPDATE em batch
 
