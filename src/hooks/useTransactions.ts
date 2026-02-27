@@ -49,18 +49,27 @@ export function useTransactions() {
   const { data: transactions = [], isLoading, error } = useQuery({
     queryKey: ['transactions'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select(`
-          *,
-          category:categories(id, name, color),
-          bank:banks(id, name, color),
-          contact:contacts(id, name, type)
-        `)
-        .order('date', { ascending: false });
+      let allData: Transaction[] = [];
+      const PAGE_SIZE = 1000;
+      let from = 0;
+      while (true) {
+        const { data, error } = await supabase
+          .from('transactions')
+          .select(`
+            *,
+            category:categories(id, name, color),
+            bank:banks(id, name, color),
+            contact:contacts(id, name, type)
+          `)
+          .order('date', { ascending: false })
+          .range(from, from + PAGE_SIZE - 1);
 
-      if (error) throw error;
-      return data as Transaction[];
+        if (error) throw error;
+        allData = allData.concat(data as Transaction[]);
+        if (data.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
+      }
+      return allData;
     },
     staleTime: 1000 * 30, // 30 seconds - data is fresh
     gcTime: 1000 * 60 * 5, // 5 minutes - garbage collection
