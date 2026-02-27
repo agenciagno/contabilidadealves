@@ -692,14 +692,23 @@ export default function Transactions() {
         <Card className="bg-card border-border/50 overflow-hidden">
                 <CardContent className="p-0">
                   {/* Table Header */}
-                  <div className="grid grid-cols-[40px_1fr_90px_90px_90px_80px_120px_80px] gap-2 px-4 py-2.5 bg-muted/40 border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  <div className="grid grid-cols-[40px_80px_1fr_90px_90px_90px_80px_120px_80px] gap-2 px-4 py-2.5 bg-muted/40 border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 z-10">
                     <div className="flex items-center justify-center">
                       <Checkbox checked={selectedIds.size === filteredTransactions.length && filteredTransactions.length > 0} onCheckedChange={toggleSelectAll} />
                     </div>
+                    <button onClick={() => handleSort('issue_date')} className="inline-flex items-center gap-0.5 hover:text-foreground transition-colors">
+                      Emissão {sortField === 'issue_date' && (sortOrder === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
+                    </button>
                     <div>Cliente / Evento</div>
-                    <div className="text-center">Vencimento</div>
-                    <div className="text-center">Prevista</div>
-                    <div className="text-center">Pagamento</div>
+                    <button onClick={() => handleSort('due_date')} className="inline-flex items-center justify-center gap-0.5 hover:text-foreground transition-colors">
+                      Vencimento {sortField === 'due_date' && (sortOrder === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
+                    </button>
+                    <button onClick={() => handleSort('expected_date')} className="inline-flex items-center justify-center gap-0.5 hover:text-foreground transition-colors">
+                      Prevista {sortField === 'expected_date' && (sortOrder === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
+                    </button>
+                    <button onClick={() => handleSort('date')} className="inline-flex items-center justify-center gap-0.5 hover:text-foreground transition-colors">
+                      Pagamento {sortField === 'date' && (sortOrder === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
+                    </button>
                     <div className="text-center">Status</div>
                     <div className="text-right">Valor</div>
                     <div className="text-center">Ações</div>
@@ -708,10 +717,11 @@ export default function Transactions() {
                     {filteredTransactions.map((transaction) => {
                       const isOverdue = !transaction.is_paid && transaction.due_date && transaction.due_date < new Date().toISOString().split('T')[0];
                       return (
-                      <div key={transaction.id} className={`grid grid-cols-[40px_1fr_90px_90px_90px_80px_120px_80px] gap-2 px-4 py-3 hover:bg-muted/30 transition-colors items-center ${selectedIds.has(transaction.id) ? 'bg-primary/5' : ''}`}>
+                      <div key={transaction.id} className={`grid grid-cols-[40px_80px_1fr_90px_90px_90px_80px_120px_80px] gap-2 px-4 py-3 hover:bg-muted/30 transition-colors items-center ${selectedIds.has(transaction.id) ? 'bg-primary/5' : ''}`}>
                         <div className="flex items-center justify-center">
                           <Checkbox checked={selectedIds.has(transaction.id)} onCheckedChange={() => toggleSelect(transaction.id)} />
                         </div>
+                        <div className="text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.issue_date)}</div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="truncate text-sm font-semibold text-foreground">{transaction.contact?.name ?? transaction.description}</span>
