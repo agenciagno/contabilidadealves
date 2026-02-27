@@ -106,8 +106,8 @@ export default function Transactions() {
   } = useTransactions();
 
   const { categories, createCategory } = useCategories();
-  const { banks } = useBanks();
-  const { contacts } = useContacts();
+  const { banks, createBank } = useBanks();
+  const { contacts, createContact } = useContacts();
   const { uploadAttachment } = useTransactionAttachments();
 
   const [dialogOpen, setDialogOpen] = useState(false);
