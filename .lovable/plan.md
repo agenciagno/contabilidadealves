@@ -1,35 +1,93 @@
 
 
-# Correção no Fluxo de Importação de Planilha
+# Preview Intermediario na Importacao de Planilha
 
-## Problema Encontrado
+## Resumo
 
-O `useCallback` do `processFile` na linha 323 do `ImportSpreadsheetDialog.tsx` tem dependências incompletas:
+Adicionar um Step 3 (Preview) entre o upload e a confirmacao final. Apos o upload processar os dados, ao inves de importar diretamente, exibir uma tabela com os lancamentos lidos para o usuario revisar, com opcao de confirmar ou voltar.
+
+---
+
+## Arquivo Modificado
+
+| Arquivo | Mudanca |
+|---|---|
+| `src/components/transactions/ImportSpreadsheetDialog.tsx` | Adicionar step 3 com tabela de preview, separar parsing de importacao |
+
+---
+
+## Mudancas Detalhadas
+
+### 1. Novo estado para armazenar dados parseados
 
 ```typescript
-// Atual (linha 323):
-}, [banks, categories, contacts, toast]);
-
-// Faltam:
-}, [banks, categories, contacts, toast, onCreateCategory, onCreateContact, onCreateBank]);
+const [parsedData, setParsedData] = useState<TransactionInsert[]>([]);
 ```
 
-Isso causa um bug de **stale closure**: os callbacks `onCreateCategory`, `onCreateContact` e `onCreateBank` podem não ser chamados corretamente se mudarem entre renders.
+### 2. Alterar `processFile` para nao importar direto
 
-## Verificação Visual
+Em vez de chamar `onImport(transactions)` ao final do parsing, salvar em `setParsedData(transactions)` e avancar para `setStep(3)`.
 
-- Step 1 (Modelo): OK - template baixa corretamente com os 11 headers atualizados
-- Step 2 (Upload): OK - drag-and-drop e seleção de arquivo funcionam visualmente
-- Step 3 (Revisar): Não foi possível testar via automação (limitação do browser tool para upload de arquivos)
-- Navegação entre steps (Próximo/Voltar): OK
+### 3. Step indicator com 3 passos
 
-## Correção
+Adicionar terceiro circulo "Revisar" no indicador de progresso (Modelo -> Upload -> Revisar).
 
-| Arquivo | Mudança |
-|---|---|
-| `src/components/transactions/ImportSpreadsheetDialog.tsx` | Adicionar `onCreateCategory`, `onCreateContact`, `onCreateBank` ao array de dependências do `useCallback` na linha 323 |
+### 4. Step 3: Tabela de Preview
 
-## Recomendação
+- Dialog expandido para `sm:max-w-4xl` quando no step 3
+- Contador: "X lancamento(s) encontrado(s)"
+- Tabela com ScrollArea (max-height ~400px) contendo colunas:
+  - Data | Cliente | Tipo | Valor | Status | Vencimento | Banco | Categoria
+- Cada linha mostra dados legivel (data formatada dd/MM/yyyy, valor em R$, tipo como badge colorido Receita/Despesa, status como badge Pago/Pendente)
+- Lookup reverso de bank_id/category_id/contact_id para exibir nomes (ou "---" se nao vinculado)
+- Botoes: "Voltar" (ghost, volta ao step 2) e "Confirmar Importacao" (primary, chama onImport)
+- Ao confirmar: spinner de "Importando..." e fluxo existente de toast + fechar modal
 
-Após a correção, recomendo que você teste manualmente: baixe o modelo, preencha com dados incluindo nomes de Evento Contábil, Cliente/Fornecedor e Conta Bancária que **não existem** no sistema, faça o upload e confirme que foram criados automaticamente nas respectivas abas.
+### 5. Ajuste no resetState
+
+Incluir `setParsedData([])` no reset.
+
+### 6. DialogDescription dinâmica
+
+Step 3 exibe: "Revise os dados antes de confirmar"
+
+---
+
+## Secao Tecnica
+
+### Lookup reverso para exibicao
+
+Para mostrar nomes na tabela de preview ao inves de IDs:
+
+```typescript
+const bankName = (id: string | null) => banks.find(b => b.id === id)?.name ?? '—';
+const categoryName = (id: string | null) => categories.find(c => c.id === id)?.name ?? '—';
+const contactName = (id: string | null) => contacts.find(c => c.id === id)?.name ?? '—';
+```
+
+### Formatacao na tabela
+
+```typescript
+// Data: format(parseISO(row.date), 'dd/MM/yyyy')
+// Valor: row.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+// Tipo: Badge verde "Receita" ou vermelho "Despesa"
+// Status: Badge "Pago" ou "Pendente"
+```
+
+### Handler de confirmacao
+
+```typescript
+const handleConfirmImport = async () => {
+  setIsProcessing(true);
+  try {
+    await onImport(parsedData);
+    toast({ title: `${parsedData.length} lançamento(s) importado(s) com sucesso!` });
+    handleClose(false);
+  } catch (err) {
+    toast({ title: 'Erro ao importar.', variant: 'destructive' });
+  } finally {
+    setIsProcessing(false);
+  }
+};
+```
 
