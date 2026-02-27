@@ -22,6 +22,8 @@ interface ImportSpreadsheetDialogProps {
   contacts: Contact[];
   onImport: (transactions: TransactionInsert[]) => Promise<void>;
   onCreateCategory?: (name: string) => Promise<{ id: string }>;
+  onCreateContact?: (name: string) => Promise<{ id: string }>;
+  onCreateBank?: (name: string) => Promise<{ id: string }>;
 }
 
 const TEMPLATE_HEADERS = [
@@ -82,16 +84,25 @@ function formatDateDisplay(dateStr: string | null | undefined): string {
   }
 }
 
-export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories, contacts, onImport, onCreateCategory }: ImportSpreadsheetDialogProps) {
+export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories, contacts, onImport, onCreateCategory, onCreateContact, onCreateBank }: ImportSpreadsheetDialogProps) {
   const [step, setStep] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [parsedData, setParsedData] = useState<TransactionInsert[]>([]);
   const [createdCategories, setCreatedCategories] = useState<Map<string, string>>(new Map());
+  const [createdContacts, setCreatedContacts] = useState<Map<string, string>>(new Map());
+  const [createdBanks, setCreatedBanks] = useState<Map<string, string>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  const bankName = (id: string | null | undefined) => banks.find(b => b.id === id)?.name ?? '—';
+  const bankName = (id: string | null | undefined) => {
+    const found = banks.find(b => b.id === id);
+    if (found) return found.name;
+    for (const [name, bId] of createdBanks) {
+      if (bId === id) return name;
+    }
+    return '—';
+  };
   const categoryName = (id: string | null | undefined) => {
     const found = categories.find(c => c.id === id);
     if (found) return found.name;
@@ -100,7 +111,14 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
     }
     return '—';
   };
-  const contactName = (id: string | null | undefined) => contacts.find(c => c.id === id)?.name ?? '—';
+  const contactName = (id: string | null | undefined) => {
+    const found = contacts.find(c => c.id === id);
+    if (found) return found.name;
+    for (const [name, cId] of createdContacts) {
+      if (cId === id) return name;
+    }
+    return '—';
+  };
 
   const resetState = () => {
     setStep(1);
@@ -108,6 +126,8 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
     setIsDragging(false);
     setParsedData([]);
     setCreatedCategories(new Map());
+    setCreatedContacts(new Map());
+    setCreatedBanks(new Map());
   };
 
   const handleClose = (val: boolean) => {
@@ -175,12 +195,78 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
         setCreatedCategories(newCatsMap);
       }
 
+      // Auto-create missing contacts
+      const newContactsMap = new Map<string, string>();
+      if (onCreateContact) {
+        const uniqueContactNames = new Set<string>();
+        for (const row of rows) {
+          const key = Object.keys(row).find((k) => k.trim().toLowerCase() === 'cliente/fornecedor');
+          const val = key ? row[key] : undefined;
+          if (val && typeof val === 'string' && val.trim()) {
+            const lower = val.trim().toLowerCase();
+            if (!contacts.find((c) => c.name.toLowerCase() === lower)) {
+              uniqueContactNames.add(val.trim());
+            }
+          }
+        }
+        for (const name of uniqueContactNames) {
+          try {
+            const created = await onCreateContact(name);
+            newContactsMap.set(name.toLowerCase(), created.id);
+          } catch (err) {
+            console.error(`Failed to create contact "${name}":`, err);
+          }
+        }
+        setCreatedContacts(newContactsMap);
+      }
+
+      // Auto-create missing banks
+      const newBanksMap = new Map<string, string>();
+      if (onCreateBank) {
+        const uniqueBankNames = new Set<string>();
+        for (const row of rows) {
+          const key = Object.keys(row).find((k) => k.trim().toLowerCase() === 'conta bancária');
+          const val = key ? row[key] : undefined;
+          if (val && typeof val === 'string' && val.trim()) {
+            const lower = val.trim().toLowerCase();
+            if (!banks.find((b) => b.name.toLowerCase() === lower)) {
+              uniqueBankNames.add(val.trim());
+            }
+          }
+        }
+        for (const name of uniqueBankNames) {
+          try {
+            const created = await onCreateBank(name);
+            newBanksMap.set(name.toLowerCase(), created.id);
+          } catch (err) {
+            console.error(`Failed to create bank "${name}":`, err);
+          }
+        }
+        setCreatedBanks(newBanksMap);
+      }
+
       const findCategoryId = (name: unknown): string | null => {
         if (!name || typeof name !== 'string') return null;
         const lower = name.trim().toLowerCase();
         const existing = categories.find((c) => c.name.toLowerCase() === lower);
         if (existing) return existing.id;
         return newCatsMap.get(lower) ?? null;
+      };
+
+      const findContactId = (name: unknown): string | null => {
+        if (!name || typeof name !== 'string') return null;
+        const lower = name.trim().toLowerCase();
+        const existing = contacts.find((c) => c.name.toLowerCase() === lower);
+        if (existing) return existing.id;
+        return newContactsMap.get(lower) ?? null;
+      };
+
+      const findBankId = (name: unknown): string | null => {
+        if (!name || typeof name !== 'string') return null;
+        const lower = name.trim().toLowerCase();
+        const existing = banks.find((b) => b.name.toLowerCase() === lower);
+        if (existing) return existing.id;
+        return newBanksMap.get(lower) ?? null;
       };
 
       for (const row of rows) {
@@ -213,9 +299,9 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
           is_paid: isPaid,
           description,
           due_date: dueDateStr || null,
-          bank_id: findByName(banks, get('Conta Bancária')),
+          bank_id: findBankId(get('Conta Bancária')),
           category_id: findCategoryId(get('Evento Contábil')),
-          contact_id: findByName(contacts, get('Cliente/Fornecedor')),
+          contact_id: findContactId(get('Cliente/Fornecedor')),
           notes: get('Histórico') ? String(get('Histórico')) : null,
         });
       }
