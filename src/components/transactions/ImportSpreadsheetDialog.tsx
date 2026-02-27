@@ -293,8 +293,8 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
         const description = String(eventoContabil ?? historico ?? get('Cliente/Fornecedor') ?? 'Importado via planilha');
 
         transactions.push({
-          date: paymentDateStr || dueDateStr || issueDateStr || new Date().toISOString().split('T')[0],
-          issue_date: issueDateStr || new Date().toISOString().split('T')[0],
+          date: paymentDateStr || new Date().toISOString().split('T')[0],
+          issue_date: issueDateStr || null,
           expected_date: expectedDateStr || null,
           amount: Math.abs(amount),
           type,

@@ -55,7 +55,7 @@ function getStatus(isPaid: boolean, dueDate: string | null): 'pago' | 'pendente'
 }
 
 export function CashFlowTab({ transactions, banks, categories, contacts, togglePaid }: CashFlowTabProps) {
-  const [period, setPeriod] = useState<PeriodFilter>('thisMonth');
+  const [period, setPeriod] = useState<PeriodFilter>('thisYear');
   const [customStartDate, setCustomStartDate] = useState<Date | null>(null);
   const [customEndDate, setCustomEndDate] = useState<Date | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -217,7 +217,7 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
             onContactChange={setContactFilter}
             contacts={contacts}
             onClearFilters={() => {
-              setPeriod('thisMonth');
+              setPeriod('thisYear');
               setCustomStartDate(null);
               setCustomEndDate(null);
               setBankFilter('all');
@@ -250,16 +250,15 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
           </CardContent>
         </Card>
 
-        {/* Entradas (A Receber) */}
+        {/* Entradas */}
         <Card className="bg-card border-border/50 border-l-2 border-l-emerald-500">
           <CardContent className="p-4">
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Entradas</p>
                 <p className="text-2xl font-extrabold text-emerald-500">
-                  {formatCurrency(kpis.receitasPendentes)}
+                  {formatCurrency(kpis.receitasPendentes + kpis.receitasPagas)}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">Recebido: {formatCurrency(kpis.receitasPagas)}</p>
               </div>
               <div className="w-9 h-9 rounded-full bg-emerald-500/10 flex items-center justify-center">
                 <TrendingUp className="w-4 h-4 text-emerald-500" />
@@ -268,16 +267,15 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
           </CardContent>
         </Card>
 
-        {/* Saídas (A Pagar) */}
+        {/* Saídas */}
         <Card className="bg-card border-border/50 border-l-2 border-l-red-500">
           <CardContent className="p-4">
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Saídas</p>
                 <p className="text-2xl font-extrabold text-red-500">
-                  {formatCurrency(kpis.despesasPendentes)}
+                  {formatCurrency(kpis.despesasPendentes + kpis.despesasPagas)}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">Pago: {formatCurrency(kpis.despesasPagas)}</p>
               </div>
               <div className="w-9 h-9 rounded-full bg-red-500/10 flex items-center justify-center">
                 <TrendingDown className="w-4 h-4 text-red-500" />

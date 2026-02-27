@@ -1,84 +1,93 @@
 
 
-# Plano de Correção: Importação, Filtros e KPIs
+# Preview Intermediario na Importacao de Planilha
 
-## Problemas Identificados
+## Resumo
 
-### 1. Limite de 1000 registros na query do Supabase
-A query em `useTransactions.ts` (linha 52-60) usa `supabase.from('transactions').select(...)` sem paginação. O Supabase retorna no máximo **1000 linhas por padrão**. Com 2608 lançamentos, apenas ~999 são carregados. Este é o problema raiz que afeta todas as abas.
+Adicionar um Step 3 (Preview) entre o upload e a confirmacao final. Apos o upload processar os dados, ao inves de importar diretamente, exibir uma tabela com os lancamentos lidos para o usuario revisar, com opcao de confirmar ou voltar.
 
-### 2. Filtro padrão "Este Mês" em Lançamentos e Pagar/Receber
-Ambas as páginas inicializam `period` como `'thisMonth'`, mas o pedido é que o padrão seja o **ano vigente**.
+---
 
-### 3. Campo `date` preenchido mesmo quando Data Pagamento está vazia
-Na importação, `date: paymentDateStr || dueDateStr || issueDateStr || today` — isso preenche `date` com fallback, mas o campo `date` representa "Data Pagamento". Se está vazio na planilha, deveria ficar como a data atual do banco (DEFAULT CURRENT_DATE) apenas se necessário, mas não deveria usar `dueDateStr` como fallback para `date`.
+## Arquivo Modificado
 
-### 4. Cards "Entradas" e "Saídas" no Pagar/Receber mostram "Recebido"/"Pago"
-Pedido: mostrar somatório total (pendentes + pagas) e remover rodapé "Recebido"/"Pago".
+| Arquivo | Mudanca |
+|---|---|
+| `src/components/transactions/ImportSpreadsheetDialog.tsx` | Adicionar step 3 com tabela de preview, separar parsing de importacao |
 
-## Correções
+---
 
-| # | Arquivo | Mudança |
-|---|---|---|
-| 1 | `src/hooks/useTransactions.ts` | Paginar query para buscar TODOS os registros (loop com `.range()` em lotes de 1000) |
-| 2 | `src/pages/Transactions.tsx` | Mudar `period` padrão de `'thisMonth'` para `'thisYear'` |
-| 3 | `src/components/transactions/CashFlowTab.tsx` | Mudar `period` padrão para `'thisYear'`; Cards Entradas/Saídas: exibir total (pendentes+pagas), remover rodapé |
-| 4 | `src/components/transactions/ImportSpreadsheetDialog.tsx` | Corrigir `date`: não usar fallback de due_date/issue_date; manter `issue_date` como `null` se vazio na planilha (não forçar data atual); preservar campos vazios |
+## Mudancas Detalhadas
 
-## Detalhes Técnicos
-
-### 1. Paginação completa (useTransactions.ts)
+### 1. Novo estado para armazenar dados parseados
 
 ```typescript
-queryFn: async () => {
-  let allData: Transaction[] = [];
-  const PAGE_SIZE = 1000;
-  let from = 0;
-  while (true) {
-    const { data, error } = await supabase
-      .from('transactions')
-      .select(`*, category:categories(id, name, color), bank:banks(id, name, color), contact:contacts(id, name, type)`)
-      .order('date', { ascending: false })
-      .range(from, from + PAGE_SIZE - 1);
-    if (error) throw error;
-    allData = allData.concat(data as Transaction[]);
-    if (data.length < PAGE_SIZE) break;
-    from += PAGE_SIZE;
+const [parsedData, setParsedData] = useState<TransactionInsert[]>([]);
+```
+
+### 2. Alterar `processFile` para nao importar direto
+
+Em vez de chamar `onImport(transactions)` ao final do parsing, salvar em `setParsedData(transactions)` e avancar para `setStep(3)`.
+
+### 3. Step indicator com 3 passos
+
+Adicionar terceiro circulo "Revisar" no indicador de progresso (Modelo -> Upload -> Revisar).
+
+### 4. Step 3: Tabela de Preview
+
+- Dialog expandido para `sm:max-w-4xl` quando no step 3
+- Contador: "X lancamento(s) encontrado(s)"
+- Tabela com ScrollArea (max-height ~400px) contendo colunas:
+  - Data | Cliente | Tipo | Valor | Status | Vencimento | Banco | Categoria
+- Cada linha mostra dados legivel (data formatada dd/MM/yyyy, valor em R$, tipo como badge colorido Receita/Despesa, status como badge Pago/Pendente)
+- Lookup reverso de bank_id/category_id/contact_id para exibir nomes (ou "---" se nao vinculado)
+- Botoes: "Voltar" (ghost, volta ao step 2) e "Confirmar Importacao" (primary, chama onImport)
+- Ao confirmar: spinner de "Importando..." e fluxo existente de toast + fechar modal
+
+### 5. Ajuste no resetState
+
+Incluir `setParsedData([])` no reset.
+
+### 6. DialogDescription dinâmica
+
+Step 3 exibe: "Revise os dados antes de confirmar"
+
+---
+
+## Secao Tecnica
+
+### Lookup reverso para exibicao
+
+Para mostrar nomes na tabela de preview ao inves de IDs:
+
+```typescript
+const bankName = (id: string | null) => banks.find(b => b.id === id)?.name ?? '—';
+const categoryName = (id: string | null) => categories.find(c => c.id === id)?.name ?? '—';
+const contactName = (id: string | null) => contacts.find(c => c.id === id)?.name ?? '—';
+```
+
+### Formatacao na tabela
+
+```typescript
+// Data: format(parseISO(row.date), 'dd/MM/yyyy')
+// Valor: row.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+// Tipo: Badge verde "Receita" ou vermelho "Despesa"
+// Status: Badge "Pago" ou "Pendente"
+```
+
+### Handler de confirmacao
+
+```typescript
+const handleConfirmImport = async () => {
+  setIsProcessing(true);
+  try {
+    await onImport(parsedData);
+    toast({ title: `${parsedData.length} lançamento(s) importado(s) com sucesso!` });
+    handleClose(false);
+  } catch (err) {
+    toast({ title: 'Erro ao importar.', variant: 'destructive' });
+  } finally {
+    setIsProcessing(false);
   }
-  return allData;
-}
+};
 ```
-
-### 2. Filtro padrão "thisYear"
-
-Em `Transactions.tsx` linha 81:
-```typescript
-const [period, setPeriod] = useState<PeriodFilter>('thisYear');
-```
-
-Em `CashFlowTab.tsx` linha 58:
-```typescript
-const [period, setPeriod] = useState<PeriodFilter>('thisYear');
-```
-
-Atualizar `handleClearFilters` e `onClearFilters` para resetar para `'thisYear'` em vez de `'thisMonth'`.
-
-### 3. ImportSpreadsheetDialog — campos vazios preservados
-
-```typescript
-// date (Data Pagamento): só preencher se existir na planilha
-date: paymentDateStr || new Date().toISOString().split('T')[0],
-// issue_date: manter null se vazio
-issue_date: issueDateStr || null,
-// expected_date: manter null se vazio
-expected_date: expectedDateStr || null,
-```
-
-O campo `date` no banco tem `DEFAULT CURRENT_DATE` e é NOT NULL, então precisa de um valor. Usar apenas `paymentDateStr` ou fallback para hoje.
-
-### 4. Cards Entradas/Saídas no CashFlowTab
-
-Card Entradas: exibir `kpis.receitasPendentes + kpis.receitasPagas` como valor principal (total de entradas). Remover linha "Recebido".
-
-Card Saídas: exibir `kpis.despesasPendentes + kpis.despesasPagas` como valor principal (total de saídas). Remover linha "Pago".
 

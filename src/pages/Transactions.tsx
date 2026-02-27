@@ -78,7 +78,7 @@ type SortOrder = 'asc' | 'desc';
 
 export default function Transactions() {
   // Filter states
-  const [period, setPeriod] = useState<PeriodFilter>('thisMonth');
+  const [period, setPeriod] = useState<PeriodFilter>('thisYear');
   const [typeFilter, setTypeFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [bankFilter, setBankFilter] = useState('all');
@@ -126,7 +126,7 @@ export default function Transactions() {
     if (contactFilter !== 'all') count++;
     if (paymentStatusFilter !== 'all') count++;
     if (searchTerm) count++;
-    if (period !== 'thisMonth') count++;
+    if (period !== 'thisYear') count++;
     return count;
   }, [typeFilter, categoryFilter, bankFilter, contactFilter, paymentStatusFilter, searchTerm, period]);
 
@@ -265,7 +265,7 @@ export default function Transactions() {
   }, [allTransactions, bankTotals]);
 
   const handleClearFilters = () => {
-    setPeriod('thisMonth');
+    setPeriod('thisYear');
     setTypeFilter('all');
     setCategoryFilter('all');
     setBankFilter('all');
