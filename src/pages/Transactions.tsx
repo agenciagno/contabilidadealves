@@ -151,7 +151,9 @@ export default function Transactions() {
     const dateRange = getDateRange(period);
     if (dateRange) {
       result = result.filter((t) => {
-        const transactionDate = parseISO(t.date);
+        const dateStr = t.due_date || t.date || t.issue_date;
+        if (!dateStr) return true;
+        const transactionDate = parseISO(dateStr);
         return isWithinInterval(transactionDate, { start: dateRange.start, end: dateRange.end });
       });
     }
@@ -168,7 +170,9 @@ export default function Transactions() {
     }
 
     result.sort((a, b) => {
-      const cmp = a.date.localeCompare(b.date);
+      const dateA = a.due_date || a.date || a.issue_date || '';
+      const dateB = b.due_date || b.date || b.issue_date || '';
+      const cmp = dateA.localeCompare(dateB);
       return sortOrder === 'asc' ? cmp : -cmp;
     });
 
