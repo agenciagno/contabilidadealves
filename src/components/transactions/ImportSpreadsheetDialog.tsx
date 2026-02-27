@@ -40,12 +40,19 @@ const TEMPLATE_HEADERS = [
   'Histórico',
 ];
 
+function normalizeName(name: string): string {
+  return name.trim().replace(/\s+/g, ' ');
+}
+
 function excelDateToString(value: unknown): string | null {
   if (value == null || value === '') return null;
   if (typeof value === 'number') {
     const utcDays = Math.floor(value - 25569);
     const date = new Date(utcDays * 86400 * 1000);
-    return format(date, 'yyyy-MM-dd');
+    const y = date.getUTCFullYear();
+    const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(date.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
   }
   if (typeof value === 'string') {
     try {
@@ -70,7 +77,7 @@ function parseAmount(value: unknown): number | null {
 
 function findByName<T extends { id: string; name: string }>(list: T[], name: unknown): string | null {
   if (!name || typeof name !== 'string') return null;
-  const lower = name.trim().toLowerCase();
+  const lower = normalizeName(name).toLowerCase();
   const found = list.find((item) => item.name.toLowerCase() === lower);
   return found?.id ?? null;
 }
@@ -178,9 +185,10 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
           const key = Object.keys(row).find((k) => k.trim().toLowerCase() === 'evento contábil');
           const val = key ? row[key] : undefined;
           if (val && typeof val === 'string' && val.trim()) {
-            const lower = val.trim().toLowerCase();
+            const normalized = normalizeName(String(val));
+            const lower = normalized.toLowerCase();
             if (!categories.find((c) => c.name.toLowerCase() === lower)) {
-              uniqueCatNames.add(val.trim());
+              uniqueCatNames.add(normalized);
             }
           }
         }
@@ -203,9 +211,10 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
           const key = Object.keys(row).find((k) => k.trim().toLowerCase() === 'cliente/fornecedor');
           const val = key ? row[key] : undefined;
           if (val && typeof val === 'string' && val.trim()) {
-            const lower = val.trim().toLowerCase();
+            const normalized = normalizeName(String(val));
+            const lower = normalized.toLowerCase();
             if (!contacts.find((c) => c.name.toLowerCase() === lower)) {
-              uniqueContactNames.add(val.trim());
+              uniqueContactNames.add(normalized);
             }
           }
         }
@@ -228,9 +237,10 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
           const key = Object.keys(row).find((k) => k.trim().toLowerCase() === 'conta bancária');
           const val = key ? row[key] : undefined;
           if (val && typeof val === 'string' && val.trim()) {
-            const lower = val.trim().toLowerCase();
+            const normalized = normalizeName(String(val));
+            const lower = normalized.toLowerCase();
             if (!banks.find((b) => b.name.toLowerCase() === lower)) {
-              uniqueBankNames.add(val.trim());
+              uniqueBankNames.add(normalized);
             }
           }
         }
@@ -293,7 +303,7 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
         const description = String(eventoContabil ?? historico ?? get('Cliente/Fornecedor') ?? 'Importado via planilha');
 
         transactions.push({
-          date: paymentDateStr || new Date().toISOString().split('T')[0],
+          ...(paymentDateStr ? { date: paymentDateStr } : {}),
           issue_date: issueDateStr || null,
           expected_date: expectedDateStr || null,
           amount: Math.abs(amount),
