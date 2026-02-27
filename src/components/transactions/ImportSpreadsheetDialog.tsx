@@ -348,7 +348,7 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
                     <TableBody>
                       {parsedData.map((row, idx) => (
                         <TableRow key={idx}>
-                          <TableCell className="whitespace-nowrap">{formatDateDisplay(row.date)}</TableCell>
+                          <TableCell className="whitespace-nowrap">{formatDateDisplay(row.issue_date)}</TableCell>
                           <TableCell>{contactName(row.contact_id)}</TableCell>
                           <TableCell>
                             <Badge className={row.type === 'receita' ? 'bg-emerald-500/15 text-emerald-700 border-emerald-200 hover:bg-emerald-500/20' : 'bg-red-500/15 text-red-700 border-red-200 hover:bg-red-500/20'}>
@@ -364,6 +364,8 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
                             </Badge>
                           </TableCell>
                           <TableCell className="whitespace-nowrap">{formatDateDisplay(row.due_date)}</TableCell>
+                          <TableCell className="whitespace-nowrap">{formatDateDisplay(row.expected_date)}</TableCell>
+                          <TableCell className="whitespace-nowrap">{formatDateDisplay(row.date)}</TableCell>
                           <TableCell>{bankName(row.bank_id)}</TableCell>
                           <TableCell>{categoryName(row.category_id)}</TableCell>
                         </TableRow>
