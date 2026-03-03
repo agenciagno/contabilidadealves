@@ -451,6 +451,13 @@ export default function Contacts() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="entrada-2026">
+          <NewClients2026Tab contacts={contacts} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
