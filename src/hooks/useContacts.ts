@@ -33,7 +33,7 @@ export interface Contact {
   updated_at: string;
 }
 
-export type ContactInsert = Omit<Contact, 'id' | 'company_id' | 'created_at' | 'updated_at'>;
+export type ContactInsert = Omit<Contact, 'id' | 'company_id' | 'created_at' | 'updated_at' | 'origin'> & { origin?: string };
 export type ContactUpdate = Partial<ContactInsert>;
 
 export function useContacts() {
