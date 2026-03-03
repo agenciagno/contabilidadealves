@@ -285,121 +285,120 @@ export default function Contacts() {
 
         <TabsContent value="clientes">
           <div className="space-y-6">
-      <div className="flex items-center justify-end gap-2">
-          <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as ViewMode)} className="border border-border/50 rounded-md p-0.5">
-            <ToggleGroupItem value="card" className="h-8 w-8 p-0" title="Visualização em cards">
-              <LayoutGrid className="h-4 w-4" />
-            </ToggleGroupItem>
-            <ToggleGroupItem value="list" className="h-8 w-8 p-0" title="Visualização em lista">
-              <List className="h-4 w-4" />
-            </ToggleGroupItem>
-          </ToggleGroup>
-          <Button className="gap-2" onClick={handleNew}>
-            <Plus className="w-4 h-4" />
-            Novo Cliente/Fornecedor
-          </Button>
-        </div>
-      </div>
+            <div className="flex items-center justify-end gap-2">
+              <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as ViewMode)} className="border border-border/50 rounded-md p-0.5">
+                <ToggleGroupItem value="card" className="h-8 w-8 p-0" title="Visualização em cards">
+                  <LayoutGrid className="h-4 w-4" />
+                </ToggleGroupItem>
+                <ToggleGroupItem value="list" className="h-8 w-8 p-0" title="Visualização em lista">
+                  <List className="h-4 w-4" />
+                </ToggleGroupItem>
+              </ToggleGroup>
+              <Button className="gap-2" onClick={handleNew}>
+                <Plus className="w-4 h-4" />
+                Novo Cliente/Fornecedor
+              </Button>
+            </div>
 
-      {/* Filters Bar */}
-      <div className="flex flex-wrap gap-3 items-center">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nome ou CNPJ..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="pl-9 h-9 bg-background/50 border-border/50"
-          />
-        </div>
-        <Select value={filterFinancialStatus} onValueChange={setFilterFinancialStatus}>
-          <SelectTrigger className="w-[140px] h-9 bg-background/50 border-border/50">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="adimplente">Adimplentes</SelectItem>
-            <SelectItem value="inadimplente">Inadimplentes</SelectItem>
-          </SelectContent>
-        </Select>
-        {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 gap-1.5 text-muted-foreground">
-            <X className="h-3.5 w-3.5" />
-            Limpar
-          </Button>
-        )}
-        <div className="h-5 w-px bg-border/50 hidden sm:block" />
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <Users className="h-3.5 w-3.5" />
-            <span className="font-medium text-foreground">{summaryStats.total}</span>
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            <span>{summaryStats.adimplentes}</span>
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-destructive" />
-            <span>{summaryStats.inadimplentes}</span>
-          </span>
-        </div>
-      </div>
-
-      {/* Card View */}
-      {viewMode === 'card' && (
-        <>
-          {activeContacts.length > 0 && (
-            <div className="space-y-3">
-              <h2 className="text-sm font-medium text-muted-foreground">Ativos ({activeContacts.length})</h2>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {activeContacts.map(contact => <ContactCard key={contact.id} contact={contact} />)}
+            {/* Filters Bar */}
+            <div className="flex flex-wrap gap-3 items-center">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por nome ou CNPJ..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className="pl-9 h-9 bg-background/50 border-border/50"
+                />
+              </div>
+              <Select value={filterFinancialStatus} onValueChange={setFilterFinancialStatus}>
+                <SelectTrigger className="w-[140px] h-9 bg-background/50 border-border/50">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="adimplente">Adimplentes</SelectItem>
+                  <SelectItem value="inadimplente">Inadimplentes</SelectItem>
+                </SelectContent>
+              </Select>
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 gap-1.5 text-muted-foreground">
+                  <X className="h-3.5 w-3.5" />
+                  Limpar
+                </Button>
+              )}
+              <div className="h-5 w-px bg-border/50 hidden sm:block" />
+              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <Users className="h-3.5 w-3.5" />
+                  <span className="font-medium text-foreground">{summaryStats.total}</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                  <span>{summaryStats.adimplentes}</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-destructive" />
+                  <span>{summaryStats.inadimplentes}</span>
+                </span>
               </div>
             </div>
-          )}
-          {inactiveContacts.length > 0 && (
-            <div className="space-y-3">
-              <h2 className="text-sm font-medium text-muted-foreground">Inativos ({inactiveContacts.length})</h2>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {inactiveContacts.map(contact => <ContactCard key={contact.id} contact={contact} />)}
-              </div>
-            </div>
-          )}
-        </>
-      )}
 
-      {/* List View */}
-      {viewMode === 'list' && filteredContacts.length > 0 && (
-        <Card className="bg-card border-border/50">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>CPF/CNPJ</TableHead>
-                <TableHead>Telefone</TableHead>
-                <TableHead>E-mail</TableHead>
-                <TableHead className="w-10">Status</TableHead>
-                <TableHead className="text-right w-32">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {activeContacts.length > 0 && (
-                <ContactTableSection contacts={activeContacts} label="Ativos" />
-              )}
-              {inactiveContacts.length > 0 && (
-                <ContactTableSection contacts={inactiveContacts} label="Inativos" />
-              )}
-            </TableBody>
-          </Table>
-        </Card>
-      )}
+            {/* Card View */}
+            {viewMode === 'card' && (
+              <>
+                {activeContacts.length > 0 && (
+                  <div className="space-y-3">
+                    <h2 className="text-sm font-medium text-muted-foreground">Ativos ({activeContacts.length})</h2>
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {activeContacts.map(contact => <ContactCard key={contact.id} contact={contact} />)}
+                    </div>
+                  </div>
+                )}
+                {inactiveContacts.length > 0 && (
+                  <div className="space-y-3">
+                    <h2 className="text-sm font-medium text-muted-foreground">Inativos ({inactiveContacts.length})</h2>
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {inactiveContacts.map(contact => <ContactCard key={contact.id} contact={contact} />)}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
 
-      {filteredContacts.length === 0 && (
-        <Card className="bg-card border-border/50">
-          <CardContent className="text-muted-foreground text-center py-16">
-            {hasActiveFilters ? 'Nenhum cliente/fornecedor encontrado com os filtros aplicados' : 'Nenhum cliente/fornecedor cadastrado ainda'}
-          </CardContent>
-        </Card>
-      )}
+            {/* List View */}
+            {viewMode === 'list' && filteredContacts.length > 0 && (
+              <Card className="bg-card border-border/50">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>CPF/CNPJ</TableHead>
+                      <TableHead>Telefone</TableHead>
+                      <TableHead>E-mail</TableHead>
+                      <TableHead className="w-10">Status</TableHead>
+                      <TableHead className="text-right w-32">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {activeContacts.length > 0 && (
+                      <ContactTableSection contacts={activeContacts} label="Ativos" />
+                    )}
+                    {inactiveContacts.length > 0 && (
+                      <ContactTableSection contacts={inactiveContacts} label="Inativos" />
+                    )}
+                  </TableBody>
+                </Table>
+              </Card>
+            )}
+
+            {filteredContacts.length === 0 && (
+              <Card className="bg-card border-border/50">
+                <CardContent className="text-muted-foreground text-center py-16">
+                  {hasActiveFilters ? 'Nenhum cliente/fornecedor encontrado com os filtros aplicados' : 'Nenhum cliente/fornecedor cadastrado ainda'}
+                </CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
 
