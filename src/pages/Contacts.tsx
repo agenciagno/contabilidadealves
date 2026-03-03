@@ -400,6 +400,13 @@ export default function Contacts() {
           </CardContent>
         </Card>
       )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="entrada-2026">
+          <NewClients2026Tab contacts={contacts} />
+        </TabsContent>
+      </Tabs>
 
       <ContactFormDialog open={dialogOpen} onOpenChange={setDialogOpen} contact={editingContact} onSubmit={handleSubmit} isLoading={createContact.isPending || updateContact.isPending} />
 
@@ -451,13 +458,6 @@ export default function Contacts() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="entrada-2026">
-          <NewClients2026Tab contacts={contacts} />
-        </TabsContent>
-      </Tabs>
     </div>
   );
 }
