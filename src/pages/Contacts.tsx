@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -14,6 +15,7 @@ import { useTransactions } from '@/hooks/useTransactions';
 import { useContactDependencies } from '@/hooks/useContactDependencies';
 import { ContactFormDialog } from '@/components/contacts/ContactFormDialog';
 import { useToast } from '@/hooks/use-toast';
+import { NewClients2026Tab } from '@/components/contacts/NewClients2026Tab';
 
 type ViewMode = 'card' | 'list';
 
