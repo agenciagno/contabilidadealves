@@ -1,0 +1,1 @@
+ALTER TABLE contacts ADD COLUMN origin text NOT NULL DEFAULT 'manual';

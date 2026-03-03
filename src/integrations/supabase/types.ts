@@ -424,6 +424,7 @@ export type Database = {
           name: string
           neighborhood: string | null
           notes: string | null
+          origin: string
           phone: string | null
           representative_legal: string | null
           state: string | null
@@ -449,6 +450,7 @@ export type Database = {
           name: string
           neighborhood?: string | null
           notes?: string | null
+          origin?: string
           phone?: string | null
           representative_legal?: string | null
           state?: string | null
@@ -474,6 +476,7 @@ export type Database = {
           name?: string
           neighborhood?: string | null
           notes?: string | null
+          origin?: string
           phone?: string | null
           representative_legal?: string | null
           state?: string | null
