@@ -275,7 +275,17 @@ export default function Contacts() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-foreground">Cliente/Fornecedor</h1>
-        <div className="flex items-center gap-2">
+      </div>
+
+      <Tabs defaultValue="clientes" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="clientes">Clientes</TabsTrigger>
+          <TabsTrigger value="entrada-2026">Entrada de Clientes 2026</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="clientes">
+          <div className="space-y-6">
+      <div className="flex items-center justify-end gap-2">
           <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as ViewMode)} className="border border-border/50 rounded-md p-0.5">
             <ToggleGroupItem value="card" className="h-8 w-8 p-0" title="Visualização em cards">
               <LayoutGrid className="h-4 w-4" />
