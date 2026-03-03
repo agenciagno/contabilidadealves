@@ -13,7 +13,7 @@ import Auth from "@/pages/Auth";
 import Home from "@/pages/Home";
 import Dashboard from "@/pages/Dashboard";
 import Transactions from "@/pages/Transactions";
-import RecurringBills from "@/pages/RecurringBills";
+
 import Contacts from "@/pages/Contacts";
 import ContactProfile from "@/pages/ContactProfile";
 import Banks from "@/pages/Banks";
@@ -43,7 +43,7 @@ const App = () => (
               <Route path="/painel-financeiro" element={<AppLayout><Dashboard /></AppLayout>} />
               <Route path="/movimentacoes" element={<AppLayout><Transactions /></AppLayout>} />
               <Route path="/financeiro/pagar-receber" element={<AppLayout><PagarReceber /></AppLayout>} />
-              <Route path="/recorrentes" element={<AppLayout><RecurringBills /></AppLayout>} />
+              
               <Route path="/contatos" element={<AppLayout><Contacts /></AppLayout>} />
               <Route path="/crm/cliente/:id" element={<AppLayout><ContactProfile /></AppLayout>} />
               <Route path="/bancos" element={<AppLayout><Banks /></AppLayout>} />

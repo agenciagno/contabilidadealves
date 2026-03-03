@@ -87,7 +87,7 @@ const menuModules: MenuModule[] = [
       { title: 'Dashboard', url: '/painel-financeiro', icon: LayoutDashboard, iconName: 'layout-dashboard' },
       { title: 'Lançamentos', url: '/movimentacoes', icon: ArrowLeftRight, iconName: 'arrow-left-right' },
       { title: 'Pagar/Receber', url: '/financeiro/pagar-receber', icon: ArrowUpDown, iconName: 'arrow-up-down' },
-      { title: 'Contas Recorrentes', url: '/recorrentes', icon: CalendarClock, iconName: 'calendar-clock' },
+      
       { title: 'Boletos', url: '/boletos', icon: FileCheck, iconName: 'file-check' },
       { title: 'Bancos', url: '/bancos', icon: Building2, iconName: 'building-2' },
       { title: 'Eventos Contábeis', url: '/categorias', icon: Tags, iconName: 'tags' },

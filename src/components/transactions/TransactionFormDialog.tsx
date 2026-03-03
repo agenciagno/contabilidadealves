@@ -86,16 +86,20 @@ export function TransactionFormDialog({
   const activeBanks = banks.filter(b => b.is_active);
   const filteredContacts = contacts.filter(c => c.is_active);
 
-  // Auto-calculate expected_date when dueDate changes
+  // Auto-calculate expected_date when dueDate or type changes
   useEffect(() => {
     if (dueDate) {
       const dueDateObj = new Date(dueDate + 'T00:00:00');
       if (!isNaN(dueDateObj.getTime())) {
-        const expected = addBusinessDays(dueDateObj, 2);
-        setExpectedDate(format(expected, 'yyyy-MM-dd'));
+        if (type === 'receita') {
+          const expected = addBusinessDays(dueDateObj, 2);
+          setExpectedDate(format(expected, 'yyyy-MM-dd'));
+        } else {
+          setExpectedDate(dueDate);
+        }
       }
     }
-  }, [dueDate]);
+  }, [dueDate, type]);
 
   useEffect(() => {
     if (transaction) {
