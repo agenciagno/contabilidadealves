@@ -659,7 +659,18 @@ export default function Transactions() {
                 <span>Cliente / Evento</span>
                 <Popover>
                   <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.contact} /></button></PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start"><TextColumnFilter values={uniqueContacts} selected={columnFilters.contact} onChange={v => updateColumnFilter('contact', v)} /></PopoverContent>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <div className="space-y-1 p-2 w-48 max-h-60 overflow-auto">
+                      <button onClick={() => updateColumnFilter('contact', undefined)} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted ${!columnFilters.contact ? 'bg-primary/10 text-primary font-medium' : ''}`}>
+                        Todos
+                      </button>
+                      {uniqueContactOptions.map(c => (
+                        <button key={c.id} onClick={() => updateColumnFilter('contact', c.id)} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted truncate ${columnFilters.contact === c.id ? 'bg-primary/10 text-primary font-medium' : ''}`}>
+                          {c.name}
+                        </button>
+                      ))}
+                    </div>
+                  </PopoverContent>
                 </Popover>
               </div>
 
