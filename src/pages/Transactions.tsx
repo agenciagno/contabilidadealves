@@ -698,7 +698,7 @@ export default function Transactions() {
               {filteredTransactions.map(transaction => {
                 const isOverdue = !transaction.is_paid && transaction.due_date && transaction.due_date < new Date().toISOString().split('T')[0];
                 return (
-                  <div key={transaction.id} className={`grid grid-cols-[40px_80px_1fr_90px_90px_90px_80px_120px_80px] gap-2 px-4 py-3 hover:bg-muted/30 transition-colors items-center ${selectedIds.has(transaction.id) ? 'bg-primary/10 border-l-2 border-l-primary' : ''}`}>
+                  <div key={transaction.id} className={`grid grid-cols-[40px_100px_1fr_110px_110px_110px_90px_130px_90px] gap-3 px-4 py-3 hover:bg-muted/30 transition-colors items-center ${selectedIds.has(transaction.id) ? 'bg-primary/10 border-l-2 border-l-primary' : ''}`}>
                     <div className="flex items-center justify-center">
                       <Checkbox checked={selectedIds.has(transaction.id)} onCheckedChange={() => toggleSelect(transaction.id)} />
                     </div>
