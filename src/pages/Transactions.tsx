@@ -170,7 +170,9 @@ export default function Transactions() {
 
   // Filter transactions
   const filteredTransactions = useMemo(() => {
-    let result = [...allTransactions];
+    // Defensive deduplication by id to prevent pagination artifacts
+    const deduped = Array.from(new Map(allTransactions.map(t => [t.id, t])).values());
+    let result = [...deduped];
 
     const dateRange = getDateRange(period);
     if (dateRange) {
