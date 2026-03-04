@@ -5,6 +5,7 @@ export interface ContactTransaction {
   id: string;
   description: string;
   amount: number;
+  paid_amount: number | null;
   type: 'receita' | 'despesa';
   date: string;
   due_date: string | null;
@@ -25,6 +26,7 @@ export function useContactTransactions(contactId: string | undefined) {
           id,
           description,
           amount,
+          paid_amount,
           type,
           date,
           due_date,
