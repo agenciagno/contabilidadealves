@@ -156,6 +156,7 @@ export function TransactionFormDialog({
   const handleBankChange = (v: string) => { if (v === '__new__') setBankDialogOpen(true); else setBankId(v); };
   const handleContactChange = (v: string) => { if (v === '__new__') setContactDialogOpen(true); else setContactId(v); };
 
+  const isEditing = !!transaction;
   const isFormValid = parseCurrencyInput(amount) > 0 && categoryId && bankId;
 
   return (
@@ -167,12 +168,12 @@ export function TransactionFormDialog({
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-3">
             {/* Type Toggle */}
-            <Tabs value={type} onValueChange={(v) => setType(v as 'receita' | 'despesa')}>
-              <TabsList className="w-full h-9">
-                <TabsTrigger value="despesa" className="flex-1 gap-1.5 text-xs h-7">
+            <Tabs value={type} onValueChange={(v) => !isEditing && setType(v as 'receita' | 'despesa')}>
+              <TabsList className={`w-full h-9 ${isEditing ? 'opacity-60 pointer-events-none' : ''}`}>
+                <TabsTrigger value="despesa" className="flex-1 gap-1.5 text-xs h-7" disabled={isEditing}>
                   <TrendingDown className="w-3.5 h-3.5" /> Despesa
                 </TabsTrigger>
-                <TabsTrigger value="receita" className="flex-1 gap-1.5 text-xs h-7">
+                <TabsTrigger value="receita" className="flex-1 gap-1.5 text-xs h-7" disabled={isEditing}>
                   <TrendingUp className="w-3.5 h-3.5" /> Receita
                 </TabsTrigger>
               </TabsList>
@@ -182,8 +183,8 @@ export function TransactionFormDialog({
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">Cliente/Fornecedor</Label>
-                <Select value={contactId} onValueChange={handleContactChange}>
-                  <SelectTrigger className="h-8 text-xs">
+                <Select value={contactId} onValueChange={handleContactChange} disabled={isEditing}>
+                  <SelectTrigger className={`h-8 text-xs ${isEditing ? 'opacity-60 cursor-not-allowed' : ''}`}>
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -212,8 +213,8 @@ export function TransactionFormDialog({
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">Evento Contábil <span className="text-destructive">*</span></Label>
-                <Select value={categoryId} onValueChange={handleCategoryChange}>
-                  <SelectTrigger className={`h-8 text-xs ${!categoryId ? 'border-muted-foreground/30' : ''}`}>
+                <Select value={categoryId} onValueChange={handleCategoryChange} disabled={isEditing}>
+                  <SelectTrigger className={`h-8 text-xs ${isEditing ? 'opacity-60 cursor-not-allowed' : !categoryId ? 'border-muted-foreground/30' : ''}`}>
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
