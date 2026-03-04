@@ -737,6 +737,7 @@ export type Database = {
           is_paid: boolean
           issue_date: string | null
           notes: string | null
+          paid_amount: number | null
           type: string
           updated_at: string
         }
@@ -755,6 +756,7 @@ export type Database = {
           is_paid?: boolean
           issue_date?: string | null
           notes?: string | null
+          paid_amount?: number | null
           type: string
           updated_at?: string
         }
@@ -773,6 +775,7 @@ export type Database = {
           is_paid?: boolean
           issue_date?: string | null
           notes?: string | null
+          paid_amount?: number | null
           type?: string
           updated_at?: string
         }

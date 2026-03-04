@@ -1,0 +1,1 @@
+ALTER TABLE transactions ADD COLUMN paid_amount numeric DEFAULT NULL;
