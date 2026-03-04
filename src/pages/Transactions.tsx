@@ -246,11 +246,11 @@ export default function Transactions() {
   const uniqueContacts = useMemo(() => [...new Set(filteredTransactions.map(t => t.contact?.name ?? t.description))].sort(), [filteredTransactions]);
   const uniqueStatuses = ['Pago', 'Pendente'];
 
-  // KPI totals
+  // KPI totals — paid uses paid_amount, pending uses amount
   const kpiTotals = useMemo(() => {
     return filteredTransactions.reduce(
       (acc, t) => {
-        const amount = Number(t.amount);
+        const amount = t.is_paid && t.paid_amount != null ? Number(t.paid_amount) : Number(t.amount);
         if (t.type === 'receita') { if (t.is_paid) acc.receitasPagas += amount; else acc.receitasPendentes += amount; }
         else { if (t.is_paid) acc.despesasPagas += amount; else acc.despesasPendentes += amount; }
         return acc;
@@ -280,20 +280,21 @@ export default function Transactions() {
     let receitasMes = 0, despesasMes = 0, receitasPagasMes = 0, despesasPagasMes = 0;
 
     for (const t of allTransactions) {
-      const amount = Number(t.amount);
-      if (t.type === 'despesa' && !t.is_paid && t.due_date && t.due_date < todayStr) contasEmAtraso += amount;
-      if (t.type === 'receita' && !t.is_paid && t.due_date && t.due_date < todayStr) receitasEmAtraso += amount;
+      const amt = Number(t.amount); // pending always uses original amount
+      const effAmt = t.is_paid && t.paid_amount != null ? Number(t.paid_amount) : amt;
+      if (t.type === 'despesa' && !t.is_paid && t.due_date && t.due_date < todayStr) contasEmAtraso += amt;
+      if (t.type === 'receita' && !t.is_paid && t.due_date && t.due_date < todayStr) receitasEmAtraso += amt;
       if (!t.is_paid && t.due_date) {
         if (t.due_date >= monthStartStr && t.due_date <= monthEndStr) {
-          if (t.type === 'receita') receitasPendentesMes += amount; else despesasPendentesMes += amount;
+          if (t.type === 'receita') receitasPendentesMes += amt; else despesasPendentesMes += amt;
         }
         if (t.due_date <= todayStr) {
-          if (t.type === 'receita') receitasPendentesAteHoje += amount; else despesasPendentesAteHoje += amount;
+          if (t.type === 'receita') receitasPendentesAteHoje += amt; else despesasPendentesAteHoje += amt;
         }
       }
       if (t.date && t.date >= monthStartStr && t.date <= monthEndStr) {
-        if (t.type === 'receita') { receitasMes += amount; if (t.is_paid) receitasPagasMes += amount; }
-        else { despesasMes += amount; if (t.is_paid) despesasPagasMes += amount; }
+        if (t.type === 'receita') { receitasMes += effAmt; if (t.is_paid) receitasPagasMes += effAmt; }
+        else { despesasMes += effAmt; if (t.is_paid) despesasPagasMes += effAmt; }
       }
     }
 
@@ -630,7 +631,7 @@ export default function Transactions() {
         <Card className="bg-card border-border/50 overflow-hidden">
           <CardContent className="p-0 max-h-[70vh] overflow-auto">
             {/* Table Header with Excel-style filters */}
-            <div className="grid grid-cols-[40px_100px_1fr_110px_110px_110px_90px_130px_90px] gap-3 px-4 py-2 bg-card border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 z-10">
+            <div className="grid grid-cols-[40px_100px_1fr_110px_110px_110px_90px_110px_110px_90px] gap-3 px-4 py-2 bg-card border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 z-10">
               <div className="flex items-center justify-center">
                 <Checkbox checked={selectedIds.size === filteredTransactions.length && filteredTransactions.length > 0} onCheckedChange={toggleSelectAll} />
               </div>
@@ -690,6 +691,7 @@ export default function Transactions() {
               </div>
 
               <div className="text-right">Valor</div>
+              <div className="text-right">Recebido</div>
               <div className="text-center">Ações</div>
             </div>
 
@@ -698,7 +700,7 @@ export default function Transactions() {
               {filteredTransactions.map(transaction => {
                 const isOverdue = !transaction.is_paid && transaction.due_date && transaction.due_date < new Date().toISOString().split('T')[0];
                 return (
-                  <div key={transaction.id} className={`grid grid-cols-[40px_100px_1fr_110px_110px_110px_90px_130px_90px] gap-3 px-4 py-3 hover:bg-muted/30 transition-colors items-center ${selectedIds.has(transaction.id) ? 'bg-primary/10 border-l-2 border-l-primary' : ''}`}>
+                  <div key={transaction.id} className={`grid grid-cols-[40px_100px_1fr_110px_110px_110px_90px_110px_110px_90px] gap-3 px-4 py-3 hover:bg-muted/30 transition-colors items-center ${selectedIds.has(transaction.id) ? 'bg-primary/10 border-l-2 border-l-primary' : ''}`}>
                     <div className="flex items-center justify-center">
                       <Checkbox checked={selectedIds.has(transaction.id)} onCheckedChange={() => toggleSelect(transaction.id)} />
                     </div>
@@ -732,6 +734,11 @@ export default function Transactions() {
                     </div>
                     <div className={`text-right font-bold text-sm tabular-nums ${transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'}`}>
                       {transaction.type === 'receita' ? '+' : '-'}{formatCurrency(Number(transaction.amount))}
+                    </div>
+                    <div className={`text-right text-sm tabular-nums ${transaction.is_paid && transaction.paid_amount != null ? (transaction.type === 'receita' ? 'text-emerald-500 font-bold' : 'text-red-500 font-bold') : 'text-muted-foreground'}`}>
+                      {transaction.is_paid && transaction.paid_amount != null
+                        ? `${transaction.type === 'receita' ? '+' : '-'}${formatCurrency(Number(transaction.paid_amount))}`
+                        : '—'}
                     </div>
                     <div className="flex gap-0.5 justify-center">
                       <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted" onClick={() => handleEdit(transaction)}><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></Button>

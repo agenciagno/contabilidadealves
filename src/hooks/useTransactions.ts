@@ -263,16 +263,16 @@ export function useTransactions() {
     },
   });
 
-  // Calculate totals
+  // Calculate totals using effective amount logic
   const totals = transactions.reduce(
     (acc, t) => {
-      const amount = Number(t.amount);
+      const effectiveAmt = t.is_paid && t.paid_amount != null ? Number(t.paid_amount) : Number(t.amount);
       if (t.type === 'receita') {
-        acc.receitas += amount;
-        if (t.is_paid) acc.receitasPagas += amount;
+        acc.receitas += effectiveAmt;
+        if (t.is_paid) acc.receitasPagas += effectiveAmt;
       } else {
-        acc.despesas += amount;
-        if (t.is_paid) acc.despesasPagas += amount;
+        acc.despesas += effectiveAmt;
+        if (t.is_paid) acc.despesasPagas += effectiveAmt;
       }
       return acc;
     },

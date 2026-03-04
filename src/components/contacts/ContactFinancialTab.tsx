@@ -84,7 +84,7 @@ export function ContactFinancialTab({ contactId, contactName }: ContactFinancial
   const summary = {
     totalPago: transactions
       ?.filter(t => t.is_paid)
-      .reduce((acc, t) => acc + Number(t.amount), 0) || 0,
+      .reduce((acc, t) => acc + (t.paid_amount != null ? Number(t.paid_amount) : Number(t.amount)), 0) || 0,
     totalPendente: transactions
       ?.filter(t => !t.is_paid && !(t.due_date && t.due_date < today))
       .reduce((acc, t) => acc + Number(t.amount), 0) || 0,
