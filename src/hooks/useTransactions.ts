@@ -51,7 +51,7 @@ export function useTransactions() {
   const { data: transactions = [], isLoading, error } = useQuery({
     queryKey: ['transactions'],
     queryFn: async () => {
-      let allData: Transaction[] = [];
+      const seen = new Map<string, Transaction>();
       const PAGE_SIZE = 1000;
       let from = 0;
       while (true) {
@@ -63,15 +63,18 @@ export function useTransactions() {
             bank:banks(id, name, color),
             contact:contacts(id, name, type)
           `)
-          .order('date', { ascending: false })
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
           .range(from, from + PAGE_SIZE - 1);
 
         if (error) throw error;
-        allData = allData.concat(data as Transaction[]);
+        for (const row of (data as Transaction[])) {
+          if (!seen.has(row.id)) seen.set(row.id, row);
+        }
         if (data.length < PAGE_SIZE) break;
         from += PAGE_SIZE;
       }
-      return allData;
+      return Array.from(seen.values());
     },
     staleTime: 1000 * 30, // 30 seconds - data is fresh
     gcTime: 1000 * 60 * 5, // 5 minutes - garbage collection
