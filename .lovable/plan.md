@@ -1,82 +1,93 @@
 
 
-## Plano: Reformulacao Completa da Pagina Lancamentos
+# Preview Intermediario na Importacao de Planilha
 
-Este e um projeto grande com 4 areas de mudanca. Vou detalhar cada uma.
+## Resumo
 
----
-
-### 1. Reestruturacao do Header e Cards
-
-**Arquivo:** `src/pages/Transactions.tsx`
-
-- **Titulo + Acoes na mesma linha:** Mover o titulo "Movimentacoes" para a esquerda e os botoes (Nova Movimentacao, Importar, Exportar) para a direita, tudo na mesma `div` com `flex justify-between`.
-- **Cards uniformes:** Remover o estilo `text-4xl font-extrabold` dos 3 KPI cards (A Receber, A Pagar, Saldo Bancario). Usar o mesmo tamanho dos cards do BI Ticker (`text-base font-bold`, `p-3`). Unificar todos os 7 cards em um unico grid de 7 colunas (ou 4+3), todos com mesma altura e padding.
+Adicionar um Step 3 (Preview) entre o upload e a confirmacao final. Apos o upload processar os dados, ao inves de importar diretamente, exibir uma tabela com os lancamentos lidos para o usuario revisar, com opcao de confirmar ou voltar.
 
 ---
 
-### 2. Novo Sistema de Filtros Minimalista
-
-**Arquivo:** `src/pages/Transactions.tsx`
-
-- **Remover:** Seletor lista/grid (linhas 417-424), botao "Filtros Avancados" (linhas 426-435), bloco `Collapsible` com `UnifiedFilterBox` (linhas 491-519). O `viewMode` state e toda logica grid podem ser removidos.
-- **Nova barra de filtros:** Criar uma barra horizontal com 4 icones (tooltips apenas):
-  - `Search` (pesquisa geral) - abre input inline
-  - `Landmark` (Conta Bancaria) - abre popover com select de bancos
-  - `Receipt` (Evento Contabil) - abre popover com select de categorias
-  - `TrendingUp`/`TrendingDown` (Tipo) - abre popover com opcoes Receita/Despesa/Todos
-- Posicionar logo acima da tabela, alinhada a esquerda.
-
----
-
-### 3. Filtros Interativos no Cabecalho da Tabela (Estilo Excel)
-
-**Arquivo:** `src/pages/Transactions.tsx`
-
-- Adicionar um icone de funil (`Filter` ou `ChevronDown`) ao lado de cada titulo de coluna no header da tabela.
-- **Colunas de data** (Emissao, Vencimento, Prevista, Pagamento): Ao clicar, abrir `Popover` com dois inputs `date` (Data Inicial / Data Final). Filtrar as transacoes pelo range.
-- **Colunas texto** (Cliente/Evento, Status): Ao clicar, abrir `Popover` com lista de valores unicos extraidos das transacoes filtradas. Selecionar aplica filtro imediato.
-- Criar states para cada filtro de coluna: `columnFilters` como objeto `{ issue_date?: {start, end}, due_date?: {start, end}, contact?: string, status?: string, ... }`.
-- Aplicar esses filtros no `useMemo` de `filteredTransactions`.
-
----
-
-### 4. Otimizacao do Modal de Transacao
-
-**Arquivo:** `src/components/transactions/TransactionFormDialog.tsx`
-
-- **Novo campo "Valor Recebido/Pago":** Adicionar ao lado do campo "Valor (R$)". Mesmo formato de input monetario. Campo opcional, nao obrigatorio para submit.
-  - Nota: Este campo NAO existe no banco. Sera adicionado via migration: `ALTER TABLE transactions ADD COLUMN paid_amount numeric DEFAULT NULL`.
-- **Layout compacto multi-colunas:**
-  - Linha 1: Toggle Receita/Despesa (compacto)
-  - Linha 2: Cliente/Fornecedor | Valor | Valor Recebido/Pago (3 colunas)
-  - Linha 3: Evento Contabil | Conta/Banco (2 colunas)
-  - Linha 4: Emissao | Vencimento | Prevista | Pagamento (4 colunas, compacto)
-  - Linha 5: Anexo | Observacoes (2 colunas, lado a lado)
-  - Linha 6: Toggle Pago + Botoes (mesma linha)
-- Reduzir padding, gaps e heights dos inputs (`h-8` ou `h-9`, `gap-2`, `space-y-2`).
-- Dialog max-width `sm:max-w-2xl` (ja esta).
-
----
-
-### Migration SQL Necessaria
-
-```sql
-ALTER TABLE transactions ADD COLUMN paid_amount numeric DEFAULT NULL;
-```
-
----
-
-### Arquivos Impactados
+## Arquivo Modificado
 
 | Arquivo | Mudanca |
 |---|---|
-| `src/pages/Transactions.tsx` | Header, cards, filtros, cabecalho tabela, remocao grid view |
-| `src/components/transactions/TransactionFormDialog.tsx` | Layout compacto, novo campo paid_amount |
-| `src/hooks/useTransactions.ts` | Incluir `paid_amount` nos tipos |
-| Migration SQL | Adicionar coluna `paid_amount` |
+| `src/components/transactions/ImportSpreadsheetDialog.tsx` | Adicionar step 3 com tabela de preview, separar parsing de importacao |
 
-### Estimativa de Complexidade
+---
 
-Alto. Envolve reescrita significativa de ~400 linhas de JSX em `Transactions.tsx`, refatoracao do modal, e nova logica de filtros por coluna.
+## Mudancas Detalhadas
+
+### 1. Novo estado para armazenar dados parseados
+
+```typescript
+const [parsedData, setParsedData] = useState<TransactionInsert[]>([]);
+```
+
+### 2. Alterar `processFile` para nao importar direto
+
+Em vez de chamar `onImport(transactions)` ao final do parsing, salvar em `setParsedData(transactions)` e avancar para `setStep(3)`.
+
+### 3. Step indicator com 3 passos
+
+Adicionar terceiro circulo "Revisar" no indicador de progresso (Modelo -> Upload -> Revisar).
+
+### 4. Step 3: Tabela de Preview
+
+- Dialog expandido para `sm:max-w-4xl` quando no step 3
+- Contador: "X lancamento(s) encontrado(s)"
+- Tabela com ScrollArea (max-height ~400px) contendo colunas:
+  - Data | Cliente | Tipo | Valor | Status | Vencimento | Banco | Categoria
+- Cada linha mostra dados legivel (data formatada dd/MM/yyyy, valor em R$, tipo como badge colorido Receita/Despesa, status como badge Pago/Pendente)
+- Lookup reverso de bank_id/category_id/contact_id para exibir nomes (ou "---" se nao vinculado)
+- Botoes: "Voltar" (ghost, volta ao step 2) e "Confirmar Importacao" (primary, chama onImport)
+- Ao confirmar: spinner de "Importando..." e fluxo existente de toast + fechar modal
+
+### 5. Ajuste no resetState
+
+Incluir `setParsedData([])` no reset.
+
+### 6. DialogDescription dinâmica
+
+Step 3 exibe: "Revise os dados antes de confirmar"
+
+---
+
+## Secao Tecnica
+
+### Lookup reverso para exibicao
+
+Para mostrar nomes na tabela de preview ao inves de IDs:
+
+```typescript
+const bankName = (id: string | null) => banks.find(b => b.id === id)?.name ?? '—';
+const categoryName = (id: string | null) => categories.find(c => c.id === id)?.name ?? '—';
+const contactName = (id: string | null) => contacts.find(c => c.id === id)?.name ?? '—';
+```
+
+### Formatacao na tabela
+
+```typescript
+// Data: format(parseISO(row.date), 'dd/MM/yyyy')
+// Valor: row.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+// Tipo: Badge verde "Receita" ou vermelho "Despesa"
+// Status: Badge "Pago" ou "Pendente"
+```
+
+### Handler de confirmacao
+
+```typescript
+const handleConfirmImport = async () => {
+  setIsProcessing(true);
+  try {
+    await onImport(parsedData);
+    toast({ title: `${parsedData.length} lançamento(s) importado(s) com sucesso!` });
+    handleClose(false);
+  } catch (err) {
+    toast({ title: 'Erro ao importar.', variant: 'destructive' });
+  } finally {
+    setIsProcessing(false);
+  }
+};
+```
 

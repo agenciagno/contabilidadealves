@@ -17,6 +17,7 @@ export interface Transaction {
   due_date: string | null;
   expected_date: string | null;
   is_paid: boolean;
+  paid_amount: number | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -37,6 +38,7 @@ export type TransactionInsert = {
   due_date?: string | null;
   expected_date?: string | null;
   is_paid?: boolean;
+  paid_amount?: number | null;
   notes?: string | null;
 };
 
