@@ -1,36 +1,93 @@
 
 
-## Plano: Espaçamento de Colunas e Ordenação nos Popovers
+# Preview Intermediario na Importacao de Planilha
 
-### 1. Aumentar espaçamento entre colunas
+## Resumo
 
-**Arquivo:** `src/pages/Transactions.tsx`
+Adicionar um Step 3 (Preview) entre o upload e a confirmacao final. Apos o upload processar os dados, ao inves de importar diretamente, exibir uma tabela com os lancamentos lidos para o usuario revisar, com opcao de confirmar ou voltar.
 
-Alterar o grid template das colunas (header linha 604 e rows linha 680) de:
-```
-grid-cols-[40px_80px_1fr_90px_90px_90px_80px_120px_80px]
-```
-Para:
-```
-grid-cols-[40px_100px_1fr_110px_110px_110px_90px_130px_90px]
-```
-Aumentar tambem o `gap` de `gap-2` para `gap-3`.
+---
 
-### 2. Remover ordenacao do cabecalho, mover para os popovers
-
-**Cabecalhos de data (Emissao, Vencimento, Prevista, Pagamento):**
-- Remover o `<button onClick={handleSort}>` que envolve o titulo e os icones `ChevronUp/ChevronDown/ArrowUpDown`.
-- O titulo fica como `<span>` simples, mantendo apenas o icone de filtro (funil).
-
-**Componente `DateColumnFilter`:**
-- Adicionar dois botoes de ordenacao no topo do popover: "Mais antigo primeiro" (asc) e "Mais recente primeiro" (desc).
-- Receber props `sortField`, `currentSortField`, `currentSortOrder`, `onSort` para controlar o estado.
-
-**Remover imports nao utilizados:** `ArrowUpDown` (se nao usado em outro lugar).
-
-### Arquivos impactados
+## Arquivo Modificado
 
 | Arquivo | Mudanca |
 |---|---|
-| `src/pages/Transactions.tsx` | Grid sizing, remover sorting dos headers, adicionar sorting nos popovers de data |
+| `src/components/transactions/ImportSpreadsheetDialog.tsx` | Adicionar step 3 com tabela de preview, separar parsing de importacao |
+
+---
+
+## Mudancas Detalhadas
+
+### 1. Novo estado para armazenar dados parseados
+
+```typescript
+const [parsedData, setParsedData] = useState<TransactionInsert[]>([]);
+```
+
+### 2. Alterar `processFile` para nao importar direto
+
+Em vez de chamar `onImport(transactions)` ao final do parsing, salvar em `setParsedData(transactions)` e avancar para `setStep(3)`.
+
+### 3. Step indicator com 3 passos
+
+Adicionar terceiro circulo "Revisar" no indicador de progresso (Modelo -> Upload -> Revisar).
+
+### 4. Step 3: Tabela de Preview
+
+- Dialog expandido para `sm:max-w-4xl` quando no step 3
+- Contador: "X lancamento(s) encontrado(s)"
+- Tabela com ScrollArea (max-height ~400px) contendo colunas:
+  - Data | Cliente | Tipo | Valor | Status | Vencimento | Banco | Categoria
+- Cada linha mostra dados legivel (data formatada dd/MM/yyyy, valor em R$, tipo como badge colorido Receita/Despesa, status como badge Pago/Pendente)
+- Lookup reverso de bank_id/category_id/contact_id para exibir nomes (ou "---" se nao vinculado)
+- Botoes: "Voltar" (ghost, volta ao step 2) e "Confirmar Importacao" (primary, chama onImport)
+- Ao confirmar: spinner de "Importando..." e fluxo existente de toast + fechar modal
+
+### 5. Ajuste no resetState
+
+Incluir `setParsedData([])` no reset.
+
+### 6. DialogDescription dinâmica
+
+Step 3 exibe: "Revise os dados antes de confirmar"
+
+---
+
+## Secao Tecnica
+
+### Lookup reverso para exibicao
+
+Para mostrar nomes na tabela de preview ao inves de IDs:
+
+```typescript
+const bankName = (id: string | null) => banks.find(b => b.id === id)?.name ?? '—';
+const categoryName = (id: string | null) => categories.find(c => c.id === id)?.name ?? '—';
+const contactName = (id: string | null) => contacts.find(c => c.id === id)?.name ?? '—';
+```
+
+### Formatacao na tabela
+
+```typescript
+// Data: format(parseISO(row.date), 'dd/MM/yyyy')
+// Valor: row.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+// Tipo: Badge verde "Receita" ou vermelho "Despesa"
+// Status: Badge "Pago" ou "Pendente"
+```
+
+### Handler de confirmacao
+
+```typescript
+const handleConfirmImport = async () => {
+  setIsProcessing(true);
+  try {
+    await onImport(parsedData);
+    toast({ title: `${parsedData.length} lançamento(s) importado(s) com sucesso!` });
+    handleClose(false);
+  } catch (err) {
+    toast({ title: 'Erro ao importar.', variant: 'destructive' });
+  } finally {
+    setIsProcessing(false);
+  }
+};
+```
 
