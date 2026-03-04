@@ -261,6 +261,16 @@ export default function Transactions() {
     }
     return Array.from(map.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
   }, [allTransactions]);
+
+  // Unique event descriptions for transactions without a contact
+  const uniqueEventOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const t of allTransactions) {
+      if (!t.contact_id) set.add(t.description);
+    }
+    return Array.from(set).sort();
+  }, [allTransactions]);
+
   const uniqueStatuses = ['Pago', 'Pendente'];
 
   // KPI totals — paid uses paid_amount, pending uses amount
