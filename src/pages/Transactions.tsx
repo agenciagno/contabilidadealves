@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -52,11 +52,12 @@ interface ColumnFilters {
   due_date?: { start: string; end: string };
   expected_date?: { start: string; end: string };
   date?: { start: string; end: string };
-  contact?: string; // stores contact_id (UUID) for exact match
+  contactId?: string; // UUID for exact contact match
+  eventName?: string; // exact description match for transactions without contact
   status?: string;
 }
 
-// Column filter popover for date columns
+// Column filter popover for date columns - syncs internal state with external value
 function DateColumnFilter({ value, onChange, sortField, currentSortField, currentSortOrder, onSort }: {
   value?: { start: string; end: string };
   onChange: (v?: { start: string; end: string }) => void;
@@ -69,6 +70,12 @@ function DateColumnFilter({ value, onChange, sortField, currentSortField, curren
   const [end, setEnd] = useState(value?.end || '');
   const isActive = currentSortField === sortField;
 
+  // Sync internal state when external value changes (e.g. "clear all filters")
+  useEffect(() => {
+    setStart(value?.start || '');
+    setEnd(value?.end || '');
+  }, [value?.start, value?.end]);
+
   const apply = () => {
     if (start || end) onChange({ start, end });
     else onChange(undefined);
@@ -78,7 +85,6 @@ function DateColumnFilter({ value, onChange, sortField, currentSortField, curren
 
   return (
     <div className="space-y-2 p-2 w-56">
-      {/* Sort buttons */}
       <div className="space-y-0.5 pb-2 border-b border-border/40">
         <button
           onClick={() => onSort(sortField, 'asc')}
@@ -93,7 +99,6 @@ function DateColumnFilter({ value, onChange, sortField, currentSortField, curren
           <ChevronDown className="w-3 h-3" /> Mais recente primeiro
         </button>
       </div>
-      {/* Date range filter */}
       <div className="space-y-1">
         <label className="text-xs text-muted-foreground">De</label>
         <Input type="date" value={start} onChange={e => setStart(e.target.value)} max="9999-12-31" className="h-8 text-xs" />
@@ -222,8 +227,11 @@ export default function Transactions() {
         return true;
       });
     }
-    if (cf.contact) {
-      result = result.filter(t => t.contact_id === cf.contact);
+    if (cf.contactId) {
+      result = result.filter(t => t.contact_id === cf.contactId);
+    }
+    if (cf.eventName) {
+      result = result.filter(t => !t.contact_id && t.description === cf.eventName);
     }
     if (cf.status) {
       const isPaid = cf.status === 'Pago';
@@ -253,6 +261,16 @@ export default function Transactions() {
     }
     return Array.from(map.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
   }, [allTransactions]);
+
+  // Unique event descriptions for transactions without a contact
+  const uniqueEventOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const t of allTransactions) {
+      if (!t.contact_id) set.add(t.description);
+    }
+    return Array.from(set).sort();
+  }, [allTransactions]);
+
   const uniqueStatuses = ['Pago', 'Pendente'];
 
   // KPI totals — paid uses paid_amount, pending uses amount
@@ -658,17 +676,30 @@ export default function Transactions() {
               <div className="flex items-center gap-0.5">
                 <span>Cliente / Evento</span>
                 <Popover>
-                  <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.contact} /></button></PopoverTrigger>
+                  <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.contactId || !!columnFilters.eventName} /></button></PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <div className="space-y-1 p-2 w-48 max-h-60 overflow-auto">
-                      <button onClick={() => updateColumnFilter('contact', undefined)} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted ${!columnFilters.contact ? 'bg-primary/10 text-primary font-medium' : ''}`}>
+                    <div className="space-y-1 p-2 w-56 max-h-72 overflow-auto">
+                      <button onClick={() => { updateColumnFilter('contactId', undefined); updateColumnFilter('eventName', undefined); }} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted ${!columnFilters.contactId && !columnFilters.eventName ? 'bg-primary/10 text-primary font-medium' : ''}`}>
                         Todos
                       </button>
+                      {uniqueContactOptions.length > 0 && (
+                        <div className="pt-1 pb-0.5 px-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Clientes / Fornecedores</div>
+                      )}
                       {uniqueContactOptions.map(c => (
-                        <button key={c.id} onClick={() => updateColumnFilter('contact', c.id)} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted truncate ${columnFilters.contact === c.id ? 'bg-primary/10 text-primary font-medium' : ''}`}>
+                        <button key={c.id} onClick={() => { updateColumnFilter('contactId', c.id); updateColumnFilter('eventName', undefined); }} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted truncate ${columnFilters.contactId === c.id ? 'bg-primary/10 text-primary font-medium' : ''}`}>
                           {c.name}
                         </button>
                       ))}
+                      {uniqueEventOptions.length > 0 && (
+                        <>
+                          <div className="pt-2 pb-0.5 px-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider border-t border-border/40 mt-1">Eventos (sem contato)</div>
+                          {uniqueEventOptions.map(desc => (
+                            <button key={desc} onClick={() => { updateColumnFilter('eventName', desc); updateColumnFilter('contactId', undefined); }} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted truncate ${columnFilters.eventName === desc ? 'bg-primary/10 text-primary font-medium' : ''}`}>
+                              {desc}
+                            </button>
+                          ))}
+                        </>
+                      )}
                     </div>
                   </PopoverContent>
                 </Popover>

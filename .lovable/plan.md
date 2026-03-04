@@ -1,53 +1,93 @@
 
-Objetivo: eliminar definitivamente o vazamento no filtro da coluna “Cliente / Evento” e estabilizar os popovers de filtro (há warning de ref no console que pode afetar interação/estado do filtro).
 
-Diagnóstico já verificado
-- No código atual (`src/pages/Transactions.tsx`), o filtro de contato está em `t.contact_id === cf.contact` (estrito).
-- No banco, “ACADEMIA NUTRIVIDA LTDA” e “DENIO SILVA” possuem `contact_id` distintos (não é problema de dados iguais).
-- Há warning ativo: `Function components cannot be given refs` apontando para `DateColumnFilter`, indicando problema estrutural nos componentes de filtro/popover.
-- Conclusão prática: o bug residual é de comportamento do filtro na UI/estado (não de regra SQL), então vamos reforçar tipagem/estado e remover ambiguidade da coluna mista Cliente/Evento.
+# Preview Intermediario na Importacao de Planilha
 
-Plano de correção (implementação)
-1) Refatorar o estado dos filtros de coluna para remover ambiguidade
-- Em vez de um único `contact` genérico na coluna “Cliente / Evento”, separar explicitamente:
-  - `contactId` (UUID exato)
-  - `eventName` (descrição exata, quando o usuário quiser filtrar por evento)
-- Regra de aplicação:
-  - Se `contactId` selecionado: `t.contact_id === contactId` (strict)
-  - Se `eventName` selecionado: `t.description === eventName` (strict)
-- Se ambos não estiverem preenchidos, sem filtro da coluna.
+## Resumo
 
-2) Refatorar o popover da coluna “Cliente / Evento”
-- Criar UI com 2 grupos claros no mesmo popover:
-  - “Clientes/Fornecedores” (lista por `id`)
-  - “Eventos” (lista por `description` exata)
-- Ao selecionar um grupo, limpar o outro (evita OR implícito e estado inválido).
-- Exibir indicação visual do filtro ativo no cabeçalho (sem depender de estado ambíguo).
+Adicionar um Step 3 (Preview) entre o upload e a confirmacao final. Apos o upload processar os dados, ao inves de importar diretamente, exibir uma tabela com os lancamentos lidos para o usuario revisar, com opcao de confirmar ou voltar.
 
-3) Blindagem de estado do filtro
-- Se o valor selecionado não existir mais na lista (dados mudaram), limpar automaticamente o filtro inválido.
-- Garantir que “Limpar filtros de coluna” zere também todos os subestados internos dos popovers.
+---
 
-4) Corrigir warning de ref dos componentes de filtro
-- Ajustar `DateColumnFilter` (e componentes de popover similares) para não receber ref indevido:
-  - converter para `forwardRef` no container raiz **ou**
-  - envolver com elemento DOM quando necessário no `PopoverContent`.
-- Sincronizar estado interno de data (`start/end`) com `value` via `useEffect` para evitar estado antigo ao reabrir.
+## Arquivo Modificado
 
-5) Auditoria rápida dos demais filtros (na mesma tela)
-- Confirmar que permanecem strict-match:
-  - `type ===`
-  - `category_id ===`
-  - `bank_id ===`
-  - `status (is_paid) ===`
-- Manter busca textual (`searchTerm`) como parcial, separada dos filtros de coluna.
+| Arquivo | Mudanca |
+|---|---|
+| `src/components/transactions/ImportSpreadsheetDialog.tsx` | Adicionar step 3 com tabela de preview, separar parsing de importacao |
 
-Arquivos alvo
-- `src/pages/Transactions.tsx` (principal: estado, lógica e popovers de coluna)
-- (Opcional para organização) extrair componentes de filtro de coluna para `src/components/transactions/...` mantendo o mesmo comportamento visual.
+---
 
-Validação (aceite)
-- Selecionar “ACADEMIA NUTRIVIDA LTDA” em Cliente/Evento deve mostrar apenas transações com `contact_id` da ACADEMIA.
-- “DENIO SILVA” não pode aparecer nesse cenário.
-- Limpar filtro deve restaurar lista completa sem resíduos.
-- Warning de ref no console deve desaparecer ao abrir/usar filtros de data.
+## Mudancas Detalhadas
+
+### 1. Novo estado para armazenar dados parseados
+
+```typescript
+const [parsedData, setParsedData] = useState<TransactionInsert[]>([]);
+```
+
+### 2. Alterar `processFile` para nao importar direto
+
+Em vez de chamar `onImport(transactions)` ao final do parsing, salvar em `setParsedData(transactions)` e avancar para `setStep(3)`.
+
+### 3. Step indicator com 3 passos
+
+Adicionar terceiro circulo "Revisar" no indicador de progresso (Modelo -> Upload -> Revisar).
+
+### 4. Step 3: Tabela de Preview
+
+- Dialog expandido para `sm:max-w-4xl` quando no step 3
+- Contador: "X lancamento(s) encontrado(s)"
+- Tabela com ScrollArea (max-height ~400px) contendo colunas:
+  - Data | Cliente | Tipo | Valor | Status | Vencimento | Banco | Categoria
+- Cada linha mostra dados legivel (data formatada dd/MM/yyyy, valor em R$, tipo como badge colorido Receita/Despesa, status como badge Pago/Pendente)
+- Lookup reverso de bank_id/category_id/contact_id para exibir nomes (ou "---" se nao vinculado)
+- Botoes: "Voltar" (ghost, volta ao step 2) e "Confirmar Importacao" (primary, chama onImport)
+- Ao confirmar: spinner de "Importando..." e fluxo existente de toast + fechar modal
+
+### 5. Ajuste no resetState
+
+Incluir `setParsedData([])` no reset.
+
+### 6. DialogDescription dinâmica
+
+Step 3 exibe: "Revise os dados antes de confirmar"
+
+---
+
+## Secao Tecnica
+
+### Lookup reverso para exibicao
+
+Para mostrar nomes na tabela de preview ao inves de IDs:
+
+```typescript
+const bankName = (id: string | null) => banks.find(b => b.id === id)?.name ?? '—';
+const categoryName = (id: string | null) => categories.find(c => c.id === id)?.name ?? '—';
+const contactName = (id: string | null) => contacts.find(c => c.id === id)?.name ?? '—';
+```
+
+### Formatacao na tabela
+
+```typescript
+// Data: format(parseISO(row.date), 'dd/MM/yyyy')
+// Valor: row.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+// Tipo: Badge verde "Receita" ou vermelho "Despesa"
+// Status: Badge "Pago" ou "Pendente"
+```
+
+### Handler de confirmacao
+
+```typescript
+const handleConfirmImport = async () => {
+  setIsProcessing(true);
+  try {
+    await onImport(parsedData);
+    toast({ title: `${parsedData.length} lançamento(s) importado(s) com sucesso!` });
+    handleClose(false);
+  } catch (err) {
+    toast({ title: 'Erro ao importar.', variant: 'destructive' });
+  } finally {
+    setIsProcessing(false);
+  }
+};
+```
+
