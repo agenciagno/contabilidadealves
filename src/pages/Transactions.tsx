@@ -334,6 +334,11 @@ export default function Transactions() {
     else { setSortField(field); setSortOrder('desc'); }
   };
 
+  const handleSortDirect = (field: SortField, order: SortOrder) => {
+    setSortField(field);
+    setSortOrder(order);
+  };
+
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
   };
@@ -625,19 +630,17 @@ export default function Transactions() {
         <Card className="bg-card border-border/50 overflow-hidden">
           <CardContent className="p-0 max-h-[70vh] overflow-auto">
             {/* Table Header with Excel-style filters */}
-            <div className="grid grid-cols-[40px_80px_1fr_90px_90px_90px_80px_120px_80px] gap-2 px-4 py-2 bg-card border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 z-10">
+            <div className="grid grid-cols-[40px_100px_1fr_110px_110px_110px_90px_130px_90px] gap-3 px-4 py-2 bg-card border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 z-10">
               <div className="flex items-center justify-center">
                 <Checkbox checked={selectedIds.size === filteredTransactions.length && filteredTransactions.length > 0} onCheckedChange={toggleSelectAll} />
               </div>
 
               {/* Emissão */}
               <div className="flex items-center gap-0.5">
-                <button onClick={() => handleSort('issue_date')} className="inline-flex items-center gap-0.5 hover:text-foreground transition-colors">
-                  Emissão {sortField === 'issue_date' ? (sortOrder === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-40" />}
-                </button>
+                <span>Emissão</span>
                 <Popover>
-                  <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.issue_date} /></button></PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.issue_date} onChange={v => updateColumnFilter('issue_date', v)} /></PopoverContent>
+                  <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.issue_date || sortField === 'issue_date'} /></button></PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.issue_date} onChange={v => updateColumnFilter('issue_date', v)} sortField="issue_date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} /></PopoverContent>
                 </Popover>
               </div>
 
@@ -652,34 +655,28 @@ export default function Transactions() {
 
               {/* Vencimento */}
               <div className="flex items-center justify-center gap-0.5">
-                <button onClick={() => handleSort('due_date')} className="inline-flex items-center gap-0.5 hover:text-foreground transition-colors">
-                  Vencimento {sortField === 'due_date' ? (sortOrder === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-40" />}
-                </button>
+                <span>Vencimento</span>
                 <Popover>
-                  <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.due_date} /></button></PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.due_date} onChange={v => updateColumnFilter('due_date', v)} /></PopoverContent>
+                  <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.due_date || sortField === 'due_date'} /></button></PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.due_date} onChange={v => updateColumnFilter('due_date', v)} sortField="due_date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} /></PopoverContent>
                 </Popover>
               </div>
 
               {/* Prevista */}
               <div className="flex items-center justify-center gap-0.5">
-                <button onClick={() => handleSort('expected_date')} className="inline-flex items-center gap-0.5 hover:text-foreground transition-colors">
-                  Prevista {sortField === 'expected_date' ? (sortOrder === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-40" />}
-                </button>
+                <span>Prevista</span>
                 <Popover>
-                  <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.expected_date} /></button></PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.expected_date} onChange={v => updateColumnFilter('expected_date', v)} /></PopoverContent>
+                  <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.expected_date || sortField === 'expected_date'} /></button></PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.expected_date} onChange={v => updateColumnFilter('expected_date', v)} sortField="expected_date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} /></PopoverContent>
                 </Popover>
               </div>
 
               {/* Pagamento */}
               <div className="flex items-center justify-center gap-0.5">
-                <button onClick={() => handleSort('date')} className="inline-flex items-center gap-0.5 hover:text-foreground transition-colors">
-                  Pagamento {sortField === 'date' ? (sortOrder === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-40" />}
-                </button>
+                <span>Pagamento</span>
                 <Popover>
-                  <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.date} /></button></PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.date} onChange={v => updateColumnFilter('date', v)} /></PopoverContent>
+                  <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.date || sortField === 'date'} /></button></PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.date} onChange={v => updateColumnFilter('date', v)} sortField="date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} /></PopoverContent>
                 </Popover>
               </div>
 
