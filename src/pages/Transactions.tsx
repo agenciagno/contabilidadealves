@@ -3,30 +3,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import {
-  Plus,
-  Upload,
-  Pencil,
-  Trash2,
-  TrendingUp,
-  TrendingDown,
-  Receipt,
-  LayoutGrid,
-  List,
-  Download,
-  FileSpreadsheet,
-  FileText,
-  SlidersHorizontal,
-  AlertTriangle,
-  Landmark,
-  BarChart3,
-  CalendarCheck,
-  ChevronDown,
-  ChevronUp,
-  ArrowUpDown,
-  Building2,
-  CheckCircle2 } from
-'lucide-react';
+  Plus, Upload, Pencil, Trash2, TrendingUp, TrendingDown, Receipt,
+  Download, FileSpreadsheet, FileText, AlertTriangle, Landmark,
+  BarChart3, CalendarCheck, ChevronDown, ChevronUp, ArrowUpDown,
+  Building2, CheckCircle2, Search, Filter, X
+} from 'lucide-react';
 import { useTransactions, Transaction, TransactionInsert } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
 import { useBanks } from '@/hooks/useBanks';
@@ -34,42 +17,26 @@ import { useContacts } from '@/hooks/useContacts';
 import { useTransactionAttachments } from '@/hooks/useTransactionAttachments';
 import { TransactionFormDialog } from '@/components/transactions/TransactionFormDialog';
 import { ImportSpreadsheetDialog } from '@/components/transactions/ImportSpreadsheetDialog';
-import { UnifiedFilterBox, PeriodFilter, getDateRangeFromPeriod } from '@/components/filters/UnifiedFilterBox';
+import { PeriodFilter, getDateRangeFromPeriod } from '@/components/filters/UnifiedFilterBox';
 import { exportToCSV, exportToPDF, ReportTransaction } from '@/hooks/useReportData';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle } from
-'@/components/ui/alert-dialog';
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
+} from '@/components/ui/alert-dialog';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger } from
-'@/components/ui/dropdown-menu';
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
-  startOfMonth,
-  endOfMonth,
-  isWithinInterval,
-  parseISO,
-  isBefore,
-  isToday,
-  format } from
-'date-fns';
+  startOfMonth, endOfMonth, isWithinInterval, parseISO, format
+} from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 function formatCurrency(value: number) {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(value);
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 }
 
 function formatDateShort(dateStr: string | null | undefined) {
@@ -80,35 +47,81 @@ function formatDateShort(dateStr: string | null | undefined) {
 type SortField = 'issue_date' | 'due_date' | 'expected_date' | 'date';
 type SortOrder = 'asc' | 'desc';
 
+interface ColumnFilters {
+  issue_date?: { start: string; end: string };
+  due_date?: { start: string; end: string };
+  expected_date?: { start: string; end: string };
+  date?: { start: string; end: string };
+  contact?: string;
+  status?: string;
+}
+
+// Column filter popover for date columns
+function DateColumnFilter({ value, onChange }: { value?: { start: string; end: string }; onChange: (v?: { start: string; end: string }) => void }) {
+  const [start, setStart] = useState(value?.start || '');
+  const [end, setEnd] = useState(value?.end || '');
+
+  const apply = () => {
+    if (start || end) onChange({ start, end });
+    else onChange(undefined);
+  };
+
+  const clear = () => { setStart(''); setEnd(''); onChange(undefined); };
+
+  return (
+    <div className="space-y-2 p-2 w-56">
+      <div className="space-y-1">
+        <label className="text-xs text-muted-foreground">De</label>
+        <Input type="date" value={start} onChange={e => setStart(e.target.value)} className="h-8 text-xs" />
+      </div>
+      <div className="space-y-1">
+        <label className="text-xs text-muted-foreground">Até</label>
+        <Input type="date" value={end} onChange={e => setEnd(e.target.value)} className="h-8 text-xs" />
+      </div>
+      <div className="flex gap-1">
+        <Button size="sm" variant="outline" className="flex-1 h-7 text-xs" onClick={clear}>Limpar</Button>
+        <Button size="sm" className="flex-1 h-7 text-xs" onClick={apply}>Aplicar</Button>
+      </div>
+    </div>
+  );
+}
+
+// Column filter popover for text/status columns
+function TextColumnFilter({ values, selected, onChange }: { values: string[]; selected?: string; onChange: (v?: string) => void }) {
+  return (
+    <div className="space-y-1 p-2 w-48 max-h-60 overflow-auto">
+      <button onClick={() => onChange(undefined)} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted ${!selected ? 'bg-primary/10 text-primary font-medium' : ''}`}>
+        Todos
+      </button>
+      {values.map(v => (
+        <button key={v} onClick={() => onChange(v)} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted truncate ${selected === v ? 'bg-primary/10 text-primary font-medium' : ''}`}>
+          {v}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ColumnFilterIcon({ active }: { active: boolean }) {
+  return <Filter className={`w-3 h-3 ${active ? 'text-primary' : 'opacity-40'}`} />;
+}
+
 export default function Transactions() {
-  // Filter states
-  const [period, setPeriod] = useState<PeriodFilter>('thisYear');
+  const [period] = useState<PeriodFilter>('thisYear');
   const [typeFilter, setTypeFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [bankFilter, setBankFilter] = useState('all');
-  const [contactFilter, setContactFilter] = useState('all');
-  const [paymentStatusFilter, setPaymentStatusFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [customStartDate, setCustomStartDate] = useState<Date | null>(null);
-  const [customEndDate, setCustomEndDate] = useState<Date | null>(null);
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
 
-  // Sort states
   const [sortField, setSortField] = useState<SortField>('due_date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
-  // View states
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
-
   const {
-    transactions: allTransactions,
-    isLoading,
-    createTransaction,
-    updateTransaction,
-    deleteTransaction,
-    togglePaid,
-    bulkTogglePaid,
-    bulkCreateTransactions
+    transactions: allTransactions, isLoading,
+    createTransaction, updateTransaction, deleteTransaction,
+    togglePaid, bulkTogglePaid, bulkCreateTransactions
   } = useTransactions();
 
   const { categories, createCategory } = useCategories();
@@ -124,55 +137,73 @@ export default function Transactions() {
   const [importOpen, setImportOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  // Count active filters for badge
-  const activeFilterCount = useMemo(() => {
-    let count = 0;
-    if (typeFilter !== 'all') count++;
-    if (categoryFilter !== 'all') count++;
-    if (bankFilter !== 'all') count++;
-    if (contactFilter !== 'all') count++;
-    if (paymentStatusFilter !== 'all') count++;
-    if (searchTerm) count++;
-    if (period !== 'thisYear') count++;
-    return count;
-  }, [typeFilter, categoryFilter, bankFilter, contactFilter, paymentStatusFilter, searchTerm, period]);
+  const getDateRange = (periodValue: PeriodFilter) => getDateRangeFromPeriod(periodValue);
 
-  // Calculate date range based on period
-  const getDateRange = (periodValue: PeriodFilter): {start: Date;end: Date;} | null => {
-    if (periodValue === 'custom' && customStartDate && customEndDate) {
-      return { start: customStartDate, end: customEndDate };
-    }
-    return getDateRangeFromPeriod(periodValue);
-  };
-
-  // Filter and sort transactions
+  // Filter transactions
   const filteredTransactions = useMemo(() => {
     let result = [...allTransactions];
 
-    // Period filter
     const dateRange = getDateRange(period);
     if (dateRange) {
-      result = result.filter((t) => {
+      result = result.filter(t => {
         const dateStr = t.due_date || t.date || t.issue_date;
         if (!dateStr) return true;
-        const transactionDate = parseISO(dateStr);
-        return isWithinInterval(transactionDate, { start: dateRange.start, end: dateRange.end });
+        return isWithinInterval(parseISO(dateStr), { start: dateRange.start, end: dateRange.end });
       });
     }
 
-    if (typeFilter !== 'all') result = result.filter((t) => t.type === typeFilter);
-    if (categoryFilter !== 'all') result = result.filter((t) => t.category_id === categoryFilter);
-    if (bankFilter !== 'all') result = result.filter((t) => t.bank_id === bankFilter);
-    if (contactFilter !== 'all') result = result.filter((t) => t.contact_id === contactFilter);
-    if (paymentStatusFilter === 'paid') result = result.filter((t) => t.is_paid);else
-    if (paymentStatusFilter === 'pending') result = result.filter((t) => !t.is_paid);
+    if (typeFilter !== 'all') result = result.filter(t => t.type === typeFilter);
+    if (categoryFilter !== 'all') result = result.filter(t => t.category_id === categoryFilter);
+    if (bankFilter !== 'all') result = result.filter(t => t.bank_id === bankFilter);
     if (searchTerm) {
       const s = searchTerm.toLowerCase();
-      result = result.filter((t) =>
+      result = result.filter(t =>
         t.description.toLowerCase().includes(s) ||
         (t.contact?.name && t.contact.name.toLowerCase().includes(s)) ||
         (t.notes && t.notes.toLowerCase().includes(s))
       );
+    }
+
+    // Column filters
+    const cf = columnFilters;
+    if (cf.issue_date) {
+      result = result.filter(t => {
+        if (!t.issue_date) return false;
+        if (cf.issue_date!.start && t.issue_date < cf.issue_date!.start) return false;
+        if (cf.issue_date!.end && t.issue_date > cf.issue_date!.end) return false;
+        return true;
+      });
+    }
+    if (cf.due_date) {
+      result = result.filter(t => {
+        if (!t.due_date) return false;
+        if (cf.due_date!.start && t.due_date < cf.due_date!.start) return false;
+        if (cf.due_date!.end && t.due_date > cf.due_date!.end) return false;
+        return true;
+      });
+    }
+    if (cf.expected_date) {
+      result = result.filter(t => {
+        if (!t.expected_date) return false;
+        if (cf.expected_date!.start && t.expected_date < cf.expected_date!.start) return false;
+        if (cf.expected_date!.end && t.expected_date > cf.expected_date!.end) return false;
+        return true;
+      });
+    }
+    if (cf.date) {
+      result = result.filter(t => {
+        if (!t.date) return false;
+        if (cf.date!.start && t.date < cf.date!.start) return false;
+        if (cf.date!.end && t.date > cf.date!.end) return false;
+        return true;
+      });
+    }
+    if (cf.contact) {
+      result = result.filter(t => (t.contact?.name ?? t.description) === cf.contact);
+    }
+    if (cf.status) {
+      const isPaid = cf.status === 'Pago';
+      result = result.filter(t => t.is_paid === isPaid);
     }
 
     result.sort((a, b) => {
@@ -181,45 +212,37 @@ export default function Transactions() {
       if (!dateA && !dateB) return 0;
       if (!dateA) return 1;
       if (!dateB) return -1;
-      const timeA = new Date(dateA).getTime();
-      const timeB = new Date(dateB).getTime();
-      return sortOrder === 'asc' ? timeA - timeB : timeB - timeA;
+      return sortOrder === 'asc' ? new Date(dateA).getTime() - new Date(dateB).getTime() : new Date(dateB).getTime() - new Date(dateA).getTime();
     });
 
     return result;
-  }, [allTransactions, period, typeFilter, categoryFilter, bankFilter, contactFilter, paymentStatusFilter, searchTerm, sortField, sortOrder, customStartDate, customEndDate]);
+  }, [allTransactions, period, typeFilter, categoryFilter, bankFilter, searchTerm, sortField, sortOrder, columnFilters]);
 
-  // KPI totals from filteredTransactions (respects UI filters)
+  // Unique values for text column filters
+  const uniqueContacts = useMemo(() => [...new Set(filteredTransactions.map(t => t.contact?.name ?? t.description))].sort(), [filteredTransactions]);
+  const uniqueStatuses = ['Pago', 'Pendente'];
+
+  // KPI totals
   const kpiTotals = useMemo(() => {
     return filteredTransactions.reduce(
       (acc, t) => {
         const amount = Number(t.amount);
-        if (t.type === 'receita') {
-          if (t.is_paid) acc.receitasPagas += amount;else
-          acc.receitasPendentes += amount;
-        } else {
-          if (t.is_paid) acc.despesasPagas += amount;else
-          acc.despesasPendentes += amount;
-        }
+        if (t.type === 'receita') { if (t.is_paid) acc.receitasPagas += amount; else acc.receitasPendentes += amount; }
+        else { if (t.is_paid) acc.despesasPagas += amount; else acc.despesasPendentes += amount; }
         return acc;
       },
       { receitasPagas: 0, receitasPendentes: 0, despesasPagas: 0, despesasPendentes: 0 }
     );
   }, [filteredTransactions]);
 
-  // Global bank totals (ignores UI filters)
   const bankTotals = useMemo(() => {
-    const activeBanks = banks.filter((b) => b.is_active);
+    const activeBanks = banks.filter(b => b.is_active);
     const totalBalance = activeBanks.reduce((sum, b) => sum + Number(b.current_balance), 0);
-    const caixaGeral = activeBanks.find((b) => b.is_caixa_geral);
-    return {
-      totalBalance,
-      caixaGeralBalance: caixaGeral ? Number(caixaGeral.current_balance) : null,
-      caixaGeralName: caixaGeral?.name ?? null
-    };
+    const caixaGeral = activeBanks.find(b => b.is_caixa_geral);
+    return { totalBalance, caixaGeralBalance: caixaGeral ? Number(caixaGeral.current_balance) : null, caixaGeralName: caixaGeral?.name ?? null };
   }, [banks]);
 
-  // BI Ticker metrics (global — ignores UI filters, uses allTransactions + current month)
+  // BI Ticker
   const biMetrics = useMemo(() => {
     const today = new Date();
     const monthStart = startOfMonth(today);
@@ -228,547 +251,478 @@ export default function Transactions() {
     const monthStartStr = format(monthStart, 'yyyy-MM-dd');
     const monthEndStr = format(monthEnd, 'yyyy-MM-dd');
 
-    let contasEmAtraso = 0;
-    let receitasEmAtraso = 0;
-    let receitasPendentesMes = 0;
-    let despesasPendentesMes = 0;
-    let receitasPendentesAteHoje = 0;
-    let despesasPendentesAteHoje = 0;
-    let receitasMes = 0;
-    let despesasMes = 0;
-    let receitasPagasMes = 0;
-    let despesasPagasMes = 0;
+    let contasEmAtraso = 0, receitasEmAtraso = 0, receitasPendentesMes = 0, despesasPendentesMes = 0;
+    let receitasPendentesAteHoje = 0, despesasPendentesAteHoje = 0;
+    let receitasMes = 0, despesasMes = 0, receitasPagasMes = 0, despesasPagasMes = 0;
 
     for (const t of allTransactions) {
       const amount = Number(t.amount);
-      // Contas em atraso: despesas não pagas com due_date antes de hoje
-      if (t.type === 'despesa' && !t.is_paid && t.due_date && t.due_date < todayStr) {
-        contasEmAtraso += amount;
-      }
-      // Receitas em atraso: receitas não recebidas com due_date antes de hoje
-      if (t.type === 'receita' && !t.is_paid && t.due_date && t.due_date < todayStr) {
-        receitasEmAtraso += amount;
-      }
-      // Capital de giro: apenas transações NÃO pagas
+      if (t.type === 'despesa' && !t.is_paid && t.due_date && t.due_date < todayStr) contasEmAtraso += amount;
+      if (t.type === 'receita' && !t.is_paid && t.due_date && t.due_date < todayStr) receitasEmAtraso += amount;
       if (!t.is_paid && t.due_date) {
-        // Variável A: pendentes no mês atual
         if (t.due_date >= monthStartStr && t.due_date <= monthEndStr) {
-          if (t.type === 'receita') receitasPendentesMes += amount;
-          else despesasPendentesMes += amount;
+          if (t.type === 'receita') receitasPendentesMes += amount; else despesasPendentesMes += amount;
         }
-        // Variável B: pendentes até hoje
         if (t.due_date <= todayStr) {
-          if (t.type === 'receita') receitasPendentesAteHoje += amount;
-          else despesasPendentesAteHoje += amount;
+          if (t.type === 'receita') receitasPendentesAteHoje += amount; else despesasPendentesAteHoje += amount;
         }
       }
-      // Mês corrente
       if (t.date && t.date >= monthStartStr && t.date <= monthEndStr) {
-        if (t.type === 'receita') {
-          receitasMes += amount;
-          if (t.is_paid) receitasPagasMes += amount;
-        } else {
-          despesasMes += amount;
-          if (t.is_paid) despesasPagasMes += amount;
-        }
+        if (t.type === 'receita') { receitasMes += amount; if (t.is_paid) receitasPagasMes += amount; }
+        else { despesasMes += amount; if (t.is_paid) despesasPagasMes += amount; }
       }
     }
 
-    const capitalDeGiroMes = bankTotals.totalBalance + receitasPendentesMes - despesasPendentesMes;
-    const capitalDeGiroHoje = bankTotals.totalBalance + receitasPendentesAteHoje - despesasPendentesAteHoje;
-    const lucroPrevisto = receitasMes - despesasMes;
-    const acumuladoReceitas = receitasPagasMes;
-    const acumuladoDespesas = despesasPagasMes;
-
-    return { contasEmAtraso, receitasEmAtraso, capitalDeGiroMes, capitalDeGiroHoje, lucroPrevisto, acumuladoReceitas, acumuladoDespesas };
+    return {
+      contasEmAtraso, receitasEmAtraso,
+      capitalDeGiroMes: bankTotals.totalBalance + receitasPendentesMes - despesasPendentesMes,
+      capitalDeGiroHoje: bankTotals.totalBalance + receitasPendentesAteHoje - despesasPendentesAteHoje,
+      lucroPrevisto: receitasMes - despesasMes,
+      acumuladoReceitas: receitasPagasMes,
+      acumuladoDespesas: despesasPagasMes,
+    };
   }, [allTransactions, bankTotals]);
-
-  const handleClearFilters = () => {
-    setPeriod('thisYear');
-    setTypeFilter('all');
-    setCategoryFilter('all');
-    setBankFilter('all');
-    setContactFilter('all');
-    setPaymentStatusFilter('all');
-    setSearchTerm('');
-    setCustomStartDate(null);
-    setCustomEndDate(null);
-  };
 
   const handleSubmit = async (data: TransactionInsert, pendingFiles?: File[]) => {
     if (editingTransaction) {
-      updateTransaction.mutate(
-        { id: editingTransaction.id, ...data },
-        {
-          onSuccess: async () => {
-            if (pendingFiles && pendingFiles.length > 0) {
-              for (const file of pendingFiles) {
-                await uploadAttachment.mutateAsync({ file, transactionId: editingTransaction.id });
-              }
-            }
-            setDialogOpen(false);
-            setEditingTransaction(null);
-          }
+      updateTransaction.mutate({ id: editingTransaction.id, ...data }, {
+        onSuccess: async () => {
+          if (pendingFiles?.length) for (const file of pendingFiles) await uploadAttachment.mutateAsync({ file, transactionId: editingTransaction.id });
+          setDialogOpen(false); setEditingTransaction(null);
         }
-      );
+      });
     } else {
       createTransaction.mutate(data, {
         onSuccess: async (newTransaction) => {
-          if (pendingFiles && pendingFiles.length > 0) {
-            for (const file of pendingFiles) {
-              await uploadAttachment.mutateAsync({ file, transactionId: newTransaction.id });
-            }
-          }
+          if (pendingFiles?.length) for (const file of pendingFiles) await uploadAttachment.mutateAsync({ file, transactionId: newTransaction.id });
           setDialogOpen(false);
         }
       });
     }
   };
 
-  const handleEdit = (transaction: Transaction) => {
-    setEditingTransaction(transaction);
-    setDialogOpen(true);
-  };
-
-  const handleDelete = () => {
-    if (deleteId) {
-      deleteTransaction.mutate(deleteId, { onSuccess: () => setDeleteId(null) });
-    }
-  };
-
-  const handleNewTransaction = (type: 'receita' | 'despesa') => {
-    setDefaultType(type);
-    setEditingTransaction(null);
-    setDialogOpen(true);
-  };
+  const handleEdit = (transaction: Transaction) => { setEditingTransaction(transaction); setDialogOpen(true); };
+  const handleDelete = () => { if (deleteId) deleteTransaction.mutate(deleteId, { onSuccess: () => setDeleteId(null) }); };
+  const handleNewTransaction = (type: 'receita' | 'despesa') => { setDefaultType(type); setEditingTransaction(null); setDialogOpen(true); };
 
   const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortOrder('desc');
-    }
+    if (sortField === field) setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortOrder('desc'); }
   };
 
   const toggleSelect = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+    setSelectedIds(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  };
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredTransactions.length) setSelectedIds(new Set());
+    else setSelectedIds(new Set(filteredTransactions.map(t => t.id)));
+  };
+  const handleBulkPay = () => {
+    if (selectedIds.size === 0) return;
+    bulkTogglePaid.mutate({ ids: Array.from(selectedIds), is_paid: true }, { onSuccess: () => setSelectedIds(new Set()) });
+  };
+  const handleBulkDelete = async () => {
+    for (const id of selectedIds) await deleteTransaction.mutateAsync(id);
+    setSelectedIds(new Set()); setBulkDeleteConfirm(false);
+  };
+
+  const totals = { receitas: kpiTotals.receitasPagas + kpiTotals.receitasPendentes, despesas: kpiTotals.despesasPagas + kpiTotals.despesasPendentes };
+
+  const updateColumnFilter = <K extends keyof ColumnFilters>(key: K, value: ColumnFilters[K]) => {
+    setColumnFilters(prev => {
+      const next = { ...prev };
+      if (value === undefined) delete next[key]; else next[key] = value;
       return next;
     });
   };
 
-  const toggleSelectAll = () => {
-    if (selectedIds.size === filteredTransactions.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(filteredTransactions.map((t) => t.id)));
-    }
-  };
-
-  const handleBulkPay = () => {
-    if (selectedIds.size === 0) return;
-    bulkTogglePaid.mutate({ ids: Array.from(selectedIds), is_paid: true }, {
-      onSuccess: () => setSelectedIds(new Set()),
-    });
-  };
-
-  const handleBulkDelete = async () => {
-    if (selectedIds.size === 0) return;
-    for (const id of selectedIds) {
-      await deleteTransaction.mutateAsync(id);
-    }
-    setSelectedIds(new Set());
-    setBulkDeleteConfirm(false);
-  };
-
-  const totals = { receitas: kpiTotals.receitasPagas + kpiTotals.receitasPendentes, despesas: kpiTotals.despesasPagas + kpiTotals.despesasPendentes };
+  const hasActiveColumnFilters = Object.keys(columnFilters).length > 0;
 
   if (isLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-48" />
-        <div className="grid grid-cols-4 gap-4">
-          <Skeleton className="h-24" />
-          <Skeleton className="h-24" />
-          <Skeleton className="h-24" />
-          <Skeleton className="h-24" />
-        </div>
+        <div className="grid grid-cols-7 gap-3"><Skeleton className="h-20" /><Skeleton className="h-20" /><Skeleton className="h-20" /><Skeleton className="h-20" /><Skeleton className="h-20" /><Skeleton className="h-20" /><Skeleton className="h-20" /></div>
         <Skeleton className="h-96" />
-      </div>);
-
+      </div>
+    );
   }
 
+  const exportTransactions = () => filteredTransactions.map(t => ({
+    id: t.id, description: t.description, amount: Number(t.amount), type: t.type as 'receita' | 'despesa',
+    date: t.date, is_paid: t.is_paid,
+    category: t.category ? { id: t.category.id, name: t.category.name, color: t.category.color || '#6B7280' } : null,
+    bank: t.bank ? { id: t.bank.id, name: t.bank.name, color: t.bank.color || '#3B82F6' } : null,
+    contact: t.contact ? { id: t.contact.id, name: t.contact.name, type: t.contact.type } : null,
+  })) as ReportTransaction[];
+
   return (
-    <div className="space-y-5">
-      {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Movimentações</h1>
-          <p className="text-muted-foreground">Gerencie suas receitas e despesas</p>
+    <div className="space-y-4">
+      {/* ── Header: Title left, Actions right ── */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-foreground">Movimentações</h1>
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <Download className="w-4 h-4" /> Exportar
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => exportToCSV(exportTransactions())} className="gap-2">
+                <FileSpreadsheet className="w-4 h-4" /> CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { const dr = getDateRange(period); exportToPDF(exportTransactions(), totals, dr?.start, dr?.end); }} className="gap-2">
+                <FileText className="w-4 h-4" /> PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setImportOpen(true)}>
+            <Upload className="w-4 h-4" /> Importar
+          </Button>
+          <Button size="sm" onClick={() => handleNewTransaction('despesa')} className="gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white">
+            <Plus className="w-4 h-4" /> Nova Movimentação
+          </Button>
         </div>
       </div>
 
-          <div className="space-y-5">
-            {/* Action buttons */}
-            <div className="flex items-center justify-end gap-2">
-              <div className="flex border border-border rounded-lg overflow-hidden">
-                <Button variant={viewMode === 'grid' ? 'default' : 'ghost'} size="icon" onClick={() => setViewMode('grid')} className="rounded-none">
-                  <LayoutGrid className="w-4 h-4" />
+      {/* ── Uniform KPI Cards Grid ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+        {/* A Receber */}
+        <Card className="bg-card border-border/50 border-l-2 border-l-emerald-500">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <TrendingUp className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+              <p className="text-xs text-muted-foreground">A Receber</p>
+            </div>
+            <p className="text-base font-bold text-emerald-500">{formatCurrency(kpiTotals.receitasPendentes)}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Recebido: {formatCurrency(kpiTotals.receitasPagas)}</p>
+          </CardContent>
+        </Card>
+        {/* A Pagar */}
+        <Card className="bg-card border-border/50 border-l-2 border-l-red-500">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <TrendingDown className="w-3.5 h-3.5 text-red-500 shrink-0" />
+              <p className="text-xs text-muted-foreground">A Pagar</p>
+            </div>
+            <p className="text-base font-bold text-red-500">{formatCurrency(kpiTotals.despesasPendentes)}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Pago: {formatCurrency(kpiTotals.despesasPagas)}</p>
+          </CardContent>
+        </Card>
+        {/* Saldo Bancário */}
+        <Card className="bg-card border-border/50 border-l-2 border-l-primary">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <Landmark className="w-3.5 h-3.5 text-primary shrink-0" />
+              <p className="text-xs text-muted-foreground">Saldo Bancário</p>
+            </div>
+            <p className={`text-base font-bold ${bankTotals.totalBalance >= 0 ? 'text-primary' : 'text-red-500'}`}>{formatCurrency(bankTotals.totalBalance)}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{bankTotals.caixaGeralName ? `Caixa: ${formatCurrency(bankTotals.caixaGeralBalance ?? 0)}` : 'Total bancos'}</p>
+          </CardContent>
+        </Card>
+        {/* Em Atraso */}
+        <Card className="bg-card border-border/50 border-l-2 border-l-red-500">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />
+              <p className="text-xs text-muted-foreground">Em Atraso</p>
+            </div>
+            <p className="text-sm font-bold text-orange-400">⬇ {formatCurrency(biMetrics.receitasEmAtraso)}</p>
+            <p className="text-sm font-bold text-red-500">⬆ {formatCurrency(biMetrics.contasEmAtraso)}</p>
+          </CardContent>
+        </Card>
+        {/* Capital de Giro */}
+        <Card className="bg-card border-border/50 border-l-2 border-l-blue-500">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <Building2 className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+              <p className="text-xs text-muted-foreground">Capital de Giro</p>
+            </div>
+            <p className={`text-base font-bold ${biMetrics.capitalDeGiroMes >= 0 ? 'text-blue-400' : 'text-red-500'}`}>{formatCurrency(biMetrics.capitalDeGiroMes)}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Até hoje: {formatCurrency(biMetrics.capitalDeGiroHoje)}</p>
+          </CardContent>
+        </Card>
+        {/* Lucro Previsto */}
+        <Card className="bg-card border-border/50 border-l-2 border-l-emerald-500">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <BarChart3 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+              <p className="text-xs text-muted-foreground">Lucro Previsto</p>
+            </div>
+            <p className={`text-base font-bold ${biMetrics.lucroPrevisto >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{formatCurrency(biMetrics.lucroPrevisto)}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{format(new Date(), 'MMMM', { locale: ptBR }).replace(/^\w/, c => c.toUpperCase())}</p>
+          </CardContent>
+        </Card>
+        {/* Lucro Realizado */}
+        <Card className="bg-card border-border/50 border-l-2 border-l-amber-500">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <CalendarCheck className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <p className="text-xs text-muted-foreground">Realizado</p>
+            </div>
+            <p className={`text-base font-bold ${biMetrics.acumuladoReceitas - biMetrics.acumuladoDespesas >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{formatCurrency(biMetrics.acumuladoReceitas - biMetrics.acumuladoDespesas)}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{format(new Date(), 'MMMM', { locale: ptBR }).replace(/^\w/, c => c.toUpperCase())}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ── Minimalist Icon Toolbar ── */}
+      <TooltipProvider delayDuration={200}>
+        <div className="flex items-center gap-1">
+          {/* Search */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant={searchOpen ? 'secondary' : 'ghost'} size="icon" className="h-8 w-8" onClick={() => { setSearchOpen(!searchOpen); if (searchOpen) setSearchTerm(''); }}>
+                <Search className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Pesquisar</TooltipContent>
+          </Tooltip>
+          {searchOpen && (
+            <Input
+              autoFocus
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              placeholder="Pesquisar..."
+              className="h-8 w-48 text-xs"
+            />
+          )}
+
+          {/* Bank Filter */}
+          <Popover>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <PopoverTrigger asChild>
+                  <Button variant={bankFilter !== 'all' ? 'secondary' : 'ghost'} size="icon" className="h-8 w-8">
+                    <Landmark className="w-4 h-4" />
+                  </Button>
+                </PopoverTrigger>
+              </TooltipTrigger>
+              <TooltipContent>Conta Bancária</TooltipContent>
+            </Tooltip>
+            <PopoverContent className="w-48 p-2" align="start">
+              <div className="space-y-1 max-h-60 overflow-auto">
+                <button onClick={() => setBankFilter('all')} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted ${bankFilter === 'all' ? 'bg-primary/10 text-primary font-medium' : ''}`}>Todos</button>
+                {banks.filter(b => b.is_active).map(b => (
+                  <button key={b.id} onClick={() => setBankFilter(b.id)} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted flex items-center gap-2 ${bankFilter === b.id ? 'bg-primary/10 text-primary font-medium' : ''}`}>
+                    <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: b.color || '#10B981' }} />
+                    {b.name}
+                  </button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Category Filter */}
+          <Popover>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <PopoverTrigger asChild>
+                  <Button variant={categoryFilter !== 'all' ? 'secondary' : 'ghost'} size="icon" className="h-8 w-8">
+                    <Receipt className="w-4 h-4" />
+                  </Button>
+                </PopoverTrigger>
+              </TooltipTrigger>
+              <TooltipContent>Evento Contábil</TooltipContent>
+            </Tooltip>
+            <PopoverContent className="w-48 p-2" align="start">
+              <div className="space-y-1 max-h-60 overflow-auto">
+                <button onClick={() => setCategoryFilter('all')} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted ${categoryFilter === 'all' ? 'bg-primary/10 text-primary font-medium' : ''}`}>Todos</button>
+                {categories.map(c => (
+                  <button key={c.id} onClick={() => setCategoryFilter(c.id)} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted flex items-center gap-2 ${categoryFilter === c.id ? 'bg-primary/10 text-primary font-medium' : ''}`}>
+                    <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.color || '#3B82F6' }} />
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Type Filter */}
+          <Popover>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <PopoverTrigger asChild>
+                  <Button variant={typeFilter !== 'all' ? 'secondary' : 'ghost'} size="icon" className="h-8 w-8">
+                    {typeFilter === 'receita' ? <TrendingUp className="w-4 h-4 text-emerald-500" /> : typeFilter === 'despesa' ? <TrendingDown className="w-4 h-4 text-red-500" /> : <TrendingUp className="w-4 h-4" />}
+                  </Button>
+                </PopoverTrigger>
+              </TooltipTrigger>
+              <TooltipContent>Tipo</TooltipContent>
+            </Tooltip>
+            <PopoverContent className="w-36 p-2" align="start">
+              <div className="space-y-1">
+                <button onClick={() => setTypeFilter('all')} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted ${typeFilter === 'all' ? 'bg-primary/10 text-primary font-medium' : ''}`}>Todos</button>
+                <button onClick={() => setTypeFilter('receita')} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted flex items-center gap-2 ${typeFilter === 'receita' ? 'bg-primary/10 text-primary font-medium' : ''}`}>
+                  <TrendingUp className="w-3 h-3 text-emerald-500" /> Receita
+                </button>
+                <button onClick={() => setTypeFilter('despesa')} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted flex items-center gap-2 ${typeFilter === 'despesa' ? 'bg-primary/10 text-primary font-medium' : ''}`}>
+                  <TrendingDown className="w-3 h-3 text-red-500" /> Despesa
+                </button>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Clear column filters */}
+          {hasActiveColumnFilters && (
+            <Button variant="ghost" size="sm" className="h-8 text-xs gap-1 text-muted-foreground" onClick={() => setColumnFilters({})}>
+              <X className="w-3 h-3" /> Limpar filtros de coluna
+            </Button>
+          )}
+
+          {/* Bulk actions + count */}
+          <div className="ml-auto flex items-center gap-2">
+            {selectedIds.size > 0 && (
+              <>
+                <Button size="sm" className="h-7 gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs" onClick={handleBulkPay}>
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Pagar {selectedIds.size}
                 </Button>
-                <Button variant={viewMode === 'list' ? 'default' : 'ghost'} size="icon" onClick={() => setViewMode('list')} className="rounded-none">
-                  <List className="w-4 h-4" />
+                <Button size="sm" variant="destructive" className="h-7 gap-1.5 text-xs" onClick={() => setBulkDeleteConfirm(true)}>
+                  <Trash2 className="w-3.5 h-3.5" /> Excluir {selectedIds.size}
                 </Button>
+              </>
+            )}
+            <span className="text-muted-foreground text-xs">{filteredTransactions.length} transação(ões)</span>
+          </div>
+        </div>
+      </TooltipProvider>
+
+      {/* ── Transaction Table ── */}
+      {filteredTransactions.length === 0 ? (
+        <Card className="bg-card border-border/50">
+          <CardContent className="text-muted-foreground text-center py-16">
+            <Receipt className="w-12 h-12 mx-auto mb-4 opacity-50" />
+            <p>Nenhuma transação encontrada</p>
+            <p className="text-sm mt-1">Ajuste os filtros ou clique em "Nova Movimentação"</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="bg-card border-border/50 overflow-hidden">
+          <CardContent className="p-0 max-h-[70vh] overflow-auto">
+            {/* Table Header with Excel-style filters */}
+            <div className="grid grid-cols-[40px_80px_1fr_90px_90px_90px_80px_120px_80px] gap-2 px-4 py-2 bg-card border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 z-10">
+              <div className="flex items-center justify-center">
+                <Checkbox checked={selectedIds.size === filteredTransactions.length && filteredTransactions.length > 0} onCheckedChange={toggleSelectAll} />
               </div>
 
-              <Button variant="outline" className="gap-2 relative" onClick={() => setFiltersOpen((v) => !v)}>
-                <SlidersHorizontal className="w-4 h-4" />
-                Filtros Avançados
-                {activeFilterCount > 0 &&
-            <span className="absolute -top-1.5 -right-1.5 bg-primary text-primary-foreground text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
-                    {activeFilterCount}
-                  </span>
-            }
-                {filtersOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-              </Button>
+              {/* Emissão */}
+              <div className="flex items-center gap-0.5">
+                <button onClick={() => handleSort('issue_date')} className="inline-flex items-center gap-0.5 hover:text-foreground transition-colors">
+                  Emissão {sortField === 'issue_date' ? (sortOrder === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-40" />}
+                </button>
+                <Popover>
+                  <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.issue_date} /></button></PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.issue_date} onChange={v => updateColumnFilter('issue_date', v)} /></PopoverContent>
+                </Popover>
+              </div>
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="gap-2">
-                    <Download className="w-4 h-4" />
-                    Exportar
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                onClick={() => {
-                  const rt: ReportTransaction[] = filteredTransactions.map((t) => ({
-                    id: t.id, description: t.description, amount: Number(t.amount), type: t.type as 'receita' | 'despesa',
-                    date: t.date, is_paid: t.is_paid,
-                    category: t.category ? { id: t.category.id, name: t.category.name, color: t.category.color || '#6B7280' } : null,
-                    bank: t.bank ? { id: t.bank.id, name: t.bank.name, color: t.bank.color || '#3B82F6' } : null,
-                    contact: t.contact ? { id: t.contact.id, name: t.contact.name, type: t.contact.type } : null
-                  }));
-                  exportToCSV(rt);
-                }}
-                className="gap-2">
+              {/* Cliente / Evento */}
+              <div className="flex items-center gap-0.5">
+                <span>Cliente / Evento</span>
+                <Popover>
+                  <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.contact} /></button></PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start"><TextColumnFilter values={uniqueContacts} selected={columnFilters.contact} onChange={v => updateColumnFilter('contact', v)} /></PopoverContent>
+                </Popover>
+              </div>
 
-                    <FileSpreadsheet className="w-4 h-4" /> Exportar CSV
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                onClick={() => {
-                  const rt: ReportTransaction[] = filteredTransactions.map((t) => ({
-                    id: t.id, description: t.description, amount: Number(t.amount), type: t.type as 'receita' | 'despesa',
-                    date: t.date, is_paid: t.is_paid,
-                    category: t.category ? { id: t.category.id, name: t.category.name, color: t.category.color || '#6B7280' } : null,
-                    bank: t.bank ? { id: t.bank.id, name: t.bank.name, color: t.bank.color || '#3B82F6' } : null,
-                    contact: t.contact ? { id: t.contact.id, name: t.contact.name, type: t.contact.type } : null
-                  }));
-                  const dateRange = getDateRange(period);
-                  exportToPDF(rt, totals, dateRange?.start, dateRange?.end);
-                }}
-                className="gap-2">
+              {/* Vencimento */}
+              <div className="flex items-center justify-center gap-0.5">
+                <button onClick={() => handleSort('due_date')} className="inline-flex items-center gap-0.5 hover:text-foreground transition-colors">
+                  Vencimento {sortField === 'due_date' ? (sortOrder === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-40" />}
+                </button>
+                <Popover>
+                  <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.due_date} /></button></PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.due_date} onChange={v => updateColumnFilter('due_date', v)} /></PopoverContent>
+                </Popover>
+              </div>
 
-                    <FileText className="w-4 h-4" /> Exportar PDF
-                  </DropdownMenuItem>
-              </DropdownMenuContent>
-              </DropdownMenu>
+              {/* Prevista */}
+              <div className="flex items-center justify-center gap-0.5">
+                <button onClick={() => handleSort('expected_date')} className="inline-flex items-center gap-0.5 hover:text-foreground transition-colors">
+                  Prevista {sortField === 'expected_date' ? (sortOrder === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-40" />}
+                </button>
+                <Popover>
+                  <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.expected_date} /></button></PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.expected_date} onChange={v => updateColumnFilter('expected_date', v)} /></PopoverContent>
+                </Popover>
+              </div>
 
-              <Button variant="outline" className="gap-2" onClick={() => setImportOpen(true)}>
-                <Upload className="w-4 h-4" />
-                Importar Planilha
-              </Button>
+              {/* Pagamento */}
+              <div className="flex items-center justify-center gap-0.5">
+                <button onClick={() => handleSort('date')} className="inline-flex items-center gap-0.5 hover:text-foreground transition-colors">
+                  Pagamento {sortField === 'date' ? (sortOrder === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-40" />}
+                </button>
+                <Popover>
+                  <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.date} /></button></PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.date} onChange={v => updateColumnFilter('date', v)} /></PopoverContent>
+                </Popover>
+              </div>
 
-              <Button onClick={() => handleNewTransaction('despesa')} className="gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg">
-                <Plus className="w-4 h-4" />
-                Nova Movimentação
-              </Button>
+              {/* Status */}
+              <div className="flex items-center justify-center gap-0.5">
+                <span>Status</span>
+                <Popover>
+                  <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.status} /></button></PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start"><TextColumnFilter values={uniqueStatuses} selected={columnFilters.status} onChange={v => updateColumnFilter('status', v)} /></PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="text-right">Valor</div>
+              <div className="text-center">Ações</div>
             </div>
 
-            {/* Collapsible Filters */}
-            <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
-              <CollapsibleContent>
-                <UnifiedFilterBox
-              searchTerm={searchTerm}
-              onSearchChange={setSearchTerm}
-              period={period}
-              onPeriodChange={setPeriod}
-              customStartDate={customStartDate}
-              customEndDate={customEndDate}
-              onCustomStartDateChange={setCustomStartDate}
-              onCustomEndDateChange={setCustomEndDate}
-              bankId={bankFilter}
-              onBankChange={setBankFilter}
-              banks={banks}
-              categoryId={categoryFilter}
-              onCategoryChange={setCategoryFilter}
-              categories={categories}
-              paymentStatus={paymentStatusFilter}
-              onPaymentStatusChange={setPaymentStatusFilter}
-              contactId={contactFilter}
-              onContactChange={setContactFilter}
-              contacts={contacts}
-              onClearFilters={handleClearFilters}
-              type={typeFilter}
-              onTypeChange={setTypeFilter}
-              showTypeFilter={true} />
-
-              </CollapsibleContent>
-            </Collapsible>
-
-            {/* KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Card className="bg-card border-border/50">
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">A Receber</p>
-                      <p className="text-4xl font-extrabold tracking-tight text-emerald-500">{formatCurrency(kpiTotals.receitasPendentes)}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Recebido: <span className="text-emerald-400">{formatCurrency(kpiTotals.receitasPagas)}</span>
-                      </p>
-                    </div>
-                    <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
-                      <TrendingUp className="w-5 h-5 text-emerald-500" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-card border-border/50">
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">A Pagar</p>
-                      <p className="text-4xl font-extrabold tracking-tight text-red-500">{formatCurrency(kpiTotals.despesasPendentes)}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Pago: <span className="text-red-400">{formatCurrency(kpiTotals.despesasPagas)}</span>
-                      </p>
-                    </div>
-                    <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center shrink-0">
-                      <TrendingDown className="w-5 h-5 text-red-500" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-card border-border/50">
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">SALDO BANCÁRIO</p>
-                      <p className={`text-4xl font-extrabold tracking-tight ${bankTotals.totalBalance >= 0 ? 'text-primary' : 'text-red-500'}`}>
-                        {formatCurrency(bankTotals.totalBalance)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {bankTotals.caixaGeralName ?
-                    <>Caixa Geral: <span className="text-primary">{formatCurrency(bankTotals.caixaGeralBalance ?? 0)}</span></> :
-                    'Total em todos os bancos'
-                    }
-                      </p>
-                    </div>
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                      <Landmark className="w-5 h-5 text-primary" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* BI Ticker */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <Card className="bg-card border-border/50 border-l-2 border-l-red-500">
-                <CardContent className="p-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />
-                    <p className="text-xs text-muted-foreground">Em Atraso</p>
-                  </div>
-                  <p className="text-sm font-bold text-orange-400">⬇ Receber: {formatCurrency(biMetrics.receitasEmAtraso)}</p>
-                  <p className="text-sm font-bold text-red-500">⬆ Pagar: {formatCurrency(biMetrics.contasEmAtraso)}</p>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-card border-border/50 border-l-2 border-l-blue-500">
-                <CardContent className="p-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Building2 className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                    <p className="text-xs text-muted-foreground">Capital de Giro</p>
-                  </div>
-                  <p className={`text-base font-bold ${biMetrics.capitalDeGiroMes >= 0 ? 'text-blue-400' : 'text-red-500'}`}>
-                    {formatCurrency(biMetrics.capitalDeGiroMes)}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">Até hoje: {formatCurrency(biMetrics.capitalDeGiroHoje)}</p>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-card border-border/50 border-l-2 border-l-emerald-500">
-                <CardContent className="p-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <BarChart3 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                    <p className="text-xs text-muted-foreground">Lucro Previsto — {format(new Date(), 'MMMM', { locale: ptBR }).replace(/^\w/, c => c.toUpperCase())}</p>
-                  </div>
-                  <p className={`text-base font-bold ${biMetrics.lucroPrevisto >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                    {formatCurrency(biMetrics.lucroPrevisto)}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">Receitas − Despesas (mês)</p>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-card border-border/50 border-l-2 border-l-amber-500">
-                <CardContent className="p-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <CalendarCheck className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                    <p className="text-xs text-muted-foreground">Lucro Realizado — {format(new Date(), 'MMMM', { locale: ptBR }).replace(/^\w/, c => c.toUpperCase())}</p>
-                  </div>
-                  <p className={`text-base font-bold ${biMetrics.acumuladoReceitas - biMetrics.acumuladoDespesas >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                    {formatCurrency(biMetrics.acumuladoReceitas - biMetrics.acumuladoDespesas)}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">Realizado no mês corrente</p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Sort Options + Bulk Actions */}
-            <div className="flex items-center gap-2 text-sm">
-              {selectedIds.size > 0 && (
-                <>
-                  <Button size="sm" className="gap-2 bg-emerald-500 hover:bg-emerald-600 text-white" onClick={handleBulkPay} disabled={bulkTogglePaid.isPending}>
-                    <CheckCircle2 className="w-4 h-4" />
-                    Pagar {selectedIds.size} selecionado(s)
-                  </Button>
-                  <Button size="sm" variant="destructive" className="gap-2" onClick={() => setBulkDeleteConfirm(true)}>
-                    <Trash2 className="w-4 h-4" />
-                    Excluir {selectedIds.size} selecionado(s)
-                  </Button>
-                </>
-              )}
-              <span className="text-muted-foreground text-xs ml-auto">{filteredTransactions.length} transação(ões)</span>
-            </div>
-
-            {/* Transactions List/Grid */}
-            {filteredTransactions.length === 0 ?
-        <Card className="bg-card border-border/50">
-                <CardContent className="text-muted-foreground text-center py-16">
-                  <Receipt className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>Nenhuma transação encontrada</p>
-                  <p className="text-sm mt-1">Ajuste os filtros ou clique em "Nova Movimentação" para começar</p>
-                </CardContent>
-              </Card> :
-        viewMode === 'grid' ?
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredTransactions.map((transaction) =>
-          <Card key={transaction.id} className="bg-card border-border/50 hover:border-primary/30 transition-colors">
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-4">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${transaction.type === 'receita' ? 'bg-emerald-500/20' : 'bg-red-500/20'}`}>
-                          {transaction.type === 'receita' ? <TrendingUp className="w-5 h-5 text-emerald-500" /> : <TrendingDown className="w-5 h-5 text-red-500" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-medium truncate">{transaction.description}</span>
-                            <span className={`font-bold whitespace-nowrap ${transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'}`}>
-                              {transaction.type === 'receita' ? '+' : '-'} {formatCurrency(Number(transaction.amount))}
-                            </span>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1 flex-wrap">
-                            {transaction.category &&
-                    <span className="flex items-center gap-1">
-                                <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: transaction.category.color }} />
-                                {transaction.category.name}
-                              </span>
-                    }
-                            {transaction.bank && <>{transaction.category && <span className="text-muted-foreground/50">|</span>}<span>{transaction.bank.name}</span></>}
-                            {transaction.contact && <>{(transaction.category || transaction.bank) && <span className="text-muted-foreground/50">|</span>}<span className="text-primary">{transaction.contact.name}</span></>}
-                          </p>
-                          <div className="text-xs text-muted-foreground mt-1">📅 {formatDateShort(transaction.date)}</div>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => handleEdit(transaction)}><Pencil className="w-4 h-4" /></Button>
-                          <Button variant="ghost" size="icon" onClick={() => setDeleteId(transaction.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-          )}
-              </div> :
-
-        <Card className="bg-card border-border/50 overflow-hidden">
-                <CardContent className="p-0 max-h-[70vh] overflow-auto">
-                  {/* Table Header */}
-                  <div className="grid grid-cols-[40px_80px_1fr_90px_90px_90px_80px_120px_80px] gap-2 px-4 py-2.5 bg-card border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 z-10">
+            {/* Rows */}
+            <div className="divide-y divide-border/30">
+              {filteredTransactions.map(transaction => {
+                const isOverdue = !transaction.is_paid && transaction.due_date && transaction.due_date < new Date().toISOString().split('T')[0];
+                return (
+                  <div key={transaction.id} className={`grid grid-cols-[40px_80px_1fr_90px_90px_90px_80px_120px_80px] gap-2 px-4 py-3 hover:bg-muted/30 transition-colors items-center ${selectedIds.has(transaction.id) ? 'bg-primary/10 border-l-2 border-l-primary' : ''}`}>
                     <div className="flex items-center justify-center">
-                      <Checkbox checked={selectedIds.size === filteredTransactions.length && filteredTransactions.length > 0} onCheckedChange={toggleSelectAll} />
+                      <Checkbox checked={selectedIds.has(transaction.id)} onCheckedChange={() => toggleSelect(transaction.id)} />
                     </div>
-                    <button onClick={() => handleSort('issue_date')} className="inline-flex items-center gap-0.5 hover:text-foreground transition-colors">
-                      Emissão {sortField === 'issue_date' ? (sortOrder === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-40" />}
-                    </button>
-                    <div>Cliente / Evento</div>
-                    <button onClick={() => handleSort('due_date')} className="inline-flex items-center justify-center gap-0.5 hover:text-foreground transition-colors">
-                      Vencimento {sortField === 'due_date' ? (sortOrder === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-40" />}
-                    </button>
-                    <button onClick={() => handleSort('expected_date')} className="inline-flex items-center justify-center gap-0.5 hover:text-foreground transition-colors">
-                      Prevista {sortField === 'expected_date' ? (sortOrder === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-40" />}
-                    </button>
-                    <button onClick={() => handleSort('date')} className="inline-flex items-center justify-center gap-0.5 hover:text-foreground transition-colors">
-                      Pagamento {sortField === 'date' ? (sortOrder === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-40" />}
-                    </button>
-                    <div className="text-center">Status</div>
-                    <div className="text-right">Valor</div>
-                    <div className="text-center">Ações</div>
-                  </div>
-                  <div className="divide-y divide-border/30">
-                    {filteredTransactions.map((transaction) => {
-                      const isOverdue = !transaction.is_paid && transaction.due_date && transaction.due_date < new Date().toISOString().split('T')[0];
-                      return (
-                      <div key={transaction.id} className={`grid grid-cols-[40px_80px_1fr_90px_90px_90px_80px_120px_80px] gap-2 px-4 py-3 hover:bg-muted/30 transition-colors items-center ${selectedIds.has(transaction.id) ? 'bg-primary/10 border-l-2 border-l-primary' : ''}`}>
-                        <div className="flex items-center justify-center">
-                          <Checkbox checked={selectedIds.has(transaction.id)} onCheckedChange={() => toggleSelect(transaction.id)} />
-                        </div>
-                        <div className="text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.issue_date)}</div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="truncate text-sm font-semibold text-foreground">{transaction.contact?.name ?? transaction.description}</span>
-                            {isOverdue && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-500 border border-red-500/40 whitespace-nowrap shrink-0">Vencido</span>}
-                          </div>
-                          <div className="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground">
-                            {transaction.category && <span style={{ color: transaction.category.color }}>{transaction.category.name}</span>}
-                            {transaction.category && transaction.bank && <span className="text-muted-foreground/40">•</span>}
-                            {transaction.bank && <span>{transaction.bank.name}</span>}
-                            <span className="text-muted-foreground/40">•</span>
-                            <span className={transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'}>
-                              {transaction.type === 'receita' ? 'Receita' : 'Despesa'}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="text-center text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.due_date)}</div>
-                        <div className="text-center text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.expected_date)}</div>
-                        <div className="text-center text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.date)}</div>
-                        <div className="flex justify-center">
-                          <button
-                            onClick={() => togglePaid.mutate({ id: transaction.id, is_paid: !transaction.is_paid })}
-                            className={`text-[10px] font-semibold px-2 py-1 rounded-full border transition-all cursor-pointer whitespace-nowrap ${
-                              transaction.is_paid ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-amber-500 text-amber-500 bg-transparent hover:bg-amber-500/10'
-                            }`}>
-                            {transaction.is_paid ? 'Pago' : 'Pendente'}
-                          </button>
-                        </div>
-                        <div className={`text-right font-bold text-sm tabular-nums ${transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'}`}>
-                          {transaction.type === 'receita' ? '+' : '-'}{formatCurrency(Number(transaction.amount))}
-                        </div>
-                        <div className="flex gap-0.5 justify-center">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted" onClick={() => handleEdit(transaction)}><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteId(transaction.id)}><Trash2 className="w-3.5 h-3.5 text-destructive" /></Button>
-                        </div>
+                    <div className="text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.issue_date)}</div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-sm font-semibold text-foreground">{transaction.contact?.name ?? transaction.description}</span>
+                        {isOverdue && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-500 border border-red-500/40 whitespace-nowrap shrink-0">Vencido</span>}
                       </div>
-                      );
-                    })}
+                      <div className="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground">
+                        {transaction.category && <span style={{ color: transaction.category.color }}>{transaction.category.name}</span>}
+                        {transaction.category && transaction.bank && <span className="text-muted-foreground/40">•</span>}
+                        {transaction.bank && <span>{transaction.bank.name}</span>}
+                        <span className="text-muted-foreground/40">•</span>
+                        <span className={transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'}>
+                          {transaction.type === 'receita' ? 'Receita' : 'Despesa'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-center text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.due_date)}</div>
+                    <div className="text-center text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.expected_date)}</div>
+                    <div className="text-center text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.date)}</div>
+                    <div className="flex justify-center">
+                      <button
+                        onClick={() => togglePaid.mutate({ id: transaction.id, is_paid: !transaction.is_paid })}
+                        className={`text-[10px] font-semibold px-2 py-1 rounded-full border transition-all cursor-pointer whitespace-nowrap ${
+                          transaction.is_paid ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-amber-500 text-amber-500 bg-transparent hover:bg-amber-500/10'
+                        }`}>
+                        {transaction.is_paid ? 'Pago' : 'Pendente'}
+                      </button>
+                    </div>
+                    <div className={`text-right font-bold text-sm tabular-nums ${transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'}`}>
+                      {transaction.type === 'receita' ? '+' : '-'}{formatCurrency(Number(transaction.amount))}
+                    </div>
+                    <div className="flex gap-0.5 justify-center">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted" onClick={() => handleEdit(transaction)}><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteId(transaction.id)}><Trash2 className="w-3.5 h-3.5 text-destructive" /></Button>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-        }
-          </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <TransactionFormDialog
         open={dialogOpen}
@@ -779,22 +733,18 @@ export default function Transactions() {
         contacts={contacts}
         onSubmit={handleSubmit}
         isLoading={createTransaction.isPending || updateTransaction.isPending}
-        defaultType={defaultType} />
-
+        defaultType={defaultType}
+      />
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir transação?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação não pode ser desfeita. A transação será removida permanentemente.
-            </AlertDialogDescription>
+            <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Excluir
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -803,15 +753,11 @@ export default function Transactions() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir {selectedIds.size} transação(ões)?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação não pode ser desfeita. Todas as transações selecionadas serão removidas permanentemente.
-            </AlertDialogDescription>
+            <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Excluir {selectedIds.size}
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir {selectedIds.size}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -822,22 +768,11 @@ export default function Transactions() {
         banks={banks}
         categories={categories}
         contacts={contacts}
-        onImport={async (txns) => {
-          await bulkCreateTransactions.mutateAsync(txns);
-        }}
-        onCreateCategory={async (name) => {
-          const data = await createCategory.mutateAsync({ name, type: 'receita', color: '#3B82F6', icon: 'tag' });
-          return { id: data.id };
-        }}
-        onCreateContact={async (name) => {
-          const data = await createContact.mutateAsync({ name, type: 'cliente', is_active: true, boleto_active: false, document: null, email: null, phone: null, cep: null, address: null, address_number: null, neighborhood: null, city: null, state: null, notes: null, tax_regime: null, representative_legal: null, boleto_value: null, boleto_due_day: null, boleto_start_date: null, origin: 'imported' });
-          return { id: data.id };
-        }}
-        onCreateBank={async (name) => {
-          const data = await createBank.mutateAsync({ name, initial_balance: 0, color: '#10B981', is_active: true, is_caixa_geral: false, bank_code: null, agency: null, account_number: null });
-          return { id: data.id };
-        }}
+        onImport={async (txns) => { await bulkCreateTransactions.mutateAsync(txns); }}
+        onCreateCategory={async (name) => { const data = await createCategory.mutateAsync({ name, type: 'receita', color: '#3B82F6', icon: 'tag' }); return { id: data.id }; }}
+        onCreateContact={async (name) => { const data = await createContact.mutateAsync({ name, type: 'cliente', is_active: true, boleto_active: false, document: null, email: null, phone: null, cep: null, address: null, address_number: null, neighborhood: null, city: null, state: null, notes: null, tax_regime: null, representative_legal: null, boleto_value: null, boleto_due_day: null, boleto_start_date: null, origin: 'imported' }); return { id: data.id }; }}
+        onCreateBank={async (name) => { const data = await createBank.mutateAsync({ name, initial_balance: 0, color: '#10B981', is_active: true, is_caixa_geral: false, bank_code: null, agency: null, account_number: null }); return { id: data.id }; }}
       />
-    </div>);
-
+    </div>
+  );
 }
