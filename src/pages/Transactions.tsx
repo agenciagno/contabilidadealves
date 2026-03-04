@@ -227,8 +227,11 @@ export default function Transactions() {
         return true;
       });
     }
-    if (cf.contact) {
-      result = result.filter(t => t.contact_id === cf.contact);
+    if (cf.contactId) {
+      result = result.filter(t => t.contact_id === cf.contactId);
+    }
+    if (cf.eventName) {
+      result = result.filter(t => !t.contact_id && t.description === cf.eventName);
     }
     if (cf.status) {
       const isPaid = cf.status === 'Pago';
