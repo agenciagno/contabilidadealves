@@ -185,12 +185,27 @@ export function useTransactions() {
 
   const togglePaid = useMutation({
     mutationFn: async ({ id, is_paid }: { id: string; is_paid: boolean }) => {
-      const { error } = await supabase
-        .from('transactions')
-        .update({ is_paid })
-        .eq('id', id);
-
-      if (error) throw error;
+      if (is_paid) {
+        // When marking as paid, copy amount to paid_amount if not already set
+        const { data: txn } = await supabase
+          .from('transactions')
+          .select('amount, paid_amount')
+          .eq('id', id)
+          .single();
+        const paid_amount = txn?.paid_amount ?? txn?.amount ?? 0;
+        const { error } = await supabase
+          .from('transactions')
+          .update({ is_paid: true, paid_amount })
+          .eq('id', id);
+        if (error) throw error;
+      } else {
+        // When unmarking, clear paid_amount
+        const { error } = await supabase
+          .from('transactions')
+          .update({ is_paid: false, paid_amount: null })
+          .eq('id', id);
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
@@ -201,12 +216,30 @@ export function useTransactions() {
 
   const bulkTogglePaid = useMutation({
     mutationFn: async ({ ids, is_paid }: { ids: string[]; is_paid: boolean }) => {
-      const { error } = await supabase
-        .from('transactions')
-        .update({ is_paid })
-        .in('id', ids);
+      if (is_paid) {
+        // For each, set paid_amount = COALESCE(paid_amount, amount) via raw update
+        // We need to fetch amounts first
+        const { data: txns, error: fetchErr } = await supabase
+          .from('transactions')
+          .select('id, amount, paid_amount')
+          .in('id', ids);
+        if (fetchErr) throw fetchErr;
 
-      if (error) throw error;
+        for (const txn of (txns || [])) {
+          const paid_amount = txn.paid_amount ?? txn.amount;
+          const { error } = await supabase
+            .from('transactions')
+            .update({ is_paid: true, paid_amount })
+            .eq('id', txn.id);
+          if (error) throw error;
+        }
+      } else {
+        const { error } = await supabase
+          .from('transactions')
+          .update({ is_paid: false, paid_amount: null })
+          .in('id', ids);
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });

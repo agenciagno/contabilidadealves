@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 import { Transaction, TransactionInsert } from '@/hooks/useTransactions';
 import { Category, useCategories, CategoryInsert } from '@/hooks/useCategories';
 import { Bank, useBanks, BankInsert } from '@/hooks/useBanks';
@@ -59,7 +58,6 @@ export function TransactionFormDialog({
   const [categoryId, setCategoryId] = useState<string>('');
   const [bankId, setBankId] = useState<string>('');
   const [contactId, setContactId] = useState<string>('');
-  const [isPaid, setIsPaid] = useState(false);
   const [notes, setNotes] = useState('');
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
@@ -102,7 +100,6 @@ export function TransactionFormDialog({
       setCategoryId(transaction.category_id || '');
       setBankId(transaction.bank_id || '');
       setContactId(transaction.contact_id || '');
-      setIsPaid(transaction.is_paid);
       setNotes(transaction.notes || '');
       setPendingFiles([]);
     } else {
@@ -110,7 +107,7 @@ export function TransactionFormDialog({
       setAmount(''); setPaidAmount('');
       setDate(''); setIssueDate(todayStr); setDueDate(''); setExpectedDate('');
       setCategoryId(''); setBankId(''); setContactId('');
-      setIsPaid(false); setNotes(''); setPendingFiles([]);
+      setNotes(''); setPendingFiles([]);
     }
   }, [transaction, open, defaultType]);
 
@@ -126,6 +123,7 @@ export function TransactionFormDialog({
     const selectedCategory = filteredCategories.find(c => c.id === categoryId);
     const autoDescription = selectedCategory?.name || 'Movimentação';
     const paidAmountValue = parseCurrencyInput(paidAmount);
+    const derivedIsPaid = paidAmountValue > 0;
 
     onSubmit({
       type,
@@ -139,7 +137,7 @@ export function TransactionFormDialog({
       category_id: categoryId || null,
       bank_id: bankId || null,
       contact_id: contactId || null,
-      is_paid: isPaid,
+      is_paid: derivedIsPaid,
       notes: notes || null,
     } as TransactionInsert, pendingFiles);
   };
@@ -291,14 +289,8 @@ export function TransactionFormDialog({
               </div>
             </div>
 
-            {/* Row 5: Paid toggle + Buttons */}
-            <div className="flex items-center justify-between gap-3 pt-1">
-              <div className="flex items-center gap-2">
-                <Switch id="paid" checked={isPaid} onCheckedChange={setIsPaid} className="scale-90" />
-                <Label htmlFor="paid" className="text-xs font-medium cursor-pointer">
-                  {type === 'receita' ? 'Recebido' : 'Pago'}
-                </Label>
-              </div>
+            {/* Row 5: Buttons */}
+            <div className="flex items-center justify-end gap-3 pt-1">
               <div className="flex gap-2">
                 <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)} className="h-8 text-xs px-4">
                   Cancelar
