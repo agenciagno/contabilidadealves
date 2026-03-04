@@ -7,8 +7,8 @@ import { Input } from '@/components/ui/input';
 import {
   Plus, Upload, Pencil, Trash2, TrendingUp, TrendingDown, Receipt,
   Download, FileSpreadsheet, FileText, AlertTriangle, Landmark,
-  BarChart3, CalendarCheck, ChevronDown, ChevronUp, ArrowUpDown,
-  Building2, CheckCircle2, Search, Filter, X
+  BarChart3, CalendarCheck, ChevronDown, ChevronUp,
+  Building2, CheckCircle2, Search, Filter, X, ArrowUpDown
 } from 'lucide-react';
 import { useTransactions, Transaction, TransactionInsert } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
@@ -57,9 +57,17 @@ interface ColumnFilters {
 }
 
 // Column filter popover for date columns
-function DateColumnFilter({ value, onChange }: { value?: { start: string; end: string }; onChange: (v?: { start: string; end: string }) => void }) {
+function DateColumnFilter({ value, onChange, sortField, currentSortField, currentSortOrder, onSort }: {
+  value?: { start: string; end: string };
+  onChange: (v?: { start: string; end: string }) => void;
+  sortField: SortField;
+  currentSortField: SortField;
+  currentSortOrder: SortOrder;
+  onSort: (field: SortField, order: SortOrder) => void;
+}) {
   const [start, setStart] = useState(value?.start || '');
   const [end, setEnd] = useState(value?.end || '');
+  const isActive = currentSortField === sortField;
 
   const apply = () => {
     if (start || end) onChange({ start, end });
@@ -70,6 +78,22 @@ function DateColumnFilter({ value, onChange }: { value?: { start: string; end: s
 
   return (
     <div className="space-y-2 p-2 w-56">
+      {/* Sort buttons */}
+      <div className="space-y-0.5 pb-2 border-b border-border/40">
+        <button
+          onClick={() => onSort(sortField, 'asc')}
+          className={`w-full text-left text-xs px-2 py-1.5 rounded flex items-center gap-1.5 hover:bg-muted ${isActive && currentSortOrder === 'asc' ? 'bg-primary/10 text-primary font-medium' : ''}`}
+        >
+          <ChevronUp className="w-3 h-3" /> Mais antigo primeiro
+        </button>
+        <button
+          onClick={() => onSort(sortField, 'desc')}
+          className={`w-full text-left text-xs px-2 py-1.5 rounded flex items-center gap-1.5 hover:bg-muted ${isActive && currentSortOrder === 'desc' ? 'bg-primary/10 text-primary font-medium' : ''}`}
+        >
+          <ChevronDown className="w-3 h-3" /> Mais recente primeiro
+        </button>
+      </div>
+      {/* Date range filter */}
       <div className="space-y-1">
         <label className="text-xs text-muted-foreground">De</label>
         <Input type="date" value={start} onChange={e => setStart(e.target.value)} className="h-8 text-xs" />
