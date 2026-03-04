@@ -52,7 +52,8 @@ interface ColumnFilters {
   due_date?: { start: string; end: string };
   expected_date?: { start: string; end: string };
   date?: { start: string; end: string };
-  contact?: string; // stores contact_id (UUID) for exact match
+  contactId?: string; // UUID for exact contact match
+  eventName?: string; // exact description match for transactions without contact
   status?: string;
 }
 
