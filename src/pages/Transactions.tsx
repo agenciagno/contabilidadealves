@@ -52,7 +52,7 @@ interface ColumnFilters {
   due_date?: { start: string; end: string };
   expected_date?: { start: string; end: string };
   date?: { start: string; end: string };
-  contact?: string;
+  contact?: string; // stores contact_id (UUID) for exact match
   status?: string;
 }
 
@@ -96,11 +96,11 @@ function DateColumnFilter({ value, onChange, sortField, currentSortField, curren
       {/* Date range filter */}
       <div className="space-y-1">
         <label className="text-xs text-muted-foreground">De</label>
-        <Input type="date" value={start} onChange={e => setStart(e.target.value)} className="h-8 text-xs" />
+        <Input type="date" value={start} onChange={e => setStart(e.target.value)} max="9999-12-31" className="h-8 text-xs" />
       </div>
       <div className="space-y-1">
         <label className="text-xs text-muted-foreground">Até</label>
-        <Input type="date" value={end} onChange={e => setEnd(e.target.value)} className="h-8 text-xs" />
+        <Input type="date" value={end} onChange={e => setEnd(e.target.value)} max="9999-12-31" className="h-8 text-xs" />
       </div>
       <div className="flex gap-1">
         <Button size="sm" variant="outline" className="flex-1 h-7 text-xs" onClick={clear}>Limpar</Button>
@@ -223,7 +223,7 @@ export default function Transactions() {
       });
     }
     if (cf.contact) {
-      result = result.filter(t => (t.contact?.name ?? t.description) === cf.contact);
+      result = result.filter(t => t.contact_id === cf.contact);
     }
     if (cf.status) {
       const isPaid = cf.status === 'Pago';
@@ -243,7 +243,16 @@ export default function Transactions() {
   }, [allTransactions, period, typeFilter, categoryFilter, bankFilter, searchTerm, sortField, sortOrder, columnFilters]);
 
   // Unique values for text column filters
-  const uniqueContacts = useMemo(() => [...new Set(filteredTransactions.map(t => t.contact?.name ?? t.description))].sort(), [filteredTransactions]);
+  // Build unique contacts list from allTransactions (before column filters) to avoid circular dependency
+  const uniqueContactOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const t of allTransactions) {
+      if (t.contact_id && t.contact?.name) {
+        map.set(t.contact_id, t.contact.name);
+      }
+    }
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [allTransactions]);
   const uniqueStatuses = ['Pago', 'Pendente'];
 
   // KPI totals — paid uses paid_amount, pending uses amount
@@ -650,7 +659,18 @@ export default function Transactions() {
                 <span>Cliente / Evento</span>
                 <Popover>
                   <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.contact} /></button></PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start"><TextColumnFilter values={uniqueContacts} selected={columnFilters.contact} onChange={v => updateColumnFilter('contact', v)} /></PopoverContent>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <div className="space-y-1 p-2 w-48 max-h-60 overflow-auto">
+                      <button onClick={() => updateColumnFilter('contact', undefined)} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted ${!columnFilters.contact ? 'bg-primary/10 text-primary font-medium' : ''}`}>
+                        Todos
+                      </button>
+                      {uniqueContactOptions.map(c => (
+                        <button key={c.id} onClick={() => updateColumnFilter('contact', c.id)} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted truncate ${columnFilters.contact === c.id ? 'bg-primary/10 text-primary font-medium' : ''}`}>
+                          {c.name}
+                        </button>
+                      ))}
+                    </div>
+                  </PopoverContent>
                 </Popover>
               </div>
 
