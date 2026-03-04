@@ -57,7 +57,7 @@ interface ColumnFilters {
   status?: string;
 }
 
-// Column filter popover for date columns
+// Column filter popover for date columns - syncs internal state with external value
 function DateColumnFilter({ value, onChange, sortField, currentSortField, currentSortOrder, onSort }: {
   value?: { start: string; end: string };
   onChange: (v?: { start: string; end: string }) => void;
@@ -70,6 +70,12 @@ function DateColumnFilter({ value, onChange, sortField, currentSortField, curren
   const [end, setEnd] = useState(value?.end || '');
   const isActive = currentSortField === sortField;
 
+  // Sync internal state when external value changes (e.g. "clear all filters")
+  useEffect(() => {
+    setStart(value?.start || '');
+    setEnd(value?.end || '');
+  }, [value?.start, value?.end]);
+
   const apply = () => {
     if (start || end) onChange({ start, end });
     else onChange(undefined);
@@ -79,7 +85,6 @@ function DateColumnFilter({ value, onChange, sortField, currentSortField, curren
 
   return (
     <div className="space-y-2 p-2 w-56">
-      {/* Sort buttons */}
       <div className="space-y-0.5 pb-2 border-b border-border/40">
         <button
           onClick={() => onSort(sortField, 'asc')}
@@ -94,7 +99,6 @@ function DateColumnFilter({ value, onChange, sortField, currentSortField, curren
           <ChevronDown className="w-3 h-3" /> Mais recente primeiro
         </button>
       </div>
-      {/* Date range filter */}
       <div className="space-y-1">
         <label className="text-xs text-muted-foreground">De</label>
         <Input type="date" value={start} onChange={e => setStart(e.target.value)} max="9999-12-31" className="h-8 text-xs" />
