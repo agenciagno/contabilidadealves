@@ -666,17 +666,30 @@ export default function Transactions() {
               <div className="flex items-center gap-0.5">
                 <span>Cliente / Evento</span>
                 <Popover>
-                  <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.contact} /></button></PopoverTrigger>
+                  <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.contactId || !!columnFilters.eventName} /></button></PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <div className="space-y-1 p-2 w-48 max-h-60 overflow-auto">
-                      <button onClick={() => updateColumnFilter('contact', undefined)} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted ${!columnFilters.contact ? 'bg-primary/10 text-primary font-medium' : ''}`}>
+                    <div className="space-y-1 p-2 w-56 max-h-72 overflow-auto">
+                      <button onClick={() => { updateColumnFilter('contactId', undefined); updateColumnFilter('eventName', undefined); }} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted ${!columnFilters.contactId && !columnFilters.eventName ? 'bg-primary/10 text-primary font-medium' : ''}`}>
                         Todos
                       </button>
+                      {uniqueContactOptions.length > 0 && (
+                        <div className="pt-1 pb-0.5 px-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Clientes / Fornecedores</div>
+                      )}
                       {uniqueContactOptions.map(c => (
-                        <button key={c.id} onClick={() => updateColumnFilter('contact', c.id)} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted truncate ${columnFilters.contact === c.id ? 'bg-primary/10 text-primary font-medium' : ''}`}>
+                        <button key={c.id} onClick={() => { updateColumnFilter('contactId', c.id); updateColumnFilter('eventName', undefined); }} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted truncate ${columnFilters.contactId === c.id ? 'bg-primary/10 text-primary font-medium' : ''}`}>
                           {c.name}
                         </button>
                       ))}
+                      {uniqueEventOptions.length > 0 && (
+                        <>
+                          <div className="pt-2 pb-0.5 px-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider border-t border-border/40 mt-1">Eventos (sem contato)</div>
+                          {uniqueEventOptions.map(desc => (
+                            <button key={desc} onClick={() => { updateColumnFilter('eventName', desc); updateColumnFilter('contactId', undefined); }} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted truncate ${columnFilters.eventName === desc ? 'bg-primary/10 text-primary font-medium' : ''}`}>
+                              {desc}
+                            </button>
+                          ))}
+                        </>
+                      )}
                     </div>
                   </PopoverContent>
                 </Popover>
