@@ -155,6 +155,12 @@ function ContactEventMultiFilter({
   const [tempContacts, setTempContacts] = useState<string[]>([]);
   const [tempEvents, setTempEvents] = useState<string[]>([]);
 
+  // Refs to always have fresh values accessible in onOpenChange callback
+  const tempContactsRef = useRef<string[]>(tempContacts);
+  const tempEventsRef = useRef<string[]>(tempEvents);
+  tempContactsRef.current = tempContacts;
+  tempEventsRef.current = tempEvents;
+
   // Derived from parent when closed, from temp when open
   const selectedContacts = open ? tempContacts : (columnFilters.contactIds || []);
   const selectedEvents = open ? tempEvents : (columnFilters.eventNames || []);
