@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -192,23 +192,28 @@ function ContactEventMultiFilter({
     setSearch('');
   };
 
+  const applyFilters = () => {
+    const contacts = tempContactsRef.current;
+    const events = tempEventsRef.current;
+    setColumnFilters(prev => {
+      const n = { ...prev };
+      if (contacts.length) n.contactIds = contacts; else delete n.contactIds;
+      if (events.length) n.eventNames = events; else delete n.eventNames;
+      return n;
+    });
+    setSearch('');
+    setOpen(false);
+  };
+
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
-      // Sync from parent state when opening
       setTempContacts(columnFilters.contactIds || []);
       setTempEvents(columnFilters.eventNames || []);
       setSearch('');
+      setOpen(true);
     } else {
-      // Apply to parent only when closing
-      setColumnFilters(prev => {
-        const n = { ...prev };
-        if (tempContacts.length) n.contactIds = tempContacts; else delete n.contactIds;
-        if (tempEvents.length) n.eventNames = tempEvents; else delete n.eventNames;
-        return n;
-      });
-      setSearch('');
+      applyFilters();
     }
-    setOpen(nextOpen);
   };
 
   return (
