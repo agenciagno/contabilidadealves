@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { createGlobalLog } from '@/hooks/useGlobalLogs';
+import { isEffectivelyPaid } from '@/lib/financial-utils';
 
 export interface Transaction {
   id: string;
@@ -321,16 +322,17 @@ export function useTransactions() {
     },
   });
 
-  // Calculate totals using effective amount logic
+  // Calculate totals using strict isEffectivelyPaid rule
   const totals = transactions.reduce(
     (acc, t) => {
-      const effectiveAmt = t.is_paid && t.paid_amount != null ? Number(t.paid_amount) : Number(t.amount);
+      const paid = isEffectivelyPaid(t);
+      const effectiveAmt = paid && t.paid_amount != null ? Number(t.paid_amount) : Number(t.amount);
       if (t.type === 'receita') {
         acc.receitas += effectiveAmt;
-        if (t.is_paid) acc.receitasPagas += effectiveAmt;
+        if (paid) acc.receitasPagas += effectiveAmt;
       } else {
         acc.despesas += effectiveAmt;
-        if (t.is_paid) acc.despesasPagas += effectiveAmt;
+        if (paid) acc.despesasPagas += effectiveAmt;
       }
       return acc;
     },
