@@ -359,8 +359,8 @@ export default function Transactions() {
       result = result.filter(t => !t.contact_id && cf.eventNames!.includes(t.description));
     }
     if (cf.status) {
-      const isPaid = cf.status === 'Pago';
-      result = result.filter(t => t.is_paid === isPaid);
+      const wantPaid = cf.status === 'Pago';
+      result = result.filter(t => isEffectivelyPaid(t) === wantPaid);
     }
 
     result.sort((a, b) => {
