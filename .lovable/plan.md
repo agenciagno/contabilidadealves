@@ -1,93 +1,72 @@
 
 
-# Preview Intermediario na Importacao de Planilha
+## Plano de Implementação — 2 Blocos
 
-## Resumo
+### BLOCO 1: Filtro "Cliente/Evento" com Busca e Multi-select
 
-Adicionar um Step 3 (Preview) entre o upload e a confirmacao final. Apos o upload processar os dados, ao inves de importar diretamente, exibir uma tabela com os lancamentos lidos para o usuario revisar, com opcao de confirmar ou voltar.
+**Estado atual:** O filtro é um Popover com lista simples de botões, single-select por `contactId` ou `eventName`.
 
----
+**Alterações em `src/pages/Transactions.tsx`:**
 
-## Arquivo Modificado
+1. **Mudar tipo do estado** de `contactId?: string` para `contactIds?: string[]` no `ColumnFilters` interface.
 
-| Arquivo | Mudanca |
-|---|---|
-| `src/components/transactions/ImportSpreadsheetDialog.tsx` | Adicionar step 3 com tabela de preview, separar parsing de importacao |
+2. **Substituir o Popover interno** por um componente com:
+   - Campo `<Input>` de busca no topo (filtra a lista de contatos/eventos por digitação).
+   - Lista de contatos com `<Checkbox>` ao lado de cada nome (multi-select).
+   - Seção separada para "Eventos (sem contato)" com mesma lógica de checkboxes.
+   - Botões "Limpar" e "Aplicar" no rodapé.
+   - Tags/badges mostrando quantos itens selecionados no header da coluna.
 
----
+3. **Atualizar lógica de filtragem:**
+   ```typescript
+   // De:
+   if (cf.contactId) result = result.filter(t => t.contact_id === cf.contactId);
+   // Para:
+   if (cf.contactIds?.length) result = result.filter(t => cf.contactIds!.includes(t.contact_id!));
+   ```
+   Mesma lógica para `eventNames?: string[]` (array).
 
-## Mudancas Detalhadas
-
-### 1. Novo estado para armazenar dados parseados
-
-```typescript
-const [parsedData, setParsedData] = useState<TransactionInsert[]>([]);
-```
-
-### 2. Alterar `processFile` para nao importar direto
-
-Em vez de chamar `onImport(transactions)` ao final do parsing, salvar em `setParsedData(transactions)` e avancar para `setStep(3)`.
-
-### 3. Step indicator com 3 passos
-
-Adicionar terceiro circulo "Revisar" no indicador de progresso (Modelo -> Upload -> Revisar).
-
-### 4. Step 3: Tabela de Preview
-
-- Dialog expandido para `sm:max-w-4xl` quando no step 3
-- Contador: "X lancamento(s) encontrado(s)"
-- Tabela com ScrollArea (max-height ~400px) contendo colunas:
-  - Data | Cliente | Tipo | Valor | Status | Vencimento | Banco | Categoria
-- Cada linha mostra dados legivel (data formatada dd/MM/yyyy, valor em R$, tipo como badge colorido Receita/Despesa, status como badge Pago/Pendente)
-- Lookup reverso de bank_id/category_id/contact_id para exibir nomes (ou "---" se nao vinculado)
-- Botoes: "Voltar" (ghost, volta ao step 2) e "Confirmar Importacao" (primary, chama onImport)
-- Ao confirmar: spinner de "Importando..." e fluxo existente de toast + fechar modal
-
-### 5. Ajuste no resetState
-
-Incluir `setParsedData([])` no reset.
-
-### 6. DialogDescription dinâmica
-
-Step 3 exibe: "Revise os dados antes de confirmar"
+4. **Indicador visual:** Se 1+ itens selecionados, mostrar badge com contagem no ícone do filtro.
 
 ---
 
-## Secao Tecnica
+### BLOCO 2: Regra Estrita de Liquidação (is_paid)
 
-### Lookup reverso para exibicao
+**Regra:** `is_paid = true` somente se `date` (Data Pagamento) preenchido **E** `paid_amount` preenchido (>= 0).
 
-Para mostrar nomes na tabela de preview ao inves de IDs:
+**Alterações:**
 
-```typescript
-const bankName = (id: string | null) => banks.find(b => b.id === id)?.name ?? '—';
-const categoryName = (id: string | null) => categories.find(c => c.id === id)?.name ?? '—';
-const contactName = (id: string | null) => contacts.find(c => c.id === id)?.name ?? '—';
-```
+**A) `src/hooks/useTransactions.ts` — `togglePaid` mutation (linha 189-218):**
+- Ao marcar como pago (`is_paid: true`): buscar a transação, verificar se `date` existe. Se não, rejeitar com erro toast: _"Para liquidar, a Data de Pagamento e o Valor Recebido são obrigatórios."_
+- Preencher `paid_amount` com `amount` se não existir (mantém comportamento atual).
 
-### Formatacao na tabela
+**B) `src/hooks/useTransactions.ts` — `bulkTogglePaid` mutation (linha 220-252):**
+- Para cada transação no bulk, verificar a mesma regra. Pular as que não atendem e notificar quantas foram ignoradas.
 
-```typescript
-// Data: format(parseISO(row.date), 'dd/MM/yyyy')
-// Valor: row.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-// Tipo: Badge verde "Receita" ou vermelho "Despesa"
-// Status: Badge "Pago" ou "Pendente"
-```
+**C) `src/components/transactions/TransactionFormDialog.tsx` — `handleSubmit`:**
+- Se `paidAmountValue > 0` (derivedIsPaid = true) mas `date` está vazio, bloquear salvamento e exibir toast de erro.
+- Se `date` está preenchido mas `paidAmount` está vazio/zero, `is_paid` permanece `false`.
 
-### Handler de confirmacao
+**D) `src/pages/Transactions.tsx` — KPIs e exibição:**
+- No cálculo de KPIs e no status visual da tabela, aplicar a regra defensiva:
+  ```typescript
+  const isEffectivelyPaid = t.is_paid && !!t.date && t.paid_amount != null;
+  ```
+  Transações com `is_paid = true` no banco mas sem `date` ou `paid_amount` devem ser tratadas como "Pendente" na UI.
 
-```typescript
-const handleConfirmImport = async () => {
-  setIsProcessing(true);
-  try {
-    await onImport(parsedData);
-    toast({ title: `${parsedData.length} lançamento(s) importado(s) com sucesso!` });
-    handleClose(false);
-  } catch (err) {
-    toast({ title: 'Erro ao importar.', variant: 'destructive' });
-  } finally {
-    setIsProcessing(false);
+**E) `src/lib/financial-utils.ts` — `getEffectiveAmount`:**
+- Atualizar para considerar a regra dupla:
+  ```typescript
+  export function isEffectivelyPaid(t: { is_paid: boolean; date: string | null; paid_amount: number | null }): boolean {
+    return t.is_paid && !!t.date && t.paid_amount != null;
   }
-};
-```
+  ```
+
+**F) Trigger do banco de dados (update_bank_balance):** A trigger já usa `is_paid = true`, então desde que o frontend impeça `is_paid = true` sem as condições, o banco fica consistente.
+
+**Arquivos impactados:**
+- `src/pages/Transactions.tsx`
+- `src/hooks/useTransactions.ts`
+- `src/components/transactions/TransactionFormDialog.tsx`
+- `src/lib/financial-utils.ts`
 
