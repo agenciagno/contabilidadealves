@@ -52,8 +52,8 @@ interface ColumnFilters {
   due_date?: { start: string; end: string };
   expected_date?: { start: string; end: string };
   date?: { start: string; end: string };
-  contactId?: string; // UUID for exact contact match
-  eventName?: string; // exact description match for transactions without contact
+  contactIds?: string[]; // UUIDs for multi-select contact match
+  eventNames?: string[]; // multi-select description match for transactions without contact
   status?: string;
 }
 
@@ -229,11 +229,11 @@ export default function Transactions() {
         return true;
       });
     }
-    if (cf.contactId) {
-      result = result.filter(t => t.contact_id === cf.contactId);
+    if (cf.contactIds?.length) {
+      result = result.filter(t => t.contact_id && cf.contactIds!.includes(t.contact_id));
     }
-    if (cf.eventName) {
-      result = result.filter(t => !t.contact_id && t.description === cf.eventName);
+    if (cf.eventNames?.length) {
+      result = result.filter(t => !t.contact_id && cf.eventNames!.includes(t.description));
     }
     if (cf.status) {
       const isPaid = cf.status === 'Pago';
@@ -674,38 +674,13 @@ export default function Transactions() {
                 </Popover>
               </div>
 
-              {/* Cliente / Evento */}
-              <div className="flex items-center gap-0.5">
-                <span>Cliente / Evento</span>
-                <Popover>
-                  <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.contactId || !!columnFilters.eventName} /></button></PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <div className="space-y-1 p-2 w-56 max-h-72 overflow-auto">
-                      <button onClick={() => { updateColumnFilter('contactId', undefined); updateColumnFilter('eventName', undefined); }} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted ${!columnFilters.contactId && !columnFilters.eventName ? 'bg-primary/10 text-primary font-medium' : ''}`}>
-                        Todos
-                      </button>
-                      {uniqueContactOptions.length > 0 && (
-                        <div className="pt-1 pb-0.5 px-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Clientes / Fornecedores</div>
-                      )}
-                      {uniqueContactOptions.map(c => (
-                        <button key={c.id} onClick={() => { updateColumnFilter('contactId', c.id); updateColumnFilter('eventName', undefined); }} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted truncate ${columnFilters.contactId === c.id ? 'bg-primary/10 text-primary font-medium' : ''}`}>
-                          {c.name}
-                        </button>
-                      ))}
-                      {uniqueEventOptions.length > 0 && (
-                        <>
-                          <div className="pt-2 pb-0.5 px-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider border-t border-border/40 mt-1">Eventos (sem contato)</div>
-                          {uniqueEventOptions.map(desc => (
-                            <button key={desc} onClick={() => { updateColumnFilter('eventName', desc); updateColumnFilter('contactId', undefined); }} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted truncate ${columnFilters.eventName === desc ? 'bg-primary/10 text-primary font-medium' : ''}`}>
-                              {desc}
-                            </button>
-                          ))}
-                        </>
-                      )}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </div>
+              {/* Cliente / Evento — Multi-select with search */}
+              <ContactEventMultiFilter
+                columnFilters={columnFilters}
+                setColumnFilters={setColumnFilters}
+                uniqueContactOptions={uniqueContactOptions}
+                uniqueEventOptions={uniqueEventOptions}
+              />
 
               {/* Vencimento */}
               <div className="flex items-center justify-center gap-0.5">
