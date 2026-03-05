@@ -433,11 +433,12 @@ export default function Transactions() {
     let receitasMes = 0, despesasMes = 0, receitasPagasMes = 0, despesasPagasMes = 0;
 
     for (const t of allTransactions) {
+      const paid = isEffectivelyPaid(t);
       const amt = Number(t.amount); // pending always uses original amount
-      const effAmt = t.is_paid && t.paid_amount != null ? Number(t.paid_amount) : amt;
-      if (t.type === 'despesa' && !t.is_paid && t.due_date && t.due_date < todayStr) contasEmAtraso += amt;
-      if (t.type === 'receita' && !t.is_paid && t.due_date && t.due_date < todayStr) receitasEmAtraso += amt;
-      if (!t.is_paid && t.due_date) {
+      const effAmt = paid && t.paid_amount != null ? Number(t.paid_amount) : amt;
+      if (t.type === 'despesa' && !paid && t.due_date && t.due_date < todayStr) contasEmAtraso += amt;
+      if (t.type === 'receita' && !paid && t.due_date && t.due_date < todayStr) receitasEmAtraso += amt;
+      if (!paid && t.due_date) {
         if (t.due_date >= monthStartStr && t.due_date <= monthEndStr) {
           if (t.type === 'receita') receitasPendentesMes += amt; else despesasPendentesMes += amt;
         }
@@ -446,8 +447,8 @@ export default function Transactions() {
         }
       }
       if (t.date && t.date >= monthStartStr && t.date <= monthEndStr) {
-        if (t.type === 'receita') { receitasMes += effAmt; if (t.is_paid) receitasPagasMes += effAmt; }
-        else { despesasMes += effAmt; if (t.is_paid) despesasPagasMes += effAmt; }
+        if (t.type === 'receita') { receitasMes += effAmt; if (paid) receitasPagasMes += effAmt; }
+        else { despesasMes += effAmt; if (paid) despesasPagasMes += effAmt; }
       }
     }
 
