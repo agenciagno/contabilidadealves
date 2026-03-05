@@ -1,93 +1,42 @@
 
 
-# Preview Intermediario na Importacao de Planilha
+## Plano: Correção Definitiva do Popover Multi-select
 
-## Resumo
+### Diagnóstico
 
-Adicionar um Step 3 (Preview) entre o upload e a confirmacao final. Apos o upload processar os dados, ao inves de importar diretamente, exibir uma tabela com os lancamentos lidos para o usuario revisar, com opcao de confirmar ou voltar.
+O `ContactEventMultiFilter` (linhas 145-276) já tem estado `open` controlado, mas o problema é que `toggleContact`/`toggleEvent` chamam `setColumnFilters` do componente pai (`Transactions`), o que:
+1. Atualiza `serverFilters` (useMemo dependente de `columnFilters`)
+2. Dispara `useServerTransactions` → `isFetching` muda → re-render do pai inteiro
+3. O ternário na linha 771 (`!isFetching && transactions.length === 0 ? ... : ...`) pode trocar de branch e desmontar a árvore do header, matando o Popover
 
----
+### Solução
 
-## Arquivo Modificado
+**BLOCO 1+2+3: Extrair componente isolado com estado interno desacoplado**
 
-| Arquivo | Mudanca |
-|---|---|
-| `src/components/transactions/ImportSpreadsheetDialog.tsx` | Adicionar step 3 com tabela de preview, separar parsing de importacao |
+Refatorar `ContactEventMultiFilter` para **não chamar `setColumnFilters` a cada clique de checkbox**. Em vez disso:
 
----
+1. Manter seleções temporárias (`tempContactIds`, `tempEventNames`) dentro do componente como estado local.
+2. Sincronizar do pai → filho via `useEffect` quando o popover abre (copiar `columnFilters.contactIds` para `tempContactIds`).
+3. Aplicar filtros ao pai **somente quando o popover fecha** (no `onOpenChange(false)`), chamando `setColumnFilters` uma única vez.
+4. Isso elimina re-renders intermediários e mantém o popover estável.
 
-## Mudancas Detalhadas
+Alternativamente (mais simples e sem mudar o UX de "filtro ao vivo"):
 
-### 1. Novo estado para armazenar dados parseados
+1. Envolver `ContactEventMultiFilter` com `React.memo` e comparação customizada de props.
+2. **Desacoplar a atualização**: usar `useRef` para a flag `open` e `flushSync` ou `startTransition` para tornar a atualização de `columnFilters` non-urgent, evitando que o React desmonte o popover durante o re-render.
+3. Adicionar `key` estável ao componente no JSX do header para garantir que React nunca o desmonte.
 
-```typescript
-const [parsedData, setParsedData] = useState<TransactionInsert[]>([]);
-```
+**Abordagem escolhida**: A mais robusta — manter seleções temporárias localmente e aplicar no fechamento. Isso garante zero re-renders do pai enquanto o popover está aberto.
 
-### 2. Alterar `processFile` para nao importar direto
+**Detalhes:**
+- Estado interno: `tempContacts: string[]`, `tempEvents: string[]`, `search: string`
+- No `onOpenChange(true)`: copiar `columnFilters.contactIds` → `tempContacts`
+- Checkboxes operam sobre `tempContacts`/`tempEvents` (estado local, sem prop drilling)
+- No `onOpenChange(false)`: chamar `setColumnFilters(prev => ({...prev, contactIds: tempContacts, eventNames: tempEvents}))` e limpar search
+- `clearAll`: limpar ambos os arrays temporários (não chama `setColumnFilters` até fechar)
+- Badge de contagem: usar `tempContacts.length + tempEvents.length` enquanto aberto
+- Input mantém autoFocus e valor preservado (já funciona pois não há re-render externo)
 
-Em vez de chamar `onImport(transactions)` ao final do parsing, salvar em `setParsedData(transactions)` e avancar para `setStep(3)`.
-
-### 3. Step indicator com 3 passos
-
-Adicionar terceiro circulo "Revisar" no indicador de progresso (Modelo -> Upload -> Revisar).
-
-### 4. Step 3: Tabela de Preview
-
-- Dialog expandido para `sm:max-w-4xl` quando no step 3
-- Contador: "X lancamento(s) encontrado(s)"
-- Tabela com ScrollArea (max-height ~400px) contendo colunas:
-  - Data | Cliente | Tipo | Valor | Status | Vencimento | Banco | Categoria
-- Cada linha mostra dados legivel (data formatada dd/MM/yyyy, valor em R$, tipo como badge colorido Receita/Despesa, status como badge Pago/Pendente)
-- Lookup reverso de bank_id/category_id/contact_id para exibir nomes (ou "---" se nao vinculado)
-- Botoes: "Voltar" (ghost, volta ao step 2) e "Confirmar Importacao" (primary, chama onImport)
-- Ao confirmar: spinner de "Importando..." e fluxo existente de toast + fechar modal
-
-### 5. Ajuste no resetState
-
-Incluir `setParsedData([])` no reset.
-
-### 6. DialogDescription dinâmica
-
-Step 3 exibe: "Revise os dados antes de confirmar"
-
----
-
-## Secao Tecnica
-
-### Lookup reverso para exibicao
-
-Para mostrar nomes na tabela de preview ao inves de IDs:
-
-```typescript
-const bankName = (id: string | null) => banks.find(b => b.id === id)?.name ?? '—';
-const categoryName = (id: string | null) => categories.find(c => c.id === id)?.name ?? '—';
-const contactName = (id: string | null) => contacts.find(c => c.id === id)?.name ?? '—';
-```
-
-### Formatacao na tabela
-
-```typescript
-// Data: format(parseISO(row.date), 'dd/MM/yyyy')
-// Valor: row.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-// Tipo: Badge verde "Receita" ou vermelho "Despesa"
-// Status: Badge "Pago" ou "Pendente"
-```
-
-### Handler de confirmacao
-
-```typescript
-const handleConfirmImport = async () => {
-  setIsProcessing(true);
-  try {
-    await onImport(parsedData);
-    toast({ title: `${parsedData.length} lançamento(s) importado(s) com sucesso!` });
-    handleClose(false);
-  } catch (err) {
-    toast({ title: 'Erro ao importar.', variant: 'destructive' });
-  } finally {
-    setIsProcessing(false);
-  }
-};
-```
+### Arquivo impactado
+- `src/pages/Transactions.tsx` — refatorar `ContactEventMultiFilter` (linhas 145-276)
 
