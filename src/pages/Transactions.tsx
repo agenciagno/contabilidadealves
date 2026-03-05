@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -155,12 +155,6 @@ function ContactEventMultiFilter({
   const [tempContacts, setTempContacts] = useState<string[]>([]);
   const [tempEvents, setTempEvents] = useState<string[]>([]);
 
-  // Refs to always have fresh values accessible in onOpenChange callback
-  const tempContactsRef = useRef<string[]>(tempContacts);
-  const tempEventsRef = useRef<string[]>(tempEvents);
-  tempContactsRef.current = tempContacts;
-  tempEventsRef.current = tempEvents;
-
   // Derived from parent when closed, from temp when open
   const selectedContacts = open ? tempContacts : (columnFilters.contactIds || []);
   const selectedEvents = open ? tempEvents : (columnFilters.eventNames || []);
@@ -192,28 +186,23 @@ function ContactEventMultiFilter({
     setSearch('');
   };
 
-  const applyFilters = () => {
-    const contacts = tempContactsRef.current;
-    const events = tempEventsRef.current;
-    setColumnFilters(prev => {
-      const n = { ...prev };
-      if (contacts.length) n.contactIds = contacts; else delete n.contactIds;
-      if (events.length) n.eventNames = events; else delete n.eventNames;
-      return n;
-    });
-    setSearch('');
-    setOpen(false);
-  };
-
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
+      // Sync from parent state when opening
       setTempContacts(columnFilters.contactIds || []);
       setTempEvents(columnFilters.eventNames || []);
       setSearch('');
-      setOpen(true);
     } else {
-      applyFilters();
+      // Apply to parent only when closing
+      setColumnFilters(prev => {
+        const n = { ...prev };
+        if (tempContacts.length) n.contactIds = tempContacts; else delete n.contactIds;
+        if (tempEvents.length) n.eventNames = tempEvents; else delete n.eventNames;
+        return n;
+      });
+      setSearch('');
     }
+    setOpen(nextOpen);
   };
 
   return (
@@ -276,16 +265,13 @@ function ContactEventMultiFilter({
               <p className="text-xs text-muted-foreground text-center py-4">Nenhum resultado</p>
             )}
           </div>
-          <div className="p-2 border-t border-border/40 flex gap-1">
-            {isActive && (
-              <Button size="sm" variant="ghost" className="flex-1 h-7 text-xs" onClick={clearAll}>
+          {isActive && (
+            <div className="p-2 border-t border-border/40">
+              <Button size="sm" variant="ghost" className="w-full h-7 text-xs" onClick={clearAll}>
                 <X className="w-3 h-3 mr-1" /> Limpar ({totalSelected})
               </Button>
-            )}
-            <Button size="sm" variant="default" className="flex-1 h-7 text-xs" onClick={applyFilters}>
-              Aplicar
-            </Button>
-          </div>
+            </div>
+          )}
         </PopoverContent>
       </Popover>
     </div>
