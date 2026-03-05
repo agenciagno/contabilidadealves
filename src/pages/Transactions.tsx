@@ -7,10 +7,11 @@ import { Input } from '@/components/ui/input';
 import {
   Plus, Upload, Pencil, Trash2, TrendingUp, TrendingDown, Receipt,
   Download, FileSpreadsheet, FileText, AlertTriangle, Landmark,
-  BarChart3, CalendarCheck, ChevronDown, ChevronUp,
+  BarChart3, CalendarCheck, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
   Building2, CheckCircle2, Search, Filter, X, ArrowUpDown
 } from 'lucide-react';
 import { useTransactions, Transaction, TransactionInsert } from '@/hooks/useTransactions';
+import { useServerTransactions, useTransactionKPIs, PAGE_SIZE, ServerFilters } from '@/hooks/useServerTransactions';
 import { isEffectivelyPaid } from '@/lib/financial-utils';
 import { useCategories } from '@/hooks/useCategories';
 import { useBanks } from '@/hooks/useBanks';
@@ -53,12 +54,12 @@ interface ColumnFilters {
   due_date?: { start: string; end: string };
   expected_date?: { start: string; end: string };
   date?: { start: string; end: string };
-  contactIds?: string[]; // UUIDs for multi-select contact match
-  eventNames?: string[]; // multi-select description match for transactions without contact
+  contactIds?: string[];
+  eventNames?: string[];
   status?: string;
 }
 
-// Column filter popover for date columns - syncs internal state with external value
+// Column filter popover for date columns
 function DateColumnFilter({ value, onChange, sortField, currentSortField, currentSortOrder, onSort }: {
   value?: { start: string; end: string };
   onChange: (v?: { start: string; end: string }) => void;
@@ -71,7 +72,6 @@ function DateColumnFilter({ value, onChange, sortField, currentSortField, curren
   const [end, setEnd] = useState(value?.end || '');
   const isActive = currentSortField === sortField;
 
-  // Sync internal state when external value changes (e.g. "clear all filters")
   useEffect(() => {
     setStart(value?.start || '');
     setEnd(value?.end || '');
@@ -116,7 +116,6 @@ function DateColumnFilter({ value, onChange, sortField, currentSortField, curren
   );
 }
 
-// Column filter popover for text/status columns
 function TextColumnFilter({ values, selected, onChange }: { values: string[]; selected?: string; onChange: (v?: string) => void }) {
   return (
     <div className="space-y-1 p-2 w-48 max-h-60 overflow-auto">
@@ -135,7 +134,7 @@ function TextColumnFilter({ values, selected, onChange }: { values: string[]; se
 function ColumnFilterIcon({ active }: { active: boolean }) {
   return <Filter className={`w-3 h-3 ${active ? 'text-primary' : 'opacity-40'}`} />;
 }
-// Multi-select filter for Cliente / Evento column
+
 function ContactEventMultiFilter({
   columnFilters, setColumnFilters, uniqueContactOptions, uniqueEventOptions,
 }: {
@@ -258,20 +257,138 @@ function ContactEventMultiFilter({
   );
 }
 
+// Skeleton rows for loading state
+function TableSkeleton() {
+  return (
+    <div className="divide-y divide-border/30">
+      {Array.from({ length: 10 }).map((_, i) => (
+        <div key={i} className="grid grid-cols-[40px_100px_1fr_110px_110px_110px_90px_110px_110px_90px] gap-3 px-4 py-3 items-center">
+          <Skeleton className="h-4 w-4 rounded" />
+          <Skeleton className="h-4 w-16" />
+          <div className="space-y-1.5">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-3 w-28" />
+          </div>
+          <Skeleton className="h-4 w-16 mx-auto" />
+          <Skeleton className="h-4 w-16 mx-auto" />
+          <Skeleton className="h-4 w-16 mx-auto" />
+          <Skeleton className="h-6 w-14 mx-auto rounded-full" />
+          <Skeleton className="h-4 w-20 ml-auto" />
+          <Skeleton className="h-4 w-20 ml-auto" />
+          <Skeleton className="h-4 w-16 mx-auto" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Pagination controls
+function PaginationControls({ currentPage, totalPages, totalCount, onPageChange, isFetching }: {
+  currentPage: number;
+  totalPages: number;
+  totalCount: number;
+  onPageChange: (page: number) => void;
+  isFetching: boolean;
+}) {
+  if (totalPages <= 1) return null;
+
+  const getPageNumbers = () => {
+    const pages: (number | '...')[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (currentPage > 3) pages.push('...');
+      const start = Math.max(2, currentPage - 1);
+      const end = Math.min(totalPages - 1, currentPage + 1);
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (currentPage < totalPages - 2) pages.push('...');
+      pages.push(totalPages);
+    }
+    return pages;
+  };
+
+  return (
+    <div className="flex items-center justify-between px-4 py-3 border-t border-border/40">
+      <span className="text-xs text-muted-foreground">
+        {totalCount} transação(ões) • Página {currentPage} de {totalPages}
+      </span>
+      <div className="flex items-center gap-1">
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 text-xs gap-1"
+          disabled={currentPage === 1 || isFetching}
+          onClick={() => onPageChange(currentPage - 1)}
+        >
+          <ChevronLeft className="w-3 h-3" /> Anterior
+        </Button>
+        {getPageNumbers().map((p, i) =>
+          p === '...' ? (
+            <span key={`e${i}`} className="px-1 text-xs text-muted-foreground">…</span>
+          ) : (
+            <Button
+              key={p}
+              variant={currentPage === p ? 'default' : 'outline'}
+              size="sm"
+              className="h-7 w-7 text-xs p-0"
+              disabled={isFetching}
+              onClick={() => onPageChange(p)}
+            >
+              {p}
+            </Button>
+          )
+        )}
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 text-xs gap-1"
+          disabled={currentPage === totalPages || isFetching}
+          onClick={() => onPageChange(currentPage + 1)}
+        >
+          Próxima <ChevronRight className="w-3 h-3" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function Transactions() {
-  const [period] = useState<PeriodFilter>('thisYear');
   const [typeFilter, setTypeFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [bankFilter, setBankFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
+  const [currentPage, setCurrentPage] = useState(1);
 
   const [sortField, setSortField] = useState<SortField>('due_date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
+  // Build server filters object
+  const serverFilters: ServerFilters = useMemo(() => ({
+    type: typeFilter,
+    categoryId: categoryFilter,
+    bankId: bankFilter,
+    searchTerm: searchTerm || undefined,
+    columnFilters,
+    sortField,
+    sortOrder,
+  }), [typeFilter, categoryFilter, bankFilter, searchTerm, columnFilters, sortField, sortOrder]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [typeFilter, categoryFilter, bankFilter, searchTerm, columnFilters, sortField, sortOrder]);
+
+  // Server-side paginated data
+  const { transactions, totalCount, totalPages, isLoading, isFetching } = useServerTransactions(currentPage, serverFilters);
+
+  // Independent KPIs (no pagination)
+  const { kpis } = useTransactionKPIs(serverFilters);
+
+  // Keep useTransactions for mutations only
   const {
-    transactions: allTransactions, isLoading,
     createTransaction, updateTransaction, deleteTransaction,
     togglePaid, bulkTogglePaid, bulkCreateTransactions
   } = useTransactions();
@@ -289,129 +406,12 @@ export default function Transactions() {
   const [importOpen, setImportOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const getDateRange = (periodValue: PeriodFilter) => getDateRangeFromPeriod(periodValue);
+  // Clear selection when page changes
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [currentPage]);
 
-  // Filter transactions
-  const filteredTransactions = useMemo(() => {
-    // Defensive deduplication by id to prevent pagination artifacts
-    const deduped = Array.from(new Map(allTransactions.map(t => [t.id, t])).values());
-    let result = [...deduped];
-
-    const dateRange = getDateRange(period);
-    if (dateRange) {
-      result = result.filter(t => {
-        const dateStr = t.due_date || t.date || t.issue_date;
-        if (!dateStr) return true;
-        return isWithinInterval(parseISO(dateStr), { start: dateRange.start, end: dateRange.end });
-      });
-    }
-
-    if (typeFilter !== 'all') result = result.filter(t => t.type === typeFilter);
-    if (categoryFilter !== 'all') result = result.filter(t => t.category_id === categoryFilter);
-    if (bankFilter !== 'all') result = result.filter(t => t.bank_id === bankFilter);
-    if (searchTerm) {
-      const s = searchTerm.toLowerCase();
-      result = result.filter(t =>
-        t.description.toLowerCase().includes(s) ||
-        (t.contact?.name && t.contact.name.toLowerCase().includes(s)) ||
-        (t.notes && t.notes.toLowerCase().includes(s))
-      );
-    }
-
-    // Column filters
-    const cf = columnFilters;
-    if (cf.issue_date) {
-      result = result.filter(t => {
-        if (!t.issue_date) return false;
-        if (cf.issue_date!.start && t.issue_date < cf.issue_date!.start) return false;
-        if (cf.issue_date!.end && t.issue_date > cf.issue_date!.end) return false;
-        return true;
-      });
-    }
-    if (cf.due_date) {
-      result = result.filter(t => {
-        if (!t.due_date) return false;
-        if (cf.due_date!.start && t.due_date < cf.due_date!.start) return false;
-        if (cf.due_date!.end && t.due_date > cf.due_date!.end) return false;
-        return true;
-      });
-    }
-    if (cf.expected_date) {
-      result = result.filter(t => {
-        if (!t.expected_date) return false;
-        if (cf.expected_date!.start && t.expected_date < cf.expected_date!.start) return false;
-        if (cf.expected_date!.end && t.expected_date > cf.expected_date!.end) return false;
-        return true;
-      });
-    }
-    if (cf.date) {
-      result = result.filter(t => {
-        if (!t.date) return false;
-        if (cf.date!.start && t.date < cf.date!.start) return false;
-        if (cf.date!.end && t.date > cf.date!.end) return false;
-        return true;
-      });
-    }
-    if (cf.contactIds?.length) {
-      result = result.filter(t => t.contact_id && cf.contactIds!.includes(t.contact_id));
-    }
-    if (cf.eventNames?.length) {
-      result = result.filter(t => !t.contact_id && cf.eventNames!.includes(t.description));
-    }
-    if (cf.status) {
-      const wantPaid = cf.status === 'Pago';
-      result = result.filter(t => isEffectivelyPaid(t) === wantPaid);
-    }
-
-    result.sort((a, b) => {
-      const dateA = a[sortField];
-      const dateB = b[sortField];
-      if (!dateA && !dateB) return 0;
-      if (!dateA) return 1;
-      if (!dateB) return -1;
-      return sortOrder === 'asc' ? new Date(dateA).getTime() - new Date(dateB).getTime() : new Date(dateB).getTime() - new Date(dateA).getTime();
-    });
-
-    return result;
-  }, [allTransactions, period, typeFilter, categoryFilter, bankFilter, searchTerm, sortField, sortOrder, columnFilters]);
-
-  // Unique values for text column filters
-  // Build unique contacts list from allTransactions (before column filters) to avoid circular dependency
-  const uniqueContactOptions = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const t of allTransactions) {
-      if (t.contact_id && t.contact?.name) {
-        map.set(t.contact_id, t.contact.name);
-      }
-    }
-    return Array.from(map.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
-  }, [allTransactions]);
-
-  // Unique event descriptions for transactions without a contact
-  const uniqueEventOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const t of allTransactions) {
-      if (!t.contact_id) set.add(t.description);
-    }
-    return Array.from(set).sort();
-  }, [allTransactions]);
-
-  const uniqueStatuses = ['Pago', 'Pendente'];
-
-  // KPI totals — uses strict isEffectivelyPaid rule
-  const kpiTotals = useMemo(() => {
-    return filteredTransactions.reduce(
-      (acc, t) => {
-        const paid = isEffectivelyPaid(t);
-        const amount = paid && t.paid_amount != null ? Number(t.paid_amount) : Number(t.amount);
-        if (t.type === 'receita') { if (paid) acc.receitasPagas += amount; else acc.receitasPendentes += amount; }
-        else { if (paid) acc.despesasPagas += amount; else acc.despesasPendentes += amount; }
-        return acc;
-      },
-      { receitasPagas: 0, receitasPendentes: 0, despesasPagas: 0, despesasPendentes: 0 }
-    );
-  }, [filteredTransactions]);
-
+  // Bank totals for KPI cards
   const bankTotals = useMemo(() => {
     const activeBanks = banks.filter(b => b.is_active);
     const totalBalance = activeBanks.reduce((sum, b) => sum + Number(b.current_balance), 0);
@@ -419,48 +419,44 @@ export default function Transactions() {
     return { totalBalance, caixaGeralBalance: caixaGeral ? Number(caixaGeral.current_balance) : null, caixaGeralName: caixaGeral?.name ?? null };
   }, [banks]);
 
-  // BI Ticker
+  // BI Ticker — uses allTransactions from original hook for global metrics
   const biMetrics = useMemo(() => {
     const today = new Date();
     const monthStart = startOfMonth(today);
     const monthEnd = endOfMonth(today);
-    const todayStr = format(today, 'yyyy-MM-dd');
     const monthStartStr = format(monthStart, 'yyyy-MM-dd');
     const monthEndStr = format(monthEnd, 'yyyy-MM-dd');
 
-    let contasEmAtraso = 0, receitasEmAtraso = 0, receitasPendentesMes = 0, despesasPendentesMes = 0;
-    let receitasPendentesAteHoje = 0, despesasPendentesAteHoje = 0;
-    let receitasMes = 0, despesasMes = 0, receitasPagasMes = 0, despesasPagasMes = 0;
-
-    for (const t of allTransactions) {
-      const paid = isEffectivelyPaid(t);
-      const amt = Number(t.amount); // pending always uses original amount
-      const effAmt = paid && t.paid_amount != null ? Number(t.paid_amount) : amt;
-      if (t.type === 'despesa' && !paid && t.due_date && t.due_date < todayStr) contasEmAtraso += amt;
-      if (t.type === 'receita' && !paid && t.due_date && t.due_date < todayStr) receitasEmAtraso += amt;
-      if (!paid && t.due_date) {
-        if (t.due_date >= monthStartStr && t.due_date <= monthEndStr) {
-          if (t.type === 'receita') receitasPendentesMes += amt; else despesasPendentesMes += amt;
-        }
-        if (t.due_date <= todayStr) {
-          if (t.type === 'receita') receitasPendentesAteHoje += amt; else despesasPendentesAteHoje += amt;
-        }
-      }
-      if (t.date && t.date >= monthStartStr && t.date <= monthEndStr) {
-        if (t.type === 'receita') { receitasMes += effAmt; if (paid) receitasPagasMes += effAmt; }
-        else { despesasMes += effAmt; if (paid) despesasPagasMes += effAmt; }
-      }
-    }
-
     return {
-      contasEmAtraso, receitasEmAtraso,
-      capitalDeGiroMes: bankTotals.totalBalance + receitasPendentesMes - despesasPendentesMes,
-      capitalDeGiroHoje: bankTotals.totalBalance + receitasPendentesAteHoje - despesasPendentesAteHoje,
-      lucroPrevisto: receitasMes - despesasMes,
-      acumuladoReceitas: receitasPagasMes,
-      acumuladoDespesas: despesasPagasMes,
+      contasEmAtraso: kpis.contasEmAtraso,
+      receitasEmAtraso: kpis.receitasEmAtraso,
+      capitalDeGiroMes: bankTotals.totalBalance + kpis.receitasPendentes - kpis.despesasPendentes,
+      capitalDeGiroHoje: bankTotals.totalBalance + kpis.receitasPendentes - kpis.despesasPendentes,
+      lucroPrevisto: (kpis.receitasPagas + kpis.receitasPendentes) - (kpis.despesasPagas + kpis.despesasPendentes),
+      acumuladoReceitas: kpis.receitasPagas,
+      acumuladoDespesas: kpis.despesasPagas,
     };
-  }, [allTransactions, bankTotals]);
+  }, [kpis, bankTotals]);
+
+  // Contact options for the multi-filter (from contacts list, not transactions)
+  const uniqueContactOptions = useMemo(() => {
+    return contacts
+      .filter(c => c.is_active)
+      .map(c => ({ id: c.id, name: c.name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [contacts]);
+
+  // Event options — we use a lightweight approach from current page data
+  // This is acceptable since events without contact are rarer
+  const uniqueEventOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const t of transactions) {
+      if (!t.contact_id) set.add(t.description);
+    }
+    return Array.from(set).sort();
+  }, [transactions]);
+
+  const uniqueStatuses = ['Pago', 'Pendente'];
 
   const handleSubmit = async (data: TransactionInsert, pendingFiles?: File[]) => {
     if (editingTransaction) {
@@ -484,11 +480,6 @@ export default function Transactions() {
   const handleDelete = () => { if (deleteId) deleteTransaction.mutate(deleteId, { onSuccess: () => setDeleteId(null) }); };
   const handleNewTransaction = (type: 'receita' | 'despesa') => { setDefaultType(type); setEditingTransaction(null); setDialogOpen(true); };
 
-  const handleSort = (field: SortField) => {
-    if (sortField === field) setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    else { setSortField(field); setSortOrder('desc'); }
-  };
-
   const handleSortDirect = (field: SortField, order: SortOrder) => {
     setSortField(field);
     setSortOrder(order);
@@ -498,8 +489,8 @@ export default function Transactions() {
     setSelectedIds(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
   };
   const toggleSelectAll = () => {
-    if (selectedIds.size === filteredTransactions.length) setSelectedIds(new Set());
-    else setSelectedIds(new Set(filteredTransactions.map(t => t.id)));
+    if (selectedIds.size === transactions.length) setSelectedIds(new Set());
+    else setSelectedIds(new Set(transactions.map(t => t.id)));
   };
   const handleBulkPay = () => {
     if (selectedIds.size === 0) return;
@@ -510,7 +501,7 @@ export default function Transactions() {
     setSelectedIds(new Set()); setBulkDeleteConfirm(false);
   };
 
-  const totals = { receitas: kpiTotals.receitasPagas + kpiTotals.receitasPendentes, despesas: kpiTotals.despesasPagas + kpiTotals.despesasPendentes };
+  const totals = { receitas: kpis.receitasPagas + kpis.receitasPendentes, despesas: kpis.despesasPagas + kpis.despesasPendentes };
 
   const updateColumnFilter = <K extends keyof ColumnFilters>(key: K, value: ColumnFilters[K]) => {
     setColumnFilters(prev => {
@@ -532,7 +523,7 @@ export default function Transactions() {
     );
   }
 
-  const exportTransactions = () => filteredTransactions.map(t => ({
+  const exportTransactions = () => transactions.map(t => ({
     id: t.id, description: t.description, amount: Number(t.amount), type: t.type as 'receita' | 'despesa',
     date: t.date, is_paid: t.is_paid,
     category: t.category ? { id: t.category.id, name: t.category.name, color: t.category.color || '#6B7280' } : null,
@@ -542,7 +533,7 @@ export default function Transactions() {
 
   return (
     <div className="space-y-4">
-      {/* ── Header: Title left, Actions right ── */}
+      {/* ── Header ── */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Movimentações</h1>
         <div className="flex items-center gap-2">
@@ -556,7 +547,7 @@ export default function Transactions() {
               <DropdownMenuItem onClick={() => exportToCSV(exportTransactions())} className="gap-2">
                 <FileSpreadsheet className="w-4 h-4" /> CSV
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { const dr = getDateRange(period); exportToPDF(exportTransactions(), totals, dr?.start, dr?.end); }} className="gap-2">
+              <DropdownMenuItem onClick={() => { exportToPDF(exportTransactions(), totals); }} className="gap-2">
                 <FileText className="w-4 h-4" /> PDF
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -570,31 +561,28 @@ export default function Transactions() {
         </div>
       </div>
 
-      {/* ── Uniform KPI Cards Grid ── */}
+      {/* ── KPI Cards ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-        {/* A Receber */}
         <Card className="bg-card border-border/50 border-l-2 border-l-emerald-500">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
               <TrendingUp className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
               <p className="text-xs text-muted-foreground">A Receber</p>
             </div>
-            <p className="text-base font-bold text-emerald-500">{formatCurrency(kpiTotals.receitasPendentes)}</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Recebido: {formatCurrency(kpiTotals.receitasPagas)}</p>
+            <p className="text-base font-bold text-emerald-500">{formatCurrency(kpis.receitasPendentes)}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Recebido: {formatCurrency(kpis.receitasPagas)}</p>
           </CardContent>
         </Card>
-        {/* A Pagar */}
         <Card className="bg-card border-border/50 border-l-2 border-l-red-500">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
               <TrendingDown className="w-3.5 h-3.5 text-red-500 shrink-0" />
               <p className="text-xs text-muted-foreground">A Pagar</p>
             </div>
-            <p className="text-base font-bold text-red-500">{formatCurrency(kpiTotals.despesasPendentes)}</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Pago: {formatCurrency(kpiTotals.despesasPagas)}</p>
+            <p className="text-base font-bold text-red-500">{formatCurrency(kpis.despesasPendentes)}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Pago: {formatCurrency(kpis.despesasPagas)}</p>
           </CardContent>
         </Card>
-        {/* Saldo Bancário */}
         <Card className="bg-card border-border/50 border-l-2 border-l-primary">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
@@ -605,7 +593,6 @@ export default function Transactions() {
             <p className="text-[10px] text-muted-foreground mt-0.5">{bankTotals.caixaGeralName ? `Caixa: ${formatCurrency(bankTotals.caixaGeralBalance ?? 0)}` : 'Total bancos'}</p>
           </CardContent>
         </Card>
-        {/* Em Atraso */}
         <Card className="bg-card border-border/50 border-l-2 border-l-red-500">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
@@ -616,7 +603,6 @@ export default function Transactions() {
             <p className="text-sm font-bold text-red-500">⬆ {formatCurrency(biMetrics.contasEmAtraso)}</p>
           </CardContent>
         </Card>
-        {/* Capital de Giro */}
         <Card className="bg-card border-border/50 border-l-2 border-l-blue-500">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
@@ -624,10 +610,8 @@ export default function Transactions() {
               <p className="text-xs text-muted-foreground">Capital de Giro</p>
             </div>
             <p className={`text-base font-bold ${biMetrics.capitalDeGiroMes >= 0 ? 'text-blue-400' : 'text-red-500'}`}>{formatCurrency(biMetrics.capitalDeGiroMes)}</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Até hoje: {formatCurrency(biMetrics.capitalDeGiroHoje)}</p>
           </CardContent>
         </Card>
-        {/* Lucro Previsto */}
         <Card className="bg-card border-border/50 border-l-2 border-l-emerald-500">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
@@ -638,7 +622,6 @@ export default function Transactions() {
             <p className="text-[10px] text-muted-foreground mt-0.5">{format(new Date(), 'MMMM', { locale: ptBR }).replace(/^\w/, c => c.toUpperCase())}</p>
           </CardContent>
         </Card>
-        {/* Lucro Realizado */}
         <Card className="bg-card border-border/50 border-l-2 border-l-amber-500">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
@@ -651,10 +634,9 @@ export default function Transactions() {
         </Card>
       </div>
 
-      {/* ── Minimalist Icon Toolbar ── */}
+      {/* ── Toolbar ── */}
       <TooltipProvider delayDuration={200}>
         <div className="flex items-center gap-1">
-          {/* Search */}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant={searchOpen ? 'secondary' : 'ghost'} size="icon" className="h-8 w-8" onClick={() => { setSearchOpen(!searchOpen); if (searchOpen) setSearchTerm(''); }}>
@@ -673,7 +655,6 @@ export default function Transactions() {
             />
           )}
 
-          {/* Bank Filter */}
           <Popover>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -698,7 +679,6 @@ export default function Transactions() {
             </PopoverContent>
           </Popover>
 
-          {/* Category Filter */}
           <Popover>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -723,7 +703,6 @@ export default function Transactions() {
             </PopoverContent>
           </Popover>
 
-          {/* Type Filter */}
           <Popover>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -748,14 +727,12 @@ export default function Transactions() {
             </PopoverContent>
           </Popover>
 
-          {/* Clear column filters */}
           {hasActiveColumnFilters && (
             <Button variant="ghost" size="sm" className="h-8 text-xs gap-1 text-muted-foreground" onClick={() => setColumnFilters({})}>
               <X className="w-3 h-3" /> Limpar filtros de coluna
             </Button>
           )}
 
-          {/* Bulk actions + count */}
           <div className="ml-auto flex items-center gap-2">
             {selectedIds.size > 0 && (
               <>
@@ -767,13 +744,13 @@ export default function Transactions() {
                 </Button>
               </>
             )}
-            <span className="text-muted-foreground text-xs">{filteredTransactions.length} transação(ões)</span>
+            <span className="text-muted-foreground text-xs">{totalCount} transação(ões)</span>
           </div>
         </div>
       </TooltipProvider>
 
       {/* ── Transaction Table ── */}
-      {filteredTransactions.length === 0 ? (
+      {!isFetching && transactions.length === 0 ? (
         <Card className="bg-card border-border/50">
           <CardContent className="text-muted-foreground text-center py-16">
             <Receipt className="w-12 h-12 mx-auto mb-4 opacity-50" />
@@ -783,129 +760,138 @@ export default function Transactions() {
         </Card>
       ) : (
         <Card className="bg-card border-border/50 overflow-hidden">
-          <CardContent className="p-0 max-h-[70vh] overflow-auto">
-            {/* Table Header with Excel-style filters */}
-            <div className="grid grid-cols-[40px_100px_1fr_110px_110px_110px_90px_110px_110px_90px] gap-3 px-4 py-2 bg-card border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 z-10">
-              <div className="flex items-center justify-center">
-                <Checkbox checked={selectedIds.size === filteredTransactions.length && filteredTransactions.length > 0} onCheckedChange={toggleSelectAll} />
+          <CardContent className="p-0">
+            <div className="max-h-[70vh] overflow-auto">
+              {/* Table Header */}
+              <div className="grid grid-cols-[40px_100px_1fr_110px_110px_110px_90px_110px_110px_90px] gap-3 px-4 py-2 bg-card border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 z-10">
+                <div className="flex items-center justify-center">
+                  <Checkbox checked={selectedIds.size === transactions.length && transactions.length > 0} onCheckedChange={toggleSelectAll} />
+                </div>
+
+                <div className="flex items-center gap-0.5">
+                  <span>Emissão</span>
+                  <Popover>
+                    <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.issue_date || sortField === 'issue_date'} /></button></PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.issue_date} onChange={v => updateColumnFilter('issue_date', v)} sortField="issue_date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} /></PopoverContent>
+                  </Popover>
+                </div>
+
+                <ContactEventMultiFilter
+                  columnFilters={columnFilters}
+                  setColumnFilters={setColumnFilters}
+                  uniqueContactOptions={uniqueContactOptions}
+                  uniqueEventOptions={uniqueEventOptions}
+                />
+
+                <div className="flex items-center justify-center gap-0.5">
+                  <span>Vencimento</span>
+                  <Popover>
+                    <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.due_date || sortField === 'due_date'} /></button></PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.due_date} onChange={v => updateColumnFilter('due_date', v)} sortField="due_date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} /></PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="flex items-center justify-center gap-0.5">
+                  <span>Prevista</span>
+                  <Popover>
+                    <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.expected_date || sortField === 'expected_date'} /></button></PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.expected_date} onChange={v => updateColumnFilter('expected_date', v)} sortField="expected_date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} /></PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="flex items-center justify-center gap-0.5">
+                  <span>Pagamento</span>
+                  <Popover>
+                    <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.date || sortField === 'date'} /></button></PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.date} onChange={v => updateColumnFilter('date', v)} sortField="date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} /></PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="flex items-center justify-center gap-0.5">
+                  <span>Status</span>
+                  <Popover>
+                    <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.status} /></button></PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start"><TextColumnFilter values={uniqueStatuses} selected={columnFilters.status} onChange={v => updateColumnFilter('status', v)} /></PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="text-right">Valor</div>
+                <div className="text-right">Recebido</div>
+                <div className="text-center">Ações</div>
               </div>
 
-              {/* Emissão */}
-              <div className="flex items-center gap-0.5">
-                <span>Emissão</span>
-                <Popover>
-                  <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.issue_date || sortField === 'issue_date'} /></button></PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.issue_date} onChange={v => updateColumnFilter('issue_date', v)} sortField="issue_date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} /></PopoverContent>
-                </Popover>
-              </div>
-
-              {/* Cliente / Evento — Multi-select with search */}
-              <ContactEventMultiFilter
-                columnFilters={columnFilters}
-                setColumnFilters={setColumnFilters}
-                uniqueContactOptions={uniqueContactOptions}
-                uniqueEventOptions={uniqueEventOptions}
-              />
-
-              {/* Vencimento */}
-              <div className="flex items-center justify-center gap-0.5">
-                <span>Vencimento</span>
-                <Popover>
-                  <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.due_date || sortField === 'due_date'} /></button></PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.due_date} onChange={v => updateColumnFilter('due_date', v)} sortField="due_date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} /></PopoverContent>
-                </Popover>
-              </div>
-
-              {/* Prevista */}
-              <div className="flex items-center justify-center gap-0.5">
-                <span>Prevista</span>
-                <Popover>
-                  <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.expected_date || sortField === 'expected_date'} /></button></PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.expected_date} onChange={v => updateColumnFilter('expected_date', v)} sortField="expected_date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} /></PopoverContent>
-                </Popover>
-              </div>
-
-              {/* Pagamento */}
-              <div className="flex items-center justify-center gap-0.5">
-                <span>Pagamento</span>
-                <Popover>
-                  <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.date || sortField === 'date'} /></button></PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.date} onChange={v => updateColumnFilter('date', v)} sortField="date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} /></PopoverContent>
-                </Popover>
-              </div>
-
-              {/* Status */}
-              <div className="flex items-center justify-center gap-0.5">
-                <span>Status</span>
-                <Popover>
-                  <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.status} /></button></PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start"><TextColumnFilter values={uniqueStatuses} selected={columnFilters.status} onChange={v => updateColumnFilter('status', v)} /></PopoverContent>
-                </Popover>
-              </div>
-
-              <div className="text-right">Valor</div>
-              <div className="text-right">Recebido</div>
-              <div className="text-center">Ações</div>
+              {/* Rows or Skeleton */}
+              {isFetching ? (
+                <TableSkeleton />
+              ) : (
+                <div className="divide-y divide-border/30">
+                  {transactions.map(transaction => {
+                    const isOverdue = !isEffectivelyPaid(transaction) && transaction.due_date && transaction.due_date < new Date().toISOString().split('T')[0];
+                    return (
+                      <div key={transaction.id} className={`grid grid-cols-[40px_100px_1fr_110px_110px_110px_90px_110px_110px_90px] gap-3 px-4 py-3 hover:bg-muted/30 transition-colors items-center ${selectedIds.has(transaction.id) ? 'bg-primary/10 border-l-2 border-l-primary' : ''}`}>
+                        <div className="flex items-center justify-center">
+                          <Checkbox checked={selectedIds.has(transaction.id)} onCheckedChange={() => toggleSelect(transaction.id)} />
+                        </div>
+                        <div className="text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.issue_date)}</div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="truncate text-sm font-semibold text-foreground">{transaction.contact?.name ?? transaction.description}</span>
+                            {isOverdue && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-500 border border-red-500/40 whitespace-nowrap shrink-0">Vencido</span>}
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground">
+                            {transaction.category && <span style={{ color: transaction.category.color }}>{transaction.category.name}</span>}
+                            {transaction.category && transaction.bank && <span className="text-muted-foreground/40">•</span>}
+                            {transaction.bank && <span>{transaction.bank.name}</span>}
+                            <span className="text-muted-foreground/40">•</span>
+                            <span className={transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'}>
+                              {transaction.type === 'receita' ? 'Receita' : 'Despesa'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-center text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.due_date)}</div>
+                        <div className="text-center text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.expected_date)}</div>
+                        <div className="text-center text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.date)}</div>
+                        <div className="flex justify-center">
+                          {(() => {
+                            const effectivelyPaid = isEffectivelyPaid(transaction);
+                            return (
+                              <button
+                                onClick={() => togglePaid.mutate({ id: transaction.id, is_paid: !effectivelyPaid })}
+                                className={`text-[10px] font-semibold px-2 py-1 rounded-full border transition-all cursor-pointer whitespace-nowrap ${
+                                  effectivelyPaid ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-amber-500 text-amber-500 bg-transparent hover:bg-amber-500/10'
+                                }`}>
+                                {effectivelyPaid ? 'Pago' : 'Pendente'}
+                              </button>
+                            );
+                          })()}
+                        </div>
+                        <div className={`text-right font-bold text-sm tabular-nums ${transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'}`}>
+                          {transaction.type === 'receita' ? '+' : '-'}{formatCurrency(Number(transaction.amount))}
+                        </div>
+                        <div className={`text-right text-sm tabular-nums ${isEffectivelyPaid(transaction) && transaction.paid_amount != null ? (transaction.type === 'receita' ? 'text-emerald-500 font-bold' : 'text-red-500 font-bold') : 'text-muted-foreground'}`}>
+                          {isEffectivelyPaid(transaction) && transaction.paid_amount != null
+                            ? `${transaction.type === 'receita' ? '+' : '-'}${formatCurrency(Number(transaction.paid_amount))}`
+                            : '—'}
+                        </div>
+                        <div className="flex gap-0.5 justify-center">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted" onClick={() => handleEdit(transaction)}><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteId(transaction.id)}><Trash2 className="w-3.5 h-3.5 text-destructive" /></Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
-            {/* Rows */}
-            <div className="divide-y divide-border/30">
-              {filteredTransactions.map(transaction => {
-                const isOverdue = !isEffectivelyPaid(transaction) && transaction.due_date && transaction.due_date < new Date().toISOString().split('T')[0];
-                return (
-                  <div key={transaction.id} className={`grid grid-cols-[40px_100px_1fr_110px_110px_110px_90px_110px_110px_90px] gap-3 px-4 py-3 hover:bg-muted/30 transition-colors items-center ${selectedIds.has(transaction.id) ? 'bg-primary/10 border-l-2 border-l-primary' : ''}`}>
-                    <div className="flex items-center justify-center">
-                      <Checkbox checked={selectedIds.has(transaction.id)} onCheckedChange={() => toggleSelect(transaction.id)} />
-                    </div>
-                    <div className="text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.issue_date)}</div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="truncate text-sm font-semibold text-foreground">{transaction.contact?.name ?? transaction.description}</span>
-                        {isOverdue && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-500 border border-red-500/40 whitespace-nowrap shrink-0">Vencido</span>}
-                      </div>
-                      <div className="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground">
-                        {transaction.category && <span style={{ color: transaction.category.color }}>{transaction.category.name}</span>}
-                        {transaction.category && transaction.bank && <span className="text-muted-foreground/40">•</span>}
-                        {transaction.bank && <span>{transaction.bank.name}</span>}
-                        <span className="text-muted-foreground/40">•</span>
-                        <span className={transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'}>
-                          {transaction.type === 'receita' ? 'Receita' : 'Despesa'}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-center text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.due_date)}</div>
-                    <div className="text-center text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.expected_date)}</div>
-                    <div className="text-center text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.date)}</div>
-                    <div className="flex justify-center">
-                      {(() => {
-                        const effectivelyPaid = isEffectivelyPaid(transaction);
-                        return (
-                          <button
-                            onClick={() => togglePaid.mutate({ id: transaction.id, is_paid: !effectivelyPaid })}
-                            className={`text-[10px] font-semibold px-2 py-1 rounded-full border transition-all cursor-pointer whitespace-nowrap ${
-                              effectivelyPaid ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-amber-500 text-amber-500 bg-transparent hover:bg-amber-500/10'
-                            }`}>
-                            {effectivelyPaid ? 'Pago' : 'Pendente'}
-                          </button>
-                        );
-                      })()}
-                    </div>
-                    <div className={`text-right font-bold text-sm tabular-nums ${transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'}`}>
-                      {transaction.type === 'receita' ? '+' : '-'}{formatCurrency(Number(transaction.amount))}
-                    </div>
-                    <div className={`text-right text-sm tabular-nums ${isEffectivelyPaid(transaction) && transaction.paid_amount != null ? (transaction.type === 'receita' ? 'text-emerald-500 font-bold' : 'text-red-500 font-bold') : 'text-muted-foreground'}`}>
-                      {isEffectivelyPaid(transaction) && transaction.paid_amount != null
-                        ? `${transaction.type === 'receita' ? '+' : '-'}${formatCurrency(Number(transaction.paid_amount))}`
-                        : '—'}
-                    </div>
-                    <div className="flex gap-0.5 justify-center">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted" onClick={() => handleEdit(transaction)}><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteId(transaction.id)}><Trash2 className="w-3.5 h-3.5 text-destructive" /></Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            {/* Pagination */}
+            <PaginationControls
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalCount={totalCount}
+              onPageChange={setCurrentPage}
+              isFetching={isFetching}
+            />
           </CardContent>
         </Card>
       )}

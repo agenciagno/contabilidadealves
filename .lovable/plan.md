@@ -1,74 +1,93 @@
 
 
-## Plano: Paginação Server-Side e Filtros no Backend para Lançamentos
+# Preview Intermediario na Importacao de Planilha
 
-### Análise de Impacto
+## Resumo
 
-O hook `useTransactions` é consumido por **13 arquivos** (Dashboard, Home, PagarReceber, RecurringBills, HeaderCalendar, etc.). Alterar diretamente esse hook quebraria todas essas páginas. A estratégia é **criar um novo hook dedicado** para a página de Lançamentos e manter o hook existente intacto.
-
----
-
-### BLOCO 1 + 2: Novo hook `useServerTransactions` com paginação + filtros server-side
-
-**Novo arquivo:** `src/hooks/useServerTransactions.ts`
-
-- Aceita como parâmetros: `page`, `pageSize` (99), e todos os filtros (type, categoryId, bankId, searchTerm, columnFilters com datas, contactIds, eventNames, status, sortField, sortOrder).
-- Monta a query Supabase aplicando filtros **antes** do `.range()`:
-  - `.eq('type', ...)`, `.eq('category_id', ...)`, `.eq('bank_id', ...)`
-  - `.gte('due_date', start)`, `.lte('due_date', end)` para filtros de data
-  - `.in('contact_id', [...])` para multi-select de contatos
-  - `.ilike('description', '%termo%')` para busca textual
-  - `.eq('is_paid', true/false)` para status (com lógica `isEffectivelyPaid` aplicada defensivamente no frontend para os edge cases de `date`/`paid_amount` nulos)
-- Usa `.select('*,category:categories(...),bank:banks(...),contact:contacts(...)', { count: 'exact' })` para obter o count total.
-- Aplica `.range(from, to)` ao final.
-- Retorna `{ data: Transaction[], count: number, isLoading, isFetching }`.
-- `queryKey` inclui todos os parâmetros de filtro + página para cache granular.
-
-**Observação sobre `eventNames` (transações sem contato):** Como esse filtro envolve `contact_id IS NULL AND description IN (...)`, será composto com `.is('contact_id', null).in('description', [...])`. Se houver contactIds E eventNames simultaneamente, será necessário usar `.or(...)` para combinar as condições.
+Adicionar um Step 3 (Preview) entre o upload e a confirmacao final. Apos o upload processar os dados, ao inves de importar diretamente, exibir uma tabela com os lancamentos lidos para o usuario revisar, com opcao de confirmar ou voltar.
 
 ---
 
-### BLOCO 3: Query independente para KPIs
+## Arquivo Modificado
 
-**No mesmo hook ou função separada:** `useTransactionKPIs`
-
-- Query separada que aplica os **mesmos filtros** da tela (tipo, categoria, banco, busca, datas, contatos), mas **sem** `.range()`.
-- Busca apenas colunas necessárias: `id, type, amount, paid_amount, is_paid, date, due_date` (sem joins) para minimizar payload.
-- Calcula os totais no frontend (receitasPagas, receitasPendentes, despesasPagas, despesasPendentes, em atraso, capital de giro).
-- `queryKey` separada: `['transaction-kpis', ...filtros]`.
-
-**Alternativa mais performática (futuro):** criar uma database function `get_transaction_kpis(filters)` que retorna os agregados via SQL. Por ora, a query leve sem joins é suficiente.
-
----
-
-### BLOCO 4: UX — Loading States e Paginação
-
-**Em `src/pages/Transactions.tsx`:**
-
-1. Substituir `useTransactions()` por `useServerTransactions(...)` + `useTransactionKPIs(...)`.
-2. Adicionar estado `currentPage` (default 1). Resetar para 1 quando qualquer filtro mudar.
-3. No rodapé da tabela, renderizar controles de paginação:
-   - "< Anterior" / "Próxima >"
-   - Números de página (com ellipsis para ranges grandes)
-   - Indicador "Página X de Y" e "Z transações no total"
-4. Durante `isFetching` (transição entre páginas), exibir Skeleton rows (10 linhas fantasma) no corpo da tabela ao invés de congelar.
-5. O checkbox "selecionar todos" opera apenas na página visível (99 itens).
-6. Manter `useTransactions()` original apenas para BI metrics (biMetrics) que precisam de dados globais, OU migrar biMetrics para o hook de KPIs.
-
----
-
-### Arquivos impactados
-
-| Arquivo | Ação |
+| Arquivo | Mudanca |
 |---|---|
-| `src/hooks/useServerTransactions.ts` | **Novo** — hook com paginação + filtros server-side |
-| `src/pages/Transactions.tsx` | Refatorar para usar novo hook, adicionar paginação UI e skeleton |
-| `src/hooks/useTransactions.ts` | **Sem alteração** — mantém compatibilidade com outras páginas |
+| `src/components/transactions/ImportSpreadsheetDialog.tsx` | Adicionar step 3 com tabela de preview, separar parsing de importacao |
 
-### Riscos mitigados
+---
 
-- **Outras páginas não são afetadas** pois `useTransactions` permanece intacto.
-- **Filtros persistem** entre páginas pois fazem parte da queryKey.
-- **KPIs são precisos** pois usam query independente sem paginação.
-- **Select All** opera apenas na página visível, evitando operações em milhares de registros.
+## Mudancas Detalhadas
+
+### 1. Novo estado para armazenar dados parseados
+
+```typescript
+const [parsedData, setParsedData] = useState<TransactionInsert[]>([]);
+```
+
+### 2. Alterar `processFile` para nao importar direto
+
+Em vez de chamar `onImport(transactions)` ao final do parsing, salvar em `setParsedData(transactions)` e avancar para `setStep(3)`.
+
+### 3. Step indicator com 3 passos
+
+Adicionar terceiro circulo "Revisar" no indicador de progresso (Modelo -> Upload -> Revisar).
+
+### 4. Step 3: Tabela de Preview
+
+- Dialog expandido para `sm:max-w-4xl` quando no step 3
+- Contador: "X lancamento(s) encontrado(s)"
+- Tabela com ScrollArea (max-height ~400px) contendo colunas:
+  - Data | Cliente | Tipo | Valor | Status | Vencimento | Banco | Categoria
+- Cada linha mostra dados legivel (data formatada dd/MM/yyyy, valor em R$, tipo como badge colorido Receita/Despesa, status como badge Pago/Pendente)
+- Lookup reverso de bank_id/category_id/contact_id para exibir nomes (ou "---" se nao vinculado)
+- Botoes: "Voltar" (ghost, volta ao step 2) e "Confirmar Importacao" (primary, chama onImport)
+- Ao confirmar: spinner de "Importando..." e fluxo existente de toast + fechar modal
+
+### 5. Ajuste no resetState
+
+Incluir `setParsedData([])` no reset.
+
+### 6. DialogDescription dinâmica
+
+Step 3 exibe: "Revise os dados antes de confirmar"
+
+---
+
+## Secao Tecnica
+
+### Lookup reverso para exibicao
+
+Para mostrar nomes na tabela de preview ao inves de IDs:
+
+```typescript
+const bankName = (id: string | null) => banks.find(b => b.id === id)?.name ?? '—';
+const categoryName = (id: string | null) => categories.find(c => c.id === id)?.name ?? '—';
+const contactName = (id: string | null) => contacts.find(c => c.id === id)?.name ?? '—';
+```
+
+### Formatacao na tabela
+
+```typescript
+// Data: format(parseISO(row.date), 'dd/MM/yyyy')
+// Valor: row.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+// Tipo: Badge verde "Receita" ou vermelho "Despesa"
+// Status: Badge "Pago" ou "Pendente"
+```
+
+### Handler de confirmacao
+
+```typescript
+const handleConfirmImport = async () => {
+  setIsProcessing(true);
+  try {
+    await onImport(parsedData);
+    toast({ title: `${parsedData.length} lançamento(s) importado(s) com sucesso!` });
+    handleClose(false);
+  } catch (err) {
+    toast({ title: 'Erro ao importar.', variant: 'destructive' });
+  } finally {
+    setIsProcessing(false);
+  }
+};
+```
 
