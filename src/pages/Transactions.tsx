@@ -11,6 +11,7 @@ import {
   Building2, CheckCircle2, Search, Filter, X, ArrowUpDown
 } from 'lucide-react';
 import { useTransactions, Transaction, TransactionInsert } from '@/hooks/useTransactions';
+import { isEffectivelyPaid } from '@/lib/financial-utils';
 import { useCategories } from '@/hooks/useCategories';
 import { useBanks } from '@/hooks/useBanks';
 import { useContacts } from '@/hooks/useContacts';
@@ -52,8 +53,8 @@ interface ColumnFilters {
   due_date?: { start: string; end: string };
   expected_date?: { start: string; end: string };
   date?: { start: string; end: string };
-  contactId?: string; // UUID for exact contact match
-  eventName?: string; // exact description match for transactions without contact
+  contactIds?: string[]; // UUIDs for multi-select contact match
+  eventNames?: string[]; // multi-select description match for transactions without contact
   status?: string;
 }
 
@@ -133,6 +134,128 @@ function TextColumnFilter({ values, selected, onChange }: { values: string[]; se
 
 function ColumnFilterIcon({ active }: { active: boolean }) {
   return <Filter className={`w-3 h-3 ${active ? 'text-primary' : 'opacity-40'}`} />;
+}
+// Multi-select filter for Cliente / Evento column
+function ContactEventMultiFilter({
+  columnFilters, setColumnFilters, uniqueContactOptions, uniqueEventOptions,
+}: {
+  columnFilters: ColumnFilters;
+  setColumnFilters: React.Dispatch<React.SetStateAction<ColumnFilters>>;
+  uniqueContactOptions: { id: string; name: string }[];
+  uniqueEventOptions: string[];
+}) {
+  const [search, setSearch] = useState('');
+  const selectedContacts = columnFilters.contactIds || [];
+  const selectedEvents = columnFilters.eventNames || [];
+  const totalSelected = selectedContacts.length + selectedEvents.length;
+  const isActive = totalSelected > 0;
+
+  const filteredContacts = search
+    ? uniqueContactOptions.filter(c => c.name.toLowerCase().includes(search.toLowerCase()))
+    : uniqueContactOptions;
+  const filteredEvents = search
+    ? uniqueEventOptions.filter(d => d.toLowerCase().includes(search.toLowerCase()))
+    : uniqueEventOptions;
+
+  const toggleContact = (id: string) => {
+    const next = selectedContacts.includes(id)
+      ? selectedContacts.filter(x => x !== id)
+      : [...selectedContacts, id];
+    setColumnFilters(prev => {
+      const n = { ...prev };
+      if (next.length) n.contactIds = next; else delete n.contactIds;
+      return n;
+    });
+  };
+
+  const toggleEvent = (desc: string) => {
+    const next = selectedEvents.includes(desc)
+      ? selectedEvents.filter(x => x !== desc)
+      : [...selectedEvents, desc];
+    setColumnFilters(prev => {
+      const n = { ...prev };
+      if (next.length) n.eventNames = next; else delete n.eventNames;
+      return n;
+    });
+  };
+
+  const clearAll = () => {
+    setColumnFilters(prev => {
+      const n = { ...prev };
+      delete n.contactIds;
+      delete n.eventNames;
+      return n;
+    });
+    setSearch('');
+  };
+
+  return (
+    <div className="flex items-center gap-0.5">
+      <span>Cliente / Evento</span>
+      {isActive && (
+        <Badge variant="secondary" className="h-4 px-1 text-[9px] font-bold ml-0.5">{totalSelected}</Badge>
+      )}
+      <Popover>
+        <PopoverTrigger asChild><button><ColumnFilterIcon active={isActive} /></button></PopoverTrigger>
+        <PopoverContent className="w-64 p-0" align="start">
+          <div className="p-2 border-b border-border/40">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Buscar..."
+                className="h-7 text-xs pl-7"
+                autoFocus
+              />
+            </div>
+          </div>
+          <div className="max-h-60 overflow-auto p-1">
+            {filteredContacts.length > 0 && (
+              <>
+                <div className="pt-1 pb-0.5 px-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Clientes / Fornecedores</div>
+                {filteredContacts.map(c => (
+                  <label key={c.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-xs">
+                    <Checkbox
+                      checked={selectedContacts.includes(c.id)}
+                      onCheckedChange={() => toggleContact(c.id)}
+                      className="h-3.5 w-3.5"
+                    />
+                    <span className="truncate">{c.name}</span>
+                  </label>
+                ))}
+              </>
+            )}
+            {filteredEvents.length > 0 && (
+              <>
+                <div className="pt-2 pb-0.5 px-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider border-t border-border/40 mt-1">Eventos (sem contato)</div>
+                {filteredEvents.map(desc => (
+                  <label key={desc} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-xs">
+                    <Checkbox
+                      checked={selectedEvents.includes(desc)}
+                      onCheckedChange={() => toggleEvent(desc)}
+                      className="h-3.5 w-3.5"
+                    />
+                    <span className="truncate">{desc}</span>
+                  </label>
+                ))}
+              </>
+            )}
+            {filteredContacts.length === 0 && filteredEvents.length === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-4">Nenhum resultado</p>
+            )}
+          </div>
+          {isActive && (
+            <div className="p-2 border-t border-border/40">
+              <Button size="sm" variant="ghost" className="w-full h-7 text-xs" onClick={clearAll}>
+                <X className="w-3 h-3 mr-1" /> Limpar ({totalSelected})
+              </Button>
+            </div>
+          )}
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
 }
 
 export default function Transactions() {
@@ -229,15 +352,15 @@ export default function Transactions() {
         return true;
       });
     }
-    if (cf.contactId) {
-      result = result.filter(t => t.contact_id === cf.contactId);
+    if (cf.contactIds?.length) {
+      result = result.filter(t => t.contact_id && cf.contactIds!.includes(t.contact_id));
     }
-    if (cf.eventName) {
-      result = result.filter(t => !t.contact_id && t.description === cf.eventName);
+    if (cf.eventNames?.length) {
+      result = result.filter(t => !t.contact_id && cf.eventNames!.includes(t.description));
     }
     if (cf.status) {
-      const isPaid = cf.status === 'Pago';
-      result = result.filter(t => t.is_paid === isPaid);
+      const wantPaid = cf.status === 'Pago';
+      result = result.filter(t => isEffectivelyPaid(t) === wantPaid);
     }
 
     result.sort((a, b) => {
@@ -275,13 +398,14 @@ export default function Transactions() {
 
   const uniqueStatuses = ['Pago', 'Pendente'];
 
-  // KPI totals — paid uses paid_amount, pending uses amount
+  // KPI totals — uses strict isEffectivelyPaid rule
   const kpiTotals = useMemo(() => {
     return filteredTransactions.reduce(
       (acc, t) => {
-        const amount = t.is_paid && t.paid_amount != null ? Number(t.paid_amount) : Number(t.amount);
-        if (t.type === 'receita') { if (t.is_paid) acc.receitasPagas += amount; else acc.receitasPendentes += amount; }
-        else { if (t.is_paid) acc.despesasPagas += amount; else acc.despesasPendentes += amount; }
+        const paid = isEffectivelyPaid(t);
+        const amount = paid && t.paid_amount != null ? Number(t.paid_amount) : Number(t.amount);
+        if (t.type === 'receita') { if (paid) acc.receitasPagas += amount; else acc.receitasPendentes += amount; }
+        else { if (paid) acc.despesasPagas += amount; else acc.despesasPendentes += amount; }
         return acc;
       },
       { receitasPagas: 0, receitasPendentes: 0, despesasPagas: 0, despesasPendentes: 0 }
@@ -309,11 +433,12 @@ export default function Transactions() {
     let receitasMes = 0, despesasMes = 0, receitasPagasMes = 0, despesasPagasMes = 0;
 
     for (const t of allTransactions) {
+      const paid = isEffectivelyPaid(t);
       const amt = Number(t.amount); // pending always uses original amount
-      const effAmt = t.is_paid && t.paid_amount != null ? Number(t.paid_amount) : amt;
-      if (t.type === 'despesa' && !t.is_paid && t.due_date && t.due_date < todayStr) contasEmAtraso += amt;
-      if (t.type === 'receita' && !t.is_paid && t.due_date && t.due_date < todayStr) receitasEmAtraso += amt;
-      if (!t.is_paid && t.due_date) {
+      const effAmt = paid && t.paid_amount != null ? Number(t.paid_amount) : amt;
+      if (t.type === 'despesa' && !paid && t.due_date && t.due_date < todayStr) contasEmAtraso += amt;
+      if (t.type === 'receita' && !paid && t.due_date && t.due_date < todayStr) receitasEmAtraso += amt;
+      if (!paid && t.due_date) {
         if (t.due_date >= monthStartStr && t.due_date <= monthEndStr) {
           if (t.type === 'receita') receitasPendentesMes += amt; else despesasPendentesMes += amt;
         }
@@ -322,8 +447,8 @@ export default function Transactions() {
         }
       }
       if (t.date && t.date >= monthStartStr && t.date <= monthEndStr) {
-        if (t.type === 'receita') { receitasMes += effAmt; if (t.is_paid) receitasPagasMes += effAmt; }
-        else { despesasMes += effAmt; if (t.is_paid) despesasPagasMes += effAmt; }
+        if (t.type === 'receita') { receitasMes += effAmt; if (paid) receitasPagasMes += effAmt; }
+        else { despesasMes += effAmt; if (paid) despesasPagasMes += effAmt; }
       }
     }
 
@@ -674,38 +799,13 @@ export default function Transactions() {
                 </Popover>
               </div>
 
-              {/* Cliente / Evento */}
-              <div className="flex items-center gap-0.5">
-                <span>Cliente / Evento</span>
-                <Popover>
-                  <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.contactId || !!columnFilters.eventName} /></button></PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <div className="space-y-1 p-2 w-56 max-h-72 overflow-auto">
-                      <button onClick={() => { updateColumnFilter('contactId', undefined); updateColumnFilter('eventName', undefined); }} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted ${!columnFilters.contactId && !columnFilters.eventName ? 'bg-primary/10 text-primary font-medium' : ''}`}>
-                        Todos
-                      </button>
-                      {uniqueContactOptions.length > 0 && (
-                        <div className="pt-1 pb-0.5 px-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Clientes / Fornecedores</div>
-                      )}
-                      {uniqueContactOptions.map(c => (
-                        <button key={c.id} onClick={() => { updateColumnFilter('contactId', c.id); updateColumnFilter('eventName', undefined); }} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted truncate ${columnFilters.contactId === c.id ? 'bg-primary/10 text-primary font-medium' : ''}`}>
-                          {c.name}
-                        </button>
-                      ))}
-                      {uniqueEventOptions.length > 0 && (
-                        <>
-                          <div className="pt-2 pb-0.5 px-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider border-t border-border/40 mt-1">Eventos (sem contato)</div>
-                          {uniqueEventOptions.map(desc => (
-                            <button key={desc} onClick={() => { updateColumnFilter('eventName', desc); updateColumnFilter('contactId', undefined); }} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted truncate ${columnFilters.eventName === desc ? 'bg-primary/10 text-primary font-medium' : ''}`}>
-                              {desc}
-                            </button>
-                          ))}
-                        </>
-                      )}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </div>
+              {/* Cliente / Evento — Multi-select with search */}
+              <ContactEventMultiFilter
+                columnFilters={columnFilters}
+                setColumnFilters={setColumnFilters}
+                uniqueContactOptions={uniqueContactOptions}
+                uniqueEventOptions={uniqueEventOptions}
+              />
 
               {/* Vencimento */}
               <div className="flex items-center justify-center gap-0.5">
@@ -751,7 +851,7 @@ export default function Transactions() {
             {/* Rows */}
             <div className="divide-y divide-border/30">
               {filteredTransactions.map(transaction => {
-                const isOverdue = !transaction.is_paid && transaction.due_date && transaction.due_date < new Date().toISOString().split('T')[0];
+                const isOverdue = !isEffectivelyPaid(transaction) && transaction.due_date && transaction.due_date < new Date().toISOString().split('T')[0];
                 return (
                   <div key={transaction.id} className={`grid grid-cols-[40px_100px_1fr_110px_110px_110px_90px_110px_110px_90px] gap-3 px-4 py-3 hover:bg-muted/30 transition-colors items-center ${selectedIds.has(transaction.id) ? 'bg-primary/10 border-l-2 border-l-primary' : ''}`}>
                     <div className="flex items-center justify-center">
@@ -777,19 +877,24 @@ export default function Transactions() {
                     <div className="text-center text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.expected_date)}</div>
                     <div className="text-center text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.date)}</div>
                     <div className="flex justify-center">
-                      <button
-                        onClick={() => togglePaid.mutate({ id: transaction.id, is_paid: !transaction.is_paid })}
-                        className={`text-[10px] font-semibold px-2 py-1 rounded-full border transition-all cursor-pointer whitespace-nowrap ${
-                          transaction.is_paid ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-amber-500 text-amber-500 bg-transparent hover:bg-amber-500/10'
-                        }`}>
-                        {transaction.is_paid ? 'Pago' : 'Pendente'}
-                      </button>
+                      {(() => {
+                        const effectivelyPaid = isEffectivelyPaid(transaction);
+                        return (
+                          <button
+                            onClick={() => togglePaid.mutate({ id: transaction.id, is_paid: !effectivelyPaid })}
+                            className={`text-[10px] font-semibold px-2 py-1 rounded-full border transition-all cursor-pointer whitespace-nowrap ${
+                              effectivelyPaid ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-amber-500 text-amber-500 bg-transparent hover:bg-amber-500/10'
+                            }`}>
+                            {effectivelyPaid ? 'Pago' : 'Pendente'}
+                          </button>
+                        );
+                      })()}
                     </div>
                     <div className={`text-right font-bold text-sm tabular-nums ${transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'}`}>
                       {transaction.type === 'receita' ? '+' : '-'}{formatCurrency(Number(transaction.amount))}
                     </div>
-                    <div className={`text-right text-sm tabular-nums ${transaction.is_paid && transaction.paid_amount != null ? (transaction.type === 'receita' ? 'text-emerald-500 font-bold' : 'text-red-500 font-bold') : 'text-muted-foreground'}`}>
-                      {transaction.is_paid && transaction.paid_amount != null
+                    <div className={`text-right text-sm tabular-nums ${isEffectivelyPaid(transaction) && transaction.paid_amount != null ? (transaction.type === 'receita' ? 'text-emerald-500 font-bold' : 'text-red-500 font-bold') : 'text-muted-foreground'}`}>
+                      {isEffectivelyPaid(transaction) && transaction.paid_amount != null
                         ? `${transaction.type === 'receita' ? '+' : '-'}${formatCurrency(Number(transaction.paid_amount))}`
                         : '—'}
                     </div>

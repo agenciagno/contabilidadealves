@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -118,12 +119,23 @@ export function TransactionFormDialog({
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => setAmount(formatCurrencyInput(e.target.value));
   const handlePaidAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => setPaidAmount(formatCurrencyInput(e.target.value));
 
+  const { toast } = useToast();
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const selectedCategory = filteredCategories.find(c => c.id === categoryId);
     const autoDescription = selectedCategory?.name || 'Movimentação';
     const paidAmountValue = parseCurrencyInput(paidAmount);
     const derivedIsPaid = paidAmountValue > 0;
+
+    // Strict settlement rule: if marking as paid, date must be filled
+    if (derivedIsPaid && !date) {
+      toast({
+        title: 'Para liquidar a transação, a Data de Pagamento e o Valor Recebido são obrigatórios.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     onSubmit({
       type,
