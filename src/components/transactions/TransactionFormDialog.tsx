@@ -157,7 +157,7 @@ export function TransactionFormDialog({
   const handleContactChange = (v: string) => { if (v === '__new__') setContactDialogOpen(true); else setContactId(v); };
 
   const isEditing = !!transaction;
-  const isFormValid = parseCurrencyInput(amount) > 0 && categoryId && bankId;
+  const isFormValid = parseCurrencyInput(amount) > 0 && categoryId && bankId && contactId && issueDate && dueDate && expectedDate && date;
 
   return (
     <>
@@ -182,7 +182,7 @@ export function TransactionFormDialog({
             {/* Row 1: Cliente | Valor | Valor Recebido/Pago */}
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs">Cliente/Fornecedor</Label>
+                <Label className="text-xs">Cliente/Fornecedor <span className="text-destructive">*</span></Label>
                 <Select value={contactId} onValueChange={handleContactChange} disabled={isEditing}>
                   <SelectTrigger className={`h-8 text-xs ${isEditing ? 'opacity-60 cursor-not-allowed' : ''}`}>
                     <SelectValue placeholder="Selecione..." />
@@ -253,19 +253,19 @@ export function TransactionFormDialog({
             {/* Row 3: 4 Datas */}
             <div className="grid grid-cols-4 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs">Emissão</Label>
+                <Label className="text-xs">Emissão <span className="text-destructive">*</span></Label>
                 <Input type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} className="h-8 text-xs" />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Vencimento</Label>
+                <Label className="text-xs">Vencimento <span className="text-destructive">*</span></Label>
                 <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="h-8 text-xs" />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Prevista</Label>
+                <Label className="text-xs">Prevista <span className="text-destructive">*</span></Label>
                 <Input type="date" value={expectedDate} onChange={e => setExpectedDate(e.target.value)} className="h-8 text-xs" />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Pagamento</Label>
+                <Label className="text-xs">Pagamento <span className="text-destructive">*</span></Label>
                 <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-8 text-xs" />
               </div>
             </div>
