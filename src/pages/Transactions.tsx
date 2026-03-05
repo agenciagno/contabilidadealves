@@ -150,9 +150,14 @@ function ContactEventMultiFilter({
   uniqueContactOptions: { id: string; name: string }[];
   uniqueEventOptions: string[];
 }) {
+  const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const selectedContacts = columnFilters.contactIds || [];
-  const selectedEvents = columnFilters.eventNames || [];
+  const [tempContacts, setTempContacts] = useState<string[]>([]);
+  const [tempEvents, setTempEvents] = useState<string[]>([]);
+
+  // Derived from parent when closed, from temp when open
+  const selectedContacts = open ? tempContacts : (columnFilters.contactIds || []);
+  const selectedEvents = open ? tempEvents : (columnFilters.eventNames || []);
   const totalSelected = selectedContacts.length + selectedEvents.length;
   const isActive = totalSelected > 0;
 
@@ -164,42 +169,40 @@ function ContactEventMultiFilter({
     : uniqueEventOptions;
 
   const toggleContact = (id: string) => {
-    const next = selectedContacts.includes(id)
-      ? selectedContacts.filter(x => x !== id)
-      : [...selectedContacts, id];
-    setColumnFilters(prev => {
-      const n = { ...prev };
-      if (next.length) n.contactIds = next; else delete n.contactIds;
-      return n;
-    });
+    setTempContacts(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
   };
 
   const toggleEvent = (desc: string) => {
-    const next = selectedEvents.includes(desc)
-      ? selectedEvents.filter(x => x !== desc)
-      : [...selectedEvents, desc];
-    setColumnFilters(prev => {
-      const n = { ...prev };
-      if (next.length) n.eventNames = next; else delete n.eventNames;
-      return n;
-    });
+    setTempEvents(prev =>
+      prev.includes(desc) ? prev.filter(x => x !== desc) : [...prev, desc]
+    );
   };
 
   const clearAll = () => {
-    setColumnFilters(prev => {
-      const n = { ...prev };
-      delete n.contactIds;
-      delete n.eventNames;
-      return n;
-    });
+    setTempContacts([]);
+    setTempEvents([]);
     setSearch('');
   };
 
-  const [open, setOpen] = useState(false);
-
   const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      // Sync from parent state when opening
+      setTempContacts(columnFilters.contactIds || []);
+      setTempEvents(columnFilters.eventNames || []);
+      setSearch('');
+    } else {
+      // Apply to parent only when closing
+      setColumnFilters(prev => {
+        const n = { ...prev };
+        if (tempContacts.length) n.contactIds = tempContacts; else delete n.contactIds;
+        if (tempEvents.length) n.eventNames = tempEvents; else delete n.eventNames;
+        return n;
+      });
+      setSearch('');
+    }
     setOpen(nextOpen);
-    if (!nextOpen) setSearch('');
   };
 
   return (
