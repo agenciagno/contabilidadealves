@@ -276,13 +276,16 @@ function ContactEventMultiFilter({
               <p className="text-xs text-muted-foreground text-center py-4">Nenhum resultado</p>
             )}
           </div>
-          {isActive && (
-            <div className="p-2 border-t border-border/40">
-              <Button size="sm" variant="ghost" className="w-full h-7 text-xs" onClick={clearAll}>
+          <div className="p-2 border-t border-border/40 flex gap-1">
+            {isActive && (
+              <Button size="sm" variant="ghost" className="flex-1 h-7 text-xs" onClick={clearAll}>
                 <X className="w-3 h-3 mr-1" /> Limpar ({totalSelected})
               </Button>
-            </div>
-          )}
+            )}
+            <Button size="sm" variant="default" className="flex-1 h-7 text-xs" onClick={applyFilters}>
+              Aplicar
+            </Button>
+          </div>
         </PopoverContent>
       </Popover>
     </div>
