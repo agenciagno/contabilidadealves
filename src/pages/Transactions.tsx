@@ -398,13 +398,14 @@ export default function Transactions() {
 
   const uniqueStatuses = ['Pago', 'Pendente'];
 
-  // KPI totals — paid uses paid_amount, pending uses amount
+  // KPI totals — uses strict isEffectivelyPaid rule
   const kpiTotals = useMemo(() => {
     return filteredTransactions.reduce(
       (acc, t) => {
-        const amount = t.is_paid && t.paid_amount != null ? Number(t.paid_amount) : Number(t.amount);
-        if (t.type === 'receita') { if (t.is_paid) acc.receitasPagas += amount; else acc.receitasPendentes += amount; }
-        else { if (t.is_paid) acc.despesasPagas += amount; else acc.despesasPendentes += amount; }
+        const paid = isEffectivelyPaid(t);
+        const amount = paid && t.paid_amount != null ? Number(t.paid_amount) : Number(t.amount);
+        if (t.type === 'receita') { if (paid) acc.receitasPagas += amount; else acc.receitasPendentes += amount; }
+        else { if (paid) acc.despesasPagas += amount; else acc.despesasPendentes += amount; }
         return acc;
       },
       { receitasPagas: 0, receitasPendentes: 0, despesasPagas: 0, despesasPendentes: 0 }
