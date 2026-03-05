@@ -789,7 +789,7 @@ export default function Transactions() {
                 <div className="flex items-center gap-0.5">
                   <span>Emissão</span>
                   <Popover>
-                    <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.issue_date || sortField === 'issue_date'} /></button></PopoverTrigger>
+                    <PopoverTrigger asChild><button className="p-1 rounded hover:bg-muted/60 transition-colors"><ColumnFilterIcon active={!!columnFilters.issue_date || sortField === 'issue_date'} /></button></PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.issue_date} onChange={v => updateColumnFilter('issue_date', v)} sortField="issue_date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} /></PopoverContent>
                   </Popover>
                 </div>
@@ -804,7 +804,7 @@ export default function Transactions() {
                 <div className="flex items-center justify-center gap-0.5">
                   <span>Vencimento</span>
                   <Popover>
-                    <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.due_date || sortField === 'due_date'} /></button></PopoverTrigger>
+                    <PopoverTrigger asChild><button className="p-1 rounded hover:bg-muted/60 transition-colors"><ColumnFilterIcon active={!!columnFilters.due_date || sortField === 'due_date'} /></button></PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.due_date} onChange={v => updateColumnFilter('due_date', v)} sortField="due_date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} /></PopoverContent>
                   </Popover>
                 </div>
@@ -812,7 +812,7 @@ export default function Transactions() {
                 <div className="flex items-center justify-center gap-0.5">
                   <span>Prevista</span>
                   <Popover>
-                    <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.expected_date || sortField === 'expected_date'} /></button></PopoverTrigger>
+                    <PopoverTrigger asChild><button className="p-1 rounded hover:bg-muted/60 transition-colors"><ColumnFilterIcon active={!!columnFilters.expected_date || sortField === 'expected_date'} /></button></PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.expected_date} onChange={v => updateColumnFilter('expected_date', v)} sortField="expected_date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} /></PopoverContent>
                   </Popover>
                 </div>
@@ -820,7 +820,7 @@ export default function Transactions() {
                 <div className="flex items-center justify-center gap-0.5">
                   <span>Pagamento</span>
                   <Popover>
-                    <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.date || sortField === 'date'} /></button></PopoverTrigger>
+                    <PopoverTrigger asChild><button className="p-1 rounded hover:bg-muted/60 transition-colors"><ColumnFilterIcon active={!!columnFilters.date || sortField === 'date'} /></button></PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.date} onChange={v => updateColumnFilter('date', v)} sortField="date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} /></PopoverContent>
                   </Popover>
                 </div>
@@ -828,7 +828,7 @@ export default function Transactions() {
                 <div className="flex items-center justify-center gap-0.5">
                   <span>Status</span>
                   <Popover>
-                    <PopoverTrigger asChild><button><ColumnFilterIcon active={!!columnFilters.status} /></button></PopoverTrigger>
+                    <PopoverTrigger asChild><button className="p-1 rounded hover:bg-muted/60 transition-colors"><ColumnFilterIcon active={!!columnFilters.status} /></button></PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start"><TextColumnFilter values={uniqueStatuses} selected={columnFilters.status} onChange={v => updateColumnFilter('status', v)} /></PopoverContent>
                   </Popover>
                 </div>
