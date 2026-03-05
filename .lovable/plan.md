@@ -1,29 +1,93 @@
 
 
-## Plano: Corrigir UX do Filtro Multi-select e Melhorar Ícones
+# Preview Intermediario na Importacao de Planilha
 
-### BLOCO 1 + 2: Popover persistente e busca mantida
+## Resumo
 
-**Em `ContactEventMultiFilter` (linhas 138-257 de `src/pages/Transactions.tsx`):**
+Adicionar um Step 3 (Preview) entre o upload e a confirmacao final. Apos o upload processar os dados, ao inves de importar diretamente, exibir uma tabela com os lancamentos lidos para o usuario revisar, com opcao de confirmar ou voltar.
 
-1. Adicionar estado `open` controlado manualmente no `<Popover open={open} onOpenChange={setOpen}>`.
-2. No `<PopoverContent>`, adicionar `onPointerDownOutside` para fechar, mas **não** fechar ao interagir com checkboxes internos — isso já é resolvido pelo controle manual do `open`.
-3. O texto do `search` já é estado local e não é limpo no `toggleContact`/`toggleEvent` — apenas garantir que continue assim (já está correto no código atual, o bug é causado pelo fechamento automático do Popover).
-4. Limpar `search` apenas no `clearAll` e ao fechar o popover (`onOpenChange(false)`).
+---
 
-### BLOCO 3: Destaque visual dos ícones de filtro
+## Arquivo Modificado
 
-**Em `ColumnFilterIcon` (linha 134-136):**
+| Arquivo | Mudanca |
+|---|---|
+| `src/components/transactions/ImportSpreadsheetDialog.tsx` | Adicionar step 3 com tabela de preview, separar parsing de importacao |
 
-1. Aumentar tamanho do ícone de `w-3 h-3` para `w-3.5 h-3.5`.
-2. Estado inativo: mudar de `opacity-40` para `text-muted-foreground/70` (mais visível).
-3. Estado ativo: usar `text-primary` com um dot indicator (bolinha) via pseudo-element ou span.
-4. Adicionar `hover:text-primary` transition para affordance.
+---
 
-**Nos botões `<PopoverTrigger>` do header (linhas 771-816):**
+## Mudancas Detalhadas
 
-5. Adicionar padding e hover state ao botão: `p-1 rounded hover:bg-muted/60 transition-colors`.
+### 1. Novo estado para armazenar dados parseados
 
-### Arquivos impactados
-- `src/pages/Transactions.tsx` (único arquivo)
+```typescript
+const [parsedData, setParsedData] = useState<TransactionInsert[]>([]);
+```
+
+### 2. Alterar `processFile` para nao importar direto
+
+Em vez de chamar `onImport(transactions)` ao final do parsing, salvar em `setParsedData(transactions)` e avancar para `setStep(3)`.
+
+### 3. Step indicator com 3 passos
+
+Adicionar terceiro circulo "Revisar" no indicador de progresso (Modelo -> Upload -> Revisar).
+
+### 4. Step 3: Tabela de Preview
+
+- Dialog expandido para `sm:max-w-4xl` quando no step 3
+- Contador: "X lancamento(s) encontrado(s)"
+- Tabela com ScrollArea (max-height ~400px) contendo colunas:
+  - Data | Cliente | Tipo | Valor | Status | Vencimento | Banco | Categoria
+- Cada linha mostra dados legivel (data formatada dd/MM/yyyy, valor em R$, tipo como badge colorido Receita/Despesa, status como badge Pago/Pendente)
+- Lookup reverso de bank_id/category_id/contact_id para exibir nomes (ou "---" se nao vinculado)
+- Botoes: "Voltar" (ghost, volta ao step 2) e "Confirmar Importacao" (primary, chama onImport)
+- Ao confirmar: spinner de "Importando..." e fluxo existente de toast + fechar modal
+
+### 5. Ajuste no resetState
+
+Incluir `setParsedData([])` no reset.
+
+### 6. DialogDescription dinâmica
+
+Step 3 exibe: "Revise os dados antes de confirmar"
+
+---
+
+## Secao Tecnica
+
+### Lookup reverso para exibicao
+
+Para mostrar nomes na tabela de preview ao inves de IDs:
+
+```typescript
+const bankName = (id: string | null) => banks.find(b => b.id === id)?.name ?? '—';
+const categoryName = (id: string | null) => categories.find(c => c.id === id)?.name ?? '—';
+const contactName = (id: string | null) => contacts.find(c => c.id === id)?.name ?? '—';
+```
+
+### Formatacao na tabela
+
+```typescript
+// Data: format(parseISO(row.date), 'dd/MM/yyyy')
+// Valor: row.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+// Tipo: Badge verde "Receita" ou vermelho "Despesa"
+// Status: Badge "Pago" ou "Pendente"
+```
+
+### Handler de confirmacao
+
+```typescript
+const handleConfirmImport = async () => {
+  setIsProcessing(true);
+  try {
+    await onImport(parsedData);
+    toast({ title: `${parsedData.length} lançamento(s) importado(s) com sucesso!` });
+    handleClose(false);
+  } catch (err) {
+    toast({ title: 'Erro ao importar.', variant: 'destructive' });
+  } finally {
+    setIsProcessing(false);
+  }
+};
+```
 
