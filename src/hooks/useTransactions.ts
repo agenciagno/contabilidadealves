@@ -189,12 +189,17 @@ export function useTransactions() {
   const togglePaid = useMutation({
     mutationFn: async ({ id, is_paid }: { id: string; is_paid: boolean }) => {
       if (is_paid) {
-        // When marking as paid, copy amount to paid_amount if not already set
+        // Strict rule: check if date (payment date) exists
         const { data: txn } = await supabase
           .from('transactions')
-          .select('amount, paid_amount')
+          .select('amount, paid_amount, date')
           .eq('id', id)
           .single();
+        
+        if (!txn?.date) {
+          throw new Error('SETTLEMENT_BLOCKED');
+        }
+        
         const paid_amount = txn?.paid_amount ?? txn?.amount ?? 0;
         const { error } = await supabase
           .from('transactions')
@@ -215,26 +220,37 @@ export function useTransactions() {
       queryClient.invalidateQueries({ queryKey: ['banks'] });
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
     },
+    onError: (error: Error) => {
+      if (error.message === 'SETTLEMENT_BLOCKED') {
+        toast({ title: 'Para liquidar a transação, a Data de Pagamento e o Valor Recebido são obrigatórios.', variant: 'destructive' });
+      }
+    },
   });
 
   const bulkTogglePaid = useMutation({
     mutationFn: async ({ ids, is_paid }: { ids: string[]; is_paid: boolean }) => {
       if (is_paid) {
-        // For each, set paid_amount = COALESCE(paid_amount, amount) via raw update
-        // We need to fetch amounts first
         const { data: txns, error: fetchErr } = await supabase
           .from('transactions')
-          .select('id, amount, paid_amount')
+          .select('id, amount, paid_amount, date')
           .in('id', ids);
         if (fetchErr) throw fetchErr;
 
+        let blocked = 0;
         for (const txn of (txns || [])) {
+          if (!txn.date) {
+            blocked++;
+            continue;
+          }
           const paid_amount = txn.paid_amount ?? txn.amount;
           const { error } = await supabase
             .from('transactions')
             .update({ is_paid: true, paid_amount })
             .eq('id', txn.id);
           if (error) throw error;
+        }
+        if (blocked > 0) {
+          throw new Error(`BULK_BLOCKED:${blocked}`);
         }
       } else {
         const { error } = await supabase
@@ -248,6 +264,12 @@ export function useTransactions() {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['banks'] });
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
+    },
+    onError: (error: Error) => {
+      if (error.message.startsWith('BULK_BLOCKED:')) {
+        const count = error.message.split(':')[1];
+        toast({ title: `${count} transação(ões) ignoradas: Data de Pagamento ausente.`, variant: 'destructive' });
+      }
     },
   });
 
