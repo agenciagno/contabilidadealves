@@ -8,7 +8,7 @@ import {
   Plus, Upload, Pencil, Trash2, TrendingUp, TrendingDown, Receipt,
   Download, FileSpreadsheet, FileText, AlertTriangle, Landmark,
   BarChart3, CalendarCheck, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
-  Building2, CheckCircle2, Search, Filter, X, ArrowUpDown
+  Building2, CheckCircle2, Search, Filter, X, ArrowUpDown, CircleDollarSign
 } from 'lucide-react';
 import { useTransactions, Transaction, TransactionInsert } from '@/hooks/useTransactions';
 import { useServerTransactions, useTransactionKPIs, PAGE_SIZE, ServerFilters } from '@/hooks/useServerTransactions';
@@ -420,6 +420,7 @@ export default function Transactions() {
   const { uploadAttachment } = useTransactionAttachments();
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState<'edit' | 'settle'>('edit');
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
@@ -497,9 +498,10 @@ export default function Transactions() {
     }
   };
 
-  const handleEdit = (transaction: Transaction) => { setEditingTransaction(transaction); setDialogOpen(true); };
+  const handleEdit = (transaction: Transaction) => { setEditingTransaction(transaction); setDialogMode('edit'); setDialogOpen(true); };
+  const handleSettle = (transaction: Transaction) => { setEditingTransaction(transaction); setDialogMode('settle'); setDialogOpen(true); };
   const handleDelete = () => { if (deleteId) deleteTransaction.mutate(deleteId, { onSuccess: () => setDeleteId(null) }); };
-  const handleNewTransaction = (type: 'receita' | 'despesa') => { setDefaultType(type); setEditingTransaction(null); setDialogOpen(true); };
+  const handleNewTransaction = (type: 'receita' | 'despesa') => { setDefaultType(type); setEditingTransaction(null); setDialogMode('edit'); setDialogOpen(true); };
 
   const handleSortDirect = (field: SortField, order: SortOrder) => {
     setSortField(field);
@@ -896,6 +898,7 @@ export default function Transactions() {
                         </div>
                         <div className="flex gap-0.5 justify-center">
                           <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted" onClick={() => handleEdit(transaction)}><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-emerald-500/10" onClick={() => handleSettle(transaction)}><CircleDollarSign className="w-3.5 h-3.5 text-emerald-500" /></Button>
                           <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteId(transaction.id)}><Trash2 className="w-3.5 h-3.5 text-destructive" /></Button>
                         </div>
                       </div>
@@ -927,6 +930,7 @@ export default function Transactions() {
         onSubmit={handleSubmit}
         isLoading={createTransaction.isPending || updateTransaction.isPending}
         defaultType={defaultType}
+        mode={dialogMode}
       />
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>

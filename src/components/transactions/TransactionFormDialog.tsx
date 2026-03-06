@@ -199,7 +199,7 @@ export function TransactionFormDialog({
     : parseCurrencyInput(amount) > 0 && !!categoryId && !!contactId && !!issueDate && !!dueDate && !!expectedDate;
 
   // Disabled states
-  const structuralDisabled = isEditing || isSettleMode;
+  const structuralDisabled = isSettleMode;
 
   const dialogTitle = isSettleMode
     ? 'Liquidar Transação'
