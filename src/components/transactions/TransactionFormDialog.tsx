@@ -30,6 +30,7 @@ interface TransactionFormDialogProps {
   onSubmit: (data: TransactionInsert, pendingFiles?: File[]) => void;
   isLoading?: boolean;
   defaultType?: 'receita' | 'despesa';
+  mode?: 'edit' | 'settle';
 }
 
 function formatCurrencyInput(value: string): string {
@@ -45,9 +46,11 @@ function parseCurrencyInput(value: string): number {
 }
 
 export function TransactionFormDialog({
-  open, onOpenChange, transaction, categories, banks, contacts, onSubmit, isLoading, defaultType = 'despesa',
+  open, onOpenChange, transaction, categories, banks, contacts, onSubmit, isLoading, defaultType = 'despesa', mode = 'edit',
 }: TransactionFormDialogProps) {
   const todayStr = new Date().toISOString().split('T')[0];
+  const isSettleMode = mode === 'settle';
+  const isEditing = !!transaction;
 
   const [type, setType] = useState<'receita' | 'despesa'>(defaultType);
   const [amount, setAmount] = useState('');
@@ -126,6 +129,28 @@ export function TransactionFormDialog({
     const selectedCategory = filteredCategories.find(c => c.id === categoryId);
     const autoDescription = selectedCategory?.name || 'Movimentação';
     const paidAmountValue = parseCurrencyInput(paidAmount);
+
+    if (isSettleMode) {
+      // Settle mode: force is_paid = true
+      onSubmit({
+        type,
+        description: autoDescription,
+        amount: parseCurrencyInput(amount),
+        paid_amount: paidAmountValue,
+        date: date || undefined,
+        issue_date: issueDate || null,
+        due_date: dueDate || null,
+        expected_date: expectedDate || null,
+        category_id: categoryId || null,
+        bank_id: bankId || null,
+        contact_id: contactId || null,
+        is_paid: true,
+        notes: notes || null,
+      } as TransactionInsert, pendingFiles);
+      return;
+    }
+
+    // Edit mode
     const derivedIsPaid = paidAmountValue > 0;
 
     // Strict settlement rule: if marking as paid, date must be filled
@@ -168,24 +193,35 @@ export function TransactionFormDialog({
   const handleBankChange = (v: string) => { if (v === '__new__') setBankDialogOpen(true); else setBankId(v); };
   const handleContactChange = (v: string) => { if (v === '__new__') setContactDialogOpen(true); else setContactId(v); };
 
-  const isEditing = !!transaction;
-  const isFormValid = parseCurrencyInput(amount) > 0 && categoryId && bankId && contactId && issueDate && dueDate && expectedDate && date;
+  // Validation rules per mode
+  const isFormValid = isSettleMode
+    ? parseCurrencyInput(paidAmount) > 0 && !!bankId && !!date
+    : parseCurrencyInput(amount) > 0 && !!categoryId && !!contactId && !!issueDate && !!dueDate && !!expectedDate;
+
+  // Disabled states
+  const structuralDisabled = isEditing || isSettleMode;
+
+  const dialogTitle = isSettleMode
+    ? 'Liquidar Transação'
+    : transaction ? 'Editar Transação' : 'Nova Transação';
+
+  const submitLabel = isSettleMode ? 'Liquidar' : 'Salvar';
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader className="pb-2">
-            <DialogTitle className="text-base">{transaction ? 'Editar Transação' : 'Nova Transação'}</DialogTitle>
+            <DialogTitle className="text-base">{dialogTitle}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-3">
             {/* Type Toggle */}
-            <Tabs value={type} onValueChange={(v) => !isEditing && setType(v as 'receita' | 'despesa')}>
-              <TabsList className={`w-full h-9 ${isEditing ? 'opacity-60 pointer-events-none' : ''}`}>
-                <TabsTrigger value="despesa" className="flex-1 gap-1.5 text-xs h-7" disabled={isEditing}>
+            <Tabs value={type} onValueChange={(v) => !structuralDisabled && setType(v as 'receita' | 'despesa')}>
+              <TabsList className={`w-full h-9 ${structuralDisabled ? 'opacity-60 pointer-events-none' : ''}`}>
+                <TabsTrigger value="despesa" className="flex-1 gap-1.5 text-xs h-7" disabled={structuralDisabled}>
                   <TrendingDown className="w-3.5 h-3.5" /> Despesa
                 </TabsTrigger>
-                <TabsTrigger value="receita" className="flex-1 gap-1.5 text-xs h-7" disabled={isEditing}>
+                <TabsTrigger value="receita" className="flex-1 gap-1.5 text-xs h-7" disabled={structuralDisabled}>
                   <TrendingUp className="w-3.5 h-3.5" /> Receita
                 </TabsTrigger>
               </TabsList>
@@ -195,8 +231,8 @@ export function TransactionFormDialog({
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">Cliente/Fornecedor <span className="text-destructive">*</span></Label>
-                <Select value={contactId} onValueChange={handleContactChange} disabled={isEditing}>
-                  <SelectTrigger className={`h-8 text-xs ${isEditing ? 'opacity-60 cursor-not-allowed' : ''}`}>
+                <Select value={contactId} onValueChange={handleContactChange} disabled={structuralDisabled}>
+                  <SelectTrigger className={`h-8 text-xs ${structuralDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}>
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -213,10 +249,13 @@ export function TransactionFormDialog({
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Valor (R$) <span className="text-destructive">*</span></Label>
-                <Input value={amount} onChange={handleAmountChange} placeholder="0,00" required className="h-8 text-sm font-semibold" />
+                <Input value={amount} onChange={handleAmountChange} placeholder="0,00" required className="h-8 text-sm font-semibold" disabled={isSettleMode} />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">{type === 'receita' ? 'Valor Recebido' : 'Valor Pago'}</Label>
+                <Label className="text-xs">
+                  {type === 'receita' ? 'Valor Recebido' : 'Valor Pago'}
+                  {isSettleMode && <span className="text-destructive"> *</span>}
+                </Label>
                 <Input value={paidAmount} onChange={handlePaidAmountChange} placeholder="0,00" className="h-8 text-sm" />
               </div>
             </div>
@@ -225,8 +264,8 @@ export function TransactionFormDialog({
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">Evento Contábil <span className="text-destructive">*</span></Label>
-                <Select value={categoryId} onValueChange={handleCategoryChange} disabled={isEditing}>
-                  <SelectTrigger className={`h-8 text-xs ${isEditing ? 'opacity-60 cursor-not-allowed' : !categoryId ? 'border-muted-foreground/30' : ''}`}>
+                <Select value={categoryId} onValueChange={handleCategoryChange} disabled={structuralDisabled}>
+                  <SelectTrigger className={`h-8 text-xs ${structuralDisabled ? 'opacity-60 cursor-not-allowed' : !categoryId ? 'border-muted-foreground/30' : ''}`}>
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -240,7 +279,10 @@ export function TransactionFormDialog({
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Conta/Banco <span className="text-destructive">*</span></Label>
+                <Label className="text-xs">
+                  Conta/Banco
+                  {isSettleMode && <span className="text-destructive"> *</span>}
+                </Label>
                 <Select value={bankId} onValueChange={handleBankChange}>
                   <SelectTrigger className={`h-8 text-xs ${!bankId ? 'border-muted-foreground/30' : ''}`}>
                     <SelectValue placeholder="Selecione..." />
@@ -266,39 +308,44 @@ export function TransactionFormDialog({
             <div className="grid grid-cols-4 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">Emissão <span className="text-destructive">*</span></Label>
-                <Input type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} className="h-8 text-xs" />
+                <Input type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} className="h-8 text-xs" disabled={isSettleMode} />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Vencimento <span className="text-destructive">*</span></Label>
-                <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="h-8 text-xs" />
+                <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="h-8 text-xs" disabled={isSettleMode} />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Prevista <span className="text-destructive">*</span></Label>
-                <Input type="date" value={expectedDate} onChange={e => setExpectedDate(e.target.value)} className="h-8 text-xs" />
+                <Input type="date" value={expectedDate} onChange={e => setExpectedDate(e.target.value)} className="h-8 text-xs" disabled={isSettleMode} />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Pagamento <span className="text-destructive">*</span></Label>
+                <Label className="text-xs">
+                  Pagamento
+                  {isSettleMode && <span className="text-destructive"> *</span>}
+                </Label>
                 <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-8 text-xs" />
               </div>
             </div>
 
-            {/* Row 4: Anexo | Observações side by side */}
+            {/* Row 4: Anexo | Histórico side by side */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">Anexo</Label>
-                <AttachmentUpload
-                  compact
-                  attachments={attachments}
-                  pendingFiles={pendingFiles}
-                  onAddFiles={(files) => setPendingFiles([...pendingFiles, ...files])}
-                  onRemovePendingFile={(index) => setPendingFiles(pendingFiles.filter((_, i) => i !== index))}
-                  onDeleteAttachment={(attachment) => deleteAttachment.mutate(attachment)}
-                  isUploading={uploadAttachment.isPending}
-                />
+                <div className={isSettleMode ? 'opacity-60 pointer-events-none' : ''}>
+                  <AttachmentUpload
+                    compact
+                    attachments={attachments}
+                    pendingFiles={pendingFiles}
+                    onAddFiles={(files) => setPendingFiles([...pendingFiles, ...files])}
+                    onRemovePendingFile={(index) => setPendingFiles(pendingFiles.filter((_, i) => i !== index))}
+                    onDeleteAttachment={(attachment) => deleteAttachment.mutate(attachment)}
+                    isUploading={uploadAttachment.isPending}
+                  />
+                </div>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Observações</Label>
-                <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Notas..." rows={1} className="min-h-[36px] resize-none text-xs" />
+                <Label className="text-xs">Histórico</Label>
+                <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Histórico..." rows={1} className="min-h-[36px] resize-none text-xs" disabled={isSettleMode} />
               </div>
             </div>
 
@@ -309,7 +356,7 @@ export function TransactionFormDialog({
                   Cancelar
                 </Button>
                 <Button type="submit" size="sm" disabled={isLoading || !isFormValid} className="h-8 text-xs px-6">
-                  {isLoading ? 'Salvando...' : 'Salvar'}
+                  {isLoading ? 'Salvando...' : submitLabel}
                 </Button>
               </div>
             </div>

@@ -1,38 +1,93 @@
 
 
-## Plano: Modal com Dois Modos (Editar / Liquidar)
+# Preview Intermediario na Importacao de Planilha
 
-### Contexto
-Atualmente o `TransactionFormDialog` tem um único modo. Não existe conceito de "modo Liquidar". Precisamos adicionar uma prop `mode` e ajustar validação, disabled states e nomenclatura.
+## Resumo
 
-### Alterações
+Adicionar um Step 3 (Preview) entre o upload e a confirmacao final. Apos o upload processar os dados, ao inves de importar diretamente, exibir uma tabela com os lancamentos lidos para o usuario revisar, com opcao de confirmar ou voltar.
 
-**Arquivo: `src/components/transactions/TransactionFormDialog.tsx`**
+---
 
-1. **Nova prop `mode`**: Adicionar `mode?: 'edit' | 'settle'` (default `'edit'`) à interface `TransactionFormDialogProps`.
+## Arquivo Modificado
 
-2. **BLOCO 1 — Renomear "Observações" → "Histórico"**: Alterar o label na linha 300 e o placeholder.
+| Arquivo | Mudanca |
+|---|---|
+| `src/components/transactions/ImportSpreadsheetDialog.tsx` | Adicionar step 3 com tabela de preview, separar parsing de importacao |
 
-3. **BLOCO 2 — Validação modo Editar**: Alterar `isFormValid` (linha 172) para:
-   - Obrigatórios: `amount > 0`, `contactId`, `categoryId`, `issueDate`, `dueDate`, `expectedDate`
-   - Remover `bankId`, `date` da validação obrigatória
-   - Banco, Data Pagamento, Valor Pago e Histórico ficam opcionais
+---
 
-4. **BLOCO 3 — Modo Liquidar (UI)**:
-   - Título do dialog: `'Liquidar Transação'` quando `mode === 'settle'`
-   - Campos estruturais desabilitados (`disabled={isSettleMode}`): Tipo, Cliente, Valor original, Evento Contábil, Emissão, Vencimento, Prevista, Histórico, Anexo
-   - Campos habilitados: Valor Pago/Recebido, Conta/Banco, Data Pagamento
-   - Validação do botão submit no modo settle: `parseCurrencyInput(paidAmount) > 0 && bankId && date`
-   - Texto do botão: `'Liquidar'` em vez de `'Salvar'`
-   - Remover asterisco do label "Pagamento" no modo edit (é opcional); adicionar no modo settle
+## Mudancas Detalhadas
 
-5. **BLOCO 4 — Submit no modo Liquidar**: No `handleSubmit`, quando `mode === 'settle'`, forçar `is_paid: true` no payload independentemente da derivação.
+### 1. Novo estado para armazenar dados parseados
 
-**Arquivos consumidores: `Transactions.tsx`, `Dashboard.tsx`, `Home.tsx`**
+```typescript
+const [parsedData, setParsedData] = useState<TransactionInsert[]>([]);
+```
 
-6. Adicionar suporte à prop `mode` nos locais que abrem o dialog para edição/liquidação. Se já existir um botão ou ação de "liquidar" na tabela, passar `mode="settle"`. Caso contrário, manter `mode="edit"` (default) — nenhuma alteração necessária nos consumidores existentes por ora, pois o default é `'edit'`.
+### 2. Alterar `processFile` para nao importar direto
 
-### Resumo de impacto
-- **Arquivo principal**: `src/components/transactions/TransactionFormDialog.tsx`
-- **Consumidores**: Sem alteração obrigatória (default = edit), mas prontos para passar `mode="settle"` quando necessário
+Em vez de chamar `onImport(transactions)` ao final do parsing, salvar em `setParsedData(transactions)` e avancar para `setStep(3)`.
+
+### 3. Step indicator com 3 passos
+
+Adicionar terceiro circulo "Revisar" no indicador de progresso (Modelo -> Upload -> Revisar).
+
+### 4. Step 3: Tabela de Preview
+
+- Dialog expandido para `sm:max-w-4xl` quando no step 3
+- Contador: "X lancamento(s) encontrado(s)"
+- Tabela com ScrollArea (max-height ~400px) contendo colunas:
+  - Data | Cliente | Tipo | Valor | Status | Vencimento | Banco | Categoria
+- Cada linha mostra dados legivel (data formatada dd/MM/yyyy, valor em R$, tipo como badge colorido Receita/Despesa, status como badge Pago/Pendente)
+- Lookup reverso de bank_id/category_id/contact_id para exibir nomes (ou "---" se nao vinculado)
+- Botoes: "Voltar" (ghost, volta ao step 2) e "Confirmar Importacao" (primary, chama onImport)
+- Ao confirmar: spinner de "Importando..." e fluxo existente de toast + fechar modal
+
+### 5. Ajuste no resetState
+
+Incluir `setParsedData([])` no reset.
+
+### 6. DialogDescription dinâmica
+
+Step 3 exibe: "Revise os dados antes de confirmar"
+
+---
+
+## Secao Tecnica
+
+### Lookup reverso para exibicao
+
+Para mostrar nomes na tabela de preview ao inves de IDs:
+
+```typescript
+const bankName = (id: string | null) => banks.find(b => b.id === id)?.name ?? '—';
+const categoryName = (id: string | null) => categories.find(c => c.id === id)?.name ?? '—';
+const contactName = (id: string | null) => contacts.find(c => c.id === id)?.name ?? '—';
+```
+
+### Formatacao na tabela
+
+```typescript
+// Data: format(parseISO(row.date), 'dd/MM/yyyy')
+// Valor: row.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+// Tipo: Badge verde "Receita" ou vermelho "Despesa"
+// Status: Badge "Pago" ou "Pendente"
+```
+
+### Handler de confirmacao
+
+```typescript
+const handleConfirmImport = async () => {
+  setIsProcessing(true);
+  try {
+    await onImport(parsedData);
+    toast({ title: `${parsedData.length} lançamento(s) importado(s) com sucesso!` });
+    handleClose(false);
+  } catch (err) {
+    toast({ title: 'Erro ao importar.', variant: 'destructive' });
+  } finally {
+    setIsProcessing(false);
+  }
+};
+```
 
