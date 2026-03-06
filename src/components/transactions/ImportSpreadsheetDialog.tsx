@@ -32,6 +32,7 @@ const TEMPLATE_HEADERS = [
   'Tipo (Receita ou Despesa)',
   'Valor',
   'Status (Pendente ou Pago)',
+  'Valor Pago/Recebido',
   'Data Vencimento',
   'Data Prevista',
   'Data Pagamento',
@@ -298,6 +299,19 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
         const statusRaw = String(get('Status (Pendente ou Pago)') ?? '').trim().toLowerCase();
         const isPaid = statusRaw.includes('pago');
 
+        // Valor Pago/Recebido — dados da planilha são soberanos
+        const rawPaidAmount = parseAmount(get('Valor Pago/Recebido'));
+        let paid_amount: number | null;
+        if (rawPaidAmount != null) {
+          // Coluna preenchida na planilha → soberano
+          paid_amount = Math.abs(rawPaidAmount);
+        } else if (isPaid) {
+          // Vazia + status Pago → default para valor original
+          paid_amount = Math.abs(amount);
+        } else {
+          paid_amount = null;
+        }
+
         const eventoContabil = get('Evento Contábil');
         const historico = get('Histórico');
         const description = String(eventoContabil ?? historico ?? get('Cliente/Fornecedor') ?? 'Importado via planilha');
@@ -309,6 +323,7 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
           amount: Math.abs(amount),
           type,
           is_paid: isPaid,
+          paid_amount,
           description,
           due_date: dueDateStr || null,
           bank_id: findBankId(get('Conta Bancária')),
@@ -479,6 +494,7 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
                         <TableHead>Tipo</TableHead>
                         <TableHead className="text-right">Valor</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Valor Pago</TableHead>
                         <TableHead>Vencimento</TableHead>
                         <TableHead>Prevista</TableHead>
                         <TableHead>Pagamento</TableHead>
@@ -503,6 +519,11 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
                             <Badge variant={row.is_paid ? 'default' : 'secondary'}>
                               {row.is_paid ? 'Pago' : 'Pendente'}
                             </Badge>
+                          </TableCell>
+                          <TableCell className="text-right whitespace-nowrap font-medium">
+                            {row.paid_amount != null
+                              ? row.paid_amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                              : '—'}
                           </TableCell>
                           <TableCell className="whitespace-nowrap">{formatDateDisplay(row.due_date)}</TableCell>
                           <TableCell className="whitespace-nowrap">{formatDateDisplay(row.expected_date)}</TableCell>
