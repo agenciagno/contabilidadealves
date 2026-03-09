@@ -75,7 +75,7 @@ export function useBankTransactions(
       let query = supabase
         .from('transactions')
         .select(`
-          id, date, description, type, amount, is_paid, bank_id,
+          id, date, description, type, amount, paid_amount, is_paid, bank_id,
           contacts:contact_id (name),
           categories:category_id (name),
           banks:bank_id (name)
