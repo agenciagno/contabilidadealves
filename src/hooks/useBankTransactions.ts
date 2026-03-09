@@ -123,7 +123,8 @@ export function useBankTransactions(
   // Build statement rows with running balance
   let runningBalance = openingBalance;
   const rows: BankStatementRow[] = periodTransactions.map((t: any) => {
-    const signed = t.type === 'receita' ? Number(t.amount) : -Number(t.amount);
+    const eff = t.paid_amount != null ? Number(t.paid_amount) : Number(t.amount);
+    const signed = t.type === 'receita' ? eff : -eff;
     runningBalance += signed;
     return {
       id: t.id,
@@ -134,7 +135,7 @@ export function useBankTransactions(
       bank_id: t.bank_id,
       description: t.description,
       type: t.type as 'receita' | 'despesa',
-      amount: Number(t.amount),
+      amount: eff,
       signed_amount: signed,
       running_balance: runningBalance,
       is_paid: t.is_paid,
