@@ -112,8 +112,9 @@ export function useBankTransactions(
     baseBalance = bank ? Number(bank.initial_balance) : 0;
   }
 
-  const priorBalance = priorTransactions.reduce((sum, t) => {
-    const signed = t.type === 'receita' ? Number(t.amount) : -Number(t.amount);
+  const priorBalance = priorTransactions.reduce((sum, t: any) => {
+    const eff = t.paid_amount != null ? Number(t.paid_amount) : Number(t.amount);
+    const signed = t.type === 'receita' ? eff : -eff;
     return sum + signed;
   }, 0);
 
