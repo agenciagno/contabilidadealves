@@ -52,7 +52,7 @@ export function useBankTransactions(
 
       let query = supabase
         .from('transactions')
-        .select('type, amount, bank_id, is_paid')
+        .select('type, amount, paid_amount, bank_id, is_paid')
         .lt('date', startDate)
         .eq('is_paid', true);
 
