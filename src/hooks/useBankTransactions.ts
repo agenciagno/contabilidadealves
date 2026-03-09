@@ -52,7 +52,7 @@ export function useBankTransactions(
 
       let query = supabase
         .from('transactions')
-        .select('type, amount, bank_id, is_paid')
+        .select('type, amount, paid_amount, bank_id, is_paid')
         .lt('date', startDate)
         .eq('is_paid', true);
 
@@ -75,7 +75,7 @@ export function useBankTransactions(
       let query = supabase
         .from('transactions')
         .select(`
-          id, date, description, type, amount, is_paid, bank_id,
+          id, date, description, type, amount, paid_amount, is_paid, bank_id,
           contacts:contact_id (name),
           categories:category_id (name),
           banks:bank_id (name)
@@ -112,8 +112,9 @@ export function useBankTransactions(
     baseBalance = bank ? Number(bank.initial_balance) : 0;
   }
 
-  const priorBalance = priorTransactions.reduce((sum, t) => {
-    const signed = t.type === 'receita' ? Number(t.amount) : -Number(t.amount);
+  const priorBalance = priorTransactions.reduce((sum, t: any) => {
+    const eff = t.paid_amount != null ? Number(t.paid_amount) : Number(t.amount);
+    const signed = t.type === 'receita' ? eff : -eff;
     return sum + signed;
   }, 0);
 
@@ -122,7 +123,8 @@ export function useBankTransactions(
   // Build statement rows with running balance
   let runningBalance = openingBalance;
   const rows: BankStatementRow[] = periodTransactions.map((t: any) => {
-    const signed = t.type === 'receita' ? Number(t.amount) : -Number(t.amount);
+    const eff = t.paid_amount != null ? Number(t.paid_amount) : Number(t.amount);
+    const signed = t.type === 'receita' ? eff : -eff;
     runningBalance += signed;
     return {
       id: t.id,
@@ -133,7 +135,7 @@ export function useBankTransactions(
       bank_id: t.bank_id,
       description: t.description,
       type: t.type as 'receita' | 'despesa',
-      amount: Number(t.amount),
+      amount: eff,
       signed_amount: signed,
       running_balance: runningBalance,
       is_paid: t.is_paid,
