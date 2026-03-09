@@ -1,28 +1,24 @@
 
 
-## Plano: Limpar dados para nova importação
+## Plano: Usar paid_amount no Extrato Bancário
 
-### Contexto
-Existem 3.509 transações, 234 contatos, 46 eventos contábeis e 239 logs globais. Precisamos apagar tudo respeitando a ordem de chaves estrangeiras.
+### Problema
+O hook `useBankTransactions.ts` já filtra corretamente apenas transações pagas (`is_paid: true`), mas usa o campo `amount` (valor original) em vez de `paid_amount` (valor efetivamente pago/recebido). Conforme a regra de negócio, transações pagas devem usar exclusivamente o `paid_amount`.
 
-### Abordagem
-Criar uma edge function temporária `cleanup-data` que executa DELETEs na ordem correta usando o service role key (bypassa RLS):
+### Alteração
 
-1. `transaction_attachments`
-2. `contact_logs`, `contact_notes`, `contact_documents`, `contact_partners`, `contact_messages`
-3. `boleto_controls`
-4. `transactions`
-5. `global_logs`
-6. `contacts`
-7. `categories`
+**Arquivo: `src/hooks/useBankTransactions.ts`**
 
-**Tabelas preservadas**: `companies`, `profiles`, `user_roles`, `banks`, `recurring_transactions`.
+1. **Query 1 (prior)**: Adicionar `paid_amount` ao select e usar `paid_amount ?? amount` no cálculo do `priorBalance`.
 
-### Implementação
-- **Arquivo**: `supabase/functions/cleanup-data/index.ts`
-- Edge function com CORS, sem JWT, executa os DELETEs sequencialmente via Supabase Admin client
-- Após execução bem-sucedida, podemos remover a function
+2. **Query 2 (period)**: Adicionar `paid_amount` ao select e usar `paid_amount ?? amount` ao construir as rows e calcular `signed_amount`, `running_balance`, `totalIncome` e `totalExpense`.
 
-### Resultado
-Base de dados limpa, pronta para nova importação via planilha.
+A lógica: `const effectiveAmount = t.paid_amount != null ? Number(t.paid_amount) : Number(t.amount);`
+
+### Impacto
+- Extrato por banco (BankDetailSheet) — corrigido automaticamente
+- Extrato unificado (UnifiedStatementAccordion) — corrigido automaticamente
+- Relatório/exportações PDF/XLS/CSV/OFX (BankReportModal) — corrigido automaticamente
+
+Todos consomem o mesmo hook, então a correção é centralizada.
 
