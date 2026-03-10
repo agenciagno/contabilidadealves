@@ -246,7 +246,7 @@ export function TransactionFormDialog({
           <DialogHeader className="pb-2">
             <DialogTitle className="text-base">{dialogTitle}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-3">
+          <form ref={formRef} onSubmit={handleSubmit} className="space-y-3">
             {/* Type Toggle */}
             <Tabs value={type} onValueChange={(v) => !structuralDisabled && setType(v as 'receita' | 'despesa')}>
               <TabsList className={`w-full h-9 ${structuralDisabled ? 'opacity-60 pointer-events-none' : ''}`}>
