@@ -936,6 +936,7 @@ export default function Transactions() {
         isLoading={createTransaction.isPending || updateTransaction.isPending}
         defaultType={defaultType}
         mode={dialogMode}
+        resetKey={formResetKey}
       />
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>

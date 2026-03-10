@@ -117,7 +117,7 @@ export function TransactionFormDialog({
       setCategoryId(''); setBankId(''); setContactId('');
       setNotes(''); setPendingFiles([]);
     }
-  }, [transaction, open, defaultType]);
+  }, [transaction, open, defaultType, resetKey]);
 
   useEffect(() => {
     if (!transaction) { setCategoryId(''); setContactId(''); }
