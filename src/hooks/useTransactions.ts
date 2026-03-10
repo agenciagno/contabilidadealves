@@ -142,6 +142,10 @@ export function useTransactions() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['server-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['transaction-kpis'] });
+      queryClient.invalidateQueries({ queryKey: ['bank-transactions-prior'] });
+      queryClient.invalidateQueries({ queryKey: ['bank-transactions-period'] });
       queryClient.invalidateQueries({ queryKey: ['banks'] });
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
       queryClient.invalidateQueries({ queryKey: ['global-logs'] });
