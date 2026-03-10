@@ -1,24 +1,93 @@
 
 
-## Correção de 2 Bugs
+# Preview Intermediario na Importacao de Planilha
 
-### Bug 1: Cache não atualiza após liquidar transação
+## Resumo
 
-**Causa raiz**: `updateTransaction.onSuccess` e `togglePaid.onSuccess` em `useTransactions.ts` invalidam apenas `['transactions']`, mas a tabela de Movimentações usa `['server-transactions']` e `['transaction-kpis']`. O extrato bancário usa `['bank-transactions-prior']` e `['bank-transactions-period']`.
+Adicionar um Step 3 (Preview) entre o upload e a confirmacao final. Apos o upload processar os dados, ao inves de importar diretamente, exibir uma tabela com os lancamentos lidos para o usuario revisar, com opcao de confirmar ou voltar.
 
-**Solução em `src/hooks/useTransactions.ts`**: Adicionar invalidação das query keys faltantes nos callbacks `onSuccess` de `updateTransaction`, `togglePaid`, `bulkTogglePaid`, `deleteTransaction` e `createTransaction`:
-- `queryClient.invalidateQueries({ queryKey: ['server-transactions'] })`
-- `queryClient.invalidateQueries({ queryKey: ['transaction-kpis'] })`
-- `queryClient.invalidateQueries({ queryKey: ['bank-transactions-prior'] })`
-- `queryClient.invalidateQueries({ queryKey: ['bank-transactions-period'] })`
+---
 
-### Bug 2: Extrato bancário pode incluir transações não efetivamente pagas
+## Arquivo Modificado
 
-**Causa raiz**: O hook `useBankTransactions.ts` filtra `is_paid: true` mas não verifica `paid_amount IS NOT NULL` (regra de `isEffectivelyPaid`). Transações marcadas como pagas mas sem `paid_amount` passam pelo filtro.
+| Arquivo | Mudanca |
+|---|---|
+| `src/components/transactions/ImportSpreadsheetDialog.tsx` | Adicionar step 3 com tabela de preview, separar parsing de importacao |
 
-**Solução em `src/hooks/useBankTransactions.ts`**: Nas duas queries (prior e period), adicionar `.not('paid_amount', 'is', null)` após o `.eq('is_paid', true)` para garantir que apenas transações efetivamente liquidadas apareçam. O filtro por `date` (Data de Pagamento) já está correto.
+---
 
-### Arquivos alterados
-- `src/hooks/useTransactions.ts` — invalidação de cache
-- `src/hooks/useBankTransactions.ts` — filtro `paid_amount IS NOT NULL`
+## Mudancas Detalhadas
+
+### 1. Novo estado para armazenar dados parseados
+
+```typescript
+const [parsedData, setParsedData] = useState<TransactionInsert[]>([]);
+```
+
+### 2. Alterar `processFile` para nao importar direto
+
+Em vez de chamar `onImport(transactions)` ao final do parsing, salvar em `setParsedData(transactions)` e avancar para `setStep(3)`.
+
+### 3. Step indicator com 3 passos
+
+Adicionar terceiro circulo "Revisar" no indicador de progresso (Modelo -> Upload -> Revisar).
+
+### 4. Step 3: Tabela de Preview
+
+- Dialog expandido para `sm:max-w-4xl` quando no step 3
+- Contador: "X lancamento(s) encontrado(s)"
+- Tabela com ScrollArea (max-height ~400px) contendo colunas:
+  - Data | Cliente | Tipo | Valor | Status | Vencimento | Banco | Categoria
+- Cada linha mostra dados legivel (data formatada dd/MM/yyyy, valor em R$, tipo como badge colorido Receita/Despesa, status como badge Pago/Pendente)
+- Lookup reverso de bank_id/category_id/contact_id para exibir nomes (ou "---" se nao vinculado)
+- Botoes: "Voltar" (ghost, volta ao step 2) e "Confirmar Importacao" (primary, chama onImport)
+- Ao confirmar: spinner de "Importando..." e fluxo existente de toast + fechar modal
+
+### 5. Ajuste no resetState
+
+Incluir `setParsedData([])` no reset.
+
+### 6. DialogDescription dinâmica
+
+Step 3 exibe: "Revise os dados antes de confirmar"
+
+---
+
+## Secao Tecnica
+
+### Lookup reverso para exibicao
+
+Para mostrar nomes na tabela de preview ao inves de IDs:
+
+```typescript
+const bankName = (id: string | null) => banks.find(b => b.id === id)?.name ?? '—';
+const categoryName = (id: string | null) => categories.find(c => c.id === id)?.name ?? '—';
+const contactName = (id: string | null) => contacts.find(c => c.id === id)?.name ?? '—';
+```
+
+### Formatacao na tabela
+
+```typescript
+// Data: format(parseISO(row.date), 'dd/MM/yyyy')
+// Valor: row.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+// Tipo: Badge verde "Receita" ou vermelho "Despesa"
+// Status: Badge "Pago" ou "Pendente"
+```
+
+### Handler de confirmacao
+
+```typescript
+const handleConfirmImport = async () => {
+  setIsProcessing(true);
+  try {
+    await onImport(parsedData);
+    toast({ title: `${parsedData.length} lançamento(s) importado(s) com sucesso!` });
+    handleClose(false);
+  } catch (err) {
+    toast({ title: 'Erro ao importar.', variant: 'destructive' });
+  } finally {
+    setIsProcessing(false);
+  }
+};
+```
 
