@@ -290,8 +290,18 @@ export function TransactionFormDialog({
               </TabsList>
             </Tabs>
 
+            {/* Payment Condition Toggle — only for new transactions */}
+            {!isEditing && !isSettleMode && (
+              <Tabs value={paymentCondition} onValueChange={handlePaymentConditionChange}>
+                <TabsList className="w-full h-8">
+                  <TabsTrigger value="a_vista" className="flex-1 text-xs h-6">À Vista</TabsTrigger>
+                  <TabsTrigger value="a_prazo" className="flex-1 text-xs h-6">À Prazo</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            )}
+
             {/* Row 1: Cliente | Valor | Valor Recebido/Pago */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className={`grid ${isAPrazo ? 'grid-cols-2' : 'grid-cols-3'} gap-3`}>
               <div className="space-y-1">
                 <Label className="text-xs">Cliente/Fornecedor <span className="text-destructive">*</span></Label>
                 <Select value={contactId} onValueChange={handleContactChange} disabled={structuralDisabled}>
@@ -314,13 +324,15 @@ export function TransactionFormDialog({
                 <Label className="text-xs">Valor (R$) <span className="text-destructive">*</span></Label>
                 <Input value={amount} onChange={handleAmountChange} placeholder="0,00" required className="h-8 text-sm font-semibold" disabled={isSettleMode} />
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">
-                  {type === 'receita' ? 'Valor Recebido' : 'Valor Pago'}
-                  {isSettleMode && <span className="text-destructive"> *</span>}
-                </Label>
-                <Input value={paidAmount} onChange={handlePaidAmountChange} placeholder="0,00" className="h-8 text-sm" disabled={isEditing && !isSettleMode} />
-              </div>
+              {!isAPrazo && (
+                <div className="space-y-1">
+                  <Label className="text-xs">
+                    {type === 'receita' ? 'Valor Recebido' : 'Valor Pago'}
+                    {isSettleMode && <span className="text-destructive"> *</span>}
+                  </Label>
+                  <Input value={paidAmount} onChange={handlePaidAmountChange} placeholder="0,00" className="h-8 text-sm" disabled={isEditing && !isSettleMode} />
+                </div>
+              )}
             </div>
 
             {/* Row 2: Evento Contábil | Conta/Banco */}
