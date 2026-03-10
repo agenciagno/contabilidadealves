@@ -379,8 +379,8 @@ export function TransactionFormDialog({
               </div>
             </div>
 
-            {/* Row 3: 4 Datas */}
-            <div className="grid grid-cols-4 gap-3">
+            {/* Row 3: Datas */}
+            <div className={`grid ${isAPrazo ? 'grid-cols-3' : 'grid-cols-4'} gap-3`}>
               <div className="space-y-1">
                 <Label className="text-xs">Emissão <span className="text-destructive">*</span></Label>
                 <Input type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} className="h-8 text-xs" disabled={isSettleMode} />
@@ -393,13 +393,15 @@ export function TransactionFormDialog({
                 <Label className="text-xs">Prevista <span className="text-destructive">*</span></Label>
                 <Input type="date" value={expectedDate} onChange={e => setExpectedDate(e.target.value)} className="h-8 text-xs" disabled={isSettleMode} />
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">
-                  Pagamento
-                  {isSettleMode && <span className="text-destructive"> *</span>}
-                </Label>
-                <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-8 text-xs" disabled={isEditing && !isSettleMode} />
-              </div>
+              {!isAPrazo && (
+                <div className="space-y-1">
+                  <Label className="text-xs">
+                    Pagamento
+                    {isSettleMode && <span className="text-destructive"> *</span>}
+                  </Label>
+                  <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-8 text-xs" disabled={isEditing && !isSettleMode} />
+                </div>
+              )}
             </div>
 
             {/* Row 4: Anexo | Histórico side by side */}
