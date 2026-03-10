@@ -107,64 +107,66 @@ export function BankReportModal({ open, onOpenChange, banks }: BankReportModalPr
     doc.text(`Contas: ${accountsLabel}`, 14, 45);
     doc.text(`Evento Contábil: ${categoryLabel}`, 14, 50);
 
-    // ─── Cards coloridos 2x2 ───
-    const cardW = 88;
-    const cardH = 20;
+    // ─── Cards compactos 4 colunas ───
+    const cardW = 43;
+    const cardH = 14;
+    const cardY = 56;
+    const gap = 2;
     const col1X = 14;
-    const col2X = 104;
-    const row1Y = 56;
-    const row2Y = row1Y + cardH + 2;
-    const labelOffsetY = 8;
-    const valueOffsetY = 16;
-    const padX = 4;
+    const col2X = col1X + cardW + gap;
+    const col3X = col2X + cardW + gap;
+    const col4X = col3X + cardW + gap;
+    const labelOffsetY = 6;
+    const valueOffsetY = 12;
+    const padX = 3;
 
     // Saldo Inicial (cinza)
     doc.setFillColor(245, 245, 245);
-    doc.roundedRect(col1X, row1Y, cardW, cardH, 3, 3, 'F');
-    doc.setFontSize(8);
+    doc.roundedRect(col1X, cardY, cardW, cardH, 2, 2, 'F');
+    doc.setFontSize(6);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(120, 120, 120);
-    doc.text('Saldo Inicial', col1X + padX, row1Y + labelOffsetY);
-    doc.setFontSize(10);
+    doc.text('Saldo Inicial', col1X + padX, cardY + labelOffsetY);
+    doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(30, 30, 30);
-    doc.text(formatCurrency(openingBalance), col1X + padX, row1Y + valueOffsetY);
+    doc.text(formatCurrency(openingBalance), col1X + padX, cardY + valueOffsetY);
 
     // Entradas (verde)
     doc.setFillColor(240, 255, 244);
-    doc.roundedRect(col2X, row1Y, cardW, cardH, 3, 3, 'F');
-    doc.setFontSize(8);
+    doc.roundedRect(col2X, cardY, cardW, cardH, 2, 2, 'F');
+    doc.setFontSize(6);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(21, 128, 61);
-    doc.text('Entradas', col2X + padX, row1Y + labelOffsetY);
-    doc.setFontSize(10);
+    doc.text('Entradas', col2X + padX, cardY + labelOffsetY);
+    doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
-    doc.text(`+${formatCurrency(totalIncome)}`, col2X + padX, row1Y + valueOffsetY);
+    doc.text(`+${formatCurrency(totalIncome)}`, col2X + padX, cardY + valueOffsetY);
 
     // Saídas (vermelho)
     doc.setFillColor(255, 245, 245);
-    doc.roundedRect(col1X, row2Y, cardW, cardH, 3, 3, 'F');
-    doc.setFontSize(8);
+    doc.roundedRect(col3X, cardY, cardW, cardH, 2, 2, 'F');
+    doc.setFontSize(6);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(220, 38, 38);
-    doc.text('Saídas', col1X + padX, row2Y + labelOffsetY);
-    doc.setFontSize(10);
+    doc.text('Saídas', col3X + padX, cardY + labelOffsetY);
+    doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
-    doc.text(`-${formatCurrency(totalExpense)}`, col1X + padX, row2Y + valueOffsetY);
+    doc.text(`-${formatCurrency(totalExpense)}`, col3X + padX, cardY + valueOffsetY);
 
     // Saldo Final (azul)
     doc.setFillColor(239, 246, 255);
-    doc.roundedRect(col2X, row2Y, cardW, cardH, 3, 3, 'F');
-    doc.setFontSize(8);
+    doc.roundedRect(col4X, cardY, cardW, cardH, 2, 2, 'F');
+    doc.setFontSize(6);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(29, 78, 216);
-    doc.text('Saldo Final', col2X + padX, row2Y + labelOffsetY);
-    doc.setFontSize(10);
+    doc.text('Saldo Final', col4X + padX, cardY + labelOffsetY);
+    doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
-    doc.text(formatCurrency(closingBalance), col2X + padX, row2Y + valueOffsetY);
+    doc.text(formatCurrency(closingBalance), col4X + padX, cardY + valueOffsetY);
 
     // Separador e rodapé do resumo
-    const sepY = row2Y + cardH + 4;
+    const sepY = cardY + cardH + 4;
     doc.setDrawColor(230, 230, 230);
     doc.setLineWidth(0.3);
     doc.line(14, sepY, 192, sepY);
