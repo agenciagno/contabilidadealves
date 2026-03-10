@@ -18,7 +18,6 @@ import Contacts from "@/pages/Contacts";
 import ContactProfile from "@/pages/ContactProfile";
 import Banks from "@/pages/Banks";
 import Categories from "@/pages/Categories";
-import Reports from "@/pages/Reports";
 import SettingsPage from "@/pages/SettingsPage";
 import CrmDispatches from "@/pages/CrmDispatches";
 import ClientReport from "@/pages/ClientReport";
