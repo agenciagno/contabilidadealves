@@ -355,9 +355,22 @@ export function TransactionFormDialog({
                 <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)} className="h-8 text-xs px-4">
                   Cancelar
                 </Button>
-                <Button type="submit" size="sm" disabled={isLoading || !isFormValid} className="h-8 text-xs px-6">
-                  {isLoading ? 'Salvando...' : submitLabel}
-                </Button>
+                {isSettleMode ? (
+                  <Button type="submit" size="sm" disabled={isLoading || !isFormValid} className="h-8 text-xs px-6">
+                    {isLoading ? 'Salvando...' : 'Liquidar'}
+                  </Button>
+                ) : (
+                  <>
+                    <Button type="button" size="sm" variant="secondary" disabled={isLoading || !isFormValid} className="h-8 text-xs px-4"
+                      onClick={() => { saveActionRef.current = 'continue'; formRef.current?.requestSubmit(); }}>
+                      {isLoading ? 'Salvando...' : 'Salvar'}
+                    </Button>
+                    <Button type="button" size="sm" disabled={isLoading || !isFormValid} className="h-8 text-xs px-4"
+                      onClick={() => { saveActionRef.current = 'close'; formRef.current?.requestSubmit(); }}>
+                      {isLoading ? 'Salvando...' : 'Salvar e Fechar'}
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </form>
