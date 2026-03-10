@@ -134,10 +134,19 @@ export function TransactionFormDialog({
 
   const resetForm = () => {
     setType(defaultType);
+    setPaymentCondition('a_vista');
     setAmount(''); setPaidAmount('');
     setDate(''); setIssueDate(todayStr); setDueDate(''); setExpectedDate('');
     setCategoryId(''); setBankId(''); setContactId('');
     setNotes(''); setPendingFiles([]);
+  };
+
+  const handlePaymentConditionChange = (v: string) => {
+    setPaymentCondition(v as 'a_vista' | 'a_prazo');
+    if (v === 'a_prazo') {
+      setPaidAmount('');
+      setDate('');
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
