@@ -480,7 +480,7 @@ export default function Transactions() {
 
   const uniqueStatuses = ['Pago', 'Pendente'];
 
-  const handleSubmit = async (data: TransactionInsert, pendingFiles?: File[]) => {
+  const handleSubmit = async (data: TransactionInsert, pendingFiles?: File[], shouldClose?: boolean) => {
     if (editingTransaction) {
       updateTransaction.mutate({ id: editingTransaction.id, ...data }, {
         onSuccess: async () => {
@@ -492,7 +492,11 @@ export default function Transactions() {
       createTransaction.mutate(data, {
         onSuccess: async (newTransaction) => {
           if (pendingFiles?.length) for (const file of pendingFiles) await uploadAttachment.mutateAsync({ file, transactionId: newTransaction.id });
-          setDialogOpen(false);
+          if (shouldClose) {
+            setDialogOpen(false);
+          } else {
+            setEditingTransaction(null);
+          }
         }
       });
     }

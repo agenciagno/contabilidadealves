@@ -28,7 +28,7 @@ interface TransactionFormDialogProps {
   categories: Category[];
   banks: Bank[];
   contacts: Contact[];
-  onSubmit: (data: TransactionInsert, pendingFiles?: File[]) => void;
+  onSubmit: (data: TransactionInsert, pendingFiles?: File[], shouldClose?: boolean) => void;
   isLoading?: boolean;
   defaultType?: 'receita' | 'despesa';
   mode?: 'edit' | 'settle';
@@ -157,22 +157,22 @@ export function TransactionFormDialog({
     const paidAmountValue = parseCurrencyInput(paidAmount);
 
     if (isSettleMode) {
-      onSubmit({
-        type,
-        description: autoDescription,
-        amount: parseCurrencyInput(amount),
-        paid_amount: paidAmountValue,
-        date: date || undefined,
-        issue_date: issueDate || null,
-        due_date: dueDate || null,
-        expected_date: expectedDate || null,
-        category_id: categoryId || null,
-        bank_id: bankId || null,
-        contact_id: contactId || null,
-        is_paid: true,
-        notes: notes || null,
-      } as TransactionInsert, pendingFiles);
-      return;
+    onSubmit({
+      type,
+      description: autoDescription,
+      amount: parseCurrencyInput(amount),
+      paid_amount: paidAmountValue,
+      date: date || undefined,
+      issue_date: issueDate || null,
+      due_date: dueDate || null,
+      expected_date: expectedDate || null,
+      category_id: categoryId || null,
+      bank_id: bankId || null,
+      contact_id: contactId || null,
+      is_paid: true,
+      notes: notes || null,
+    } as TransactionInsert, pendingFiles, true);
+    return;
     }
 
     // Edit mode
@@ -185,6 +185,8 @@ export function TransactionFormDialog({
       });
       return;
     }
+
+    const shouldClose = saveActionRef.current === 'close';
 
     onSubmit({
       type,
@@ -200,14 +202,8 @@ export function TransactionFormDialog({
       contact_id: contactId || null,
       is_paid: derivedIsPaid,
       notes: notes || null,
-    } as TransactionInsert, pendingFiles);
+    } as TransactionInsert, pendingFiles, shouldClose);
 
-    // After submit, handle save action
-    if (saveActionRef.current === 'continue') {
-      resetForm();
-    } else {
-      onOpenChange(false);
-    }
     saveActionRef.current = 'close';
   };
 
