@@ -578,7 +578,7 @@ export default function Transactions() {
           <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setImportOpen(true)}>
             <Upload className="w-4 h-4" /> Importar
           </Button>
-          <Button size="sm" onClick={() => handleNewTransaction('despesa')} className="gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white">
+          <Button size="sm" onClick={() => handleNewTransaction('receita')} className="gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white">
             <Plus className="w-4 h-4" /> Nova Movimentação
           </Button>
         </div>
