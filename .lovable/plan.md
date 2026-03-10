@@ -1,42 +1,93 @@
 
 
-## Relatório de Pagar/Receber — Novo Modal + Limpeza de Filtros
+# Preview Intermediario na Importacao de Planilha
 
-### Visão Geral
+## Resumo
 
-Criar um novo componente `CashFlowReportModal` baseado no `BankReportModal`, adaptado para transações pendentes (Pagar/Receber). Remover os filtros nativos do `CashFlowTab`.
+Adicionar um Step 3 (Preview) entre o upload e a confirmacao final. Apos o upload processar os dados, ao inves de importar diretamente, exibir uma tabela com os lancamentos lidos para o usuario revisar, com opcao de confirmar ou voltar.
 
-### Arquivos
+---
 
-**1. Criar `src/components/transactions/CashFlowReportModal.tsx`**
+## Arquivo Modificado
 
-Duplicar a estrutura do `BankReportModal` com estas diferenças:
-- **Remover**: Seção "Contas Bancárias" (checkboxes de bancos), estado `selectedBankIds`, lógica `filteredRows` por banco
-- **Manter**: Filtros de Período (Data Início/Fim), Evento Contábil (Select)
-- **Adicionar**: Filtro de Cliente/Fornecedor (Select com `contacts` list, mesmo padrão do Evento Contábil)
-- **Dados**: Buscar transações pendentes (`!is_paid`) filtradas por período (usando `due_date` ou `issue_date`), evento contábil e contato. Calcular KPIs (Entradas Pendentes, Saídas Pendentes, Saldo Projetado)
-- **Título**: "Relatório de Contas a Pagar/Receber"
-- **PDF**: Cabeçalho com empresa, período, evento contábil, cliente/fornecedor. Cards compactos 3 colunas (Entradas, Saídas, Saldo Projetado). Tabela com colunas: Data Prevista, Cliente/Fornecedor, Evento, Valor, Vencimento, Status
-- **Exportações**: PDF, XLS, CSV (sem OFX que é específico bancário)
-- Props: `open`, `onOpenChange`, `transactions`, `categories`, `contacts`, `banks` (para saldo)
+| Arquivo | Mudanca |
+|---|---|
+| `src/components/transactions/ImportSpreadsheetDialog.tsx` | Adicionar step 3 com tabela de preview, separar parsing de importacao |
 
-**2. Editar `src/components/transactions/CashFlowTab.tsx`**
+---
 
-- Remover o bloco `Collapsible` de filtros (linhas 190-233) e estados associados (`filtersOpen`, `bankFilter`, `categoryFilter`, `contactFilter`, `paymentStatusFilter`, `searchTerm`)
-- Manter os filtros `period`, `customStartDate`, `customEndDate` internamente para a tabela (o período base continua funcionando para os KPIs e a listagem)
-- Adicionar botão "Gerar Relatório" no header que abre o `CashFlowReportModal`
-- Adicionar estado `reportOpen` e importar `CashFlowReportModal`
+## Mudancas Detalhadas
 
-**3. Editar `src/pages/PagarReceber.tsx`**
+### 1. Novo estado para armazenar dados parseados
 
-- Sem alterações necessárias (o modal é gerenciado dentro do `CashFlowTab`)
+```typescript
+const [parsedData, setParsedData] = useState<TransactionInsert[]>([]);
+```
 
-### Fluxo de Dados do Modal
+### 2. Alterar `processFile` para nao importar direto
 
-O modal recebe `transactions` (todas) como prop e filtra internamente por:
-- `!is_paid` (apenas pendentes)
-- Período via `due_date`
-- `category_id` e `contact_id`
+Em vez de chamar `onImport(transactions)` ao final do parsing, salvar em `setParsedData(transactions)` e avancar para `setStep(3)`.
 
-Não precisa de hook separado — usa os dados já carregados.
+### 3. Step indicator com 3 passos
+
+Adicionar terceiro circulo "Revisar" no indicador de progresso (Modelo -> Upload -> Revisar).
+
+### 4. Step 3: Tabela de Preview
+
+- Dialog expandido para `sm:max-w-4xl` quando no step 3
+- Contador: "X lancamento(s) encontrado(s)"
+- Tabela com ScrollArea (max-height ~400px) contendo colunas:
+  - Data | Cliente | Tipo | Valor | Status | Vencimento | Banco | Categoria
+- Cada linha mostra dados legivel (data formatada dd/MM/yyyy, valor em R$, tipo como badge colorido Receita/Despesa, status como badge Pago/Pendente)
+- Lookup reverso de bank_id/category_id/contact_id para exibir nomes (ou "---" se nao vinculado)
+- Botoes: "Voltar" (ghost, volta ao step 2) e "Confirmar Importacao" (primary, chama onImport)
+- Ao confirmar: spinner de "Importando..." e fluxo existente de toast + fechar modal
+
+### 5. Ajuste no resetState
+
+Incluir `setParsedData([])` no reset.
+
+### 6. DialogDescription dinâmica
+
+Step 3 exibe: "Revise os dados antes de confirmar"
+
+---
+
+## Secao Tecnica
+
+### Lookup reverso para exibicao
+
+Para mostrar nomes na tabela de preview ao inves de IDs:
+
+```typescript
+const bankName = (id: string | null) => banks.find(b => b.id === id)?.name ?? '—';
+const categoryName = (id: string | null) => categories.find(c => c.id === id)?.name ?? '—';
+const contactName = (id: string | null) => contacts.find(c => c.id === id)?.name ?? '—';
+```
+
+### Formatacao na tabela
+
+```typescript
+// Data: format(parseISO(row.date), 'dd/MM/yyyy')
+// Valor: row.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+// Tipo: Badge verde "Receita" ou vermelho "Despesa"
+// Status: Badge "Pago" ou "Pendente"
+```
+
+### Handler de confirmacao
+
+```typescript
+const handleConfirmImport = async () => {
+  setIsProcessing(true);
+  try {
+    await onImport(parsedData);
+    toast({ title: `${parsedData.length} lançamento(s) importado(s) com sucesso!` });
+    handleClose(false);
+  } catch (err) {
+    toast({ title: 'Erro ao importar.', variant: 'destructive' });
+  } finally {
+    setIsProcessing(false);
+  }
+};
+```
 

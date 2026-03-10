@@ -8,12 +8,11 @@ import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { UnifiedFilterBox, PeriodFilter, getDateRangeFromPeriod } from '@/components/filters/UnifiedFilterBox';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, SlidersHorizontal, ChevronDown, ChevronUp, Landmark, TrendingUp, TrendingDown, Building2 } from 'lucide-react';
+import { AlertTriangle, FileText, Landmark, TrendingUp, TrendingDown, Building2 } from 'lucide-react';
 import { format, differenceInDays, parseISO, isWithinInterval, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale/pt-BR';
+import { CashFlowReportModal } from './CashFlowReportModal';
 import type { Transaction } from '@/hooks/useTransactions';
 import type { Bank } from '@/hooks/useBanks';
 import type { Contact } from '@/hooks/useContacts';
@@ -55,49 +54,19 @@ function getStatus(isPaid: boolean, dueDate: string | null): 'pago' | 'pendente'
 }
 
 export function CashFlowTab({ transactions, banks, categories, contacts, togglePaid }: CashFlowTabProps) {
-  const [period, setPeriod] = useState<PeriodFilter>('thisYear');
-  const [customStartDate, setCustomStartDate] = useState<Date | null>(null);
-  const [customEndDate, setCustomEndDate] = useState<Date | null>(null);
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [bankFilter, setBankFilter] = useState('all');
-  const [categoryFilter, setCategoryFilter] = useState('all');
-  const [contactFilter, setContactFilter] = useState('all');
-  const [paymentStatusFilter, setPaymentStatusFilter] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [reportOpen, setReportOpen] = useState(false);
   const [confirmModal, setConfirmModal] = useState<{ open: boolean; row: any | null }>({ open: false, row: null });
-  const getDateRange = (p: PeriodFilter) => {
-    if (p === 'custom' && customStartDate && customEndDate) return { start: customStartDate, end: customEndDate };
-    return getDateRangeFromPeriod(p);
-  };
 
   // Active banks total
   const activeBanks = useMemo(() => banks.filter(b => b.is_active), [banks]);
   const totalBankBalance = useMemo(() => activeBanks.reduce((s, b) => s + Number(b.current_balance), 0), [activeBanks]);
 
-  // Filtered & sorted transactions
+  // Only pending transactions, sorted by date
   const filtered = useMemo(() => {
-    const range = getDateRange(period);
     let result = transactions.filter(t => !t.is_paid);
-    if (range) {
-      result = result.filter(t => {
-        const dateKey = t.date || t.due_date || t.issue_date;
-        if (!dateKey) return false;
-        const d = parseISO(dateKey);
-        return isWithinInterval(d, { start: range.start, end: range.end });
-      });
-    }
-    if (bankFilter !== 'all') result = result.filter(t => t.bank_id === bankFilter);
-    if (categoryFilter !== 'all') result = result.filter(t => t.category_id === categoryFilter);
-    if (contactFilter !== 'all') result = result.filter(t => t.contact_id === contactFilter);
-    if (paymentStatusFilter === 'paid') result = result.filter(t => t.is_paid);
-    else if (paymentStatusFilter === 'pending') result = result.filter(t => !t.is_paid);
-    if (searchTerm) {
-      const s = searchTerm.toLowerCase();
-      result = result.filter(t => t.description.toLowerCase().includes(s) || t.contact?.name?.toLowerCase().includes(s));
-    }
     result.sort((a, b) => (a.date || a.due_date || a.issue_date || '').localeCompare(b.date || b.due_date || b.issue_date || ''));
     return result;
-  }, [transactions, period, customStartDate, customEndDate, bankFilter, categoryFilter, contactFilter, paymentStatusFilter, searchTerm]);
+  }, [transactions]);
 
   // KPIs
   const kpis = useMemo(() => {
@@ -106,7 +75,6 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
     const mesStart = startOfMonth(today);
     const mesEnd = endOfMonth(today);
 
-    // Capital de Giro — from ALL transactions (not filtered), only !is_paid
     let receitasPendentesMes = 0, despesasPendentesMes = 0;
     let receitasPendentesHoje = 0, despesasPendentesHoje = 0;
     for (const t of transactions) {
@@ -123,27 +91,18 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
       }
     }
 
-    // Entradas/Saídas — from filtered, split by is_paid
-    let receitasPendentes = 0, receitasPagas = 0;
-    let despesasPendentes = 0, despesasPagas = 0;
+    let receitasPendentes = 0, despesasPendentes = 0;
     for (const t of filtered) {
       const amt = Number(t.amount);
-      if (t.type === 'receita') {
-        if (t.is_paid) receitasPagas += amt;
-        else receitasPendentes += amt;
-      } else {
-        if (t.is_paid) despesasPagas += amt;
-        else despesasPendentes += amt;
-      }
+      if (t.type === 'receita') receitasPendentes += amt;
+      else despesasPendentes += amt;
     }
 
     return {
       capitalDeGiroMes: totalBankBalance + receitasPendentesMes - despesasPendentesMes,
       capitalDeGiroHoje: totalBankBalance + receitasPendentesHoje - despesasPendentesHoje,
       receitasPendentes,
-      receitasPagas,
       despesasPendentes,
-      despesasPagas,
     };
   }, [filtered, transactions, totalBankBalance]);
 
@@ -172,12 +131,10 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
         }
       }
 
-      if (status !== 'pago') {
-        if (t.type === 'receita') {
-          saldoAcumulado += amt;
-        } else {
-          saldoAcumulado -= amt;
-        }
+      if (t.type === 'receita') {
+        saldoAcumulado += amt;
+      } else {
+        saldoAcumulado -= amt;
       }
 
       return { ...t, status, displayAmount, hasJuros, originalAmount: amt, saldoAtual: saldoAcumulado, jurosValue, multaValue, diasAtrasoValue };
@@ -186,51 +143,13 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
-      <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
-        <div className="flex items-center justify-end">
-          <CollapsibleTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-2">
-              <SlidersHorizontal className="w-4 h-4" />
-              Filtros
-              {filtersOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-            </Button>
-          </CollapsibleTrigger>
-        </div>
-        <CollapsibleContent>
-          <UnifiedFilterBox
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-            period={period}
-            onPeriodChange={setPeriod}
-            customStartDate={customStartDate}
-            customEndDate={customEndDate}
-            onCustomStartDateChange={setCustomStartDate}
-            onCustomEndDateChange={setCustomEndDate}
-            bankId={bankFilter}
-            onBankChange={setBankFilter}
-            banks={banks}
-            categoryId={categoryFilter}
-            onCategoryChange={setCategoryFilter}
-            categories={categories}
-            paymentStatus={paymentStatusFilter}
-            onPaymentStatusChange={setPaymentStatusFilter}
-            contactId={contactFilter}
-            onContactChange={setContactFilter}
-            contacts={contacts}
-            onClearFilters={() => {
-              setPeriod('thisYear');
-              setCustomStartDate(null);
-              setCustomEndDate(null);
-              setBankFilter('all');
-              setCategoryFilter('all');
-              setContactFilter('all');
-              setPaymentStatusFilter('all');
-              setSearchTerm('');
-            }}
-          />
-        </CollapsibleContent>
-      </Collapsible>
+      {/* Header with report button */}
+      <div className="flex items-center justify-end">
+        <Button variant="outline" size="sm" className="gap-2" onClick={() => setReportOpen(true)}>
+          <FileText className="w-4 h-4" />
+          Gerar Relatório
+        </Button>
+      </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -259,7 +178,7 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
               <div>
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Entradas</p>
                 <p className="text-2xl font-extrabold text-emerald-500">
-                  {formatCurrency(kpis.receitasPendentes + kpis.receitasPagas)}
+                  {formatCurrency(kpis.receitasPendentes)}
                 </p>
               </div>
               <div className="w-9 h-9 rounded-full bg-emerald-500/10 flex items-center justify-center">
@@ -276,7 +195,7 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
               <div>
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Saídas</p>
                 <p className="text-2xl font-extrabold text-red-500">
-                  {formatCurrency(kpis.despesasPendentes + kpis.despesasPagas)}
+                  {formatCurrency(kpis.despesasPendentes)}
                 </p>
               </div>
               <div className="w-9 h-9 rounded-full bg-red-500/10 flex items-center justify-center">
@@ -336,7 +255,7 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
                   {rows.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
-                        Nenhuma transação encontrada no período.
+                        Nenhuma transação encontrada.
                       </TableCell>
                     </TableRow>
                   ) : rows.map(row => (
@@ -411,6 +330,7 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
           </TooltipProvider>
         </CardContent>
       </Card>
+
       {/* Modal de Confirmação de Pagamento */}
       <Dialog open={confirmModal.open} onOpenChange={(open) => !open && setConfirmModal({ open: false, row: null })}>
         <DialogContent className="max-w-md">
@@ -447,6 +367,16 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Report Modal */}
+      <CashFlowReportModal
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        transactions={transactions}
+        categories={categories}
+        contacts={contacts}
+        banks={banks}
+      />
     </div>
   );
 }
