@@ -459,31 +459,22 @@ ${transactions}
                   <p className="text-xs text-gray-500">Contas: {accountsLabel}</p>
                   <p className="text-xs text-gray-500">Evento Contábil: {categoryLabel}</p>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-xs text-gray-500">Saldo Inicial</p>
-                    <p className="font-bold text-gray-900 text-sm mt-1">{formatCurrency(openingBalance)}</p>
+                <div className="grid grid-cols-4 gap-2">
+                  <div className="bg-gray-50 rounded-md p-2">
+                    <p className="text-[10px] text-gray-500">Saldo Inicial</p>
+                    <p className="font-bold text-gray-900 text-xs mt-0.5">{formatCurrency(openingBalance)}</p>
                   </div>
-                  <div className="bg-green-50 rounded-lg p-3">
-                    <div className="flex items-center gap-1">
-                      <TrendingUp className="w-3 h-3 text-green-600" />
-                      <p className="text-xs text-green-700">Entradas</p>
-                    </div>
-                    <p className="font-bold text-green-700 text-sm mt-1">+{formatCurrency(totalIncome)}</p>
+                  <div className="bg-green-50 rounded-md p-2">
+                    <p className="text-[10px] text-green-700">Entradas</p>
+                    <p className="font-bold text-green-700 text-xs mt-0.5">+{formatCurrency(totalIncome)}</p>
                   </div>
-                  <div className="bg-red-50 rounded-lg p-3">
-                    <div className="flex items-center gap-1">
-                      <TrendingDown className="w-3 h-3 text-red-600" />
-                      <p className="text-xs text-red-700">Saídas</p>
-                    </div>
-                    <p className="font-bold text-red-700 text-sm mt-1">-{formatCurrency(totalExpense)}</p>
+                  <div className="bg-red-50 rounded-md p-2">
+                    <p className="text-[10px] text-red-700">Saídas</p>
+                    <p className="font-bold text-red-700 text-xs mt-0.5">-{formatCurrency(totalExpense)}</p>
                   </div>
-                  <div className="bg-blue-50 rounded-lg p-3">
-                    <div className="flex items-center gap-1">
-                      <Wallet className="w-3 h-3 text-blue-600" />
-                      <p className="text-xs text-blue-700">Saldo Final</p>
-                    </div>
-                    <p className="font-bold text-blue-700 text-sm mt-1">{formatCurrency(closingBalance)}</p>
+                  <div className="bg-blue-50 rounded-md p-2">
+                    <p className="text-[10px] text-blue-700">Saldo Final</p>
+                    <p className="font-bold text-blue-700 text-xs mt-0.5">{formatCurrency(closingBalance)}</p>
                   </div>
                 </div>
                 <div className="border-t border-gray-100 pt-3">
