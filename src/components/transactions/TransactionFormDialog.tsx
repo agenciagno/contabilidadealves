@@ -157,22 +157,22 @@ export function TransactionFormDialog({
     const paidAmountValue = parseCurrencyInput(paidAmount);
 
     if (isSettleMode) {
-      onSubmit({
-        type,
-        description: autoDescription,
-        amount: parseCurrencyInput(amount),
-        paid_amount: paidAmountValue,
-        date: date || undefined,
-        issue_date: issueDate || null,
-        due_date: dueDate || null,
-        expected_date: expectedDate || null,
-        category_id: categoryId || null,
-        bank_id: bankId || null,
-        contact_id: contactId || null,
-        is_paid: true,
-        notes: notes || null,
-      } as TransactionInsert, pendingFiles);
-      return;
+    onSubmit({
+      type,
+      description: autoDescription,
+      amount: parseCurrencyInput(amount),
+      paid_amount: paidAmountValue,
+      date: date || undefined,
+      issue_date: issueDate || null,
+      due_date: dueDate || null,
+      expected_date: expectedDate || null,
+      category_id: categoryId || null,
+      bank_id: bankId || null,
+      contact_id: contactId || null,
+      is_paid: true,
+      notes: notes || null,
+    } as TransactionInsert, pendingFiles, true);
+    return;
     }
 
     // Edit mode
