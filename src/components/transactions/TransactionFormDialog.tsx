@@ -57,6 +57,7 @@ export function TransactionFormDialog({
   const formRef = useRef<HTMLFormElement>(null);
 
   const [type, setType] = useState<'receita' | 'despesa'>(defaultType);
+  const [paymentCondition, setPaymentCondition] = useState<'a_vista' | 'a_prazo'>('a_vista');
   const [amount, setAmount] = useState('');
   const [paidAmount, setPaidAmount] = useState('');
   const [date, setDate] = useState('');
@@ -68,6 +69,8 @@ export function TransactionFormDialog({
   const [contactId, setContactId] = useState<string>('');
   const [notes, setNotes] = useState('');
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+
+  const isAPrazo = paymentCondition === 'a_prazo' && !isEditing && !isSettleMode;
 
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [bankDialogOpen, setBankDialogOpen] = useState(false);
