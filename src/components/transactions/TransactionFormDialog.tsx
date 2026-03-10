@@ -57,6 +57,7 @@ export function TransactionFormDialog({
   const formRef = useRef<HTMLFormElement>(null);
 
   const [type, setType] = useState<'receita' | 'despesa'>(defaultType);
+  const [paymentCondition, setPaymentCondition] = useState<'a_vista' | 'a_prazo'>('a_vista');
   const [amount, setAmount] = useState('');
   const [paidAmount, setPaidAmount] = useState('');
   const [date, setDate] = useState('');
@@ -68,6 +69,8 @@ export function TransactionFormDialog({
   const [contactId, setContactId] = useState<string>('');
   const [notes, setNotes] = useState('');
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+
+  const isAPrazo = paymentCondition === 'a_prazo' && !isEditing && !isSettleMode;
 
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [bankDialogOpen, setBankDialogOpen] = useState(false);
@@ -112,6 +115,7 @@ export function TransactionFormDialog({
       setPendingFiles([]);
     } else {
       setType(defaultType);
+      setPaymentCondition('a_vista');
       setAmount(''); setPaidAmount('');
       setDate(''); setIssueDate(todayStr); setDueDate(''); setExpectedDate('');
       setCategoryId(''); setBankId(''); setContactId('');
@@ -130,10 +134,19 @@ export function TransactionFormDialog({
 
   const resetForm = () => {
     setType(defaultType);
+    setPaymentCondition('a_vista');
     setAmount(''); setPaidAmount('');
     setDate(''); setIssueDate(todayStr); setDueDate(''); setExpectedDate('');
     setCategoryId(''); setBankId(''); setContactId('');
     setNotes(''); setPendingFiles([]);
+  };
+
+  const handlePaymentConditionChange = (v: string) => {
+    setPaymentCondition(v as 'a_vista' | 'a_prazo');
+    if (v === 'a_prazo') {
+      setPaidAmount('');
+      setDate('');
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -176,7 +189,28 @@ export function TransactionFormDialog({
     return;
     }
 
-    // Edit mode
+    // Edit / Create mode
+    if (isAPrazo) {
+      const shouldClose = saveActionRef.current === 'close';
+      onSubmit({
+        type,
+        description: autoDescription,
+        amount: parseCurrencyInput(amount),
+        paid_amount: null,
+        date: undefined,
+        issue_date: issueDate || null,
+        due_date: dueDate || null,
+        expected_date: expectedDate || null,
+        category_id: categoryId || null,
+        bank_id: bankId || null,
+        contact_id: contactId || null,
+        is_paid: false,
+        notes: notes || null,
+      } as TransactionInsert, pendingFiles, shouldClose);
+      saveActionRef.current = 'close';
+      return;
+    }
+
     const derivedIsPaid = paidAmountValue > 0;
 
     if (derivedIsPaid && !date) {
@@ -256,8 +290,18 @@ export function TransactionFormDialog({
               </TabsList>
             </Tabs>
 
+            {/* Payment Condition Toggle — only for new transactions */}
+            {!isEditing && !isSettleMode && (
+              <Tabs value={paymentCondition} onValueChange={handlePaymentConditionChange}>
+                <TabsList className="w-full h-8">
+                  <TabsTrigger value="a_vista" className="flex-1 text-xs h-6">À Vista</TabsTrigger>
+                  <TabsTrigger value="a_prazo" className="flex-1 text-xs h-6">À Prazo</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            )}
+
             {/* Row 1: Cliente | Valor | Valor Recebido/Pago */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className={`grid ${isAPrazo ? 'grid-cols-2' : 'grid-cols-3'} gap-3`}>
               <div className="space-y-1">
                 <Label className="text-xs">Cliente/Fornecedor <span className="text-destructive">*</span></Label>
                 <Select value={contactId} onValueChange={handleContactChange} disabled={structuralDisabled}>
@@ -280,13 +324,15 @@ export function TransactionFormDialog({
                 <Label className="text-xs">Valor (R$) <span className="text-destructive">*</span></Label>
                 <Input value={amount} onChange={handleAmountChange} placeholder="0,00" required className="h-8 text-sm font-semibold" disabled={isSettleMode} />
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">
-                  {type === 'receita' ? 'Valor Recebido' : 'Valor Pago'}
-                  {isSettleMode && <span className="text-destructive"> *</span>}
-                </Label>
-                <Input value={paidAmount} onChange={handlePaidAmountChange} placeholder="0,00" className="h-8 text-sm" disabled={isEditing && !isSettleMode} />
-              </div>
+              {!isAPrazo && (
+                <div className="space-y-1">
+                  <Label className="text-xs">
+                    {type === 'receita' ? 'Valor Recebido' : 'Valor Pago'}
+                    {isSettleMode && <span className="text-destructive"> *</span>}
+                  </Label>
+                  <Input value={paidAmount} onChange={handlePaidAmountChange} placeholder="0,00" className="h-8 text-sm" disabled={isEditing && !isSettleMode} />
+                </div>
+              )}
             </div>
 
             {/* Row 2: Evento Contábil | Conta/Banco */}
@@ -333,8 +379,8 @@ export function TransactionFormDialog({
               </div>
             </div>
 
-            {/* Row 3: 4 Datas */}
-            <div className="grid grid-cols-4 gap-3">
+            {/* Row 3: Datas */}
+            <div className={`grid ${isAPrazo ? 'grid-cols-3' : 'grid-cols-4'} gap-3`}>
               <div className="space-y-1">
                 <Label className="text-xs">Emissão <span className="text-destructive">*</span></Label>
                 <Input type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} className="h-8 text-xs" disabled={isSettleMode} />
@@ -347,13 +393,15 @@ export function TransactionFormDialog({
                 <Label className="text-xs">Prevista <span className="text-destructive">*</span></Label>
                 <Input type="date" value={expectedDate} onChange={e => setExpectedDate(e.target.value)} className="h-8 text-xs" disabled={isSettleMode} />
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">
-                  Pagamento
-                  {isSettleMode && <span className="text-destructive"> *</span>}
-                </Label>
-                <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-8 text-xs" disabled={isEditing && !isSettleMode} />
-              </div>
+              {!isAPrazo && (
+                <div className="space-y-1">
+                  <Label className="text-xs">
+                    Pagamento
+                    {isSettleMode && <span className="text-destructive"> *</span>}
+                  </Label>
+                  <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-8 text-xs" disabled={isEditing && !isSettleMode} />
+                </div>
+              )}
             </div>
 
             {/* Row 4: Anexo | Histórico side by side */}
