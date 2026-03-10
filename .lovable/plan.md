@@ -1,36 +1,93 @@
 
 
-## Plano: 5 Alterações Pontuais
+# Preview Intermediario na Importacao de Planilha
 
-### 1. Inversão dos Botões Receita/Despesa
-**Arquivo: `TransactionFormDialog.tsx`** (linhas 221-226)
-- Trocar a ordem: `receita` primeiro (esquerda), `despesa` segundo (direita).
+## Resumo
 
-### 2. Bloquear Valor Pago e Data Pagamento em Criar/Editar
-**Arquivo: `TransactionFormDialog.tsx`**
-- Campo "Valor Recebido/Pago" (linha 259): adicionar `disabled={!isSettleMode}`
-- Campo "Pagamento" data (linha 326): adicionar `disabled={!isSettleMode}`
+Adicionar um Step 3 (Preview) entre o upload e a confirmacao final. Apos o upload processar os dados, ao inves de importar diretamente, exibir uma tabela com os lancamentos lidos para o usuario revisar, com opcao de confirmar ou voltar.
 
-### 3. Dois Botões: "Salvar" e "Salvar e Fechar"
-**Arquivo: `TransactionFormDialog.tsx`**
-- Adicionar prop `onSaveAndContinue` ao componente (callback opcional).
-- Adicionar estado `saveAction` (`'close'` | `'continue'`).
-- No `handleSubmit`, após chamar `onSubmit`, verificar a ação:
-  - **"Salvar e Fechar"**: comportamento atual (submete e fecha via `onOpenChange(false)`).
-  - **"Salvar"**: submete, depois reseta todos os campos para valores iniciais, mantém modal aberto.
-- Substituir o botão único por dois botões (apenas no modo criar/editar, não no modo liquidar).
-- O reset dos campos será feito internamente no componente após o submit.
-- Alterar a prop `onSubmit` para aceitar um callback de sucesso ou usar Promise. Alternativa mais simples: o componente reseta imediatamente após chamar onSubmit e delega o fechamento ao `saveAction`.
+---
 
-**Arquivos consumidores** (`Transactions.tsx`, `Dashboard.tsx`, `Home.tsx`): sem alterações necessárias, pois o `onOpenChange(false)` já é controlado pelo dialog.
+## Arquivo Modificado
 
-### 4. Validação de Datas (YYYY-MM-DD)
-**Arquivo: `src/lib/utils.ts`** — Criar função `isValidDateString(value: string): boolean` que valida formato YYYY-MM-DD com dia 01-31, mês 01-12, ano 4 dígitos.
+| Arquivo | Mudanca |
+|---|---|
+| `src/components/transactions/ImportSpreadsheetDialog.tsx` | Adicionar step 3 com tabela de preview, separar parsing de importacao |
 
-**Arquivo: `TransactionFormDialog.tsx`** — No `handleSubmit`, validar `issueDate`, `dueDate`, `expectedDate`, `date` (quando preenchido) com a função acima. Exibir toast de erro se inválido.
+---
 
-Como os inputs são `type="date"` nativos do browser, eles já restringem o formato. A validação será uma camada extra de segurança no submit.
+## Mudancas Detalhadas
 
-### 5. Limpar Página de Relatórios
-**Arquivo: `src/pages/Reports.tsx`** — Substituir todo o conteúdo por uma página vazia com apenas o título "Relatórios" e uma mensagem placeholder.
+### 1. Novo estado para armazenar dados parseados
+
+```typescript
+const [parsedData, setParsedData] = useState<TransactionInsert[]>([]);
+```
+
+### 2. Alterar `processFile` para nao importar direto
+
+Em vez de chamar `onImport(transactions)` ao final do parsing, salvar em `setParsedData(transactions)` e avancar para `setStep(3)`.
+
+### 3. Step indicator com 3 passos
+
+Adicionar terceiro circulo "Revisar" no indicador de progresso (Modelo -> Upload -> Revisar).
+
+### 4. Step 3: Tabela de Preview
+
+- Dialog expandido para `sm:max-w-4xl` quando no step 3
+- Contador: "X lancamento(s) encontrado(s)"
+- Tabela com ScrollArea (max-height ~400px) contendo colunas:
+  - Data | Cliente | Tipo | Valor | Status | Vencimento | Banco | Categoria
+- Cada linha mostra dados legivel (data formatada dd/MM/yyyy, valor em R$, tipo como badge colorido Receita/Despesa, status como badge Pago/Pendente)
+- Lookup reverso de bank_id/category_id/contact_id para exibir nomes (ou "---" se nao vinculado)
+- Botoes: "Voltar" (ghost, volta ao step 2) e "Confirmar Importacao" (primary, chama onImport)
+- Ao confirmar: spinner de "Importando..." e fluxo existente de toast + fechar modal
+
+### 5. Ajuste no resetState
+
+Incluir `setParsedData([])` no reset.
+
+### 6. DialogDescription dinâmica
+
+Step 3 exibe: "Revise os dados antes de confirmar"
+
+---
+
+## Secao Tecnica
+
+### Lookup reverso para exibicao
+
+Para mostrar nomes na tabela de preview ao inves de IDs:
+
+```typescript
+const bankName = (id: string | null) => banks.find(b => b.id === id)?.name ?? '—';
+const categoryName = (id: string | null) => categories.find(c => c.id === id)?.name ?? '—';
+const contactName = (id: string | null) => contacts.find(c => c.id === id)?.name ?? '—';
+```
+
+### Formatacao na tabela
+
+```typescript
+// Data: format(parseISO(row.date), 'dd/MM/yyyy')
+// Valor: row.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+// Tipo: Badge verde "Receita" ou vermelho "Despesa"
+// Status: Badge "Pago" ou "Pendente"
+```
+
+### Handler de confirmacao
+
+```typescript
+const handleConfirmImport = async () => {
+  setIsProcessing(true);
+  try {
+    await onImport(parsedData);
+    toast({ title: `${parsedData.length} lançamento(s) importado(s) com sucesso!` });
+    handleClose(false);
+  } catch (err) {
+    toast({ title: 'Erro ao importar.', variant: 'destructive' });
+  } finally {
+    setIsProcessing(false);
+  }
+};
+```
 

@@ -51,6 +51,22 @@ export function maskCPFCNPJ(value: string): string {
   return maskCNPJ(value);
 }
 
+// Valida data no formato YYYY-MM-DD com dia 01-31, mês 01-12, ano 4 dígitos
+export function isValidDateString(value: string): boolean {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return false;
+  const [, yearStr, monthStr, dayStr] = match;
+  const year = parseInt(yearStr, 10);
+  const month = parseInt(monthStr, 10);
+  const day = parseInt(dayStr, 10);
+  if (year < 1900 || year > 2100) return false;
+  if (month < 1 || month > 12) return false;
+  if (day < 1 || day > 31) return false;
+  // Validate actual date
+  const date = new Date(year, month - 1, day);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+}
+
 // Máscara para telefone: (00) 00000-0000
 export function maskPhone(value: string): string {
   return value

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -19,6 +19,7 @@ import { ContactFormDialog } from '@/components/contacts/ContactFormDialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TrendingUp, TrendingDown, User, Plus } from 'lucide-react';
 import { addBusinessDays } from '@/lib/business-days';
+import { isValidDateString } from '@/lib/utils';
 
 interface TransactionFormDialogProps {
   open: boolean;
@@ -51,6 +52,8 @@ export function TransactionFormDialog({
   const todayStr = new Date().toISOString().split('T')[0];
   const isSettleMode = mode === 'settle';
   const isEditing = !!transaction;
+  const saveActionRef = useRef<'close' | 'continue'>('close');
+  const formRef = useRef<HTMLFormElement>(null);
 
   const [type, setType] = useState<'receita' | 'despesa'>(defaultType);
   const [amount, setAmount] = useState('');
@@ -124,14 +127,36 @@ export function TransactionFormDialog({
 
   const { toast } = useToast();
 
+  const resetForm = () => {
+    setType(defaultType);
+    setAmount(''); setPaidAmount('');
+    setDate(''); setIssueDate(todayStr); setDueDate(''); setExpectedDate('');
+    setCategoryId(''); setBankId(''); setContactId('');
+    setNotes(''); setPendingFiles([]);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Date validation
+    const dateFields = [
+      { value: issueDate, label: 'Emissão' },
+      { value: dueDate, label: 'Vencimento' },
+      { value: expectedDate, label: 'Prevista' },
+      ...(date ? [{ value: date, label: 'Pagamento' }] : []),
+    ];
+    for (const field of dateFields) {
+      if (field.value && !isValidDateString(field.value)) {
+        toast({ title: `Data inválida no campo "${field.label}". Use o formato AAAA-MM-DD com valores válidos.`, variant: 'destructive' });
+        return;
+      }
+    }
+
     const selectedCategory = filteredCategories.find(c => c.id === categoryId);
     const autoDescription = selectedCategory?.name || 'Movimentação';
     const paidAmountValue = parseCurrencyInput(paidAmount);
 
     if (isSettleMode) {
-      // Settle mode: force is_paid = true
       onSubmit({
         type,
         description: autoDescription,
@@ -153,7 +178,6 @@ export function TransactionFormDialog({
     // Edit mode
     const derivedIsPaid = paidAmountValue > 0;
 
-    // Strict settlement rule: if marking as paid, date must be filled
     if (derivedIsPaid && !date) {
       toast({
         title: 'Para liquidar a transação, a Data de Pagamento e o Valor Recebido são obrigatórios.',
@@ -177,6 +201,14 @@ export function TransactionFormDialog({
       is_paid: derivedIsPaid,
       notes: notes || null,
     } as TransactionInsert, pendingFiles);
+
+    // After submit, handle save action
+    if (saveActionRef.current === 'continue') {
+      resetForm();
+    } else {
+      onOpenChange(false);
+    }
+    saveActionRef.current = 'close';
   };
 
   const handleCreateCategory = (data: CategoryInsert) => {
@@ -214,15 +246,15 @@ export function TransactionFormDialog({
           <DialogHeader className="pb-2">
             <DialogTitle className="text-base">{dialogTitle}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-3">
+          <form ref={formRef} onSubmit={handleSubmit} className="space-y-3">
             {/* Type Toggle */}
             <Tabs value={type} onValueChange={(v) => !structuralDisabled && setType(v as 'receita' | 'despesa')}>
               <TabsList className={`w-full h-9 ${structuralDisabled ? 'opacity-60 pointer-events-none' : ''}`}>
-                <TabsTrigger value="despesa" className="flex-1 gap-1.5 text-xs h-7" disabled={structuralDisabled}>
-                  <TrendingDown className="w-3.5 h-3.5" /> Despesa
-                </TabsTrigger>
                 <TabsTrigger value="receita" className="flex-1 gap-1.5 text-xs h-7" disabled={structuralDisabled}>
                   <TrendingUp className="w-3.5 h-3.5" /> Receita
+                </TabsTrigger>
+                <TabsTrigger value="despesa" className="flex-1 gap-1.5 text-xs h-7" disabled={structuralDisabled}>
+                  <TrendingDown className="w-3.5 h-3.5" /> Despesa
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -256,7 +288,7 @@ export function TransactionFormDialog({
                   {type === 'receita' ? 'Valor Recebido' : 'Valor Pago'}
                   {isSettleMode && <span className="text-destructive"> *</span>}
                 </Label>
-                <Input value={paidAmount} onChange={handlePaidAmountChange} placeholder="0,00" className="h-8 text-sm" />
+                <Input value={paidAmount} onChange={handlePaidAmountChange} placeholder="0,00" className="h-8 text-sm" disabled={!isSettleMode} />
               </div>
             </div>
 
@@ -323,7 +355,7 @@ export function TransactionFormDialog({
                   Pagamento
                   {isSettleMode && <span className="text-destructive"> *</span>}
                 </Label>
-                <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-8 text-xs" />
+                <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-8 text-xs" disabled={!isSettleMode} />
               </div>
             </div>
 
@@ -355,9 +387,22 @@ export function TransactionFormDialog({
                 <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)} className="h-8 text-xs px-4">
                   Cancelar
                 </Button>
-                <Button type="submit" size="sm" disabled={isLoading || !isFormValid} className="h-8 text-xs px-6">
-                  {isLoading ? 'Salvando...' : submitLabel}
-                </Button>
+                {isSettleMode ? (
+                  <Button type="submit" size="sm" disabled={isLoading || !isFormValid} className="h-8 text-xs px-6">
+                    {isLoading ? 'Salvando...' : 'Liquidar'}
+                  </Button>
+                ) : (
+                  <>
+                    <Button type="button" size="sm" variant="secondary" disabled={isLoading || !isFormValid} className="h-8 text-xs px-4"
+                      onClick={() => { saveActionRef.current = 'continue'; formRef.current?.requestSubmit(); }}>
+                      {isLoading ? 'Salvando...' : 'Salvar'}
+                    </Button>
+                    <Button type="button" size="sm" disabled={isLoading || !isFormValid} className="h-8 text-xs px-4"
+                      onClick={() => { saveActionRef.current = 'close'; formRef.current?.requestSubmit(); }}>
+                      {isLoading ? 'Salvando...' : 'Salvar e Fechar'}
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </form>
