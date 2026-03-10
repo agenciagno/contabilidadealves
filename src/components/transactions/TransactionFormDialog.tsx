@@ -115,6 +115,7 @@ export function TransactionFormDialog({
       setPendingFiles([]);
     } else {
       setType(defaultType);
+      setPaymentCondition('a_vista');
       setAmount(''); setPaidAmount('');
       setDate(''); setIssueDate(todayStr); setDueDate(''); setExpectedDate('');
       setCategoryId(''); setBankId(''); setContactId('');
