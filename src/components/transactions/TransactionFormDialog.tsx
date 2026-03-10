@@ -189,7 +189,28 @@ export function TransactionFormDialog({
     return;
     }
 
-    // Edit mode
+    // Edit / Create mode
+    if (isAPrazo) {
+      const shouldClose = saveActionRef.current === 'close';
+      onSubmit({
+        type,
+        description: autoDescription,
+        amount: parseCurrencyInput(amount),
+        paid_amount: null,
+        date: undefined,
+        issue_date: issueDate || null,
+        due_date: dueDate || null,
+        expected_date: expectedDate || null,
+        category_id: categoryId || null,
+        bank_id: bankId || null,
+        contact_id: contactId || null,
+        is_paid: false,
+        notes: notes || null,
+      } as TransactionInsert, pendingFiles, shouldClose);
+      saveActionRef.current = 'close';
+      return;
+    }
+
     const derivedIsPaid = paidAmountValue > 0;
 
     if (derivedIsPaid && !date) {
