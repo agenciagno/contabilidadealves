@@ -51,6 +51,8 @@ export function TransactionFormDialog({
   const todayStr = new Date().toISOString().split('T')[0];
   const isSettleMode = mode === 'settle';
   const isEditing = !!transaction;
+  const saveActionRef = useRef<'close' | 'continue'>('close');
+  const formRef = useRef<HTMLFormElement>(null);
 
   const [type, setType] = useState<'receita' | 'despesa'>(defaultType);
   const [amount, setAmount] = useState('');
