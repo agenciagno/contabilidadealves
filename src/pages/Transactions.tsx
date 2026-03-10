@@ -424,7 +424,7 @@ export default function Transactions() {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
-  const [defaultType, setDefaultType] = useState<'receita' | 'despesa'>('despesa');
+  const [defaultType, setDefaultType] = useState<'receita' | 'despesa'>('receita');
   const [importOpen, setImportOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
