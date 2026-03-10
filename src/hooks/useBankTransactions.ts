@@ -54,7 +54,8 @@ export function useBankTransactions(
         .from('transactions')
         .select('type, amount, paid_amount, bank_id, is_paid')
         .lt('date', startDate)
-        .eq('is_paid', true);
+        .eq('is_paid', true)
+        .not('paid_amount', 'is', null);
 
       if (bankId !== 'all') {
         query = query.eq('bank_id', bankId);
