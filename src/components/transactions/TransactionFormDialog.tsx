@@ -126,14 +126,36 @@ export function TransactionFormDialog({
 
   const { toast } = useToast();
 
+  const resetForm = () => {
+    setType(defaultType);
+    setAmount(''); setPaidAmount('');
+    setDate(''); setIssueDate(todayStr); setDueDate(''); setExpectedDate('');
+    setCategoryId(''); setBankId(''); setContactId('');
+    setNotes(''); setPendingFiles([]);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Date validation
+    const dateFields = [
+      { value: issueDate, label: 'Emissão' },
+      { value: dueDate, label: 'Vencimento' },
+      { value: expectedDate, label: 'Prevista' },
+      ...(date ? [{ value: date, label: 'Pagamento' }] : []),
+    ];
+    for (const field of dateFields) {
+      if (field.value && !isValidDateString(field.value)) {
+        toast({ title: `Data inválida no campo "${field.label}". Use o formato AAAA-MM-DD com valores válidos.`, variant: 'destructive' });
+        return;
+      }
+    }
+
     const selectedCategory = filteredCategories.find(c => c.id === categoryId);
     const autoDescription = selectedCategory?.name || 'Movimentação';
     const paidAmountValue = parseCurrencyInput(paidAmount);
 
     if (isSettleMode) {
-      // Settle mode: force is_paid = true
       onSubmit({
         type,
         description: autoDescription,
@@ -155,7 +177,6 @@ export function TransactionFormDialog({
     // Edit mode
     const derivedIsPaid = paidAmountValue > 0;
 
-    // Strict settlement rule: if marking as paid, date must be filled
     if (derivedIsPaid && !date) {
       toast({
         title: 'Para liquidar a transação, a Data de Pagamento e o Valor Recebido são obrigatórios.',
@@ -179,6 +200,14 @@ export function TransactionFormDialog({
       is_paid: derivedIsPaid,
       notes: notes || null,
     } as TransactionInsert, pendingFiles);
+
+    // After submit, handle save action
+    if (saveActionRef.current === 'continue') {
+      resetForm();
+    } else {
+      onOpenChange(false);
+    }
+    saveActionRef.current = 'close';
   };
 
   const handleCreateCategory = (data: CategoryInsert) => {
