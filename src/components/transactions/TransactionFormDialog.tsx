@@ -218,11 +218,11 @@ export function TransactionFormDialog({
             {/* Type Toggle */}
             <Tabs value={type} onValueChange={(v) => !structuralDisabled && setType(v as 'receita' | 'despesa')}>
               <TabsList className={`w-full h-9 ${structuralDisabled ? 'opacity-60 pointer-events-none' : ''}`}>
-                <TabsTrigger value="despesa" className="flex-1 gap-1.5 text-xs h-7" disabled={structuralDisabled}>
-                  <TrendingDown className="w-3.5 h-3.5" /> Despesa
-                </TabsTrigger>
                 <TabsTrigger value="receita" className="flex-1 gap-1.5 text-xs h-7" disabled={structuralDisabled}>
                   <TrendingUp className="w-3.5 h-3.5" /> Receita
+                </TabsTrigger>
+                <TabsTrigger value="despesa" className="flex-1 gap-1.5 text-xs h-7" disabled={structuralDisabled}>
+                  <TrendingDown className="w-3.5 h-3.5" /> Despesa
                 </TabsTrigger>
               </TabsList>
             </Tabs>
