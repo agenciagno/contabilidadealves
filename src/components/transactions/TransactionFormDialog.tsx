@@ -355,7 +355,7 @@ export function TransactionFormDialog({
                   Pagamento
                   {isSettleMode && <span className="text-destructive"> *</span>}
                 </Label>
-                <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-8 text-xs" disabled={!isSettleMode} />
+                <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-8 text-xs" disabled={isEditing && !isSettleMode} />
               </div>
             </div>
 

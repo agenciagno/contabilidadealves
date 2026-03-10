@@ -102,14 +102,6 @@ const menuModules: MenuModule[] = [
       { title: 'Disparos', url: '/disparos', icon: Send, iconName: 'send' },
     ],
   },
-  {
-    title: 'Relatórios',
-    icon: BarChart3,
-    moduleKey: 'relatorios',
-    items: [
-      { title: 'Relatórios', url: '/relatorios', icon: FileBarChart, iconName: 'file-bar-chart' },
-    ],
-  },
   // Módulos futuros — prontos para quando as páginas forem criadas
   // { title: 'Comercial', icon: BarChart3, moduleKey: 'comercial', items: [] },
   // { title: 'Fiscal', icon: FileBarChart, moduleKey: 'fiscal', items: [] },
