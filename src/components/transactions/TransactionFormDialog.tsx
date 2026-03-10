@@ -256,7 +256,7 @@ export function TransactionFormDialog({
                   {type === 'receita' ? 'Valor Recebido' : 'Valor Pago'}
                   {isSettleMode && <span className="text-destructive"> *</span>}
                 </Label>
-                <Input value={paidAmount} onChange={handlePaidAmountChange} placeholder="0,00" className="h-8 text-sm" />
+                <Input value={paidAmount} onChange={handlePaidAmountChange} placeholder="0,00" className="h-8 text-sm" disabled={!isSettleMode} />
               </div>
             </div>
 
