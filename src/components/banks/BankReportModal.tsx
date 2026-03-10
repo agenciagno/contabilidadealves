@@ -107,64 +107,66 @@ export function BankReportModal({ open, onOpenChange, banks }: BankReportModalPr
     doc.text(`Contas: ${accountsLabel}`, 14, 45);
     doc.text(`Evento Contábil: ${categoryLabel}`, 14, 50);
 
-    // ─── Cards coloridos 2x2 ───
-    const cardW = 88;
-    const cardH = 20;
+    // ─── Cards compactos 4 colunas ───
+    const cardW = 43;
+    const cardH = 14;
+    const cardY = 56;
+    const gap = 2;
     const col1X = 14;
-    const col2X = 104;
-    const row1Y = 56;
-    const row2Y = row1Y + cardH + 2;
-    const labelOffsetY = 8;
-    const valueOffsetY = 16;
-    const padX = 4;
+    const col2X = col1X + cardW + gap;
+    const col3X = col2X + cardW + gap;
+    const col4X = col3X + cardW + gap;
+    const labelOffsetY = 6;
+    const valueOffsetY = 12;
+    const padX = 3;
 
     // Saldo Inicial (cinza)
     doc.setFillColor(245, 245, 245);
-    doc.roundedRect(col1X, row1Y, cardW, cardH, 3, 3, 'F');
-    doc.setFontSize(8);
+    doc.roundedRect(col1X, cardY, cardW, cardH, 2, 2, 'F');
+    doc.setFontSize(6);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(120, 120, 120);
-    doc.text('Saldo Inicial', col1X + padX, row1Y + labelOffsetY);
-    doc.setFontSize(10);
+    doc.text('Saldo Inicial', col1X + padX, cardY + labelOffsetY);
+    doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(30, 30, 30);
-    doc.text(formatCurrency(openingBalance), col1X + padX, row1Y + valueOffsetY);
+    doc.text(formatCurrency(openingBalance), col1X + padX, cardY + valueOffsetY);
 
     // Entradas (verde)
     doc.setFillColor(240, 255, 244);
-    doc.roundedRect(col2X, row1Y, cardW, cardH, 3, 3, 'F');
-    doc.setFontSize(8);
+    doc.roundedRect(col2X, cardY, cardW, cardH, 2, 2, 'F');
+    doc.setFontSize(6);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(21, 128, 61);
-    doc.text('Entradas', col2X + padX, row1Y + labelOffsetY);
-    doc.setFontSize(10);
+    doc.text('Entradas', col2X + padX, cardY + labelOffsetY);
+    doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
-    doc.text(`+${formatCurrency(totalIncome)}`, col2X + padX, row1Y + valueOffsetY);
+    doc.text(`+${formatCurrency(totalIncome)}`, col2X + padX, cardY + valueOffsetY);
 
     // Saídas (vermelho)
     doc.setFillColor(255, 245, 245);
-    doc.roundedRect(col1X, row2Y, cardW, cardH, 3, 3, 'F');
-    doc.setFontSize(8);
+    doc.roundedRect(col3X, cardY, cardW, cardH, 2, 2, 'F');
+    doc.setFontSize(6);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(220, 38, 38);
-    doc.text('Saídas', col1X + padX, row2Y + labelOffsetY);
-    doc.setFontSize(10);
+    doc.text('Saídas', col3X + padX, cardY + labelOffsetY);
+    doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
-    doc.text(`-${formatCurrency(totalExpense)}`, col1X + padX, row2Y + valueOffsetY);
+    doc.text(`-${formatCurrency(totalExpense)}`, col3X + padX, cardY + valueOffsetY);
 
     // Saldo Final (azul)
     doc.setFillColor(239, 246, 255);
-    doc.roundedRect(col2X, row2Y, cardW, cardH, 3, 3, 'F');
-    doc.setFontSize(8);
+    doc.roundedRect(col4X, cardY, cardW, cardH, 2, 2, 'F');
+    doc.setFontSize(6);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(29, 78, 216);
-    doc.text('Saldo Final', col2X + padX, row2Y + labelOffsetY);
-    doc.setFontSize(10);
+    doc.text('Saldo Final', col4X + padX, cardY + labelOffsetY);
+    doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
-    doc.text(formatCurrency(closingBalance), col2X + padX, row2Y + valueOffsetY);
+    doc.text(formatCurrency(closingBalance), col4X + padX, cardY + valueOffsetY);
 
     // Separador e rodapé do resumo
-    const sepY = row2Y + cardH + 4;
+    const sepY = cardY + cardH + 4;
     doc.setDrawColor(230, 230, 230);
     doc.setLineWidth(0.3);
     doc.line(14, sepY, 192, sepY);
@@ -457,31 +459,22 @@ ${transactions}
                   <p className="text-xs text-gray-500">Contas: {accountsLabel}</p>
                   <p className="text-xs text-gray-500">Evento Contábil: {categoryLabel}</p>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-xs text-gray-500">Saldo Inicial</p>
-                    <p className="font-bold text-gray-900 text-sm mt-1">{formatCurrency(openingBalance)}</p>
+                <div className="grid grid-cols-4 gap-2">
+                  <div className="bg-gray-50 rounded-md p-2">
+                    <p className="text-[10px] text-gray-500">Saldo Inicial</p>
+                    <p className="font-bold text-gray-900 text-xs mt-0.5">{formatCurrency(openingBalance)}</p>
                   </div>
-                  <div className="bg-green-50 rounded-lg p-3">
-                    <div className="flex items-center gap-1">
-                      <TrendingUp className="w-3 h-3 text-green-600" />
-                      <p className="text-xs text-green-700">Entradas</p>
-                    </div>
-                    <p className="font-bold text-green-700 text-sm mt-1">+{formatCurrency(totalIncome)}</p>
+                  <div className="bg-green-50 rounded-md p-2">
+                    <p className="text-[10px] text-green-700">Entradas</p>
+                    <p className="font-bold text-green-700 text-xs mt-0.5">+{formatCurrency(totalIncome)}</p>
                   </div>
-                  <div className="bg-red-50 rounded-lg p-3">
-                    <div className="flex items-center gap-1">
-                      <TrendingDown className="w-3 h-3 text-red-600" />
-                      <p className="text-xs text-red-700">Saídas</p>
-                    </div>
-                    <p className="font-bold text-red-700 text-sm mt-1">-{formatCurrency(totalExpense)}</p>
+                  <div className="bg-red-50 rounded-md p-2">
+                    <p className="text-[10px] text-red-700">Saídas</p>
+                    <p className="font-bold text-red-700 text-xs mt-0.5">-{formatCurrency(totalExpense)}</p>
                   </div>
-                  <div className="bg-blue-50 rounded-lg p-3">
-                    <div className="flex items-center gap-1">
-                      <Wallet className="w-3 h-3 text-blue-600" />
-                      <p className="text-xs text-blue-700">Saldo Final</p>
-                    </div>
-                    <p className="font-bold text-blue-700 text-sm mt-1">{formatCurrency(closingBalance)}</p>
+                  <div className="bg-blue-50 rounded-md p-2">
+                    <p className="text-[10px] text-blue-700">Saldo Final</p>
+                    <p className="font-bold text-blue-700 text-xs mt-0.5">{formatCurrency(closingBalance)}</p>
                   </div>
                 </div>
                 <div className="border-t border-gray-100 pt-3">
