@@ -19,6 +19,7 @@ import { ContactFormDialog } from '@/components/contacts/ContactFormDialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TrendingUp, TrendingDown, User, Plus } from 'lucide-react';
 import { addBusinessDays } from '@/lib/business-days';
+import { isValidDateString } from '@/lib/utils';
 
 interface TransactionFormDialogProps {
   open: boolean;
