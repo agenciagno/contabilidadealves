@@ -47,7 +47,7 @@ function parseCurrencyInput(value: string): number {
 }
 
 export function TransactionFormDialog({
-  open, onOpenChange, transaction, categories, banks, contacts, onSubmit, isLoading, defaultType = 'despesa', mode = 'edit',
+  open, onOpenChange, transaction, categories, banks, contacts, onSubmit, isLoading, defaultType = 'receita', mode = 'edit',
 }: TransactionFormDialogProps) {
   const todayStr = new Date().toISOString().split('T')[0];
   const isSettleMode = mode === 'settle';
@@ -288,7 +288,7 @@ export function TransactionFormDialog({
                   {type === 'receita' ? 'Valor Recebido' : 'Valor Pago'}
                   {isSettleMode && <span className="text-destructive"> *</span>}
                 </Label>
-                <Input value={paidAmount} onChange={handlePaidAmountChange} placeholder="0,00" className="h-8 text-sm" disabled={!isSettleMode} />
+                <Input value={paidAmount} onChange={handlePaidAmountChange} placeholder="0,00" className="h-8 text-sm" disabled={isEditing && !isSettleMode} />
               </div>
             </div>
 
@@ -355,7 +355,7 @@ export function TransactionFormDialog({
                   Pagamento
                   {isSettleMode && <span className="text-destructive"> *</span>}
                 </Label>
-                <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-8 text-xs" disabled={!isSettleMode} />
+                <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-8 text-xs" disabled={isEditing && !isSettleMode} />
               </div>
             </div>
 

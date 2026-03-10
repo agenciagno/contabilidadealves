@@ -18,7 +18,6 @@ import Contacts from "@/pages/Contacts";
 import ContactProfile from "@/pages/ContactProfile";
 import Banks from "@/pages/Banks";
 import Categories from "@/pages/Categories";
-import Reports from "@/pages/Reports";
 import SettingsPage from "@/pages/SettingsPage";
 import CrmDispatches from "@/pages/CrmDispatches";
 import ClientReport from "@/pages/ClientReport";
@@ -48,7 +47,7 @@ const App = () => (
               <Route path="/crm/cliente/:id" element={<AppLayout><ContactProfile /></AppLayout>} />
               <Route path="/bancos" element={<AppLayout><Banks /></AppLayout>} />
               <Route path="/categorias" element={<AppLayout><Categories /></AppLayout>} />
-              <Route path="/relatorios" element={<AppLayout><Reports /></AppLayout>} />
+              
               <Route path="/configuracoes" element={<AppLayout><SettingsPage /></AppLayout>} />
               <Route path="/disparos" element={<AppLayout><CrmDispatches /></AppLayout>} />
               <Route path="/relatorio-clientes" element={<AppLayout><ClientReport /></AppLayout>} />
