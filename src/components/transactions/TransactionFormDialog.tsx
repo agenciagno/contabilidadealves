@@ -28,7 +28,7 @@ interface TransactionFormDialogProps {
   categories: Category[];
   banks: Bank[];
   contacts: Contact[];
-  onSubmit: (data: TransactionInsert, pendingFiles?: File[]) => void;
+  onSubmit: (data: TransactionInsert, pendingFiles?: File[], shouldClose?: boolean) => void;
   isLoading?: boolean;
   defaultType?: 'receita' | 'despesa';
   mode?: 'edit' | 'settle';
