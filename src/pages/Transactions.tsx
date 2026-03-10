@@ -422,6 +422,7 @@ export default function Transactions() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'edit' | 'settle'>('edit');
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [formResetKey, setFormResetKey] = useState(0);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
   const [defaultType, setDefaultType] = useState<'receita' | 'despesa'>('receita');
@@ -495,7 +496,7 @@ export default function Transactions() {
           if (shouldClose) {
             setDialogOpen(false);
           } else {
-            setEditingTransaction(null);
+            setFormResetKey(k => k + 1);
           }
         }
       });
@@ -935,6 +936,7 @@ export default function Transactions() {
         isLoading={createTransaction.isPending || updateTransaction.isPending}
         defaultType={defaultType}
         mode={dialogMode}
+        resetKey={formResetKey}
       />
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>

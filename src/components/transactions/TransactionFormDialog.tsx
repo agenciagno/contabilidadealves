@@ -32,6 +32,7 @@ interface TransactionFormDialogProps {
   isLoading?: boolean;
   defaultType?: 'receita' | 'despesa';
   mode?: 'edit' | 'settle';
+  resetKey?: number;
 }
 
 function formatCurrencyInput(value: string): string {
@@ -47,7 +48,7 @@ function parseCurrencyInput(value: string): number {
 }
 
 export function TransactionFormDialog({
-  open, onOpenChange, transaction, categories, banks, contacts, onSubmit, isLoading, defaultType = 'receita', mode = 'edit',
+  open, onOpenChange, transaction, categories, banks, contacts, onSubmit, isLoading, defaultType = 'receita', mode = 'edit', resetKey,
 }: TransactionFormDialogProps) {
   const todayStr = new Date().toISOString().split('T')[0];
   const isSettleMode = mode === 'settle';
@@ -116,7 +117,7 @@ export function TransactionFormDialog({
       setCategoryId(''); setBankId(''); setContactId('');
       setNotes(''); setPendingFiles([]);
     }
-  }, [transaction, open, defaultType]);
+  }, [transaction, open, defaultType, resetKey]);
 
   useEffect(() => {
     if (!transaction) { setCategoryId(''); setContactId(''); }
