@@ -48,7 +48,7 @@ function parseCurrencyInput(value: string): number {
 }
 
 export function TransactionFormDialog({
-  open, onOpenChange, transaction, categories, banks, contacts, onSubmit, isLoading, defaultType = 'receita', mode = 'edit',
+  open, onOpenChange, transaction, categories, banks, contacts, onSubmit, isLoading, defaultType = 'receita', mode = 'edit', resetKey,
 }: TransactionFormDialogProps) {
   const todayStr = new Date().toISOString().split('T')[0];
   const isSettleMode = mode === 'settle';
