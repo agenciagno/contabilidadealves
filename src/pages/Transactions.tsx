@@ -496,7 +496,7 @@ export default function Transactions() {
           if (shouldClose) {
             setDialogOpen(false);
           } else {
-            setEditingTransaction(null);
+            setFormResetKey(k => k + 1);
           }
         }
       });
