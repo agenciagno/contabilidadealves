@@ -186,6 +186,8 @@ export function TransactionFormDialog({
       return;
     }
 
+    const shouldClose = saveActionRef.current === 'close';
+
     onSubmit({
       type,
       description: autoDescription,
@@ -200,14 +202,8 @@ export function TransactionFormDialog({
       contact_id: contactId || null,
       is_paid: derivedIsPaid,
       notes: notes || null,
-    } as TransactionInsert, pendingFiles);
+    } as TransactionInsert, pendingFiles, shouldClose);
 
-    // After submit, handle save action
-    if (saveActionRef.current === 'continue') {
-      resetForm();
-    } else {
-      onOpenChange(false);
-    }
     saveActionRef.current = 'close';
   };
 
