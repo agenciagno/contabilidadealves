@@ -32,6 +32,7 @@ interface TransactionFormDialogProps {
   isLoading?: boolean;
   defaultType?: 'receita' | 'despesa';
   mode?: 'edit' | 'settle';
+  resetKey?: number;
 }
 
 function formatCurrencyInput(value: string): string {
