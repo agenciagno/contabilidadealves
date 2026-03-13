@@ -545,7 +545,7 @@ function PaginationControls({ currentPage, totalPages, totalCount, onPageChange,
 
 export default function Transactions() {
   const [typeFilter, setTypeFilter] = useState('all');
-  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [categoryFilters, setCategoryFilters] = useState<string[]>([]);
   const [bankFilter, setBankFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
