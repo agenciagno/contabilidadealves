@@ -884,29 +884,11 @@ export default function Transactions() {
             </PopoverContent>
           </Popover>
 
-          <Popover>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <PopoverTrigger asChild>
-                  <Button variant={categoryFilter !== 'all' ? 'secondary' : 'ghost'} size="icon" className="h-8 w-8">
-                    <Receipt className="w-4 h-4" />
-                  </Button>
-                </PopoverTrigger>
-              </TooltipTrigger>
-              <TooltipContent>Evento Contábil</TooltipContent>
-            </Tooltip>
-            <PopoverContent className="w-48 p-2" align="start">
-              <div className="space-y-1 max-h-60 overflow-auto">
-                <button onClick={() => setCategoryFilter('all')} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted ${categoryFilter === 'all' ? 'bg-primary/10 text-primary font-medium' : ''}`}>Todos</button>
-                {categories.map(c => (
-                  <button key={c.id} onClick={() => setCategoryFilter(c.id)} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted flex items-center gap-2 ${categoryFilter === c.id ? 'bg-primary/10 text-primary font-medium' : ''}`}>
-                    <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.color || '#3B82F6' }} />
-                    {c.name}
-                  </button>
-                ))}
-              </div>
-            </PopoverContent>
-          </Popover>
+          <CategoryMultiFilter
+            selected={categoryFilters}
+            onChange={setCategoryFilters}
+            categories={categories.map(c => ({ id: c.id, name: c.name, color: c.color || '#3B82F6' }))}
+          />
 
           <Popover>
             <Tooltip>
