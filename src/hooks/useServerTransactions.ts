@@ -32,8 +32,8 @@ function applyFilters(
   if (filters.type && filters.type !== 'all') {
     query = query.eq('type', filters.type);
   }
-  if (filters.categoryId && filters.categoryId !== 'all') {
-    query = query.eq('category_id', filters.categoryId);
+  if (filters.categoryIds && filters.categoryIds.length > 0) {
+    query = query.in('category_id', filters.categoryIds);
   }
   if (filters.bankId && filters.bankId !== 'all') {
     query = query.eq('bank_id', filters.bankId);
