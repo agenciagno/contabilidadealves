@@ -57,6 +57,8 @@ interface ColumnFilters {
   contactIds?: string[];
   eventNames?: string[];
   status?: string;
+  amounts?: number[];
+  paidAmounts?: number[];
 }
 
 // Column filter popover for date columns
