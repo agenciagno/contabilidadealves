@@ -569,7 +569,7 @@ export default function Transactions() {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [typeFilter, categoryFilter, bankFilter, searchTerm, columnFilters, sortField, sortOrder]);
+  }, [typeFilter, categoryFilters, bankFilter, searchTerm, columnFilters, sortField, sortOrder]);
 
   // Server-side paginated data
   const { transactions, totalCount, totalPages, isLoading, isFetching } = useServerTransactions(currentPage, serverFilters);
