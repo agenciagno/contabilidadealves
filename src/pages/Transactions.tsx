@@ -133,6 +133,173 @@ function TextColumnFilter({ values, selected, onChange }: { values: string[]; se
   );
 }
 
+function NumericMultiFilter({
+  label, selected, onChange, values,
+}: {
+  label: string;
+  selected: number[];
+  onChange: (v: number[]) => void;
+  values: number[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [temp, setTemp] = useState<number[]>([]);
+
+  const isActive = selected.length > 0;
+
+  const uniqueSorted = useMemo(() => {
+    const set = new Set(values);
+    return Array.from(set).sort((a, b) => a - b);
+  }, [values]);
+
+  const filtered = search
+    ? uniqueSorted.filter(v => formatCurrency(v).toLowerCase().includes(search.toLowerCase()))
+    : uniqueSorted;
+
+  const toggle = (v: number) => {
+    setTemp(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v]);
+  };
+
+  const clearAll = () => { setTemp([]); setSearch(''); };
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      setTemp(selected);
+      setSearch('');
+    } else {
+      onChange(temp);
+      setSearch('');
+    }
+    setOpen(nextOpen);
+  };
+
+  const displaySelected = open ? temp : selected;
+  const displayActive = displaySelected.length > 0;
+
+  return (
+    <div className="flex items-center justify-end gap-0.5">
+      <span>{label}</span>
+      {displayActive && (
+        <Badge variant="secondary" className="h-4 px-1 text-[9px] font-bold ml-0.5">{displaySelected.length}</Badge>
+      )}
+      <Popover open={open} onOpenChange={handleOpenChange}>
+        <PopoverTrigger asChild>
+          <button className="p-1 rounded hover:bg-muted/60 transition-colors">
+            <ColumnFilterIcon active={isActive} />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-56 p-0" align="end" onOpenAutoFocus={e => e.preventDefault()}>
+          <div className="p-2 border-b border-border/40">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar valor..." className="h-7 text-xs pl-7" autoFocus />
+            </div>
+          </div>
+          <div className="max-h-60 overflow-auto p-1">
+            {filtered.length > 0 ? filtered.map(v => (
+              <label key={v} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-xs">
+                <Checkbox checked={displaySelected.includes(v)} onCheckedChange={() => toggle(v)} className="h-3.5 w-3.5" />
+                <span className="truncate font-mono tabular-nums">{formatCurrency(v)}</span>
+              </label>
+            )) : (
+              <p className="text-xs text-muted-foreground text-center py-4">Nenhum valor</p>
+            )}
+          </div>
+          {displayActive && (
+            <div className="p-2 border-t border-border/40">
+              <Button size="sm" variant="ghost" className="w-full h-7 text-xs" onClick={clearAll}>
+                <X className="w-3 h-3 mr-1" /> Limpar ({displaySelected.length})
+              </Button>
+            </div>
+          )}
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+function CategoryMultiFilter({
+  selected, onChange, categories,
+}: {
+  selected: string[];
+  onChange: (v: string[]) => void;
+  categories: { id: string; name: string; color: string }[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [temp, setTemp] = useState<string[]>([]);
+
+  const isActive = selected.length > 0;
+
+  const filtered = search
+    ? categories.filter(c => c.name.toLowerCase().includes(search.toLowerCase()))
+    : categories;
+
+  const toggle = (id: string) => {
+    setTemp(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const clearAll = () => { setTemp([]); setSearch(''); };
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      setTemp(selected);
+      setSearch('');
+    } else {
+      onChange(temp);
+      setSearch('');
+    }
+    setOpen(nextOpen);
+  };
+
+  const displaySelected = open ? temp : selected;
+  const displayActive = displaySelected.length > 0;
+
+  return (
+    <Popover open={open} onOpenChange={handleOpenChange}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <Button variant={isActive ? 'secondary' : 'ghost'} size="icon" className="h-8 w-8 relative">
+              <Receipt className="w-4 h-4" />
+              {isActive && (
+                <Badge variant="secondary" className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-[9px] font-bold">{selected.length}</Badge>
+              )}
+            </Button>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Evento Contábil</TooltipContent>
+      </Tooltip>
+      <PopoverContent className="w-64 p-0" align="start" onOpenAutoFocus={e => e.preventDefault()}>
+        <div className="p-2 border-b border-border/40">
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar evento..." className="h-7 text-xs pl-7" autoFocus />
+          </div>
+        </div>
+        <div className="max-h-60 overflow-auto p-1">
+          {filtered.length > 0 ? filtered.map(c => (
+            <label key={c.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-xs">
+              <Checkbox checked={displaySelected.includes(c.id)} onCheckedChange={() => toggle(c.id)} className="h-3.5 w-3.5" />
+              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.color || '#3B82F6' }} />
+              <span className="truncate">{c.name}</span>
+            </label>
+          )) : (
+            <p className="text-xs text-muted-foreground text-center py-4">Nenhum resultado</p>
+          )}
+        </div>
+        {displayActive && (
+          <div className="p-2 border-t border-border/40">
+            <Button size="sm" variant="ghost" className="w-full h-7 text-xs" onClick={clearAll}>
+              <X className="w-3 h-3 mr-1" /> Limpar ({displaySelected.length})
+            </Button>
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function ColumnFilterIcon({ active }: { active: boolean }) {
   return (
     <span className="relative inline-flex items-center">
