@@ -7,7 +7,7 @@ export const PAGE_SIZE = 99;
 
 export interface ServerFilters {
   type?: string;
-  categoryId?: string;
+  categoryIds?: string[];
   bankId?: string;
   searchTerm?: string;
   columnFilters: {
@@ -18,6 +18,8 @@ export interface ServerFilters {
     contactIds?: string[];
     eventNames?: string[];
     status?: string;
+    amounts?: number[];
+    paidAmounts?: number[];
   };
   sortField: string;
   sortOrder: 'asc' | 'desc';
