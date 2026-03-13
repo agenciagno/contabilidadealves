@@ -648,6 +648,14 @@ export default function Transactions() {
     return Array.from(set).sort();
   }, [transactions]);
 
+  // Unique amounts for NumericMultiFilter
+  const uniqueAmounts = useMemo(() => transactions.map(t => Number(t.amount)), [transactions]);
+  const uniquePaidAmounts = useMemo(() => {
+    return transactions
+      .filter(t => isEffectivelyPaid(t) && t.paid_amount != null)
+      .map(t => Number(t.paid_amount));
+  }, [transactions]);
+
   const uniqueStatuses = ['Pago', 'Pendente'];
 
   const handleSubmit = async (data: TransactionInsert, pendingFiles?: File[], shouldClose?: boolean) => {
