@@ -89,7 +89,7 @@ const menuModules: MenuModule[] = [
       { title: 'Pagar/Receber', url: '/financeiro/pagar-receber', icon: ArrowUpDown, iconName: 'arrow-up-down' },
       
       { title: 'Boletos', url: '/boletos', icon: FileCheck, iconName: 'file-check' },
-      { title: 'Bancos', url: '/bancos', icon: Building2, iconName: 'building-2' },
+      { title: 'Conta Corrente', url: '/bancos', icon: Building2, iconName: 'building-2' },
       { title: 'Eventos Contábeis', url: '/categorias', icon: Tags, iconName: 'tags' },
     ],
   },
