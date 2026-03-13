@@ -1,93 +1,46 @@
 
 
-# Preview Intermediario na Importacao de Planilha
+## Plano: Expandir Filtros na Aba de Lançamentos
 
-## Resumo
+### Resumo das Alterações
 
-Adicionar um Step 3 (Preview) entre o upload e a confirmacao final. Apos o upload processar os dados, ao inves de importar diretamente, exibir uma tabela com os lancamentos lidos para o usuario revisar, com opcao de confirmar ou voltar.
+Tres mudanças no arquivo `src/pages/Transactions.tsx` e no hook `src/hooks/useServerTransactions.ts`:
 
 ---
 
-## Arquivo Modificado
+### 1. Filtros Multi-Select nos Cabeçalhos "Valor" e "Recebido"
 
-| Arquivo | Mudanca |
+- Criar componente `NumericMultiFilter` seguindo a mesma estrutura visual do `ContactEventMultiFilter`: Popover com campo de busca, checkboxes, badge de contagem e botao "Limpar".
+- Os valores unicos serao extraidos das transacoes da pagina atual (assim como `uniqueEventOptions`), formatados em BRL para exibicao.
+- Novos campos em `ColumnFilters`: `amounts?: number[]` e `paidAmounts?: number[]`.
+- Substituir os headers estaticos `<div className="text-right">Valor</div>` e `<div className="text-right">Recebido</div>` pelo novo componente.
+
+### 2. Filtro Multi-Select para "Evento Contábil" na Toolbar
+
+- Substituir o Popover simples de categorias (linhas 710-732) por um componente `CategoryMultiFilter`, estrutura identica ao `ContactEventMultiFilter`.
+- Trocar `categoryFilter` (string unica) por `categoryFilters` (array de strings) no estado.
+- Adaptar `serverFilters` para enviar array de category IDs.
+
+### 3. Integração na Query Server-Side (`useServerTransactions.ts`)
+
+- Adicionar novos campos no tipo `ServerFilters.columnFilters`: `amounts`, `paidAmounts`, `categoryIds`.
+- Em `applyFilters`:
+  - `categoryIds`: usar `.in('category_id', ids)` quando array tem itens.
+  - `amounts`: usar `.in('amount', values)` para filtrar valores exatos.
+  - `paidAmounts`: usar `.in('paid_amount', values)` para filtrar valores recebidos exatos.
+- Remover o filtro singular `categoryId` e usar o novo array.
+
+### Arquivos Alterados
+
+| Arquivo | Tipo de Mudança |
 |---|---|
-| `src/components/transactions/ImportSpreadsheetDialog.tsx` | Adicionar step 3 com tabela de preview, separar parsing de importacao |
+| `src/pages/Transactions.tsx` | Novos componentes de filtro, estado e integracao |
+| `src/hooks/useServerTransactions.ts` | Novos campos em ServerFilters, logica de query |
 
----
+### Detalhes Técnicos
 
-## Mudancas Detalhadas
-
-### 1. Novo estado para armazenar dados parseados
-
-```typescript
-const [parsedData, setParsedData] = useState<TransactionInsert[]>([]);
-```
-
-### 2. Alterar `processFile` para nao importar direto
-
-Em vez de chamar `onImport(transactions)` ao final do parsing, salvar em `setParsedData(transactions)` e avancar para `setStep(3)`.
-
-### 3. Step indicator com 3 passos
-
-Adicionar terceiro circulo "Revisar" no indicador de progresso (Modelo -> Upload -> Revisar).
-
-### 4. Step 3: Tabela de Preview
-
-- Dialog expandido para `sm:max-w-4xl` quando no step 3
-- Contador: "X lancamento(s) encontrado(s)"
-- Tabela com ScrollArea (max-height ~400px) contendo colunas:
-  - Data | Cliente | Tipo | Valor | Status | Vencimento | Banco | Categoria
-- Cada linha mostra dados legivel (data formatada dd/MM/yyyy, valor em R$, tipo como badge colorido Receita/Despesa, status como badge Pago/Pendente)
-- Lookup reverso de bank_id/category_id/contact_id para exibir nomes (ou "---" se nao vinculado)
-- Botoes: "Voltar" (ghost, volta ao step 2) e "Confirmar Importacao" (primary, chama onImport)
-- Ao confirmar: spinner de "Importando..." e fluxo existente de toast + fechar modal
-
-### 5. Ajuste no resetState
-
-Incluir `setParsedData([])` no reset.
-
-### 6. DialogDescription dinâmica
-
-Step 3 exibe: "Revise os dados antes de confirmar"
-
----
-
-## Secao Tecnica
-
-### Lookup reverso para exibicao
-
-Para mostrar nomes na tabela de preview ao inves de IDs:
-
-```typescript
-const bankName = (id: string | null) => banks.find(b => b.id === id)?.name ?? '—';
-const categoryName = (id: string | null) => categories.find(c => c.id === id)?.name ?? '—';
-const contactName = (id: string | null) => contacts.find(c => c.id === id)?.name ?? '—';
-```
-
-### Formatacao na tabela
-
-```typescript
-// Data: format(parseISO(row.date), 'dd/MM/yyyy')
-// Valor: row.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-// Tipo: Badge verde "Receita" ou vermelho "Despesa"
-// Status: Badge "Pago" ou "Pendente"
-```
-
-### Handler de confirmacao
-
-```typescript
-const handleConfirmImport = async () => {
-  setIsProcessing(true);
-  try {
-    await onImport(parsedData);
-    toast({ title: `${parsedData.length} lançamento(s) importado(s) com sucesso!` });
-    handleClose(false);
-  } catch (err) {
-    toast({ title: 'Erro ao importar.', variant: 'destructive' });
-  } finally {
-    setIsProcessing(false);
-  }
-};
-```
+- O componente `NumericMultiFilter` usa `useState` local + `useRef` pattern (igual ao `ContactEventMultiFilter`) para evitar fechamento do Popover durante selecao.
+- Valores numericos sao comparados como `number` mas exibidos formatados como moeda.
+- O filtro de categorias multi-select usa `Checkbox` do Radix, busca por texto e exibe cor da categoria.
+- Nenhuma migration de banco necessaria — apenas filtragem com operadores existentes do Supabase.
 
