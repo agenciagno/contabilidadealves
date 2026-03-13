@@ -7,7 +7,7 @@ export const PAGE_SIZE = 99;
 
 export interface ServerFilters {
   type?: string;
-  categoryId?: string;
+  categoryIds?: string[];
   bankId?: string;
   searchTerm?: string;
   columnFilters: {
@@ -18,6 +18,8 @@ export interface ServerFilters {
     contactIds?: string[];
     eventNames?: string[];
     status?: string;
+    amounts?: number[];
+    paidAmounts?: number[];
   };
   sortField: string;
   sortOrder: 'asc' | 'desc';
@@ -30,8 +32,8 @@ function applyFilters(
   if (filters.type && filters.type !== 'all') {
     query = query.eq('type', filters.type);
   }
-  if (filters.categoryId && filters.categoryId !== 'all') {
-    query = query.eq('category_id', filters.categoryId);
+  if (filters.categoryIds && filters.categoryIds.length > 0) {
+    query = query.in('category_id', filters.categoryIds);
   }
   if (filters.bankId && filters.bankId !== 'all') {
     query = query.eq('bank_id', filters.bankId);
@@ -51,6 +53,14 @@ function applyFilters(
   if (cf.expected_date?.end) query = query.lte('expected_date', cf.expected_date.end);
   if (cf.date?.start) query = query.gte('date', cf.date.start);
   if (cf.date?.end) query = query.lte('date', cf.date.end);
+
+  // Amount filters
+  if (cf.amounts && cf.amounts.length > 0) {
+    query = query.in('amount', cf.amounts);
+  }
+  if (cf.paidAmounts && cf.paidAmounts.length > 0) {
+    query = query.in('paid_amount', cf.paidAmounts);
+  }
 
   // Contact multi-select + event names with OR logic
   const hasContacts = cf.contactIds && cf.contactIds.length > 0;

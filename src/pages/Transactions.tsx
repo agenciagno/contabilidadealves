@@ -57,6 +57,8 @@ interface ColumnFilters {
   contactIds?: string[];
   eventNames?: string[];
   status?: string;
+  amounts?: number[];
+  paidAmounts?: number[];
 }
 
 // Column filter popover for date columns
@@ -128,6 +130,173 @@ function TextColumnFilter({ values, selected, onChange }: { values: string[]; se
         </button>
       ))}
     </div>
+  );
+}
+
+function NumericMultiFilter({
+  label, selected, onChange, values,
+}: {
+  label: string;
+  selected: number[];
+  onChange: (v: number[]) => void;
+  values: number[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [temp, setTemp] = useState<number[]>([]);
+
+  const isActive = selected.length > 0;
+
+  const uniqueSorted = useMemo(() => {
+    const set = new Set(values);
+    return Array.from(set).sort((a, b) => a - b);
+  }, [values]);
+
+  const filtered = search
+    ? uniqueSorted.filter(v => formatCurrency(v).toLowerCase().includes(search.toLowerCase()))
+    : uniqueSorted;
+
+  const toggle = (v: number) => {
+    setTemp(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v]);
+  };
+
+  const clearAll = () => { setTemp([]); setSearch(''); };
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      setTemp(selected);
+      setSearch('');
+    } else {
+      onChange(temp);
+      setSearch('');
+    }
+    setOpen(nextOpen);
+  };
+
+  const displaySelected = open ? temp : selected;
+  const displayActive = displaySelected.length > 0;
+
+  return (
+    <div className="flex items-center justify-end gap-0.5">
+      <span>{label}</span>
+      {displayActive && (
+        <Badge variant="secondary" className="h-4 px-1 text-[9px] font-bold ml-0.5">{displaySelected.length}</Badge>
+      )}
+      <Popover open={open} onOpenChange={handleOpenChange}>
+        <PopoverTrigger asChild>
+          <button className="p-1 rounded hover:bg-muted/60 transition-colors">
+            <ColumnFilterIcon active={isActive} />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-56 p-0" align="end" onOpenAutoFocus={e => e.preventDefault()}>
+          <div className="p-2 border-b border-border/40">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar valor..." className="h-7 text-xs pl-7" autoFocus />
+            </div>
+          </div>
+          <div className="max-h-60 overflow-auto p-1">
+            {filtered.length > 0 ? filtered.map(v => (
+              <label key={v} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-xs">
+                <Checkbox checked={displaySelected.includes(v)} onCheckedChange={() => toggle(v)} className="h-3.5 w-3.5" />
+                <span className="truncate font-mono tabular-nums">{formatCurrency(v)}</span>
+              </label>
+            )) : (
+              <p className="text-xs text-muted-foreground text-center py-4">Nenhum valor</p>
+            )}
+          </div>
+          {displayActive && (
+            <div className="p-2 border-t border-border/40">
+              <Button size="sm" variant="ghost" className="w-full h-7 text-xs" onClick={clearAll}>
+                <X className="w-3 h-3 mr-1" /> Limpar ({displaySelected.length})
+              </Button>
+            </div>
+          )}
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+function CategoryMultiFilter({
+  selected, onChange, categories,
+}: {
+  selected: string[];
+  onChange: (v: string[]) => void;
+  categories: { id: string; name: string; color: string }[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [temp, setTemp] = useState<string[]>([]);
+
+  const isActive = selected.length > 0;
+
+  const filtered = search
+    ? categories.filter(c => c.name.toLowerCase().includes(search.toLowerCase()))
+    : categories;
+
+  const toggle = (id: string) => {
+    setTemp(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const clearAll = () => { setTemp([]); setSearch(''); };
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      setTemp(selected);
+      setSearch('');
+    } else {
+      onChange(temp);
+      setSearch('');
+    }
+    setOpen(nextOpen);
+  };
+
+  const displaySelected = open ? temp : selected;
+  const displayActive = displaySelected.length > 0;
+
+  return (
+    <Popover open={open} onOpenChange={handleOpenChange}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <Button variant={isActive ? 'secondary' : 'ghost'} size="icon" className="h-8 w-8 relative">
+              <Receipt className="w-4 h-4" />
+              {isActive && (
+                <Badge variant="secondary" className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-[9px] font-bold">{selected.length}</Badge>
+              )}
+            </Button>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Evento Contábil</TooltipContent>
+      </Tooltip>
+      <PopoverContent className="w-64 p-0" align="start" onOpenAutoFocus={e => e.preventDefault()}>
+        <div className="p-2 border-b border-border/40">
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar evento..." className="h-7 text-xs pl-7" autoFocus />
+          </div>
+        </div>
+        <div className="max-h-60 overflow-auto p-1">
+          {filtered.length > 0 ? filtered.map(c => (
+            <label key={c.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-xs">
+              <Checkbox checked={displaySelected.includes(c.id)} onCheckedChange={() => toggle(c.id)} className="h-3.5 w-3.5" />
+              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.color || '#3B82F6' }} />
+              <span className="truncate">{c.name}</span>
+            </label>
+          )) : (
+            <p className="text-xs text-muted-foreground text-center py-4">Nenhum resultado</p>
+          )}
+        </div>
+        {displayActive && (
+          <div className="p-2 border-t border-border/40">
+            <Button size="sm" variant="ghost" className="w-full h-7 text-xs" onClick={clearAll}>
+              <X className="w-3 h-3 mr-1" /> Limpar ({displaySelected.length})
+            </Button>
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -376,7 +545,7 @@ function PaginationControls({ currentPage, totalPages, totalCount, onPageChange,
 
 export default function Transactions() {
   const [typeFilter, setTypeFilter] = useState('all');
-  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [categoryFilters, setCategoryFilters] = useState<string[]>([]);
   const [bankFilter, setBankFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -389,18 +558,18 @@ export default function Transactions() {
   // Build server filters object
   const serverFilters: ServerFilters = useMemo(() => ({
     type: typeFilter,
-    categoryId: categoryFilter,
+    categoryIds: categoryFilters.length > 0 ? categoryFilters : undefined,
     bankId: bankFilter,
     searchTerm: searchTerm || undefined,
     columnFilters,
     sortField,
     sortOrder,
-  }), [typeFilter, categoryFilter, bankFilter, searchTerm, columnFilters, sortField, sortOrder]);
+  }), [typeFilter, categoryFilters, bankFilter, searchTerm, columnFilters, sortField, sortOrder]);
 
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [typeFilter, categoryFilter, bankFilter, searchTerm, columnFilters, sortField, sortOrder]);
+  }, [typeFilter, categoryFilters, bankFilter, searchTerm, columnFilters, sortField, sortOrder]);
 
   // Server-side paginated data
   const { transactions, totalCount, totalPages, isLoading, isFetching } = useServerTransactions(currentPage, serverFilters);
@@ -477,6 +646,14 @@ export default function Transactions() {
       if (!t.contact_id) set.add(t.description);
     }
     return Array.from(set).sort();
+  }, [transactions]);
+
+  // Unique amounts for NumericMultiFilter
+  const uniqueAmounts = useMemo(() => transactions.map(t => Number(t.amount)), [transactions]);
+  const uniquePaidAmounts = useMemo(() => {
+    return transactions
+      .filter(t => isEffectivelyPaid(t) && t.paid_amount != null)
+      .map(t => Number(t.paid_amount));
   }, [transactions]);
 
   const uniqueStatuses = ['Pago', 'Pendente'];
@@ -707,29 +884,11 @@ export default function Transactions() {
             </PopoverContent>
           </Popover>
 
-          <Popover>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <PopoverTrigger asChild>
-                  <Button variant={categoryFilter !== 'all' ? 'secondary' : 'ghost'} size="icon" className="h-8 w-8">
-                    <Receipt className="w-4 h-4" />
-                  </Button>
-                </PopoverTrigger>
-              </TooltipTrigger>
-              <TooltipContent>Evento Contábil</TooltipContent>
-            </Tooltip>
-            <PopoverContent className="w-48 p-2" align="start">
-              <div className="space-y-1 max-h-60 overflow-auto">
-                <button onClick={() => setCategoryFilter('all')} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted ${categoryFilter === 'all' ? 'bg-primary/10 text-primary font-medium' : ''}`}>Todos</button>
-                {categories.map(c => (
-                  <button key={c.id} onClick={() => setCategoryFilter(c.id)} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted flex items-center gap-2 ${categoryFilter === c.id ? 'bg-primary/10 text-primary font-medium' : ''}`}>
-                    <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.color || '#3B82F6' }} />
-                    {c.name}
-                  </button>
-                ))}
-              </div>
-            </PopoverContent>
-          </Popover>
+          <CategoryMultiFilter
+            selected={categoryFilters}
+            onChange={setCategoryFilters}
+            categories={categories.map(c => ({ id: c.id, name: c.name, color: c.color || '#3B82F6' }))}
+          />
 
           <Popover>
             <Tooltip>
@@ -843,8 +1002,18 @@ export default function Transactions() {
                   </Popover>
                 </div>
 
-                <div className="text-right">Valor</div>
-                <div className="text-right">Recebido</div>
+                <NumericMultiFilter
+                  label="Valor"
+                  selected={columnFilters.amounts || []}
+                  onChange={v => updateColumnFilter('amounts', v.length > 0 ? v : undefined)}
+                  values={uniqueAmounts}
+                />
+                <NumericMultiFilter
+                  label="Recebido"
+                  selected={columnFilters.paidAmounts || []}
+                  onChange={v => updateColumnFilter('paidAmounts', v.length > 0 ? v : undefined)}
+                  values={uniquePaidAmounts}
+                />
                 <div className="text-center">Ações</div>
               </div>
 
