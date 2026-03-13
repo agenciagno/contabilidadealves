@@ -1002,8 +1002,18 @@ export default function Transactions() {
                   </Popover>
                 </div>
 
-                <div className="text-right">Valor</div>
-                <div className="text-right">Recebido</div>
+                <NumericMultiFilter
+                  label="Valor"
+                  selected={columnFilters.amounts || []}
+                  onChange={v => updateColumnFilter('amounts', v.length > 0 ? v : undefined)}
+                  values={uniqueAmounts}
+                />
+                <NumericMultiFilter
+                  label="Recebido"
+                  selected={columnFilters.paidAmounts || []}
+                  onChange={v => updateColumnFilter('paidAmounts', v.length > 0 ? v : undefined)}
+                  values={uniquePaidAmounts}
+                />
                 <div className="text-center">Ações</div>
               </div>
 
