@@ -25,8 +25,8 @@ export default function Banks() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
 
-  const activeBanks = banks.filter(b => b.is_active);
-  const inactiveBanks = banks.filter(b => !b.is_active);
+  const activeBanks = banks.filter((b) => b.is_active);
+  const inactiveBanks = banks.filter((b) => !b.is_active);
   const totalBalance = activeBanks.reduce((sum, b) => sum + Number(b.current_balance), 0);
 
   const handleSubmit = (data: {
@@ -41,7 +41,7 @@ export default function Banks() {
   }) => {
     if (editingBank) {
       updateBank.mutate({ id: editingBank.id, ...data }, {
-        onSuccess: () => { setDialogOpen(false); setEditingBank(null); }
+        onSuccess: () => {setDialogOpen(false);setEditingBank(null);}
       });
     } else {
       createBank.mutate(data, { onSuccess: () => setDialogOpen(false) });
@@ -70,18 +70,18 @@ export default function Banks() {
     setDetailOpen(true);
   };
 
-  const BankCard = ({ bank }: { bank: Bank }) => (
-    <Card
-      className="bg-card border-border/50 hover:border-primary/40 hover:shadow-md transition-all cursor-pointer group"
-      onClick={() => handleBankCardClick(bank)}
-    >
+  const BankCard = ({ bank }: {bank: Bank;}) =>
+  <Card
+    className="bg-card border-border/50 hover:border-primary/40 hover:shadow-md transition-all cursor-pointer group"
+    onClick={() => handleBankCardClick(bank)}>
+    
       <CardContent className="p-4">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
             <div
-              className="w-12 h-12 rounded-xl flex items-center justify-center"
-              style={{ backgroundColor: bank.color + '20' }}
-            >
+            className="w-12 h-12 rounded-xl flex items-center justify-center"
+            style={{ backgroundColor: bank.color + '20' }}>
+            
               <Building2 className="w-6 h-6" style={{ color: bank.color }} />
             </div>
             <div>
@@ -89,11 +89,11 @@ export default function Banks() {
                 <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">{bank.name}</h3>
                 {!bank.is_active && <Badge variant="secondary" className="text-xs">Inativa</Badge>}
               </div>
-              {(bank.bank_code || bank.agency || bank.account_number) && (
-                <p className="text-sm text-muted-foreground">
+              {(bank.bank_code || bank.agency || bank.account_number) &&
+            <p className="text-sm text-muted-foreground">
                   {[bank.bank_code, bank.agency, bank.account_number].filter(Boolean).join(' • ')}
                 </p>
-              )}
+            }
             </div>
           </div>
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -115,8 +115,8 @@ export default function Banks() {
           <p className="text-xs text-muted-foreground mt-1">Clique para ver o extrato</p>
         </div>
       </CardContent>
-    </Card>
-  );
+    </Card>;
+
 
   if (isLoading) {
     return (
@@ -136,8 +136,8 @@ export default function Banks() {
           <Skeleton className="h-40" />
           <Skeleton className="h-40" />
         </div>
-      </div>
-    );
+      </div>);
+
   }
 
   return (
@@ -145,15 +145,15 @@ export default function Banks() {
       {/* Top bar */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Gestão de Contas</h1>
-          <p className="text-muted-foreground">Organize suas contas bancárias</p>
+          <h1 className="text-2xl font-bold text-foreground">Conta Corrente </h1>
+          <p className="text-muted-foreground">Organize suas contas corrente</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" className="gap-2" onClick={() => setReportOpen(true)}>
             <FileBarChart2 className="w-4 h-4" />
             Gerar Relatório
           </Button>
-          <Button className="gap-2" onClick={() => { setEditingBank(null); setDialogOpen(true); }}>
+          <Button className="gap-2" onClick={() => {setEditingBank(null);setDialogOpen(true);}}>
             <Plus className="w-4 h-4" />
             Novo Banco
           </Button>
@@ -178,34 +178,34 @@ export default function Banks() {
       </Card>
 
       {/* Active Banks */}
-      {activeBanks.length > 0 && (
-        <div>
+      {activeBanks.length > 0 &&
+      <div>
           <h2 className="text-lg font-semibold text-foreground mb-4">Contas Ativas ({activeBanks.length})</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {activeBanks.map(bank => <BankCard key={bank.id} bank={bank} />)}
+            {activeBanks.map((bank) => <BankCard key={bank.id} bank={bank} />)}
           </div>
         </div>
-      )}
+      }
 
       {/* Inactive Banks */}
-      {inactiveBanks.length > 0 && (
-        <div>
+      {inactiveBanks.length > 0 &&
+      <div>
           <h2 className="text-lg font-semibold text-muted-foreground mb-4">Contas Inativas ({inactiveBanks.length})</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {inactiveBanks.map(bank => <BankCard key={bank.id} bank={bank} />)}
+            {inactiveBanks.map((bank) => <BankCard key={bank.id} bank={bank} />)}
           </div>
         </div>
-      )}
+      }
 
-      {banks.length === 0 && (
-        <Card className="bg-card border-border/50">
+      {banks.length === 0 &&
+      <Card className="bg-card border-border/50">
           <CardContent className="text-muted-foreground text-center py-16">
             <Building2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
             <p>Nenhuma conta cadastrada</p>
             <p className="text-sm mt-1">Clique em "Novo Banco" para adicionar sua primeira conta</p>
           </CardContent>
         </Card>
-      )}
+      }
 
       {/* Unified Statement Accordion */}
       {banks.length > 0 && <UnifiedStatementAccordion banks={banks} />}
@@ -216,20 +216,20 @@ export default function Banks() {
         onOpenChange={setDialogOpen}
         bank={editingBank}
         onSubmit={handleSubmit}
-        isLoading={createBank.isPending || updateBank.isPending}
-      />
+        isLoading={createBank.isPending || updateBank.isPending} />
+      
 
       <BankDetailSheet
         bank={detailBank}
         open={detailOpen}
-        onOpenChange={setDetailOpen}
-      />
+        onOpenChange={setDetailOpen} />
+      
 
       <BankReportModal
         open={reportOpen}
         onOpenChange={setReportOpen}
-        banks={banks}
-      />
+        banks={banks} />
+      
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
@@ -247,6 +247,6 @@ export default function Banks() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
-  );
+    </div>);
+
 }
