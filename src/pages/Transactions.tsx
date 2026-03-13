@@ -558,13 +558,13 @@ export default function Transactions() {
   // Build server filters object
   const serverFilters: ServerFilters = useMemo(() => ({
     type: typeFilter,
-    categoryId: categoryFilter,
+    categoryIds: categoryFilters.length > 0 ? categoryFilters : undefined,
     bankId: bankFilter,
     searchTerm: searchTerm || undefined,
     columnFilters,
     sortField,
     sortOrder,
-  }), [typeFilter, categoryFilter, bankFilter, searchTerm, columnFilters, sortField, sortOrder]);
+  }), [typeFilter, categoryFilters, bankFilter, searchTerm, columnFilters, sortField, sortOrder]);
 
   // Reset page when filters change
   useEffect(() => {
