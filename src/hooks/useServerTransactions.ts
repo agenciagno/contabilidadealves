@@ -54,6 +54,14 @@ function applyFilters(
   if (cf.date?.start) query = query.gte('date', cf.date.start);
   if (cf.date?.end) query = query.lte('date', cf.date.end);
 
+  // Amount filters
+  if (cf.amounts && cf.amounts.length > 0) {
+    query = query.in('amount', cf.amounts);
+  }
+  if (cf.paidAmounts && cf.paidAmounts.length > 0) {
+    query = query.in('paid_amount', cf.paidAmounts);
+  }
+
   // Contact multi-select + event names with OR logic
   const hasContacts = cf.contactIds && cf.contactIds.length > 0;
   const hasEvents = cf.eventNames && cf.eventNames.length > 0;
