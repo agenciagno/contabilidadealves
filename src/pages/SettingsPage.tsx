@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Separator } from '@/components/ui/separator';
-import { Moon, Sun, Monitor, Loader2, Upload, Building2, Palette, Check, Lightbulb, Trash2, History, Users, Building, Shield, Mail, User as UserIcon, AlertCircle } from 'lucide-react';
+import { Moon, Sun, Monitor, Loader2, Upload, Building2, Palette, Check, Lightbulb, Trash2, History, Users, Building, Shield, Mail, User as UserIcon, AlertCircle, Database } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -15,6 +15,7 @@ import UsersTab from '@/components/users/UsersTab';
 import GlobalLogsTab from '@/components/settings/GlobalLogsTab';
 import ClientCompaniesTab from '@/components/settings/ClientCompaniesTab';
 import TrashTab from '@/components/settings/TrashTab';
+import BackupTab from '@/components/settings/BackupTab';
 import { useSuperAdmin } from '@/hooks/useSuperAdmin';
 import { useProfile } from '@/hooks/useProfile';
 
@@ -296,6 +297,10 @@ export default function SettingsPage() {
             <Trash2 className="w-4 h-4" />
             Lixeira
           </TabsTrigger>
+          <TabsTrigger value="backup" className="gap-1.5">
+            <Database className="w-4 h-4" />
+            Backup
+          </TabsTrigger>
         </TabsList>
 
         {/* ═══════════ ABA 1: PERFIL & CONTA ═══════════ */}
@@ -556,6 +561,11 @@ export default function SettingsPage() {
         {/* ═══════════ ABA 5: LIXEIRA ═══════════ */}
         <TabsContent value="lixeira" className="mt-0">
           <TrashTab />
+        </TabsContent>
+
+        {/* ═══════════ ABA 6: BACKUP ═══════════ */}
+        <TabsContent value="backup" className="mt-0">
+          <BackupTab />
         </TabsContent>
       </Tabs>
     </div>
