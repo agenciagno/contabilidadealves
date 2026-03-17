@@ -116,9 +116,16 @@ export function TransactionFormDialog({
       setContactId(transaction.contact_id || '');
       setNotes(transaction.notes || '');
       setPendingFiles([]);
-    } else {
+    } else if (!transaction && open && !resetKey) {
+      // Only reset type/paymentCondition when dialog first opens (not on resetKey changes)
       setType(defaultType);
       setPaymentCondition('a_vista');
+      setAmount(''); setPaidAmount('');
+      setDate(''); setIssueDate(todayStr); setDueDate(''); setExpectedDate('');
+      setCategoryId(''); setBankId(''); setContactId('');
+      setNotes(''); setPendingFiles([]);
+    } else if (!transaction && resetKey) {
+      // resetKey changed (after "Salvar") — clear data but preserve type/paymentCondition
       setAmount(''); setPaidAmount('');
       setDate(''); setIssueDate(todayStr); setDueDate(''); setExpectedDate('');
       setCategoryId(''); setBankId(''); setContactId('');

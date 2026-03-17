@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Pencil, Trash2, Tag } from 'lucide-react';
+import { Plus, Pencil, Trash2, Tag, TrendingUp, TrendingDown } from 'lucide-react';
 import { useCategories, Category } from '@/hooks/useCategories';
 import { CategoryFormDialog } from '@/components/categories/CategoryFormDialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 export default function Categories() {
   const {
@@ -18,8 +19,10 @@ export default function Categories() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'receita' | 'despesa'>('receita');
 
-  const sortedCategories = [...categories].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  const receitaCategories = [...categories].filter(c => c.type === 'receita').sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  const despesaCategories = [...categories].filter(c => c.type === 'despesa').sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 
   const handleSubmit = (data: {
     name: string;
@@ -46,6 +49,11 @@ export default function Categories() {
 
   const handleEdit = (category: Category) => {
     setEditingCategory(category);
+    setDialogOpen(true);
+  };
+
+  const handleNewCategory = () => {
+    setEditingCategory(null);
     setDialogOpen(true);
   };
 
@@ -76,6 +84,15 @@ export default function Categories() {
     </div>
   );
 
+  const renderCategoryList = (items: Category[]) => (
+    <div className="space-y-2">
+      {items.length === 0
+        ? <p className="text-muted-foreground text-center py-8">Nenhum evento contábil cadastrado</p>
+        : items.map(cat => <CategoryCard key={cat.id} category={cat} />)
+      }
+    </div>
+  );
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -94,10 +111,7 @@ export default function Categories() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Eventos Contábeis</h1>
         </div>
-        <Button className="gap-2" onClick={() => {
-          setEditingCategory(null);
-          setDialogOpen(true);
-        }}>
+        <Button className="gap-2" onClick={handleNewCategory}>
           <Plus className="w-4 h-4" />
           Novo Evento Contábil
         </Button>
@@ -105,17 +119,26 @@ export default function Categories() {
 
       <Card className="bg-card border-border/50">
         <CardContent className="p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Tag className="w-5 h-5 text-muted-foreground" />
-            <h2 className="text-lg font-semibold text-foreground">Todos os Eventos</h2>
-            <span className="text-sm text-muted-foreground">({sortedCategories.length})</span>
-          </div>
-          <div className="space-y-2">
-            {sortedCategories.length === 0
-              ? <p className="text-muted-foreground text-center py-8">Nenhum evento contábil cadastrado</p>
-              : sortedCategories.map(cat => <CategoryCard key={cat.id} category={cat} />)
-            }
-          </div>
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'receita' | 'despesa')}>
+            <TabsList className="w-full h-10 mb-4">
+              <TabsTrigger value="receita" className="flex-1 gap-2">
+                <TrendingUp className="w-4 h-4" />
+                Eventos de Receita
+                <span className="text-xs text-muted-foreground">({receitaCategories.length})</span>
+              </TabsTrigger>
+              <TabsTrigger value="despesa" className="flex-1 gap-2">
+                <TrendingDown className="w-4 h-4" />
+                Eventos de Despesa
+                <span className="text-xs text-muted-foreground">({despesaCategories.length})</span>
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="receita">
+              {renderCategoryList(receitaCategories)}
+            </TabsContent>
+            <TabsContent value="despesa">
+              {renderCategoryList(despesaCategories)}
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 
@@ -125,6 +148,7 @@ export default function Categories() {
         category={editingCategory}
         onSubmit={handleSubmit}
         isLoading={createCategory.isPending || updateCategory.isPending}
+        defaultType={activeTab}
       />
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>

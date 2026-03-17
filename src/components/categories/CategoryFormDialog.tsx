@@ -3,6 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TrendingUp, TrendingDown } from 'lucide-react';
 import { Category } from '@/hooks/useCategories';
 
 interface CategoryFormDialogProps {
@@ -11,22 +13,26 @@ interface CategoryFormDialogProps {
   category?: Category | null;
   onSubmit: (data: { name: string; type: 'receita' | 'despesa'; color: string; icon: string }) => void;
   isLoading?: boolean;
+  defaultType?: 'receita' | 'despesa';
 }
 
-export function CategoryFormDialog({ open, onOpenChange, category, onSubmit, isLoading }: CategoryFormDialogProps) {
+export function CategoryFormDialog({ open, onOpenChange, category, onSubmit, isLoading, defaultType = 'receita' }: CategoryFormDialogProps) {
   const [name, setName] = useState('');
+  const [type, setType] = useState<'receita' | 'despesa'>(defaultType);
 
   useEffect(() => {
     if (category) {
       setName(category.name);
+      setType((category.type as 'receita' | 'despesa') || defaultType);
     } else {
       setName('');
+      setType(defaultType);
     }
-  }, [category, open]);
+  }, [category, open, defaultType]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({ name, type: 'receita', color: '#3B82F6', icon: 'tag' });
+    onSubmit({ name, type, color: '#3B82F6', icon: 'tag' });
   };
 
   return (
@@ -36,6 +42,20 @@ export function CategoryFormDialog({ open, onOpenChange, category, onSubmit, isL
           <DialogTitle>{category ? 'Editar Evento Contábil' : 'Novo Evento Contábil'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label>Tipo</Label>
+            <Tabs value={type} onValueChange={(v) => setType(v as 'receita' | 'despesa')}>
+              <TabsList className="w-full h-9">
+                <TabsTrigger value="receita" className="flex-1 gap-1.5 text-xs h-7">
+                  <TrendingUp className="w-3.5 h-3.5" /> Receita
+                </TabsTrigger>
+                <TabsTrigger value="despesa" className="flex-1 gap-1.5 text-xs h-7">
+                  <TrendingDown className="w-3.5 h-3.5" /> Despesa
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="name">Nome</Label>
             <Input
