@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { FileText, Table2, Image, TrendingUp, TrendingDown, Wallet, X, Printer } from 'lucide-react';
+import { FileText, Table2, Image, TrendingUp, TrendingDown, Building2, Wallet, X, Printer } from 'lucide-react';
 import { useCompany } from '@/hooks/useCompany';
 import { format, parseISO, isWithinInterval } from 'date-fns';
 import jsPDF from 'jspdf';
@@ -68,7 +68,6 @@ export function CashFlowReportModal({
   const [categoryId, setCategoryId] = useState('all');
   const [contactId, setContactId] = useState('all');
 
-  // Inherit filters when modal opens
   useEffect(() => {
     if (open) {
       setStartDate(initialStartDate);
@@ -92,30 +91,44 @@ export function CashFlowReportModal({
 
   const clearDates = () => { setStartDate(''); setEndDate(''); };
 
-  // Filter transactions
+  const activeBanks = useMemo(() => banks.filter(b => b.is_active), [banks]);
+  const totalBankBalance = useMemo(() => activeBanks.reduce((s, b) => s + Number(b.current_balance), 0), [activeBanks]);
+
+  // Filter: same strict rule as CashFlowTab — only !is_paid && expected_date not null
   const filteredRows = useMemo(() => {
-    let result = transactions.filter(t => !t.is_paid);
+    let result = transactions.filter(t => !t.is_paid && t.expected_date);
 
     if (startDate && endDate) {
-      const start = parseISO(startDate);
-      const end = parseISO(endDate);
-      end.setHours(23, 59, 59, 999);
+      const s = parseISO(startDate);
+      const e = parseISO(endDate);
+      e.setHours(23, 59, 59, 999);
       result = result.filter(t => {
-        const dateKey = t.due_date || t.issue_date;
+        const dateKey = t.expected_date;
         if (!dateKey) return false;
         const d = parseISO(dateKey);
-        return isWithinInterval(d, { start, end });
+        return isWithinInterval(d, { start: s, end: e });
       });
     }
 
     if (categoryId !== 'all') result = result.filter(t => t.category_id === categoryId);
     if (contactId !== 'all') result = result.filter(t => t.contact_id === contactId);
 
-    result.sort((a, b) => (a.due_date || a.issue_date || '').localeCompare(b.due_date || b.issue_date || ''));
+    result.sort((a, b) => (a.expected_date || '').localeCompare(b.expected_date || ''));
     return result;
   }, [transactions, startDate, endDate, categoryId, contactId]);
 
-  // KPIs
+  // Running balance rows
+  const rowsWithBalance = useMemo(() => {
+    let saldo = totalBankBalance;
+    return filteredRows.map(t => {
+      const amt = Number(t.amount);
+      if (t.type === 'receita') saldo += amt;
+      else saldo -= amt;
+      return { ...t, saldoAtual: saldo };
+    });
+  }, [filteredRows, totalBankBalance]);
+
+  // KPIs matching main screen: Capital de Giro, Entradas, Saídas, Saldos Atuais
   const kpis = useMemo(() => {
     let entradas = 0, saidas = 0;
     for (const t of filteredRows) {
@@ -123,9 +136,9 @@ export function CashFlowReportModal({
       if (t.type === 'receita') entradas += amt;
       else saidas += amt;
     }
-    const totalBankBalance = banks.filter(b => b.is_active).reduce((s, b) => s + Number(b.current_balance), 0);
-    return { entradas, saidas, saldoProjetado: totalBankBalance + entradas - saidas };
-  }, [filteredRows, banks]);
+    const capitalDeGiro = rowsWithBalance.length > 0 ? rowsWithBalance[rowsWithBalance.length - 1].saldoAtual : totalBankBalance;
+    return { entradas, saidas, capitalDeGiro, totalBankBalance };
+  }, [filteredRows, rowsWithBalance, totalBankBalance]);
 
   // ─── PDF Export ───────────────────────────────────────────────────
   const exportPDF = () => {
@@ -152,37 +165,50 @@ export function CashFlowReportModal({
     doc.text(`Evento Contábil: ${categoryLabel}`, 14, 45);
     doc.text(`Cliente/Fornecedor: ${contactLabel}`, 14, 50);
 
-    const cardW = 80;
+    // 4 KPI cards
+    const cardW = 63;
     const cardH = 14;
     const cardY = 56;
     const gap = 2;
+    const padX = 3;
+    const labelOffsetY = 6;
+    const valueOffsetY = 12;
     const col1X = 14;
     const col2X = col1X + cardW + gap;
     const col3X = col2X + cardW + gap;
-    const labelOffsetY = 6;
-    const valueOffsetY = 12;
-    const padX = 3;
+    const col4X = col3X + cardW + gap;
 
-    doc.setFillColor(240, 255, 244);
-    doc.roundedRect(col1X, cardY, cardW, cardH, 2, 2, 'F');
-    doc.setFontSize(6); doc.setFont('helvetica', 'normal'); doc.setTextColor(21, 128, 61);
-    doc.text('Entradas Pendentes', col1X + padX, cardY + labelOffsetY);
-    doc.setFontSize(8); doc.setFont('helvetica', 'bold');
-    doc.text(`+${formatCurrency(kpis.entradas)}`, col1X + padX, cardY + valueOffsetY);
-
-    doc.setFillColor(255, 245, 245);
-    doc.roundedRect(col2X, cardY, cardW, cardH, 2, 2, 'F');
-    doc.setFontSize(6); doc.setFont('helvetica', 'normal'); doc.setTextColor(220, 38, 38);
-    doc.text('Saídas Pendentes', col2X + padX, cardY + labelOffsetY);
-    doc.setFontSize(8); doc.setFont('helvetica', 'bold');
-    doc.text(`-${formatCurrency(kpis.saidas)}`, col2X + padX, cardY + valueOffsetY);
-
+    // Capital de Giro
     doc.setFillColor(239, 246, 255);
-    doc.roundedRect(col3X, cardY, cardW, cardH, 2, 2, 'F');
+    doc.roundedRect(col1X, cardY, cardW, cardH, 2, 2, 'F');
     doc.setFontSize(6); doc.setFont('helvetica', 'normal'); doc.setTextColor(29, 78, 216);
-    doc.text('Saldo Projetado', col3X + padX, cardY + labelOffsetY);
+    doc.text('Capital de Giro', col1X + padX, cardY + labelOffsetY);
     doc.setFontSize(8); doc.setFont('helvetica', 'bold');
-    doc.text(formatCurrency(kpis.saldoProjetado), col3X + padX, cardY + valueOffsetY);
+    doc.text(formatCurrency(kpis.capitalDeGiro), col1X + padX, cardY + valueOffsetY);
+
+    // Entradas
+    doc.setFillColor(240, 255, 244);
+    doc.roundedRect(col2X, cardY, cardW, cardH, 2, 2, 'F');
+    doc.setFontSize(6); doc.setFont('helvetica', 'normal'); doc.setTextColor(21, 128, 61);
+    doc.text('Entradas', col2X + padX, cardY + labelOffsetY);
+    doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+    doc.text(formatCurrency(kpis.entradas), col2X + padX, cardY + valueOffsetY);
+
+    // Saídas
+    doc.setFillColor(255, 245, 245);
+    doc.roundedRect(col3X, cardY, cardW, cardH, 2, 2, 'F');
+    doc.setFontSize(6); doc.setFont('helvetica', 'normal'); doc.setTextColor(220, 38, 38);
+    doc.text('Saídas', col3X + padX, cardY + labelOffsetY);
+    doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+    doc.text(formatCurrency(kpis.saidas), col3X + padX, cardY + valueOffsetY);
+
+    // Saldos Atuais (Bancos)
+    doc.setFillColor(245, 245, 255);
+    doc.roundedRect(col4X, cardY, cardW, cardH, 2, 2, 'F');
+    doc.setFontSize(6); doc.setFont('helvetica', 'normal'); doc.setTextColor(100, 100, 100);
+    doc.text('Saldos Atuais (Bancos)', col4X + padX, cardY + labelOffsetY);
+    doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(0);
+    doc.text(formatCurrency(kpis.totalBankBalance), col4X + padX, cardY + valueOffsetY);
 
     const sepY = cardY + cardH + 4;
     doc.setDrawColor(230, 230, 230); doc.setLineWidth(0.3);
@@ -192,23 +218,36 @@ export function CashFlowReportModal({
     doc.text(`${filteredRows.length} lançamentos • Gerado em ${pad2(today.getDate())}/${pad2(today.getMonth() + 1)}/${today.getFullYear()}`, 14, sepY + 5);
     doc.setTextColor(0);
 
+    // 9 columns: PREVISTA | CLIENTE | RECEBER | PAGAR | VENCIMENTO | EVENTO | HISTÓRICO | SALDO ATUAL | STATUS
     autoTable(doc, {
       startY: sepY + 10,
-      head: [['Data Prevista', 'Cliente/Fornecedor', 'A Receber', 'A Pagar', 'Vencimento', 'Evento', 'Status']],
-      body: filteredRows.map(r => [
-        formatDateBR(r.due_date || r.issue_date || ''),
+      head: [['Prevista', 'Cliente', 'Receber', 'Pagar', 'Vencimento', 'Evento', 'Histórico', 'Saldo Atual', 'Status']],
+      body: rowsWithBalance.map(r => [
+        formatDateBR(r.expected_date || ''),
         r.contact?.name || r.description,
         r.type === 'receita' ? formatCurrency(Number(r.amount)) : '—',
         r.type === 'despesa' ? formatCurrency(Number(r.amount)) : '—',
         r.due_date ? formatDateBR(r.due_date) : '—',
         r.category?.name || '—',
+        r.notes || '—',
+        formatCurrency(r.saldoAtual),
         getStatus(r.is_paid, r.due_date),
       ]),
       theme: 'striped',
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold' },
+      styles: { fontSize: 7, cellPadding: 1.5 },
+      headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold', fontSize: 6.5 },
       alternateRowStyles: { fillColor: [248, 248, 248] },
-      columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' } },
+      columnStyles: {
+        0: { cellWidth: 22 },
+        1: { cellWidth: 40 },
+        2: { halign: 'right', cellWidth: 26 },
+        3: { halign: 'right', cellWidth: 26 },
+        4: { cellWidth: 22 },
+        5: { cellWidth: 30 },
+        6: { cellWidth: 40 },
+        7: { halign: 'right', cellWidth: 28 },
+        8: { cellWidth: 18, halign: 'center' },
+      },
       didDrawPage: (data) => {
         const pageCount = (doc as any).internal.getNumberOfPages();
         const pageHeight = doc.internal.pageSize.height;
@@ -224,23 +263,25 @@ export function CashFlowReportModal({
 
   // ─── XLS Export ───────────────────────────────────────────────────
   const exportXLS = () => {
-    const headers = ['Data Prevista', 'Cliente/Fornecedor', 'A Receber', 'A Pagar', 'Vencimento', 'Evento Contábil', 'Status'];
-    const tableRows = filteredRows.map(r => [
-      formatDateBR(r.due_date || r.issue_date || ''),
-      r.contact?.name || '',
+    const headers = ['Prevista', 'Cliente', 'Receber', 'Pagar', 'Vencimento', 'Evento', 'Histórico', 'Saldo Atual', 'Status'];
+    const tableRows = rowsWithBalance.map(r => [
+      formatDateBR(r.expected_date || ''),
+      r.contact?.name || r.description || '',
       r.type === 'receita' ? Number(r.amount).toFixed(2).replace('.', ',') : '',
       r.type === 'despesa' ? Number(r.amount).toFixed(2).replace('.', ',') : '',
       r.due_date ? formatDateBR(r.due_date) : '',
       r.category?.name || '',
+      r.notes || '',
+      r.saldoAtual.toFixed(2).replace('.', ','),
       getStatus(r.is_paid, r.due_date),
     ]);
 
     const headerRows = `
-      <tr><td colspan="7"><b>${company?.name || 'Empresa'}</b></td></tr>
-      <tr><td colspan="7">Período: ${periodLabel}</td></tr>
-      <tr><td colspan="7">Evento Contábil: ${categoryLabel}</td></tr>
-      <tr><td colspan="7">Cliente/Fornecedor: ${contactLabel}</td></tr>
-      <tr><td colspan="7"></td></tr>
+      <tr><td colspan="9"><b>${company?.name || 'Empresa'}</b></td></tr>
+      <tr><td colspan="9">Período: ${periodLabel}</td></tr>
+      <tr><td colspan="9">Evento Contábil: ${categoryLabel}</td></tr>
+      <tr><td colspan="9">Cliente/Fornecedor: ${contactLabel}</td></tr>
+      <tr><td colspan="9"></td></tr>
     `;
 
     const table = `<table>${headerRows}<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>${tableRows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')}</table>`;
@@ -265,14 +306,16 @@ export function CashFlowReportModal({
       '',
     ];
 
-    const headers = ['Data Prevista', 'Cliente/Fornecedor', 'A Receber', 'A Pagar', 'Vencimento', 'Evento Contábil', 'Status'];
-    const dataLines = filteredRows.map(r => [
-      formatDateBR(r.due_date || r.issue_date || ''),
-      `"${(r.contact?.name || '').replace(/"/g, '""')}"`,
+    const headers = ['Prevista', 'Cliente', 'Receber', 'Pagar', 'Vencimento', 'Evento', 'Histórico', 'Saldo Atual', 'Status'];
+    const dataLines = rowsWithBalance.map(r => [
+      formatDateBR(r.expected_date || ''),
+      `"${(r.contact?.name || r.description || '').replace(/"/g, '""')}"`,
       r.type === 'receita' ? Number(r.amount).toFixed(2).replace('.', ',') : '',
       r.type === 'despesa' ? Number(r.amount).toFixed(2).replace('.', ',') : '',
       r.due_date ? formatDateBR(r.due_date) : '',
       r.category?.name || '',
+      `"${(r.notes || '').replace(/"/g, '""')}"`,
+      r.saldoAtual.toFixed(2).replace('.', ','),
       getStatus(r.is_paid, r.due_date),
     ].join(';'));
 
@@ -324,9 +367,7 @@ export function CashFlowReportModal({
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Data Início</Label>
-                <div className="relative">
-                  <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} min="1900-01-01" max="9999-12-31" />
-                </div>
+                <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} min="1900-01-01" max="9999-12-31" />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Data Fim</Label>
@@ -342,7 +383,7 @@ export function CashFlowReportModal({
             </div>
           </div>
 
-          {/* Category + Contact side by side */}
+          {/* Category + Contact */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-sm font-semibold mb-1 block">Evento Contábil</Label>
@@ -372,7 +413,7 @@ export function CashFlowReportModal({
 
           <Separator className="my-2" />
 
-          {/* Preview Summary */}
+          {/* Preview Summary — 4 cards matching main screen */}
           <div>
             <Label className="text-xs font-semibold mb-1 block">Preview do Resumo</Label>
             <div
@@ -384,18 +425,22 @@ export function CashFlowReportModal({
                 <h3 className="font-bold text-gray-900 text-sm">{company?.name || 'Contas a Pagar/Receber'}</h3>
                 <p className="text-[10px] text-gray-500">Período: {periodLabel} • Evento: {categoryLabel} • Cliente: {contactLabel}</p>
               </div>
-              <div className="grid grid-cols-3 gap-1.5">
-                <div className="bg-green-50 rounded p-1.5">
-                  <p className="text-[9px] text-green-700">Entradas Pendentes</p>
-                  <p className="font-bold text-green-700 text-[11px]">+{formatCurrency(kpis.entradas)}</p>
+              <div className="grid grid-cols-4 gap-1.5">
+                <div className="bg-blue-50 rounded p-1.5 border-l-2 border-l-blue-500">
+                  <p className="text-[9px] text-blue-700">Capital de Giro</p>
+                  <p className={`font-bold text-[11px] ${kpis.capitalDeGiro >= 0 ? 'text-blue-700' : 'text-red-600'}`}>{formatCurrency(kpis.capitalDeGiro)}</p>
                 </div>
-                <div className="bg-red-50 rounded p-1.5">
-                  <p className="text-[9px] text-red-700">Saídas Pendentes</p>
-                  <p className="font-bold text-red-700 text-[11px]">-{formatCurrency(kpis.saidas)}</p>
+                <div className="bg-green-50 rounded p-1.5 border-l-2 border-l-green-500">
+                  <p className="text-[9px] text-green-700">Entradas</p>
+                  <p className="font-bold text-green-700 text-[11px]">{formatCurrency(kpis.entradas)}</p>
                 </div>
-                <div className="bg-blue-50 rounded p-1.5">
-                  <p className="text-[9px] text-blue-700">Saldo Projetado</p>
-                  <p className="font-bold text-blue-700 text-[11px]">{formatCurrency(kpis.saldoProjetado)}</p>
+                <div className="bg-red-50 rounded p-1.5 border-l-2 border-l-red-500">
+                  <p className="text-[9px] text-red-700">Saídas</p>
+                  <p className="font-bold text-red-700 text-[11px]">{formatCurrency(kpis.saidas)}</p>
+                </div>
+                <div className="bg-gray-50 rounded p-1.5 border-l-2 border-l-gray-400">
+                  <p className="text-[9px] text-gray-600">Saldos Atuais</p>
+                  <p className="font-bold text-gray-800 text-[11px]">{formatCurrency(kpis.totalBankBalance)}</p>
                 </div>
               </div>
               <div className="border-t border-gray-100 pt-1.5">

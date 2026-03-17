@@ -67,6 +67,7 @@ interface CashFlowColumnFilters {
   contactIds?: string[];
   eventNames?: string[];
   amounts?: number[];
+  despesaAmounts?: number[];
   status?: string[];
 }
 
@@ -446,7 +447,7 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
 
   // Filtered + sorted transactions
   const filtered = useMemo(() => {
-    let result = transactions.filter(t => !t.is_paid);
+    let result = transactions.filter(t => !t.is_paid && t.expected_date);
 
     // Global date filter
     if (globalStartDate || globalEndDate) {
@@ -491,7 +492,7 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
       // OR logic between contacts and events
       const contactIds = columnFilters.contactIds;
       const eventNames = columnFilters.eventNames;
-      result = transactions.filter(t => !t.is_paid).filter(t => {
+      result = transactions.filter(t => !t.is_paid && t.expected_date).filter(t => {
         // re-apply global date
         const dateKey = t.expected_date || t.due_date || t.issue_date;
         if (globalStartDate && dateKey && dateKey < globalStartDate) return false;
@@ -506,9 +507,19 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
     // We'll store category filter in a separate state key — let's reuse eventNames for the contactEvent filter
     // and add categoryIds
 
-    // Amount filters
+    // Amount filters (receita)
     if (columnFilters.amounts?.length) {
-      result = result.filter(t => t.type === 'receita' && columnFilters.amounts!.includes(Number(t.amount)));
+      result = result.filter(t => {
+        if (t.type === 'receita') return columnFilters.amounts!.includes(Number(t.amount));
+        return !columnFilters.despesaAmounts?.length; // keep despesas if no despesa filter
+      });
+    }
+    // Amount filters (despesa)
+    if (columnFilters.despesaAmounts?.length) {
+      result = result.filter(t => {
+        if (t.type === 'despesa') return columnFilters.despesaAmounts!.includes(Number(t.amount));
+        return !columnFilters.amounts?.length; // keep receitas if no receita filter
+      });
     }
 
     // Status filter
@@ -752,7 +763,12 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
                       />
                     </TableHead>
                     <TableHead className="text-xs whitespace-nowrap text-right">
-                      <span className="text-xs">A Pagar</span>
+                      <NumericMultiFilter
+                        label="A Pagar"
+                        selected={columnFilters.despesaAmounts || []}
+                        onChange={v => setColumnFilters(prev => { const n = { ...prev }; if (v.length) n.despesaAmounts = v; else delete n.despesaAmounts; return n; })}
+                        values={despesaAmounts}
+                      />
                     </TableHead>
                     <TableHead className="text-xs whitespace-nowrap">
                       <Popover>
