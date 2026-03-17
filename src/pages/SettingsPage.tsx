@@ -297,6 +297,10 @@ export default function SettingsPage() {
             <Trash2 className="w-4 h-4" />
             Lixeira
           </TabsTrigger>
+          <TabsTrigger value="backup" className="gap-1.5">
+            <Database className="w-4 h-4" />
+            Backup
+          </TabsTrigger>
         </TabsList>
 
         {/* ═══════════ ABA 1: PERFIL & CONTA ═══════════ */}
