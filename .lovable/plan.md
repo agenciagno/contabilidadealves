@@ -1,93 +1,48 @@
 
 
-# Preview Intermediario na Importacao de Planilha
+## Plano: Trava de 4 Dígitos no Ano + Modal de Confirmação de Ano Corrente
 
-## Resumo
+### 1. Trava Física de 4 Dígitos — `max` attribute em todos os inputs `type="date"`
 
-Adicionar um Step 3 (Preview) entre o upload e a confirmacao final. Apos o upload processar os dados, ao inves de importar diretamente, exibir uma tabela com os lancamentos lidos para o usuario revisar, com opcao de confirmar ou voltar.
+Os inputs HTML `type="date"` nativos já suportam o atributo `max` para limitar o ano. Adicionaremos `max="9999-12-31"` e `min="1900-01-01"` em **todos** os inputs de data do sistema. Alguns já possuem (`Transactions.tsx` filtros), mas a maioria não.
 
----
+**Arquivos afetados:**
+- `src/components/transactions/TransactionFormDialog.tsx` — 4 inputs de data (Emissão, Vencimento, Prevista, Pagamento)
+- `src/components/banks/BankReportModal.tsx` — 2 inputs
+- `src/components/banks/BankDetailSheet.tsx` — 2 inputs
+- `src/components/banks/UnifiedStatementAccordion.tsx` — 2 inputs
+- `src/components/transactions/CashFlowReportModal.tsx` — 2 inputs
+- `src/components/contacts/ContactFormDialog.tsx` — 1 input
+- `src/components/recurring/RecurringFormDialog.tsx` — inputs de data
 
-## Arquivo Modificado
+Cada input receberá `max="9999-12-31" min="1900-01-01"`.
 
-| Arquivo | Mudanca |
+### 2. Modal de Confirmação de Ano Corrente — `TransactionFormDialog.tsx`
+
+**Novo estado:** `yearWarningData` (array de datas fora do ano corrente) e `pendingSubmitData` (payload aguardando confirmação).
+
+**Lógica no `handleSubmit`:**
+1. Após validação de formato, verificar se alguma data tem ano diferente de `new Date().getFullYear()`.
+2. Se sim, armazenar o payload em estado e abrir um `AlertDialog` com:
+   - Mensagem: "Atenção: Uma ou mais datas informadas estão fora do ano corrente. Deseja realmente prosseguir com este lançamento?"
+   - Lista das datas divergentes (ex: "Data de Vencimento — 23/12/2020")
+   - Botão "Cancelar" → fecha o alerta, mantém formulário
+   - Botão "Confirmar Lançamento" → executa `onSubmit` com o payload armazenado
+3. Se todas as datas são do ano corrente, executa `onSubmit` normalmente.
+
+**Componente usado:** `AlertDialog` já existente em `src/components/ui/alert-dialog.tsx`.
+
+### Arquivos Alterados
+
+| Arquivo | Mudança |
 |---|---|
-| `src/components/transactions/ImportSpreadsheetDialog.tsx` | Adicionar step 3 com tabela de preview, separar parsing de importacao |
+| `src/components/transactions/TransactionFormDialog.tsx` | Modal de confirmação + `max`/`min` nos inputs de data |
+| `src/components/banks/BankReportModal.tsx` | `max`/`min` nos inputs |
+| `src/components/banks/BankDetailSheet.tsx` | `max`/`min` nos inputs |
+| `src/components/banks/UnifiedStatementAccordion.tsx` | `max`/`min` nos inputs |
+| `src/components/transactions/CashFlowReportModal.tsx` | `max`/`min` nos inputs |
+| `src/components/contacts/ContactFormDialog.tsx` | `max`/`min` nos inputs |
+| `src/components/recurring/RecurringFormDialog.tsx` | `max`/`min` nos inputs |
 
----
-
-## Mudancas Detalhadas
-
-### 1. Novo estado para armazenar dados parseados
-
-```typescript
-const [parsedData, setParsedData] = useState<TransactionInsert[]>([]);
-```
-
-### 2. Alterar `processFile` para nao importar direto
-
-Em vez de chamar `onImport(transactions)` ao final do parsing, salvar em `setParsedData(transactions)` e avancar para `setStep(3)`.
-
-### 3. Step indicator com 3 passos
-
-Adicionar terceiro circulo "Revisar" no indicador de progresso (Modelo -> Upload -> Revisar).
-
-### 4. Step 3: Tabela de Preview
-
-- Dialog expandido para `sm:max-w-4xl` quando no step 3
-- Contador: "X lancamento(s) encontrado(s)"
-- Tabela com ScrollArea (max-height ~400px) contendo colunas:
-  - Data | Cliente | Tipo | Valor | Status | Vencimento | Banco | Categoria
-- Cada linha mostra dados legivel (data formatada dd/MM/yyyy, valor em R$, tipo como badge colorido Receita/Despesa, status como badge Pago/Pendente)
-- Lookup reverso de bank_id/category_id/contact_id para exibir nomes (ou "---" se nao vinculado)
-- Botoes: "Voltar" (ghost, volta ao step 2) e "Confirmar Importacao" (primary, chama onImport)
-- Ao confirmar: spinner de "Importando..." e fluxo existente de toast + fechar modal
-
-### 5. Ajuste no resetState
-
-Incluir `setParsedData([])` no reset.
-
-### 6. DialogDescription dinâmica
-
-Step 3 exibe: "Revise os dados antes de confirmar"
-
----
-
-## Secao Tecnica
-
-### Lookup reverso para exibicao
-
-Para mostrar nomes na tabela de preview ao inves de IDs:
-
-```typescript
-const bankName = (id: string | null) => banks.find(b => b.id === id)?.name ?? '—';
-const categoryName = (id: string | null) => categories.find(c => c.id === id)?.name ?? '—';
-const contactName = (id: string | null) => contacts.find(c => c.id === id)?.name ?? '—';
-```
-
-### Formatacao na tabela
-
-```typescript
-// Data: format(parseISO(row.date), 'dd/MM/yyyy')
-// Valor: row.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-// Tipo: Badge verde "Receita" ou vermelho "Despesa"
-// Status: Badge "Pago" ou "Pendente"
-```
-
-### Handler de confirmacao
-
-```typescript
-const handleConfirmImport = async () => {
-  setIsProcessing(true);
-  try {
-    await onImport(parsedData);
-    toast({ title: `${parsedData.length} lançamento(s) importado(s) com sucesso!` });
-    handleClose(false);
-  } catch (err) {
-    toast({ title: 'Erro ao importar.', variant: 'destructive' });
-  } finally {
-    setIsProcessing(false);
-  }
-};
-```
+Nenhuma migration de banco necessária.
 
