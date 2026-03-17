@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import UsersTab from '@/components/users/UsersTab';
 import GlobalLogsTab from '@/components/settings/GlobalLogsTab';
 import ClientCompaniesTab from '@/components/settings/ClientCompaniesTab';
+import TrashTab from '@/components/settings/TrashTab';
 import { useSuperAdmin } from '@/hooks/useSuperAdmin';
 import { useProfile } from '@/hooks/useProfile';
 
