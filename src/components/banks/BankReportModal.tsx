@@ -485,56 +485,31 @@ ${transactions}
             )}
           </div>
 
-          <Separator />
+          <Separator className="my-2" />
 
           {/* Export buttons */}
           <div>
-            <Label className="text-sm font-semibold mb-3 block">Exportar</Label>
-            <div className="grid grid-cols-3 gap-3">
-              <Button
-                variant="outline"
-                className="flex items-center gap-2 h-10"
-                onClick={exportPDF}
-                disabled={isLoading}
-              >
-                <FileText className="w-4 h-4 text-red-500" />
-                <span className="text-sm font-medium">PDF / Impressão</span>
+            <Label className="text-xs font-semibold mb-1.5 block">Exportar</Label>
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs" onClick={exportPDF} disabled={isLoading}>
+                <FileText className="w-3.5 h-3.5 text-red-500" />
+                PDF
               </Button>
-              <Button
-                variant="outline"
-                className="flex items-center gap-2 h-10"
-                onClick={exportXLS}
-                disabled={isLoading}
-              >
-                <Table2 className="w-4 h-4 text-green-600" />
-                <span className="text-sm font-medium">Excel - XLS</span>
+              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs" onClick={exportXLS} disabled={isLoading}>
+                <Table2 className="w-3.5 h-3.5 text-green-600" />
+                XLS
               </Button>
-              <Button
-                variant="outline"
-                className="flex items-center gap-2 h-10"
-                onClick={exportCSV}
-                disabled={isLoading}
-              >
-                <Table2 className="w-4 h-4 text-green-600" />
-                <span className="text-sm font-medium">Excel - CSV</span>
+              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs" onClick={exportCSV} disabled={isLoading}>
+                <Table2 className="w-3.5 h-3.5 text-green-600" />
+                CSV
               </Button>
-              <Button
-                variant="outline"
-                className="flex items-center gap-2 h-10"
-                onClick={exportOFX}
-                disabled={isLoading}
-              >
-                <Download className="w-4 h-4 text-blue-500" />
-                <span className="text-sm font-medium">OFX</span>
+              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs" onClick={exportOFX} disabled={isLoading}>
+                <Download className="w-3.5 h-3.5 text-blue-500" />
+                OFX
               </Button>
-              <Button
-                variant="outline"
-                className="flex items-center gap-2 h-10"
-                onClick={exportImage}
-                disabled={isLoading}
-              >
-                <Image className="w-4 h-4 text-purple-500" />
-                <span className="text-sm font-medium">Imagem</span>
+              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs" onClick={exportImage} disabled={isLoading}>
+                <Image className="w-3.5 h-3.5 text-purple-500" />
+                Imagem
               </Button>
             </div>
           </div>
