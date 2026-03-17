@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { isEffectivelyPaid } from '@/lib/financial-utils';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -104,10 +105,13 @@ export function TransactionFormDialog({
 
   useEffect(() => {
     if (transaction) {
+      const isPaid = isEffectivelyPaid(transaction);
       setType(transaction.type);
       setAmount(formatCurrencyInput(String(Math.round(Number(transaction.amount) * 100))));
-      setPaidAmount(transaction.paid_amount != null ? formatCurrencyInput(String(Math.round(Number(transaction.paid_amount) * 100))) : '');
-      setDate(transaction.date || '');
+      setPaidAmount(isPaid && transaction.paid_amount != null
+        ? formatCurrencyInput(String(Math.round(Number(transaction.paid_amount) * 100)))
+        : '');
+      setDate(isPaid ? (transaction.date || '') : '');
       setIssueDate(transaction.issue_date || todayStr);
       setDueDate(transaction.due_date || '');
       setExpectedDate(transaction.expected_date || '');
@@ -132,6 +136,13 @@ export function TransactionFormDialog({
       setNotes(''); setPendingFiles([]);
     }
   }, [transaction, open, defaultType, resetKey]);
+
+  // Reset completo ao fechar o modal para evitar stale state
+  useEffect(() => {
+    if (!open) {
+      resetForm();
+    }
+  }, [open]);
 
   useEffect(() => {
     if (!transaction) { setCategoryId(''); setContactId(''); }
