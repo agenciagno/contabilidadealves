@@ -383,7 +383,7 @@ ${transactions}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Data Início</Label>
-                <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} min="1900-01-01" max="9999-12-31" />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Data Fim</Label>
