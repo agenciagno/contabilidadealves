@@ -507,9 +507,19 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
     // We'll store category filter in a separate state key — let's reuse eventNames for the contactEvent filter
     // and add categoryIds
 
-    // Amount filters
+    // Amount filters (receita)
     if (columnFilters.amounts?.length) {
-      result = result.filter(t => t.type === 'receita' && columnFilters.amounts!.includes(Number(t.amount)));
+      result = result.filter(t => {
+        if (t.type === 'receita') return columnFilters.amounts!.includes(Number(t.amount));
+        return !columnFilters.despesaAmounts?.length; // keep despesas if no despesa filter
+      });
+    }
+    // Amount filters (despesa)
+    if (columnFilters.despesaAmounts?.length) {
+      result = result.filter(t => {
+        if (t.type === 'despesa') return columnFilters.despesaAmounts!.includes(Number(t.amount));
+        return !columnFilters.amounts?.length; // keep receitas if no receita filter
+      });
     }
 
     // Status filter
