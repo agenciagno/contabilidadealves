@@ -136,17 +136,34 @@
 }
 
 @media print {
+  @page {
+    size: landscape;
+    margin: 10mm;
+  }
+
   [data-sidebar],
   nav,
   header,
-  .print-hidden {
+  .print-hidden,
+  .no-print,
+  button:not(.print-keep) {
     display: none !important;
   }
 
-  * {
+  body {
     background: white !important;
-    color: black !important;
+  }
+
+  * {
+    color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
     box-shadow: none !important;
+  }
+
+  .print-visible {
+    display: block !important;
+    visibility: visible !important;
   }
 
   .card {
@@ -155,5 +172,14 @@
 
   .boleto-card {
     page-break-inside: avoid;
+  }
+
+  table {
+    font-size: 9px !important;
+    width: 100% !important;
+  }
+
+  table th, table td {
+    padding: 2px 4px !important;
   }
 }

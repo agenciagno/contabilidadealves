@@ -1,11 +1,11 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { FileText, Table2, Image, TrendingUp, TrendingDown, Wallet } from 'lucide-react';
+import { FileText, Table2, Image, TrendingUp, TrendingDown, Wallet, X, Printer } from 'lucide-react';
 import { useCompany } from '@/hooks/useCompany';
 import { format, parseISO, isWithinInterval } from 'date-fns';
 import jsPDF from 'jspdf';
@@ -28,6 +28,10 @@ interface CashFlowReportModalProps {
   categories: Category[];
   contacts: Contact[];
   banks: Bank[];
+  initialStartDate?: string;
+  initialEndDate?: string;
+  initialCategoryIds?: string[];
+  initialContactIds?: string[];
 }
 
 function formatCurrency(value: number) {
@@ -52,20 +56,33 @@ function getStatus(isPaid: boolean, dueDate: string | null): string {
   return 'Pendente';
 }
 
-export function CashFlowReportModal({ open, onOpenChange, transactions, categories, contacts, banks }: CashFlowReportModalProps) {
+export function CashFlowReportModal({
+  open, onOpenChange, transactions, categories, contacts, banks,
+  initialStartDate = '', initialEndDate = '', initialCategoryIds = [], initialContactIds = [],
+}: CashFlowReportModalProps) {
   const { company } = useCompany();
   const summaryRef = useRef<HTMLDivElement>(null);
 
-  const today = new Date();
-  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-  const todayStr = today.toISOString().split('T')[0];
-
-  const [startDate, setStartDate] = useState(firstOfMonth);
-  const [endDate, setEndDate] = useState(todayStr);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [categoryId, setCategoryId] = useState('all');
   const [contactId, setContactId] = useState('all');
 
-  const periodLabel = `${formatDateBR(startDate)} a ${formatDateBR(endDate)}`;
+  // Inherit filters when modal opens
+  useEffect(() => {
+    if (open) {
+      setStartDate(initialStartDate);
+      setEndDate(initialEndDate);
+      setCategoryId(initialCategoryIds.length === 1 ? initialCategoryIds[0] : 'all');
+      setContactId(initialContactIds.length === 1 ? initialContactIds[0] : 'all');
+    }
+  }, [open, initialStartDate, initialEndDate, initialCategoryIds, initialContactIds]);
+
+  const today = new Date();
+
+  const periodLabel = startDate && endDate
+    ? `${formatDateBR(startDate)} a ${formatDateBR(endDate)}`
+    : 'Acumulado Geral';
   const categoryLabel = categoryId !== 'all'
     ? categories.find(c => c.id === categoryId)?.name || 'Todos'
     : 'Todos';
@@ -73,14 +90,15 @@ export function CashFlowReportModal({ open, onOpenChange, transactions, categori
     ? contacts.find(c => c.id === contactId)?.name || 'Todos'
     : 'Todos';
 
-  // Filter transactions: only pending, within period, by category/contact
+  const clearDates = () => { setStartDate(''); setEndDate(''); };
+
+  // Filter transactions
   const filteredRows = useMemo(() => {
     let result = transactions.filter(t => !t.is_paid);
 
     if (startDate && endDate) {
       const start = parseISO(startDate);
       const end = parseISO(endDate);
-      // Set end to end of day
       end.setHours(23, 59, 59, 999);
       result = result.filter(t => {
         const dateKey = t.due_date || t.issue_date;
@@ -111,7 +129,7 @@ export function CashFlowReportModal({ open, onOpenChange, transactions, categori
 
   // ─── PDF Export ───────────────────────────────────────────────────
   const exportPDF = () => {
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const emittedAt = `Emitido em ${pad2(today.getDate())}/${pad2(today.getMonth() + 1)}/${today.getFullYear()} às ${pad2(today.getHours())}:${pad2(today.getMinutes())}`;
 
     doc.setFontSize(14);
@@ -134,8 +152,7 @@ export function CashFlowReportModal({ open, onOpenChange, transactions, categori
     doc.text(`Evento Contábil: ${categoryLabel}`, 14, 45);
     doc.text(`Cliente/Fornecedor: ${contactLabel}`, 14, 50);
 
-    // ─── Cards compactos 3 colunas ───
-    const cardW = 57;
+    const cardW = 80;
     const cardH = 14;
     const cardY = 56;
     const gap = 2;
@@ -146,93 +163,75 @@ export function CashFlowReportModal({ open, onOpenChange, transactions, categori
     const valueOffsetY = 12;
     const padX = 3;
 
-    // Entradas Pendentes (verde)
     doc.setFillColor(240, 255, 244);
     doc.roundedRect(col1X, cardY, cardW, cardH, 2, 2, 'F');
-    doc.setFontSize(6);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(21, 128, 61);
+    doc.setFontSize(6); doc.setFont('helvetica', 'normal'); doc.setTextColor(21, 128, 61);
     doc.text('Entradas Pendentes', col1X + padX, cardY + labelOffsetY);
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8); doc.setFont('helvetica', 'bold');
     doc.text(`+${formatCurrency(kpis.entradas)}`, col1X + padX, cardY + valueOffsetY);
 
-    // Saídas Pendentes (vermelho)
     doc.setFillColor(255, 245, 245);
     doc.roundedRect(col2X, cardY, cardW, cardH, 2, 2, 'F');
-    doc.setFontSize(6);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(220, 38, 38);
+    doc.setFontSize(6); doc.setFont('helvetica', 'normal'); doc.setTextColor(220, 38, 38);
     doc.text('Saídas Pendentes', col2X + padX, cardY + labelOffsetY);
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8); doc.setFont('helvetica', 'bold');
     doc.text(`-${formatCurrency(kpis.saidas)}`, col2X + padX, cardY + valueOffsetY);
 
-    // Saldo Projetado (azul)
     doc.setFillColor(239, 246, 255);
     doc.roundedRect(col3X, cardY, cardW, cardH, 2, 2, 'F');
-    doc.setFontSize(6);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(29, 78, 216);
+    doc.setFontSize(6); doc.setFont('helvetica', 'normal'); doc.setTextColor(29, 78, 216);
     doc.text('Saldo Projetado', col3X + padX, cardY + labelOffsetY);
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8); doc.setFont('helvetica', 'bold');
     doc.text(formatCurrency(kpis.saldoProjetado), col3X + padX, cardY + valueOffsetY);
 
     const sepY = cardY + cardH + 4;
-    doc.setDrawColor(230, 230, 230);
-    doc.setLineWidth(0.3);
-    doc.line(14, sepY, 192, sepY);
+    doc.setDrawColor(230, 230, 230); doc.setLineWidth(0.3);
+    doc.line(14, sepY, 283, sepY);
 
-    doc.setFontSize(7);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(160, 160, 160);
+    doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(160, 160, 160);
     doc.text(`${filteredRows.length} lançamentos • Gerado em ${pad2(today.getDate())}/${pad2(today.getMonth() + 1)}/${today.getFullYear()}`, 14, sepY + 5);
-
     doc.setTextColor(0);
 
     autoTable(doc, {
       startY: sepY + 10,
-      head: [['Data Prevista', 'Cliente/Fornecedor', 'Evento', 'Valor', 'Vencimento', 'Status']],
+      head: [['Data Prevista', 'Cliente/Fornecedor', 'A Receber', 'A Pagar', 'Vencimento', 'Evento', 'Status']],
       body: filteredRows.map(r => [
         formatDateBR(r.due_date || r.issue_date || ''),
         r.contact?.name || r.description,
-        r.category?.name || '—',
-        r.type === 'receita' ? formatCurrency(Number(r.amount)) : `-${formatCurrency(Number(r.amount))}`,
+        r.type === 'receita' ? formatCurrency(Number(r.amount)) : '—',
+        r.type === 'despesa' ? formatCurrency(Number(r.amount)) : '—',
         r.due_date ? formatDateBR(r.due_date) : '—',
+        r.category?.name || '—',
         getStatus(r.is_paid, r.due_date),
       ]),
       theme: 'striped',
       styles: { fontSize: 8, cellPadding: 2 },
       headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold' },
       alternateRowStyles: { fillColor: [248, 248, 248] },
-      columnStyles: {
-        3: { halign: 'right' },
-      },
+      columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' } },
       didDrawPage: (data) => {
         const pageCount = (doc as any).internal.getNumberOfPages();
         const pageHeight = doc.internal.pageSize.height;
-        doc.setFontSize(7);
-        doc.setTextColor(150);
+        doc.setFontSize(7); doc.setTextColor(150);
         doc.text(emittedAt, 14, pageHeight - 8);
         doc.text(`Página ${data.pageNumber} de ${pageCount}`, doc.internal.pageSize.width - 14, pageHeight - 8, { align: 'right' });
         doc.setTextColor(0);
       },
     });
 
-    doc.save(`contas-pagar-receber-${startDate}-${endDate}.pdf`);
+    doc.save(`contas-pagar-receber-${startDate || 'geral'}-${endDate || 'geral'}.pdf`);
   };
 
   // ─── XLS Export ───────────────────────────────────────────────────
   const exportXLS = () => {
-    const headers = ['Data Prevista', 'Cliente/Fornecedor', 'Evento Contábil', 'Descrição', 'Valor', 'Vencimento', 'Status'];
+    const headers = ['Data Prevista', 'Cliente/Fornecedor', 'A Receber', 'A Pagar', 'Vencimento', 'Evento Contábil', 'Status'];
     const tableRows = filteredRows.map(r => [
       formatDateBR(r.due_date || r.issue_date || ''),
       r.contact?.name || '',
-      r.category?.name || '',
-      r.description,
-      r.type === 'receita' ? Number(r.amount).toFixed(2).replace('.', ',') : `-${Number(r.amount).toFixed(2).replace('.', ',')}`,
+      r.type === 'receita' ? Number(r.amount).toFixed(2).replace('.', ',') : '',
+      r.type === 'despesa' ? Number(r.amount).toFixed(2).replace('.', ',') : '',
       r.due_date ? formatDateBR(r.due_date) : '',
+      r.category?.name || '',
       getStatus(r.is_paid, r.due_date),
     ]);
 
@@ -251,7 +250,7 @@ export function CashFlowReportModal({ open, onOpenChange, transactions, categori
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `contas-pagar-receber-${startDate}-${endDate}.xls`;
+    a.download = `contas-pagar-receber-${startDate || 'geral'}-${endDate || 'geral'}.xls`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -266,14 +265,14 @@ export function CashFlowReportModal({ open, onOpenChange, transactions, categori
       '',
     ];
 
-    const headers = ['Data Prevista', 'Cliente/Fornecedor', 'Evento Contábil', 'Descrição', 'Valor', 'Vencimento', 'Status'];
+    const headers = ['Data Prevista', 'Cliente/Fornecedor', 'A Receber', 'A Pagar', 'Vencimento', 'Evento Contábil', 'Status'];
     const dataLines = filteredRows.map(r => [
       formatDateBR(r.due_date || r.issue_date || ''),
       `"${(r.contact?.name || '').replace(/"/g, '""')}"`,
-      r.category?.name || '',
-      `"${(r.description || '').replace(/"/g, '""')}"`,
-      r.type === 'receita' ? Number(r.amount).toFixed(2).replace('.', ',') : `-${Number(r.amount).toFixed(2).replace('.', ',')}`,
+      r.type === 'receita' ? Number(r.amount).toFixed(2).replace('.', ',') : '',
+      r.type === 'despesa' ? Number(r.amount).toFixed(2).replace('.', ',') : '',
       r.due_date ? formatDateBR(r.due_date) : '',
+      r.category?.name || '',
       getStatus(r.is_paid, r.due_date),
     ].join(';'));
 
@@ -283,7 +282,7 @@ export function CashFlowReportModal({ open, onOpenChange, transactions, categori
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `contas-pagar-receber-${startDate}-${endDate}.csv`;
+    a.download = `contas-pagar-receber-${startDate || 'geral'}-${endDate || 'geral'}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -294,23 +293,23 @@ export function CashFlowReportModal({ open, onOpenChange, transactions, categori
     try {
       const html2canvas = (await import('html2canvas')).default;
       const canvas = await html2canvas(summaryRef.current, {
-        scale: 2,
-        backgroundColor: '#ffffff',
-        useCORS: true,
+        scale: 2, backgroundColor: '#ffffff', useCORS: true,
       });
       const url = canvas.toDataURL('image/jpeg', 0.92);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `resumo-pagar-receber-${startDate}-${endDate}.jpg`;
+      a.download = `resumo-pagar-receber-${startDate || 'geral'}-${endDate || 'geral'}.jpg`;
       a.click();
     } catch (err) {
       console.error('Erro ao gerar imagem:', err);
     }
   };
 
+  const handlePrint = () => window.print();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-2xl print-visible">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-primary" />
@@ -319,17 +318,26 @@ export function CashFlowReportModal({ open, onOpenChange, transactions, categori
         </DialogHeader>
 
         <div className="space-y-3">
-          {/* Period */}
+          {/* Period with clear button */}
           <div>
             <Label className="text-sm font-semibold mb-1 block">Período</Label>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Data Início</Label>
-                <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} min="1900-01-01" max="9999-12-31" />
+                <div className="relative">
+                  <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} min="1900-01-01" max="9999-12-31" />
+                </div>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Data Fim</Label>
-                <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} min="1900-01-01" max="9999-12-31" />
+                <div className="relative flex gap-1">
+                  <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} min="1900-01-01" max="9999-12-31" className="flex-1" />
+                  {(startDate || endDate) && (
+                    <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0 no-print" onClick={clearDates} title="Limpar datas (Acumulado Geral)">
+                      <X className="w-4 h-4 text-muted-foreground" />
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -339,9 +347,7 @@ export function CashFlowReportModal({ open, onOpenChange, transactions, categori
             <div>
               <Label className="text-sm font-semibold mb-1 block">Evento Contábil</Label>
               <Select value={categoryId} onValueChange={setCategoryId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos" />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos</SelectItem>
                   {categories.map(c => (
@@ -350,13 +356,10 @@ export function CashFlowReportModal({ open, onOpenChange, transactions, categori
                 </SelectContent>
               </Select>
             </div>
-
             <div>
               <Label className="text-sm font-semibold mb-1 block">Cliente/Fornecedor</Label>
               <Select value={contactId} onValueChange={setContactId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos" />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos</SelectItem>
                   {contacts.map(c => (
@@ -374,7 +377,7 @@ export function CashFlowReportModal({ open, onOpenChange, transactions, categori
             <Label className="text-xs font-semibold mb-1 block">Preview do Resumo</Label>
             <div
               ref={summaryRef}
-              className="bg-white rounded-lg border border-gray-200 p-3 space-y-2"
+              className="bg-white rounded-lg border border-gray-200 p-3 space-y-2 print-visible"
               style={{ fontFamily: 'sans-serif' }}
             >
               <div>
@@ -408,22 +411,21 @@ export function CashFlowReportModal({ open, onOpenChange, transactions, categori
           {/* Export buttons */}
           <div>
             <Label className="text-xs font-semibold mb-1.5 block">Exportar</Label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs" onClick={exportPDF}>
-                <FileText className="w-3.5 h-3.5 text-red-500" />
-                PDF
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs no-print" onClick={exportPDF}>
+                <FileText className="w-3.5 h-3.5 text-red-500" /> PDF
               </Button>
-              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs" onClick={exportXLS}>
-                <Table2 className="w-3.5 h-3.5 text-green-600" />
-                XLS
+              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs no-print" onClick={exportXLS}>
+                <Table2 className="w-3.5 h-3.5 text-green-600" /> XLS
               </Button>
-              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs" onClick={exportCSV}>
-                <Table2 className="w-3.5 h-3.5 text-green-600" />
-                CSV
+              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs no-print" onClick={exportCSV}>
+                <Table2 className="w-3.5 h-3.5 text-green-600" /> CSV
               </Button>
-              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs" onClick={exportImage}>
-                <Image className="w-3.5 h-3.5 text-purple-500" />
-                Imagem
+              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs no-print" onClick={exportImage}>
+                <Image className="w-3.5 h-3.5 text-purple-500" /> Imagem
+              </Button>
+              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs no-print" onClick={handlePrint}>
+                <Printer className="w-3.5 h-3.5 text-muted-foreground" /> Imprimir
               </Button>
             </div>
           </div>
