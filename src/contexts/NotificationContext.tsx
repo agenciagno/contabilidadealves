@@ -57,15 +57,19 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const { data: transactions = [] } = useQuery({
     queryKey: ['notifications-transactions'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('id, amount, due_date, is_paid, contact_id, type, contact:contacts(id, name)')
-        .is('deleted_at', null)
-        .eq('is_paid', false)
-        .not('due_date', 'is', null);
-      
-      if (error) return [];
-      return data as SimpleTransaction[];
+      try {
+        const { data, error } = await supabase
+          .from('transactions')
+          .select('id, amount, due_date, is_paid, contact_id, type, contact:contacts(id, name)')
+          .is('deleted_at', null)
+          .eq('is_paid', false)
+          .not('due_date', 'is', null);
+        
+        if (error) return [];
+        return data as SimpleTransaction[];
+      } catch {
+        return [];
+      }
     },
     staleTime: 1000 * 60, // 1 minute
     gcTime: 1000 * 60 * 5,
