@@ -22,6 +22,7 @@ export interface Transaction {
   notes: string | null;
   created_at: string;
   updated_at: string;
+  deleted_at?: string | null;
   category?: { id: string; name: string; color: string } | null;
   bank?: { id: string; name: string; color: string } | null;
   contact?: { id: string; name: string; type: string } | null;
