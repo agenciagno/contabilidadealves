@@ -432,6 +432,7 @@ export function ContactFormDialog({
                     type="date"
                     value={boletoStartDate}
                     onChange={(e) => setBoletoStartDate(e.target.value)}
+                    min="1900-01-01" max="9999-12-31"
                   />
                 </div>
               </div>

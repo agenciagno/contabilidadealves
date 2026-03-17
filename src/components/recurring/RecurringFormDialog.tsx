@@ -255,6 +255,7 @@ export function RecurringFormDialog({
                     type="date"
                     value={formData.start_date || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
+                    min="1900-01-01" max="9999-12-31"
                   />
                 </div>
 
@@ -399,6 +400,7 @@ export function RecurringFormDialog({
                       type="date"
                       value={formData.end_date || ''}
                       onChange={(e) => setFormData(prev => ({ ...prev, end_date: e.target.value || null }))}
+                      min="1900-01-01" max="9999-12-31"
                     />
                   </div>
                 )}

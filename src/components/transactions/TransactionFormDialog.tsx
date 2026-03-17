@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,7 +18,7 @@ import { CategoryFormDialog } from '@/components/categories/CategoryFormDialog';
 import { BankFormDialog } from '@/components/banks/BankFormDialog';
 import { ContactFormDialog } from '@/components/contacts/ContactFormDialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { TrendingUp, TrendingDown, User, Plus } from 'lucide-react';
+import { TrendingUp, TrendingDown, User, Plus, AlertTriangle } from 'lucide-react';
 import { addBusinessDays } from '@/lib/business-days';
 import { isValidDateString } from '@/lib/utils';
 
@@ -69,6 +70,8 @@ export function TransactionFormDialog({
   const [contactId, setContactId] = useState<string>('');
   const [notes, setNotes] = useState('');
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [yearWarningDates, setYearWarningDates] = useState<{ label: string; value: string }[]>([]);
+  const [pendingPayload, setPendingPayload] = useState<{ data: TransactionInsert; files: File[]; shouldClose: boolean } | null>(null);
 
   const isAPrazo = paymentCondition === 'a_prazo' && !isEditing && !isSettleMode;
 
@@ -149,6 +152,46 @@ export function TransactionFormDialog({
     }
   };
 
+  const checkYearAndSubmit = (payload: TransactionInsert, files: File[], shouldClose: boolean) => {
+    const currentYear = new Date().getFullYear();
+    const dateLabels: Record<string, string> = {
+      issue_date: 'Emissão',
+      due_date: 'Vencimento',
+      expected_date: 'Prevista',
+      date: 'Pagamento',
+    };
+    const offYearDates: { label: string; value: string }[] = [];
+    for (const [key, label] of Object.entries(dateLabels)) {
+      const val = (payload as any)[key];
+      if (val && typeof val === 'string' && val.length >= 4) {
+        const year = parseInt(val.substring(0, 4), 10);
+        if (!isNaN(year) && year !== currentYear) {
+          const [y, m, d] = val.split('-');
+          offYearDates.push({ label, value: `${d}/${m}/${y}` });
+        }
+      }
+    }
+    if (offYearDates.length > 0) {
+      setYearWarningDates(offYearDates);
+      setPendingPayload({ data: payload, files, shouldClose });
+      return;
+    }
+    onSubmit(payload, files, shouldClose);
+  };
+
+  const handleConfirmYear = () => {
+    if (pendingPayload) {
+      onSubmit(pendingPayload.data, pendingPayload.files, pendingPayload.shouldClose);
+      setPendingPayload(null);
+      setYearWarningDates([]);
+    }
+  };
+
+  const handleCancelYear = () => {
+    setPendingPayload(null);
+    setYearWarningDates([]);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -171,28 +214,29 @@ export function TransactionFormDialog({
     const paidAmountValue = parseCurrencyInput(paidAmount);
 
     if (isSettleMode) {
-    onSubmit({
-      type,
-      description: autoDescription,
-      amount: parseCurrencyInput(amount),
-      paid_amount: paidAmountValue,
-      date: date || undefined,
-      issue_date: issueDate || null,
-      due_date: dueDate || null,
-      expected_date: expectedDate || null,
-      category_id: categoryId || null,
-      bank_id: bankId || null,
-      contact_id: contactId || null,
-      is_paid: true,
-      notes: notes || null,
-    } as TransactionInsert, pendingFiles, true);
-    return;
+      const payload = {
+        type,
+        description: autoDescription,
+        amount: parseCurrencyInput(amount),
+        paid_amount: paidAmountValue,
+        date: date || undefined,
+        issue_date: issueDate || null,
+        due_date: dueDate || null,
+        expected_date: expectedDate || null,
+        category_id: categoryId || null,
+        bank_id: bankId || null,
+        contact_id: contactId || null,
+        is_paid: true,
+        notes: notes || null,
+      } as TransactionInsert;
+      checkYearAndSubmit(payload, pendingFiles, true);
+      return;
     }
 
     // Edit / Create mode
     if (isAPrazo) {
       const shouldClose = saveActionRef.current === 'close';
-      onSubmit({
+      const payload = {
         type,
         description: autoDescription,
         amount: parseCurrencyInput(amount),
@@ -206,7 +250,8 @@ export function TransactionFormDialog({
         contact_id: contactId || null,
         is_paid: false,
         notes: notes || null,
-      } as TransactionInsert, pendingFiles, shouldClose);
+      } as TransactionInsert;
+      checkYearAndSubmit(payload, pendingFiles, shouldClose);
       saveActionRef.current = 'close';
       return;
     }
@@ -223,7 +268,7 @@ export function TransactionFormDialog({
 
     const shouldClose = saveActionRef.current === 'close';
 
-    onSubmit({
+    const payload = {
       type,
       description: autoDescription,
       amount: parseCurrencyInput(amount),
@@ -237,8 +282,9 @@ export function TransactionFormDialog({
       contact_id: contactId || null,
       is_paid: derivedIsPaid,
       notes: notes || null,
-    } as TransactionInsert, pendingFiles, shouldClose);
+    } as TransactionInsert;
 
+    checkYearAndSubmit(payload, pendingFiles, shouldClose);
     saveActionRef.current = 'close';
   };
 
@@ -383,15 +429,15 @@ export function TransactionFormDialog({
             <div className={`grid ${isAPrazo ? 'grid-cols-3' : 'grid-cols-4'} gap-3`}>
               <div className="space-y-1">
                 <Label className="text-xs">Emissão <span className="text-destructive">*</span></Label>
-                <Input type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} className="h-8 text-xs" disabled={isSettleMode} />
+                <Input type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} className="h-8 text-xs" disabled={isSettleMode} min="1900-01-01" max="9999-12-31" />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Vencimento <span className="text-destructive">*</span></Label>
-                <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="h-8 text-xs" disabled={isSettleMode} />
+                <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="h-8 text-xs" disabled={isSettleMode} min="1900-01-01" max="9999-12-31" />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Prevista <span className="text-destructive">*</span></Label>
-                <Input type="date" value={expectedDate} onChange={e => setExpectedDate(e.target.value)} className="h-8 text-xs" disabled={isSettleMode} />
+                <Input type="date" value={expectedDate} onChange={e => setExpectedDate(e.target.value)} className="h-8 text-xs" disabled={isSettleMode} min="1900-01-01" max="9999-12-31" />
               </div>
               {!isAPrazo && (
                 <div className="space-y-1">
@@ -399,7 +445,7 @@ export function TransactionFormDialog({
                     Pagamento
                     {isSettleMode && <span className="text-destructive"> *</span>}
                   </Label>
-                  <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-8 text-xs" disabled={isEditing && !isSettleMode} />
+                  <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-8 text-xs" disabled={isEditing && !isSettleMode} min="1900-01-01" max="9999-12-31" />
                 </div>
               )}
             </div>
@@ -457,6 +503,33 @@ export function TransactionFormDialog({
       <CategoryFormDialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen} onSubmit={handleCreateCategory} isLoading={createCategory.isPending} />
       <BankFormDialog open={bankDialogOpen} onOpenChange={setBankDialogOpen} onSubmit={handleCreateBank} isLoading={createBank.isPending} />
       <ContactFormDialog open={contactDialogOpen} onOpenChange={setContactDialogOpen} onSubmit={handleCreateContact} isLoading={createContact.isPending} />
+
+      <AlertDialog open={yearWarningDates.length > 0} onOpenChange={(open) => { if (!open) handleCancelYear(); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-yellow-500" />
+              Atenção
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>Uma ou mais datas informadas estão fora do ano corrente. Deseja realmente prosseguir com este lançamento?</p>
+                <div className="rounded-lg border border-border bg-muted/50 p-3 space-y-1">
+                  {yearWarningDates.map((d, i) => (
+                    <p key={i} className="text-sm font-medium text-foreground">
+                      {d.label} — <span className="text-destructive">{d.value}</span>
+                    </p>
+                  ))}
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelYear}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmYear}>Confirmar Lançamento</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

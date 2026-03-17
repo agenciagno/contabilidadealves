@@ -109,6 +109,7 @@ export function BankDetailSheet({ bank, open, onOpenChange }: BankDetailSheetPro
                 value={startDate}
                 onChange={e => setStartDate(e.target.value)}
                 className="pl-9 text-sm"
+                min="1900-01-01" max="9999-12-31"
               />
             </div>
             <div className="relative">
@@ -118,6 +119,7 @@ export function BankDetailSheet({ bank, open, onOpenChange }: BankDetailSheetPro
                 value={endDate}
                 onChange={e => setEndDate(e.target.value)}
                 className="pl-9 text-sm"
+                min="1900-01-01" max="9999-12-31"
               />
             </div>
           </div>
