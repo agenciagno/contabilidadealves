@@ -137,6 +137,13 @@ export function TransactionFormDialog({
     }
   }, [transaction, open, defaultType, resetKey]);
 
+  // Reset completo ao fechar o modal para evitar stale state
+  useEffect(() => {
+    if (!open) {
+      resetForm();
+    }
+  }, [open]);
+
   useEffect(() => {
     if (!transaction) { setCategoryId(''); setContactId(''); }
   }, [type, transaction]);
