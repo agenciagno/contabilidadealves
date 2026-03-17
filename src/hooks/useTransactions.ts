@@ -65,6 +65,7 @@ export function useTransactions() {
             bank:banks(id, name, color),
             contact:contacts(id, name, type)
           `)
+          .is('deleted_at', null)
           .order('created_at', { ascending: false })
           .order('id', { ascending: false })
           .range(from, from + PAGE_SIZE - 1);
