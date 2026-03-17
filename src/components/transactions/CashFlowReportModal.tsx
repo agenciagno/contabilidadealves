@@ -173,7 +173,7 @@ export function CashFlowReportModal({
     // 4 KPI cards
     const cardW = 63;
     const cardH = 14;
-    const cardY = 56;
+    const cardY = 61;
     const gap = 2;
     const padX = 3;
     const labelOffsetY = 6;
