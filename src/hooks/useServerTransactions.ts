@@ -29,6 +29,9 @@ function applyFilters(
   query: any,
   filters: ServerFilters
 ) {
+  // Always exclude soft-deleted records
+  query = query.is('deleted_at', null);
+
   if (filters.type && filters.type !== 'all') {
     query = query.eq('type', filters.type);
   }
