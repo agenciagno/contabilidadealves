@@ -447,7 +447,7 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
 
   // Filtered + sorted transactions
   const filtered = useMemo(() => {
-    let result = transactions.filter(t => !t.is_paid);
+    let result = transactions.filter(t => !t.is_paid && t.expected_date);
 
     // Global date filter
     if (globalStartDate || globalEndDate) {
