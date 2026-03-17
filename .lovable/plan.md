@@ -1,92 +1,93 @@
 
 
-## Plano: Refatoração da Aba "Pagar e Receber"
+# Preview Intermediario na Importacao de Planilha
 
-Este plano cobre 6 mudanças: novas colunas, running balance, KPI atualizado, filtros de cabeçalho, filtro de data global, e modal de relatório com herança de estado + impressão.
+## Resumo
 
-### Arquivos modificados
+Adicionar um Step 3 (Preview) entre o upload e a confirmacao final. Apos o upload processar os dados, ao inves de importar diretamente, exibir uma tabela com os lancamentos lidos para o usuario revisar, com opcao de confirmar ou voltar.
 
-| Arquivo | Mudança |
+---
+
+## Arquivo Modificado
+
+| Arquivo | Mudanca |
 |---|---|
-| `src/components/transactions/CashFlowTab.tsx` | Reescrita quase total: novas colunas, filtros de cabeçalho, filtro de data global, KPI dinâmico |
-| `src/components/transactions/CashFlowReportModal.tsx` | Herança de filtros via props, botão limpar datas, CSS @media print |
-| `src/pages/PagarReceber.tsx` | Menor — passa dados extras se necessário |
-| `src/index.css` | Adicionar regras `@media print` globais |
+| `src/components/transactions/ImportSpreadsheetDialog.tsx` | Adicionar step 3 com tabela de preview, separar parsing de importacao |
 
-### 1. Novas Colunas e Reordenação
+---
 
-Remover coluna "Valor". Criar duas colunas: **A Receber** (mostra valor apenas se `type === 'receita'`, senão `—`) e **A Pagar** (mostra valor apenas se `type === 'despesa'`, senão `—`).
+## Mudancas Detalhadas
 
-Ordem final: `Data Prevista | Cliente/Fornecedor | A Receber | A Pagar | Vencimento | Evento Contábil | Histórico | Saldo Atual | Status | Dia da Semana`
+### 1. Novo estado para armazenar dados parseados
 
-### 2. Running Balance (Saldo Atual)
-
-Lógica no `useMemo` de `rows`:
+```typescript
+const [parsedData, setParsedData] = useState<TransactionInsert[]>([]);
 ```
-Linha 1: saldo = totalBankBalance + aReceber(1) - aPagar(1)
-Linha N: saldo = saldoAnterior + aReceber(N) - aPagar(N)
+
+### 2. Alterar `processFile` para nao importar direto
+
+Em vez de chamar `onImport(transactions)` ao final do parsing, salvar em `setParsedData(transactions)` e avancar para `setStep(3)`.
+
+### 3. Step indicator com 3 passos
+
+Adicionar terceiro circulo "Revisar" no indicador de progresso (Modelo -> Upload -> Revisar).
+
+### 4. Step 3: Tabela de Preview
+
+- Dialog expandido para `sm:max-w-4xl` quando no step 3
+- Contador: "X lancamento(s) encontrado(s)"
+- Tabela com ScrollArea (max-height ~400px) contendo colunas:
+  - Data | Cliente | Tipo | Valor | Status | Vencimento | Banco | Categoria
+- Cada linha mostra dados legivel (data formatada dd/MM/yyyy, valor em R$, tipo como badge colorido Receita/Despesa, status como badge Pago/Pendente)
+- Lookup reverso de bank_id/category_id/contact_id para exibir nomes (ou "---" se nao vinculado)
+- Botoes: "Voltar" (ghost, volta ao step 2) e "Confirmar Importacao" (primary, chama onImport)
+- Ao confirmar: spinner de "Importando..." e fluxo existente de toast + fechar modal
+
+### 5. Ajuste no resetState
+
+Incluir `setParsedData([])` no reset.
+
+### 6. DialogDescription dinâmica
+
+Step 3 exibe: "Revise os dados antes de confirmar"
+
+---
+
+## Secao Tecnica
+
+### Lookup reverso para exibicao
+
+Para mostrar nomes na tabela de preview ao inves de IDs:
+
+```typescript
+const bankName = (id: string | null) => banks.find(b => b.id === id)?.name ?? '—';
+const categoryName = (id: string | null) => categories.find(c => c.id === id)?.name ?? '—';
+const contactName = (id: string | null) => contacts.find(c => c.id === id)?.name ?? '—';
 ```
-O cálculo opera sobre as linhas **já filtradas** (respeitando todos os filtros ativos incluindo data, contato, evento).
 
-### 3. Card Capital de Giro
+### Formatacao na tabela
 
-- Remover o texto "Até hoje: ..."
-- O valor principal = `saldoAtual` da **última linha** renderizada na tabela (ou `totalBankBalance` se tabela vazia)
-
-### 4. Filtros de Cabeçalho (Multi-select)
-
-Replicar os componentes inline já existentes em `Transactions.tsx`:
-- **Data Prevista / Vencimento**: `DateColumnFilter` com range + sort (copiar componente)
-- **Cliente/Fornecedor**: `ContactEventMultiFilter` com busca e checkboxes multi-select
-- **A Receber / A Pagar**: `NumericMultiFilter` com busca por valor
-- **Evento Contábil**: Multi-select com checkboxes e busca
-- **Status**: Filtro simples (Pendente/Vencido)
-- **Dia da Semana / Histórico**: Sem filtro (apenas texto)
-
-Header fixo: `TableHeader className="sticky top-0 z-10 bg-card"`
-
-Estado local `ColumnFilters` com campos: `expected_date`, `due_date`, `contactIds`, `eventNames`, `amounts`, `status`.
-
-### 5. Filtro de Data Global (Barra Superior)
-
-Adicionar acima da tabela um bloco com dois inputs `type="date"`:
-- **Padrão**: `startDate = 01/01/{anoCorrente}`, `endDate = hoje`
-- Filtra transações por `expected_date || due_date || issue_date` dentro do range
-- Integra-se ao pipeline de filtragem antes dos filtros de cabeçalho
-
-### 6. Modal "Gerar Relatório" — Herança + Impressão
-
-**Herança de Estado**: Passar `initialStartDate`, `initialEndDate`, `initialCategoryId`, `initialContactId` como props ao `CashFlowReportModal`. Usar esses valores como estado inicial dos `useState` internos do modal.
-
-**Botão de Limpeza Rápida**: Adicionar ícone `X` ao lado do campo de Data no modal. Ao clicar, limpa `startDate` e `endDate` para strings vazias → relatório mostra acumulado geral.
-
-**Layout de Impressão** (`src/index.css`):
-```css
-@media print {
-  @page { size: landscape; margin: 10mm; }
-  .sidebar, nav, .no-print, button { display: none !important; }
-  body { background: white !important; }
-  * { color-adjust: exact; -webkit-print-color-adjust: exact; }
-}
+```typescript
+// Data: format(parseISO(row.date), 'dd/MM/yyyy')
+// Valor: row.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+// Tipo: Badge verde "Receita" ou vermelho "Despesa"
+// Status: Badge "Pago" ou "Pendente"
 ```
-Adicionar botão "Imprimir" no modal que chama `window.print()`. O `summaryRef` e a tabela de preview do modal ficam visíveis na impressão.
 
-### Fluxo de dados simplificado
+### Handler de confirmacao
 
-```text
-PagarReceber (page)
-  └── CashFlowTab (component)
-        ├── [State] globalDateRange (01/01/ano ~ hoje)
-        ├── [State] columnFilters (multi-select headers)
-        ├── [Memo] filtered = transactions
-        │     .filter(!is_paid)
-        │     .filter(globalDateRange)
-        │     .filter(columnFilters)
-        │     .sort(sortField, sortOrder)
-        ├── [Memo] rows = filtered.map(running balance)
-        ├── [Memo] lastRowBalance → Capital de Giro KPI
-        ├── KPI Cards (4)
-        ├── Table (sticky header + filters)
-        └── CashFlowReportModal (herda filtros ativos)
+```typescript
+const handleConfirmImport = async () => {
+  setIsProcessing(true);
+  try {
+    await onImport(parsedData);
+    toast({ title: `${parsedData.length} lançamento(s) importado(s) com sucesso!` });
+    handleClose(false);
+  } catch (err) {
+    toast({ title: 'Erro ao importar.', variant: 'destructive' });
+  } finally {
+    setIsProcessing(false);
+  }
+};
 ```
 
