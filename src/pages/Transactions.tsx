@@ -32,6 +32,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { BulkEditDialog } from '@/components/transactions/BulkEditDialog';
 import {
   startOfMonth, endOfMonth, isWithinInterval, parseISO, format
 } from 'date-fns';
@@ -594,6 +595,7 @@ export default function Transactions() {
   const [formResetKey, setFormResetKey] = useState(0);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [defaultType, setDefaultType] = useState<'receita' | 'despesa'>('receita');
   const [importOpen, setImportOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -926,6 +928,9 @@ export default function Transactions() {
                 <Button size="sm" className="h-7 gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs" onClick={handleBulkPay}>
                   <CheckCircle2 className="w-3.5 h-3.5" /> Pagar {selectedIds.size}
                 </Button>
+                <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={() => setBulkEditOpen(true)}>
+                  <Pencil className="w-3.5 h-3.5" /> Editar {selectedIds.size}
+                </Button>
                 <Button size="sm" variant="destructive" className="h-7 gap-1.5 text-xs" onClick={() => setBulkDeleteConfirm(true)}>
                   <Trash2 className="w-3.5 h-3.5" /> Excluir {selectedIds.size}
                 </Button>
@@ -1144,6 +1149,16 @@ export default function Transactions() {
         onCreateCategory={async (name) => { const data = await createCategory.mutateAsync({ name, type: 'receita', color: '#3B82F6', icon: 'tag' }); return { id: data.id }; }}
         onCreateContact={async (name) => { const data = await createContact.mutateAsync({ name, type: 'cliente', is_active: true, boleto_active: false, document: null, email: null, phone: null, cep: null, address: null, address_number: null, neighborhood: null, city: null, state: null, notes: null, tax_regime: null, representative_legal: null, boleto_value: null, boleto_due_day: null, boleto_start_date: null, origin: 'imported' }); return { id: data.id }; }}
         onCreateBank={async (name) => { const data = await createBank.mutateAsync({ name, initial_balance: 0, color: '#10B981', is_active: true, is_caixa_geral: false, bank_code: null, agency: null, account_number: null }); return { id: data.id }; }}
+      />
+
+      <BulkEditDialog
+        open={bulkEditOpen}
+        onOpenChange={setBulkEditOpen}
+        selectedIds={Array.from(selectedIds)}
+        contacts={contacts}
+        categories={categories}
+        banks={banks}
+        onSuccess={() => setSelectedIds(new Set())}
       />
     </div>
   );
