@@ -927,6 +927,9 @@ export default function Transactions() {
                 <Button size="sm" className="h-7 gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs" onClick={handleBulkPay}>
                   <CheckCircle2 className="w-3.5 h-3.5" /> Pagar {selectedIds.size}
                 </Button>
+                <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={() => setBulkEditOpen(true)}>
+                  <Pencil className="w-3.5 h-3.5" /> Editar {selectedIds.size}
+                </Button>
                 <Button size="sm" variant="destructive" className="h-7 gap-1.5 text-xs" onClick={() => setBulkDeleteConfirm(true)}>
                   <Trash2 className="w-3.5 h-3.5" /> Excluir {selectedIds.size}
                 </Button>
