@@ -595,6 +595,7 @@ export default function Transactions() {
   const [formResetKey, setFormResetKey] = useState(0);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [defaultType, setDefaultType] = useState<'receita' | 'despesa'>('receita');
   const [importOpen, setImportOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
