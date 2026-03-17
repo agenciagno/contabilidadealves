@@ -292,6 +292,10 @@ export default function SettingsPage() {
             <History className="w-4 h-4" />
             Logs Globais
           </TabsTrigger>
+          <TabsTrigger value="lixeira" className="gap-1.5">
+            <Trash2 className="w-4 h-4" />
+            Lixeira
+          </TabsTrigger>
         </TabsList>
 
         {/* ═══════════ ABA 1: PERFIL & CONTA ═══════════ */}
