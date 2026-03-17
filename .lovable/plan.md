@@ -1,93 +1,91 @@
 
 
-# Preview Intermediario na Importacao de Planilha
+## Plano: Sistema de Lixeira (Soft Delete) para Transações
 
-## Resumo
+### 1. Migration — Coluna `deleted_at` + Cron de limpeza
 
-Adicionar um Step 3 (Preview) entre o upload e a confirmacao final. Apos o upload processar os dados, ao inves de importar diretamente, exibir uma tabela com os lancamentos lidos para o usuario revisar, com opcao de confirmar ou voltar.
+**SQL:**
+```sql
+ALTER TABLE transactions ADD COLUMN deleted_at timestamptz DEFAULT NULL;
+CREATE INDEX idx_transactions_deleted_at ON transactions(deleted_at) WHERE deleted_at IS NOT NULL;
+```
 
----
+**Cron automático (30 dias)** — via `pg_cron` + `pg_net`, executado como INSERT no cron.schedule (não migration):
+```sql
+SELECT cron.schedule('purge-trash-30d', '0 3 * * *', $$
+  DELETE FROM transactions WHERE deleted_at IS NOT NULL AND deleted_at < NOW() - INTERVAL '30 days';
+$$);
+```
 
-## Arquivo Modificado
+**Atualizar trigger `update_bank_balance`**: já usa `is_paid = true`, então soft-deleted records que são `is_paid=true` ainda afetariam o saldo. Precisamos adicionar `AND deleted_at IS NULL` nas subqueries do trigger.
 
-| Arquivo | Mudanca |
+### 2. Soft Delete — Mudar `deleteTransaction` em `useTransactions.ts`
+
+Trocar o `DELETE` real por `UPDATE ... SET deleted_at = now()`:
+```typescript
+// Antes: .delete().eq('id', id)
+// Depois: .update({ deleted_at: new Date().toISOString() }).eq('id', id)
+```
+
+Log continua registrando como "EXCLUSAO" (movido para lixeira).
+
+### 3. Ocultação Global — Adicionar `.is('deleted_at', null)` em TODAS as queries
+
+**8 arquivos** que fazem `from('transactions')`:
+
+| Arquivo | Queries afetadas |
 |---|---|
-| `src/components/transactions/ImportSpreadsheetDialog.tsx` | Adicionar step 3 com tabela de preview, separar parsing de importacao |
+| `useTransactions.ts` | Query principal (linha 59), togglePaid selects, bulkTogglePaid select |
+| `useServerTransactions.ts` | `applyFilters` (adicionar no início), KPI query |
+| `useBankTransactions.ts` | Prior query + Period query |
+| `useContactTransactions.ts` | Query por contactId |
+| `useReportData.ts` | Query de relatórios |
+| `useCashFlowForecast.ts` | Query de pendentes |
+| `NotificationContext.tsx` | Query de inadimplentes |
+| `useContactDependencies.ts` | Count de transações |
 
----
+**Abordagem centralizada**: Em `applyFilters` do `useServerTransactions.ts`, adicionar `query = query.is('deleted_at', null)` como primeiro filtro. Para os demais hooks, adicionar `.is('deleted_at', null)` individualmente em cada query.
 
-## Mudancas Detalhadas
+### 4. Interface da Lixeira — Nova aba em Configurações
 
-### 1. Novo estado para armazenar dados parseados
+**Novo componente: `src/components/settings/TrashTab.tsx`**
 
+- Tabela listando transações onde `deleted_at IS NOT NULL`
+- Colunas: Descrição, Tipo, Valor, Data Vencimento, Excluído em (deleted_at formatado), Ações
+- **Filtros no topo**: campo de busca (description/contact name) + filtro de período (por deleted_at)
+- **Botão Restaurar**: `UPDATE deleted_at = null` → invalida queries
+- **Botão Excluir Permanentemente**: `DELETE` real com confirmação AlertDialog
+- Aviso visual: "Itens são excluídos permanentemente após 30 dias"
+
+**Novo hook: `src/hooks/useTrash.ts`**
+- Query: `from('transactions').select(...).not('deleted_at', 'is', null).order('deleted_at', desc)`
+- Mutations: `restoreTransaction` (set deleted_at=null), `permanentDelete` (real DELETE)
+
+**Integrar em `SettingsPage.tsx`**: Adicionar aba "Lixeira" com ícone Trash2, entre "Logs Globais" e as demais.
+
+### 5. Atualizar tipo TypeScript
+
+Adicionar `deleted_at` ao interface `Transaction` em `useTransactions.ts`:
 ```typescript
-const [parsedData, setParsedData] = useState<TransactionInsert[]>([]);
+deleted_at?: string | null;
 ```
 
-### 2. Alterar `processFile` para nao importar direto
+### Arquivos alterados
 
-Em vez de chamar `onImport(transactions)` ao final do parsing, salvar em `setParsedData(transactions)` e avancar para `setStep(3)`.
-
-### 3. Step indicator com 3 passos
-
-Adicionar terceiro circulo "Revisar" no indicador de progresso (Modelo -> Upload -> Revisar).
-
-### 4. Step 3: Tabela de Preview
-
-- Dialog expandido para `sm:max-w-4xl` quando no step 3
-- Contador: "X lancamento(s) encontrado(s)"
-- Tabela com ScrollArea (max-height ~400px) contendo colunas:
-  - Data | Cliente | Tipo | Valor | Status | Vencimento | Banco | Categoria
-- Cada linha mostra dados legivel (data formatada dd/MM/yyyy, valor em R$, tipo como badge colorido Receita/Despesa, status como badge Pago/Pendente)
-- Lookup reverso de bank_id/category_id/contact_id para exibir nomes (ou "---" se nao vinculado)
-- Botoes: "Voltar" (ghost, volta ao step 2) e "Confirmar Importacao" (primary, chama onImport)
-- Ao confirmar: spinner de "Importando..." e fluxo existente de toast + fechar modal
-
-### 5. Ajuste no resetState
-
-Incluir `setParsedData([])` no reset.
-
-### 6. DialogDescription dinâmica
-
-Step 3 exibe: "Revise os dados antes de confirmar"
-
----
-
-## Secao Tecnica
-
-### Lookup reverso para exibicao
-
-Para mostrar nomes na tabela de preview ao inves de IDs:
-
-```typescript
-const bankName = (id: string | null) => banks.find(b => b.id === id)?.name ?? '—';
-const categoryName = (id: string | null) => categories.find(c => c.id === id)?.name ?? '—';
-const contactName = (id: string | null) => contacts.find(c => c.id === id)?.name ?? '—';
-```
-
-### Formatacao na tabela
-
-```typescript
-// Data: format(parseISO(row.date), 'dd/MM/yyyy')
-// Valor: row.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-// Tipo: Badge verde "Receita" ou vermelho "Despesa"
-// Status: Badge "Pago" ou "Pendente"
-```
-
-### Handler de confirmacao
-
-```typescript
-const handleConfirmImport = async () => {
-  setIsProcessing(true);
-  try {
-    await onImport(parsedData);
-    toast({ title: `${parsedData.length} lançamento(s) importado(s) com sucesso!` });
-    handleClose(false);
-  } catch (err) {
-    toast({ title: 'Erro ao importar.', variant: 'destructive' });
-  } finally {
-    setIsProcessing(false);
-  }
-};
-```
+| Arquivo | Mudança |
+|---|---|
+| **Migration SQL** | ADD COLUMN `deleted_at`, index |
+| **pg_cron SQL** (insert tool) | Schedule purge every day at 3am |
+| **Trigger `update_bank_balance`** | Adicionar `AND deleted_at IS NULL` |
+| `src/hooks/useTransactions.ts` | Soft delete, tipo Transaction, filtro `.is('deleted_at', null)` |
+| `src/hooks/useServerTransactions.ts` | Filtro em applyFilters + KPI |
+| `src/hooks/useBankTransactions.ts` | Filtro em ambas queries |
+| `src/hooks/useContactTransactions.ts` | Filtro |
+| `src/hooks/useReportData.ts` | Filtro |
+| `src/hooks/useCashFlowForecast.ts` | Filtro |
+| `src/contexts/NotificationContext.tsx` | Filtro |
+| `src/hooks/useContactDependencies.ts` | Filtro |
+| `src/hooks/useTrash.ts` | **Novo** — hook para lixeira |
+| `src/components/settings/TrashTab.tsx` | **Novo** — UI da lixeira |
+| `src/pages/SettingsPage.tsx` | Adicionar aba Lixeira |
 
