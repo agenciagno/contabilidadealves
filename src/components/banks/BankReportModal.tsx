@@ -376,7 +376,7 @@ ${transactions}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-5">
+        <div className="space-y-3">
           {/* Period */}
           <div>
             <Label className="text-sm font-semibold mb-2 block">Período</Label>
