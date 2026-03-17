@@ -262,6 +262,30 @@ export function TransactionFormDialog({
       return;
     }
 
+    // Edit mode (not settle): preserve original payment state, skip liquidation validation
+    if (isEditing && !isSettleMode) {
+      const shouldClose = saveActionRef.current === 'close';
+      const payload = {
+        type,
+        description: autoDescription,
+        amount: parseCurrencyInput(amount),
+        paid_amount: transaction?.paid_amount ?? null,
+        date: transaction?.date || undefined,
+        issue_date: issueDate || null,
+        due_date: dueDate || null,
+        expected_date: expectedDate || null,
+        category_id: categoryId || null,
+        bank_id: bankId || null,
+        contact_id: contactId || null,
+        is_paid: transaction?.is_paid ?? false,
+        notes: notes || null,
+      } as TransactionInsert;
+      checkYearAndSubmit(payload, pendingFiles, shouldClose);
+      saveActionRef.current = 'close';
+      return;
+    }
+
+    // New transaction (À Vista): derive payment status from paid amount
     const derivedIsPaid = paidAmountValue > 0;
 
     if (derivedIsPaid && !date) {
