@@ -367,38 +367,36 @@ export function CashFlowReportModal({ open, onOpenChange, transactions, categori
             </div>
           </div>
 
-          <Separator />
+          <Separator className="my-2" />
 
           {/* Preview Summary */}
           <div>
-            <Label className="text-sm font-semibold mb-3 block">Preview do Resumo</Label>
+            <Label className="text-xs font-semibold mb-1 block">Preview do Resumo</Label>
             <div
               ref={summaryRef}
-              className="bg-white rounded-xl border border-gray-200 p-6 space-y-4"
+              className="bg-white rounded-lg border border-gray-200 p-3 space-y-2"
               style={{ fontFamily: 'sans-serif' }}
             >
               <div>
-                <h3 className="font-bold text-gray-900 text-base">{company?.name || 'Contas a Pagar/Receber'}</h3>
-                <p className="text-xs text-gray-500">Período: {periodLabel}</p>
-                <p className="text-xs text-gray-500">Evento Contábil: {categoryLabel}</p>
-                <p className="text-xs text-gray-500">Cliente/Fornecedor: {contactLabel}</p>
+                <h3 className="font-bold text-gray-900 text-sm">{company?.name || 'Contas a Pagar/Receber'}</h3>
+                <p className="text-[10px] text-gray-500">Período: {periodLabel} • Evento: {categoryLabel} • Cliente: {contactLabel}</p>
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                <div className="bg-green-50 rounded-md p-2">
-                  <p className="text-[10px] text-green-700">Entradas Pendentes</p>
-                  <p className="font-bold text-green-700 text-xs mt-0.5">+{formatCurrency(kpis.entradas)}</p>
+              <div className="grid grid-cols-3 gap-1.5">
+                <div className="bg-green-50 rounded p-1.5">
+                  <p className="text-[9px] text-green-700">Entradas Pendentes</p>
+                  <p className="font-bold text-green-700 text-[11px]">+{formatCurrency(kpis.entradas)}</p>
                 </div>
-                <div className="bg-red-50 rounded-md p-2">
-                  <p className="text-[10px] text-red-700">Saídas Pendentes</p>
-                  <p className="font-bold text-red-700 text-xs mt-0.5">-{formatCurrency(kpis.saidas)}</p>
+                <div className="bg-red-50 rounded p-1.5">
+                  <p className="text-[9px] text-red-700">Saídas Pendentes</p>
+                  <p className="font-bold text-red-700 text-[11px]">-{formatCurrency(kpis.saidas)}</p>
                 </div>
-                <div className="bg-blue-50 rounded-md p-2">
-                  <p className="text-[10px] text-blue-700">Saldo Projetado</p>
-                  <p className="font-bold text-blue-700 text-xs mt-0.5">{formatCurrency(kpis.saldoProjetado)}</p>
+                <div className="bg-blue-50 rounded p-1.5">
+                  <p className="text-[9px] text-blue-700">Saldo Projetado</p>
+                  <p className="font-bold text-blue-700 text-[11px]">{formatCurrency(kpis.saldoProjetado)}</p>
                 </div>
               </div>
-              <div className="border-t border-gray-100 pt-3">
-                <p className="text-xs text-gray-400">
+              <div className="border-t border-gray-100 pt-1.5">
+                <p className="text-[10px] text-gray-400">
                   {filteredRows.length} lançamentos • Gerado em {pad2(today.getDate())}/{pad2(today.getMonth() + 1)}/{today.getFullYear()}
                 </p>
               </div>
