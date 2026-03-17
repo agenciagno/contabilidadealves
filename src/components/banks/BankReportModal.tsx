@@ -387,7 +387,7 @@ ${transactions}
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Data Fim</Label>
-                <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} min="1900-01-01" max="9999-12-31" />
               </div>
             </div>
           </div>
