@@ -15,6 +15,7 @@ import UsersTab from '@/components/users/UsersTab';
 import GlobalLogsTab from '@/components/settings/GlobalLogsTab';
 import ClientCompaniesTab from '@/components/settings/ClientCompaniesTab';
 import TrashTab from '@/components/settings/TrashTab';
+import BackupTab from '@/components/settings/BackupTab';
 import { useSuperAdmin } from '@/hooks/useSuperAdmin';
 import { useProfile } from '@/hooks/useProfile';
 
