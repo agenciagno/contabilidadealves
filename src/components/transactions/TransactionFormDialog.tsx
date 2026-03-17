@@ -84,7 +84,7 @@ export function TransactionFormDialog({
   const { createContact } = useContacts();
   const { attachments, uploadAttachment, deleteAttachment } = useTransactionAttachments(transaction?.id);
 
-  const filteredCategories = categories;
+  const filteredCategories = categories.filter(c => c.type === type);
   const activeBanks = banks.filter(b => b.is_active);
   const filteredContacts = contacts.filter(c => c.is_active);
 
