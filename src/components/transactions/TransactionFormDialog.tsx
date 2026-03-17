@@ -503,6 +503,33 @@ export function TransactionFormDialog({
       <CategoryFormDialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen} onSubmit={handleCreateCategory} isLoading={createCategory.isPending} />
       <BankFormDialog open={bankDialogOpen} onOpenChange={setBankDialogOpen} onSubmit={handleCreateBank} isLoading={createBank.isPending} />
       <ContactFormDialog open={contactDialogOpen} onOpenChange={setContactDialogOpen} onSubmit={handleCreateContact} isLoading={createContact.isPending} />
+
+      <AlertDialog open={yearWarningDates.length > 0} onOpenChange={(open) => { if (!open) handleCancelYear(); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-yellow-500" />
+              Atenção
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>Uma ou mais datas informadas estão fora do ano corrente. Deseja realmente prosseguir com este lançamento?</p>
+                <div className="rounded-lg border border-border bg-muted/50 p-3 space-y-1">
+                  {yearWarningDates.map((d, i) => (
+                    <p key={i} className="text-sm font-medium text-foreground">
+                      {d.label} — <span className="text-destructive">{d.value}</span>
+                    </p>
+                  ))}
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelYear}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmYear}>Confirmar Lançamento</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
