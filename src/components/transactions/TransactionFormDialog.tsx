@@ -84,7 +84,7 @@ export function TransactionFormDialog({
   const { createContact } = useContacts();
   const { attachments, uploadAttachment, deleteAttachment } = useTransactionAttachments(transaction?.id);
 
-  const filteredCategories = categories;
+  const filteredCategories = categories.filter(c => c.type === type);
   const activeBanks = banks.filter(b => b.is_active);
   const filteredContacts = contacts.filter(c => c.is_active);
 
@@ -116,9 +116,16 @@ export function TransactionFormDialog({
       setContactId(transaction.contact_id || '');
       setNotes(transaction.notes || '');
       setPendingFiles([]);
-    } else {
+    } else if (!transaction && open && !resetKey) {
+      // Only reset type/paymentCondition when dialog first opens (not on resetKey changes)
       setType(defaultType);
       setPaymentCondition('a_vista');
+      setAmount(''); setPaidAmount('');
+      setDate(''); setIssueDate(todayStr); setDueDate(''); setExpectedDate('');
+      setCategoryId(''); setBankId(''); setContactId('');
+      setNotes(''); setPendingFiles([]);
+    } else if (!transaction && resetKey) {
+      // resetKey changed (after "Salvar") — clear data but preserve type/paymentCondition
       setAmount(''); setPaidAmount('');
       setDate(''); setIssueDate(todayStr); setDueDate(''); setExpectedDate('');
       setCategoryId(''); setBankId(''); setContactId('');
@@ -136,8 +143,7 @@ export function TransactionFormDialog({
   const { toast } = useToast();
 
   const resetForm = () => {
-    setType(defaultType);
-    setPaymentCondition('a_vista');
+    // Preserve type and paymentCondition — only clear data fields
     setAmount(''); setPaidAmount('');
     setDate(''); setIssueDate(todayStr); setDueDate(''); setExpectedDate('');
     setCategoryId(''); setBankId(''); setContactId('');
