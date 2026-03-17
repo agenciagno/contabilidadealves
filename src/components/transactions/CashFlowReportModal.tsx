@@ -67,6 +67,7 @@ export function CashFlowReportModal({
   const [endDate, setEndDate] = useState('');
   const [categoryId, setCategoryId] = useState('all');
   const [contactId, setContactId] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
 
   useEffect(() => {
     if (open) {
@@ -74,6 +75,7 @@ export function CashFlowReportModal({
       setEndDate(initialEndDate);
       setCategoryId(initialCategoryIds.length === 1 ? initialCategoryIds[0] : 'all');
       setContactId(initialContactIds.length === 1 ? initialContactIds[0] : 'all');
+      setTypeFilter('all');
     }
   }, [open, initialStartDate, initialEndDate, initialCategoryIds, initialContactIds]);
 
@@ -88,6 +90,7 @@ export function CashFlowReportModal({
   const contactLabel = contactId !== 'all'
     ? contacts.find(c => c.id === contactId)?.name || 'Todos'
     : 'Todos';
+  const typeLabel = typeFilter === 'receita' ? 'A Receber' : typeFilter === 'despesa' ? 'A Pagar' : 'Todos';
 
   const clearDates = () => { setStartDate(''); setEndDate(''); };
 
@@ -112,10 +115,11 @@ export function CashFlowReportModal({
 
     if (categoryId !== 'all') result = result.filter(t => t.category_id === categoryId);
     if (contactId !== 'all') result = result.filter(t => t.contact_id === contactId);
+    if (typeFilter !== 'all') result = result.filter(t => t.type === typeFilter);
 
     result.sort((a, b) => (a.expected_date || '').localeCompare(b.expected_date || ''));
     return result;
-  }, [transactions, startDate, endDate, categoryId, contactId]);
+  }, [transactions, startDate, endDate, categoryId, contactId, typeFilter]);
 
   // Running balance rows
   const rowsWithBalance = useMemo(() => {
@@ -164,11 +168,12 @@ export function CashFlowReportModal({
     doc.text(`Período: ${periodLabel}`, 14, 40);
     doc.text(`Evento Contábil: ${categoryLabel}`, 14, 45);
     doc.text(`Cliente/Fornecedor: ${contactLabel}`, 14, 50);
+    doc.text(`Tipo: ${typeLabel}`, 14, 55);
 
     // 4 KPI cards
     const cardW = 63;
     const cardH = 14;
-    const cardY = 56;
+    const cardY = 61;
     const gap = 2;
     const padX = 3;
     const labelOffsetY = 6;
@@ -225,27 +230,27 @@ export function CashFlowReportModal({
       body: rowsWithBalance.map(r => [
         formatDateBR(r.expected_date || ''),
         r.contact?.name || r.description,
-        r.type === 'receita' ? formatCurrency(Number(r.amount)) : '—',
-        r.type === 'despesa' ? formatCurrency(Number(r.amount)) : '—',
-        r.due_date ? formatDateBR(r.due_date) : '—',
-        r.category?.name || '—',
-        r.notes || '—',
+        r.type === 'receita' ? formatCurrency(Number(r.amount)) : '',
+        r.type === 'despesa' ? formatCurrency(Number(r.amount)) : '',
+        r.due_date ? formatDateBR(r.due_date) : '',
+        r.category?.name || '',
+        r.notes || '',
         formatCurrency(r.saldoAtual),
         getStatus(r.is_paid, r.due_date),
       ]),
       theme: 'striped',
-      styles: { fontSize: 7, cellPadding: 1.5 },
-      headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold', fontSize: 6.5 },
+      styles: { fontSize: 7, cellPadding: 1.5, halign: 'center' },
+      headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold', fontSize: 6.5, halign: 'center' },
       alternateRowStyles: { fillColor: [248, 248, 248] },
       columnStyles: {
-        0: { cellWidth: 22 },
-        1: { cellWidth: 40 },
-        2: { halign: 'right', cellWidth: 26 },
-        3: { halign: 'right', cellWidth: 26 },
-        4: { cellWidth: 22 },
-        5: { cellWidth: 30 },
-        6: { cellWidth: 40 },
-        7: { halign: 'right', cellWidth: 28 },
+        0: { cellWidth: 22, halign: 'center' },
+        1: { cellWidth: 40, halign: 'center' },
+        2: { cellWidth: 26, halign: 'center' },
+        3: { cellWidth: 26, halign: 'center' },
+        4: { cellWidth: 22, halign: 'center' },
+        5: { cellWidth: 30, halign: 'center' },
+        6: { cellWidth: 40, halign: 'center' },
+        7: { cellWidth: 28, halign: 'center' },
         8: { cellWidth: 18, halign: 'center' },
       },
       didDrawPage: (data) => {
@@ -383,8 +388,8 @@ export function CashFlowReportModal({
             </div>
           </div>
 
-          {/* Category + Contact */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Category + Contact + Type */}
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <Label className="text-sm font-semibold mb-1 block">Evento Contábil</Label>
               <Select value={categoryId} onValueChange={setCategoryId}>
@@ -409,6 +414,17 @@ export function CashFlowReportModal({
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <Label className="text-sm font-semibold mb-1 block">Tipo</Label>
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="receita">A Receber</SelectItem>
+                  <SelectItem value="despesa">A Pagar</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <Separator className="my-2" />
@@ -423,7 +439,7 @@ export function CashFlowReportModal({
             >
               <div>
                 <h3 className="font-bold text-gray-900 text-sm">{company?.name || 'Contas a Pagar/Receber'}</h3>
-                <p className="text-[10px] text-gray-500">Período: {periodLabel} • Evento: {categoryLabel} • Cliente: {contactLabel}</p>
+                <p className="text-[10px] text-gray-500">Período: {periodLabel} • Tipo: {typeLabel} • Evento: {categoryLabel} • Cliente: {contactLabel}</p>
               </div>
               <div className="grid grid-cols-4 gap-1.5">
                 <div className="bg-blue-50 rounded p-1.5 border-l-2 border-l-blue-500">
