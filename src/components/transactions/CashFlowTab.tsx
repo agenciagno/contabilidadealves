@@ -492,7 +492,7 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
       // OR logic between contacts and events
       const contactIds = columnFilters.contactIds;
       const eventNames = columnFilters.eventNames;
-      result = transactions.filter(t => !t.is_paid).filter(t => {
+      result = transactions.filter(t => !t.is_paid && t.expected_date).filter(t => {
         // re-apply global date
         const dateKey = t.expected_date || t.due_date || t.issue_date;
         if (globalStartDate && dateKey && dateKey < globalStartDate) return false;
