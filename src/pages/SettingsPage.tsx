@@ -562,6 +562,11 @@ export default function SettingsPage() {
         <TabsContent value="lixeira" className="mt-0">
           <TrashTab />
         </TabsContent>
+
+        {/* ═══════════ ABA 6: BACKUP ═══════════ */}
+        <TabsContent value="backup" className="mt-0">
+          <BackupTab />
+        </TabsContent>
       </Tabs>
     </div>
   );
