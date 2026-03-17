@@ -67,6 +67,7 @@ interface CashFlowColumnFilters {
   contactIds?: string[];
   eventNames?: string[];
   amounts?: number[];
+  despesaAmounts?: number[];
   status?: string[];
 }
 
