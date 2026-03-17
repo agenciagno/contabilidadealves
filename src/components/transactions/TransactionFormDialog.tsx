@@ -105,10 +105,13 @@ export function TransactionFormDialog({
 
   useEffect(() => {
     if (transaction) {
+      const isPaid = isEffectivelyPaid(transaction);
       setType(transaction.type);
       setAmount(formatCurrencyInput(String(Math.round(Number(transaction.amount) * 100))));
-      setPaidAmount(transaction.paid_amount != null ? formatCurrencyInput(String(Math.round(Number(transaction.paid_amount) * 100))) : '');
-      setDate(transaction.date || '');
+      setPaidAmount(isPaid && transaction.paid_amount != null
+        ? formatCurrencyInput(String(Math.round(Number(transaction.paid_amount) * 100)))
+        : '');
+      setDate(isPaid ? (transaction.date || '') : '');
       setIssueDate(transaction.issue_date || todayStr);
       setDueDate(transaction.due_date || '');
       setExpectedDate(transaction.expected_date || '');
