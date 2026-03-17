@@ -82,6 +82,7 @@ export function UnifiedStatementAccordion({ banks }: UnifiedStatementAccordionPr
                   value={endDate}
                   onChange={e => setEndDate(e.target.value)}
                   className="pl-9 text-sm"
+                  min="1900-01-01" max="9999-12-31"
                 />
               </div>
               <Select value={bankId} onValueChange={setBankId}>
