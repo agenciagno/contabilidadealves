@@ -439,7 +439,7 @@ export function CashFlowReportModal({
             >
               <div>
                 <h3 className="font-bold text-gray-900 text-sm">{company?.name || 'Contas a Pagar/Receber'}</h3>
-                <p className="text-[10px] text-gray-500">Período: {periodLabel} • Evento: {categoryLabel} • Cliente: {contactLabel}</p>
+                <p className="text-[10px] text-gray-500">Período: {periodLabel} • Tipo: {typeLabel} • Evento: {categoryLabel} • Cliente: {contactLabel}</p>
               </div>
               <div className="grid grid-cols-4 gap-1.5">
                 <div className="bg-blue-50 rounded p-1.5 border-l-2 border-l-blue-500">
