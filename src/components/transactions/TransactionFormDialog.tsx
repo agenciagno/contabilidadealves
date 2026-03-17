@@ -152,6 +152,46 @@ export function TransactionFormDialog({
     }
   };
 
+  const checkYearAndSubmit = (payload: TransactionInsert, files: File[], shouldClose: boolean) => {
+    const currentYear = new Date().getFullYear();
+    const dateLabels: Record<string, string> = {
+      issue_date: 'Emissão',
+      due_date: 'Vencimento',
+      expected_date: 'Prevista',
+      date: 'Pagamento',
+    };
+    const offYearDates: { label: string; value: string }[] = [];
+    for (const [key, label] of Object.entries(dateLabels)) {
+      const val = (payload as any)[key];
+      if (val && typeof val === 'string' && val.length >= 4) {
+        const year = parseInt(val.substring(0, 4), 10);
+        if (!isNaN(year) && year !== currentYear) {
+          const [y, m, d] = val.split('-');
+          offYearDates.push({ label, value: `${d}/${m}/${y}` });
+        }
+      }
+    }
+    if (offYearDates.length > 0) {
+      setYearWarningDates(offYearDates);
+      setPendingPayload({ data: payload, files, shouldClose });
+      return;
+    }
+    onSubmit(payload, files, shouldClose);
+  };
+
+  const handleConfirmYear = () => {
+    if (pendingPayload) {
+      onSubmit(pendingPayload.data, pendingPayload.files, pendingPayload.shouldClose);
+      setPendingPayload(null);
+      setYearWarningDates([]);
+    }
+  };
+
+  const handleCancelYear = () => {
+    setPendingPayload(null);
+    setYearWarningDates([]);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -174,28 +214,29 @@ export function TransactionFormDialog({
     const paidAmountValue = parseCurrencyInput(paidAmount);
 
     if (isSettleMode) {
-    onSubmit({
-      type,
-      description: autoDescription,
-      amount: parseCurrencyInput(amount),
-      paid_amount: paidAmountValue,
-      date: date || undefined,
-      issue_date: issueDate || null,
-      due_date: dueDate || null,
-      expected_date: expectedDate || null,
-      category_id: categoryId || null,
-      bank_id: bankId || null,
-      contact_id: contactId || null,
-      is_paid: true,
-      notes: notes || null,
-    } as TransactionInsert, pendingFiles, true);
-    return;
+      const payload = {
+        type,
+        description: autoDescription,
+        amount: parseCurrencyInput(amount),
+        paid_amount: paidAmountValue,
+        date: date || undefined,
+        issue_date: issueDate || null,
+        due_date: dueDate || null,
+        expected_date: expectedDate || null,
+        category_id: categoryId || null,
+        bank_id: bankId || null,
+        contact_id: contactId || null,
+        is_paid: true,
+        notes: notes || null,
+      } as TransactionInsert;
+      checkYearAndSubmit(payload, pendingFiles, true);
+      return;
     }
 
     // Edit / Create mode
     if (isAPrazo) {
       const shouldClose = saveActionRef.current === 'close';
-      onSubmit({
+      const payload = {
         type,
         description: autoDescription,
         amount: parseCurrencyInput(amount),
@@ -209,7 +250,8 @@ export function TransactionFormDialog({
         contact_id: contactId || null,
         is_paid: false,
         notes: notes || null,
-      } as TransactionInsert, pendingFiles, shouldClose);
+      } as TransactionInsert;
+      checkYearAndSubmit(payload, pendingFiles, shouldClose);
       saveActionRef.current = 'close';
       return;
     }
@@ -226,7 +268,7 @@ export function TransactionFormDialog({
 
     const shouldClose = saveActionRef.current === 'close';
 
-    onSubmit({
+    const payload = {
       type,
       description: autoDescription,
       amount: parseCurrencyInput(amount),
@@ -240,8 +282,9 @@ export function TransactionFormDialog({
       contact_id: contactId || null,
       is_paid: derivedIsPaid,
       notes: notes || null,
-    } as TransactionInsert, pendingFiles, shouldClose);
+    } as TransactionInsert;
 
+    checkYearAndSubmit(payload, pendingFiles, shouldClose);
     saveActionRef.current = 'close';
   };
 
