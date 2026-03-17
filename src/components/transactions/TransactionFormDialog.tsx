@@ -136,8 +136,7 @@ export function TransactionFormDialog({
   const { toast } = useToast();
 
   const resetForm = () => {
-    setType(defaultType);
-    setPaymentCondition('a_vista');
+    // Preserve type and paymentCondition — only clear data fields
     setAmount(''); setPaidAmount('');
     setDate(''); setIssueDate(todayStr); setDueDate(''); setExpectedDate('');
     setCategoryId(''); setBankId(''); setContactId('');
