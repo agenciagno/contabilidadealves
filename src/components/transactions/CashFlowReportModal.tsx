@@ -75,6 +75,7 @@ export function CashFlowReportModal({
       setEndDate(initialEndDate);
       setCategoryId(initialCategoryIds.length === 1 ? initialCategoryIds[0] : 'all');
       setContactId(initialContactIds.length === 1 ? initialContactIds[0] : 'all');
+      setTypeFilter('all');
     }
   }, [open, initialStartDate, initialEndDate, initialCategoryIds, initialContactIds]);
 
