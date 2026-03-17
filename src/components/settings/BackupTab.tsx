@@ -179,7 +179,7 @@ export default function BackupTab() {
         const BATCH = 500;
         for (let i = 0; i < rows.length; i += BATCH) {
           const batch = rows.slice(i, i + BATCH);
-          const { error } = await supabase.from(table).upsert(batch as any, { onConflict: 'id' });
+          const { error } = await (supabase.from as any)(table).upsert(batch, { onConflict: 'id' });
           if (error) throw new Error(`Erro em ${table}: ${error.message}`);
         }
 
