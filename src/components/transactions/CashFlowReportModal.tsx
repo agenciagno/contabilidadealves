@@ -168,6 +168,7 @@ export function CashFlowReportModal({
     doc.text(`Período: ${periodLabel}`, 14, 40);
     doc.text(`Evento Contábil: ${categoryLabel}`, 14, 45);
     doc.text(`Cliente/Fornecedor: ${contactLabel}`, 14, 50);
+    doc.text(`Tipo: ${typeLabel}`, 14, 55);
 
     // 4 KPI cards
     const cardW = 63;
