@@ -39,7 +39,8 @@ function applyFilters(
     query = query.eq('bank_id', filters.bankId);
   }
   if (filters.searchTerm) {
-    query = query.ilike('description', `%${filters.searchTerm}%`);
+    const term = filters.searchTerm.replace(/%/g, '');
+    query = query.or(`description.ilike.%${term}%,notes.ilike.%${term}%`);
   }
 
   const cf = filters.columnFilters;

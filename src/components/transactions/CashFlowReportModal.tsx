@@ -310,7 +310,7 @@ export function CashFlowReportModal({ open, onOpenChange, transactions, categori
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-primary" />
@@ -318,10 +318,10 @@ export function CashFlowReportModal({ open, onOpenChange, transactions, categori
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-5">
+        <div className="space-y-3">
           {/* Period */}
           <div>
-            <Label className="text-sm font-semibold mb-2 block">Período</Label>
+            <Label className="text-sm font-semibold mb-1 block">Período</Label>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Data Início</Label>
@@ -334,113 +334,96 @@ export function CashFlowReportModal({ open, onOpenChange, transactions, categori
             </div>
           </div>
 
-          {/* Category */}
-          <div>
-            <Label className="text-sm font-semibold mb-2 block">Evento Contábil</Label>
-            <Select value={categoryId} onValueChange={setCategoryId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Todos os eventos contábeis" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                {categories.map(c => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* Category + Contact side by side */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-sm font-semibold mb-1 block">Evento Contábil</Label>
+              <Select value={categoryId} onValueChange={setCategoryId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {categories.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label className="text-sm font-semibold mb-1 block">Cliente/Fornecedor</Label>
+              <Select value={contactId} onValueChange={setContactId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {contacts.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          {/* Contact */}
-          <div>
-            <Label className="text-sm font-semibold mb-2 block">Cliente/Fornecedor</Label>
-            <Select value={contactId} onValueChange={setContactId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Todos os clientes/fornecedores" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                {contacts.map(c => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Separator />
+          <Separator className="my-2" />
 
           {/* Preview Summary */}
           <div>
-            <Label className="text-sm font-semibold mb-3 block">Preview do Resumo</Label>
+            <Label className="text-xs font-semibold mb-1 block">Preview do Resumo</Label>
             <div
               ref={summaryRef}
-              className="bg-white rounded-xl border border-gray-200 p-6 space-y-4"
+              className="bg-white rounded-lg border border-gray-200 p-3 space-y-2"
               style={{ fontFamily: 'sans-serif' }}
             >
               <div>
-                <h3 className="font-bold text-gray-900 text-base">{company?.name || 'Contas a Pagar/Receber'}</h3>
-                <p className="text-xs text-gray-500">Período: {periodLabel}</p>
-                <p className="text-xs text-gray-500">Evento Contábil: {categoryLabel}</p>
-                <p className="text-xs text-gray-500">Cliente/Fornecedor: {contactLabel}</p>
+                <h3 className="font-bold text-gray-900 text-sm">{company?.name || 'Contas a Pagar/Receber'}</h3>
+                <p className="text-[10px] text-gray-500">Período: {periodLabel} • Evento: {categoryLabel} • Cliente: {contactLabel}</p>
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                <div className="bg-green-50 rounded-md p-2">
-                  <p className="text-[10px] text-green-700">Entradas Pendentes</p>
-                  <p className="font-bold text-green-700 text-xs mt-0.5">+{formatCurrency(kpis.entradas)}</p>
+              <div className="grid grid-cols-3 gap-1.5">
+                <div className="bg-green-50 rounded p-1.5">
+                  <p className="text-[9px] text-green-700">Entradas Pendentes</p>
+                  <p className="font-bold text-green-700 text-[11px]">+{formatCurrency(kpis.entradas)}</p>
                 </div>
-                <div className="bg-red-50 rounded-md p-2">
-                  <p className="text-[10px] text-red-700">Saídas Pendentes</p>
-                  <p className="font-bold text-red-700 text-xs mt-0.5">-{formatCurrency(kpis.saidas)}</p>
+                <div className="bg-red-50 rounded p-1.5">
+                  <p className="text-[9px] text-red-700">Saídas Pendentes</p>
+                  <p className="font-bold text-red-700 text-[11px]">-{formatCurrency(kpis.saidas)}</p>
                 </div>
-                <div className="bg-blue-50 rounded-md p-2">
-                  <p className="text-[10px] text-blue-700">Saldo Projetado</p>
-                  <p className="font-bold text-blue-700 text-xs mt-0.5">{formatCurrency(kpis.saldoProjetado)}</p>
+                <div className="bg-blue-50 rounded p-1.5">
+                  <p className="text-[9px] text-blue-700">Saldo Projetado</p>
+                  <p className="font-bold text-blue-700 text-[11px]">{formatCurrency(kpis.saldoProjetado)}</p>
                 </div>
               </div>
-              <div className="border-t border-gray-100 pt-3">
-                <p className="text-xs text-gray-400">
+              <div className="border-t border-gray-100 pt-1.5">
+                <p className="text-[10px] text-gray-400">
                   {filteredRows.length} lançamentos • Gerado em {pad2(today.getDate())}/{pad2(today.getMonth() + 1)}/{today.getFullYear()}
                 </p>
               </div>
             </div>
           </div>
 
-          <Separator />
+          <Separator className="my-2" />
 
           {/* Export buttons */}
           <div>
-            <Label className="text-sm font-semibold mb-3 block">Exportar</Label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <Button
-                variant="outline"
-                className="flex items-center gap-2 h-10"
-                onClick={exportPDF}
-              >
-                <FileText className="w-4 h-4 text-red-500" />
-                <span className="text-sm font-medium">PDF</span>
+            <Label className="text-xs font-semibold mb-1.5 block">Exportar</Label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs" onClick={exportPDF}>
+                <FileText className="w-3.5 h-3.5 text-red-500" />
+                PDF
               </Button>
-              <Button
-                variant="outline"
-                className="flex items-center gap-2 h-10"
-                onClick={exportXLS}
-              >
-                <Table2 className="w-4 h-4 text-green-600" />
-                <span className="text-sm font-medium">XLS</span>
+              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs" onClick={exportXLS}>
+                <Table2 className="w-3.5 h-3.5 text-green-600" />
+                XLS
               </Button>
-              <Button
-                variant="outline"
-                className="flex items-center gap-2 h-10"
-                onClick={exportCSV}
-              >
-                <Table2 className="w-4 h-4 text-green-600" />
-                <span className="text-sm font-medium">CSV</span>
+              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs" onClick={exportCSV}>
+                <Table2 className="w-3.5 h-3.5 text-green-600" />
+                CSV
               </Button>
-              <Button
-                variant="outline"
-                className="flex items-center gap-2 h-10"
-                onClick={exportImage}
-              >
-                <Image className="w-4 h-4 text-purple-500" />
-                <span className="text-sm font-medium">Imagem</span>
+              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs" onClick={exportImage}>
+                <Image className="w-3.5 h-3.5 text-purple-500" />
+                Imagem
               </Button>
             </div>
           </div>

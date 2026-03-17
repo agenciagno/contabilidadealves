@@ -1,43 +1,93 @@
 
 
-## Plano: Corrigir Busca Server-Side + Compactar Modais de Relatório
+# Preview Intermediario na Importacao de Planilha
 
-### 1. Aprimorar Busca Server-Side (`useServerTransactions.ts`)
+## Resumo
 
-**Situação atual:** Os filtros de toolbar (Tipo, Banco, Evento Contábil) ja sao server-side — estao no objeto `serverFilters` e sao aplicados em `applyFilters`. Porem, o `searchTerm` so busca no campo `description` via `.ilike()`. Ele nao cobre o nome do contato nem o campo `notes`.
+Adicionar um Step 3 (Preview) entre o upload e a confirmacao final. Apos o upload processar os dados, ao inves de importar diretamente, exibir uma tabela com os lancamentos lidos para o usuario revisar, com opcao de confirmar ou voltar.
 
-**Correção:** Trocar o `.ilike('description', ...)` por um `.or()` que busca em `description`, `notes`, e no nome do contato (via filtro no join). Como Supabase nao suporta `ilike` em campos de tabelas relacionadas diretamente, usaremos a abordagem de `.or('description.ilike.%term%,notes.ilike.%term%')` para os campos da tabela principal. Para buscar por nome do contato, adicionaremos um filtro alternativo via `contact_id` obtido previamente ou usaremos a sintaxe `contact.name` se suportada pelo PostgREST.
+---
 
-Alternativa mais robusta: usar `.or()` apenas em `description` e `notes` (que ja cobre a maioria dos casos), mantendo o comportamento atual como base.
-
-### 2. Compactar BankReportModal (`src/components/banks/BankReportModal.tsx`)
-
-**Mudancas:**
-- Remover `space-y-5` e usar `space-y-3`
-- Colocar "Contas Bancárias" e "Evento Contábil" lado a lado com `grid grid-cols-2 gap-3`
-- Reduzir padding do Preview Summary: `p-6 space-y-4` → `p-3 space-y-2`
-- Reduzir fonte do titulo do preview: `text-base` → `text-sm`
-- Reduzir `mb-3` dos labels para `mb-1`
-- Reduzir separators: usar `my-2` em vez de defaults
-- Botoes de exportar: reduzir `gap-3` para `gap-2`, `h-10` para `h-8`
-- Remover `max-h-[90vh] overflow-y-auto` do DialogContent (conteudo deve caber sem scroll)
-
-### 3. Compactar CashFlowReportModal (`src/components/transactions/CashFlowReportModal.tsx`)
-
-**Mudancas identicas:**
-- `space-y-5` → `space-y-3`
-- Colocar "Evento Contábil" e "Cliente/Fornecedor" lado a lado: `grid grid-cols-2 gap-3`
-- Mesmo tratamento no Preview Summary (reduzir padding/fontes)
-- Botoes de exportar compactados
-- Eliminar scroll interno
-
-### Arquivos Alterados
+## Arquivo Modificado
 
 | Arquivo | Mudanca |
 |---|---|
-| `src/hooks/useServerTransactions.ts` | Expandir `searchTerm` para buscar em `description` + `notes` |
-| `src/components/banks/BankReportModal.tsx` | Layout compacto com grid |
-| `src/components/transactions/CashFlowReportModal.tsx` | Layout compacto com grid |
+| `src/components/transactions/ImportSpreadsheetDialog.tsx` | Adicionar step 3 com tabela de preview, separar parsing de importacao |
 
-Nenhuma migration necessaria.
+---
+
+## Mudancas Detalhadas
+
+### 1. Novo estado para armazenar dados parseados
+
+```typescript
+const [parsedData, setParsedData] = useState<TransactionInsert[]>([]);
+```
+
+### 2. Alterar `processFile` para nao importar direto
+
+Em vez de chamar `onImport(transactions)` ao final do parsing, salvar em `setParsedData(transactions)` e avancar para `setStep(3)`.
+
+### 3. Step indicator com 3 passos
+
+Adicionar terceiro circulo "Revisar" no indicador de progresso (Modelo -> Upload -> Revisar).
+
+### 4. Step 3: Tabela de Preview
+
+- Dialog expandido para `sm:max-w-4xl` quando no step 3
+- Contador: "X lancamento(s) encontrado(s)"
+- Tabela com ScrollArea (max-height ~400px) contendo colunas:
+  - Data | Cliente | Tipo | Valor | Status | Vencimento | Banco | Categoria
+- Cada linha mostra dados legivel (data formatada dd/MM/yyyy, valor em R$, tipo como badge colorido Receita/Despesa, status como badge Pago/Pendente)
+- Lookup reverso de bank_id/category_id/contact_id para exibir nomes (ou "---" se nao vinculado)
+- Botoes: "Voltar" (ghost, volta ao step 2) e "Confirmar Importacao" (primary, chama onImport)
+- Ao confirmar: spinner de "Importando..." e fluxo existente de toast + fechar modal
+
+### 5. Ajuste no resetState
+
+Incluir `setParsedData([])` no reset.
+
+### 6. DialogDescription dinâmica
+
+Step 3 exibe: "Revise os dados antes de confirmar"
+
+---
+
+## Secao Tecnica
+
+### Lookup reverso para exibicao
+
+Para mostrar nomes na tabela de preview ao inves de IDs:
+
+```typescript
+const bankName = (id: string | null) => banks.find(b => b.id === id)?.name ?? '—';
+const categoryName = (id: string | null) => categories.find(c => c.id === id)?.name ?? '—';
+const contactName = (id: string | null) => contacts.find(c => c.id === id)?.name ?? '—';
+```
+
+### Formatacao na tabela
+
+```typescript
+// Data: format(parseISO(row.date), 'dd/MM/yyyy')
+// Valor: row.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+// Tipo: Badge verde "Receita" ou vermelho "Despesa"
+// Status: Badge "Pago" ou "Pendente"
+```
+
+### Handler de confirmacao
+
+```typescript
+const handleConfirmImport = async () => {
+  setIsProcessing(true);
+  try {
+    await onImport(parsedData);
+    toast({ title: `${parsedData.length} lançamento(s) importado(s) com sucesso!` });
+    handleClose(false);
+  } catch (err) {
+    toast({ title: 'Erro ao importar.', variant: 'destructive' });
+  } finally {
+    setIsProcessing(false);
+  }
+};
+```
 
