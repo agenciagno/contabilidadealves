@@ -388,8 +388,8 @@ export function CashFlowReportModal({
             </div>
           </div>
 
-          {/* Category + Contact */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Category + Contact + Type */}
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <Label className="text-sm font-semibold mb-1 block">Evento Contábil</Label>
               <Select value={categoryId} onValueChange={setCategoryId}>
@@ -411,6 +411,17 @@ export function CashFlowReportModal({
                   {contacts.map(c => (
                     <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-sm font-semibold mb-1 block">Tipo</Label>
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="receita">A Receber</SelectItem>
+                  <SelectItem value="despesa">A Pagar</SelectItem>
                 </SelectContent>
               </Select>
             </div>
