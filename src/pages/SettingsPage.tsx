@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Separator } from '@/components/ui/separator';
-import { Moon, Sun, Monitor, Loader2, Upload, Building2, Palette, Check, Lightbulb, Trash2, History, Users, Building, Shield, Mail, User as UserIcon, AlertCircle } from 'lucide-react';
+import { Moon, Sun, Monitor, Loader2, Upload, Building2, Palette, Check, Lightbulb, Trash2, History, Users, Building, Shield, Mail, User as UserIcon, AlertCircle, Database } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
