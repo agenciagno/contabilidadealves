@@ -1,93 +1,52 @@
 
 
-# Preview Intermediario na Importacao de Planilha
+## Correção: Stale State no Campo "Valor Pago" para Transações Pendentes
 
-## Resumo
+### Diagnóstico
 
-Adicionar um Step 3 (Preview) entre o upload e a confirmacao final. Apos o upload processar os dados, ao inves de importar diretamente, exibir uma tabela com os lancamentos lidos para o usuario revisar, com opcao de confirmar ou voltar.
-
----
-
-## Arquivo Modificado
-
-| Arquivo | Mudanca |
-|---|---|
-| `src/components/transactions/ImportSpreadsheetDialog.tsx` | Adicionar step 3 com tabela de preview, separar parsing de importacao |
-
----
-
-## Mudancas Detalhadas
-
-### 1. Novo estado para armazenar dados parseados
-
+**Linha 109** em `TransactionFormDialog.tsx`:
 ```typescript
-const [parsedData, setParsedData] = useState<TransactionInsert[]>([]);
+setPaidAmount(transaction.paid_amount != null ? formatCurrencyInput(...) : '');
 ```
 
-### 2. Alterar `processFile` para nao importar direto
+Quando uma transação pendente tem um `paid_amount` residual no banco (ex: valor antigo que ficou salvo mesmo com `is_paid = false`), o campo é preenchido com esse valor. O usuário vê um "Valor Pago" fantasma em uma transação que é pendente.
 
-Em vez de chamar `onImport(transactions)` ao final do parsing, salvar em `setParsedData(transactions)` e avancar para `setStep(3)`.
+### Correção (1 arquivo)
 
-### 3. Step indicator com 3 passos
+**`src/components/transactions/TransactionFormDialog.tsx`**
 
-Adicionar terceiro circulo "Revisar" no indicador de progresso (Modelo -> Upload -> Revisar).
-
-### 4. Step 3: Tabela de Preview
-
-- Dialog expandido para `sm:max-w-4xl` quando no step 3
-- Contador: "X lancamento(s) encontrado(s)"
-- Tabela com ScrollArea (max-height ~400px) contendo colunas:
-  - Data | Cliente | Tipo | Valor | Status | Vencimento | Banco | Categoria
-- Cada linha mostra dados legivel (data formatada dd/MM/yyyy, valor em R$, tipo como badge colorido Receita/Despesa, status como badge Pago/Pendente)
-- Lookup reverso de bank_id/category_id/contact_id para exibir nomes (ou "---" se nao vinculado)
-- Botoes: "Voltar" (ghost, volta ao step 2) e "Confirmar Importacao" (primary, chama onImport)
-- Ao confirmar: spinner de "Importando..." e fluxo existente de toast + fechar modal
-
-### 5. Ajuste no resetState
-
-Incluir `setParsedData([])` no reset.
-
-### 6. DialogDescription dinâmica
-
-Step 3 exibe: "Revise os dados antes de confirmar"
-
----
-
-## Secao Tecnica
-
-### Lookup reverso para exibicao
-
-Para mostrar nomes na tabela de preview ao inves de IDs:
+**Mudança 1 — Inicialização condicional (linha 109):**
+Aplicar a regra estrita `isEffectivelyPaid` para decidir se exibe o `paid_amount`:
 
 ```typescript
-const bankName = (id: string | null) => banks.find(b => b.id === id)?.name ?? '—';
-const categoryName = (id: string | null) => categories.find(c => c.id === id)?.name ?? '—';
-const contactName = (id: string | null) => contacts.find(c => c.id === id)?.name ?? '—';
+import { isEffectivelyPaid } from '@/lib/financial-utils';
+
+// linha 109 — dentro do useEffect que carrega a transaction:
+const isPaid = isEffectivelyPaid(transaction);
+setPaidAmount(isPaid && transaction.paid_amount != null
+  ? formatCurrencyInput(String(Math.round(Number(transaction.paid_amount) * 100)))
+  : '');
+setDate(isPaid ? (transaction.date || '') : '');
 ```
 
-### Formatacao na tabela
+Se a transação não é efetivamente paga (pendente), `paidAmount` e `date` são forçados para vazio, ignorando qualquer valor residual do banco.
+
+**Mudança 2 — Reset completo ao fechar modal:**
+Adicionar um `useEffect` que limpa todo o estado quando `open` muda para `false`:
 
 ```typescript
-// Data: format(parseISO(row.date), 'dd/MM/yyyy')
-// Valor: row.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-// Tipo: Badge verde "Receita" ou vermelho "Despesa"
-// Status: Badge "Pago" ou "Pendente"
-```
-
-### Handler de confirmacao
-
-```typescript
-const handleConfirmImport = async () => {
-  setIsProcessing(true);
-  try {
-    await onImport(parsedData);
-    toast({ title: `${parsedData.length} lançamento(s) importado(s) com sucesso!` });
-    handleClose(false);
-  } catch (err) {
-    toast({ title: 'Erro ao importar.', variant: 'destructive' });
-  } finally {
-    setIsProcessing(false);
+useEffect(() => {
+  if (!open) {
+    resetForm();
   }
-};
+}, [open]);
 ```
+
+Isso garante que ao fechar o modal (cancelar ou após salvar), nenhum valor da transação anterior vaze para a próxima abertura.
+
+### Resultado
+
+- Transações pendentes: campo "Valor Pago" sempre vazio ao abrir para edição
+- Transações pagas: campo preenchido normalmente com o valor do banco
+- Troca de transação: estado completamente limpo entre aberturas
 
