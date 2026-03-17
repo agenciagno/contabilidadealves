@@ -730,6 +730,7 @@ export type Database = {
           contact_id: string | null
           created_at: string
           date: string | null
+          deleted_at: string | null
           description: string
           due_date: string | null
           expected_date: string | null
@@ -749,6 +750,7 @@ export type Database = {
           contact_id?: string | null
           created_at?: string
           date?: string | null
+          deleted_at?: string | null
           description: string
           due_date?: string | null
           expected_date?: string | null
@@ -768,6 +770,7 @@ export type Database = {
           contact_id?: string | null
           created_at?: string
           date?: string | null
+          deleted_at?: string | null
           description?: string
           due_date?: string | null
           expected_date?: string | null

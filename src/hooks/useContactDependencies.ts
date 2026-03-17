@@ -19,6 +19,7 @@ export function useContactDependencies(contactId: string | null) {
       const { count: transactionCount, error: txError } = await supabase
         .from('transactions')
         .select('*', { count: 'exact', head: true })
+        .is('deleted_at', null)
         .eq('contact_id', contactId);
 
       if (txError) throw txError;

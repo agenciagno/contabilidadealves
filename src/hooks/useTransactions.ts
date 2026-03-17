@@ -22,6 +22,7 @@ export interface Transaction {
   notes: string | null;
   created_at: string;
   updated_at: string;
+  deleted_at?: string | null;
   category?: { id: string; name: string; color: string } | null;
   bank?: { id: string; name: string; color: string } | null;
   contact?: { id: string; name: string; type: string } | null;
@@ -64,6 +65,7 @@ export function useTransactions() {
             bank:banks(id, name, color),
             contact:contacts(id, name, type)
           `)
+          .is('deleted_at', null)
           .order('created_at', { ascending: false })
           .order('id', { ascending: false })
           .range(from, from + PAGE_SIZE - 1);
@@ -158,7 +160,7 @@ export function useTransactions() {
 
   const deleteTransaction = useMutation({
     mutationFn: async (id: string) => {
-      // Get transaction info before deleting for logging
+      // Get transaction info before soft-deleting for logging
       const { data: transaction } = await supabase
         .from('transactions')
         .select('description, amount, type')
@@ -167,7 +169,7 @@ export function useTransactions() {
 
       const { error } = await supabase
         .from('transactions')
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .eq('id', id);
 
       if (error) throw error;

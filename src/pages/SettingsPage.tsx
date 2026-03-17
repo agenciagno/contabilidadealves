@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import UsersTab from '@/components/users/UsersTab';
 import GlobalLogsTab from '@/components/settings/GlobalLogsTab';
 import ClientCompaniesTab from '@/components/settings/ClientCompaniesTab';
+import TrashTab from '@/components/settings/TrashTab';
 import { useSuperAdmin } from '@/hooks/useSuperAdmin';
 import { useProfile } from '@/hooks/useProfile';
 
@@ -291,6 +292,10 @@ export default function SettingsPage() {
             <History className="w-4 h-4" />
             Logs Globais
           </TabsTrigger>
+          <TabsTrigger value="lixeira" className="gap-1.5">
+            <Trash2 className="w-4 h-4" />
+            Lixeira
+          </TabsTrigger>
         </TabsList>
 
         {/* ═══════════ ABA 1: PERFIL & CONTA ═══════════ */}
@@ -546,6 +551,11 @@ export default function SettingsPage() {
         {/* ═══════════ ABA 4: LOGS GLOBAIS ═══════════ */}
         <TabsContent value="logs" className="mt-0">
           <GlobalLogsTab />
+        </TabsContent>
+
+        {/* ═══════════ ABA 5: LIXEIRA ═══════════ */}
+        <TabsContent value="lixeira" className="mt-0">
+          <TrashTab />
         </TabsContent>
       </Tabs>
     </div>
