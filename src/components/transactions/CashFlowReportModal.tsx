@@ -90,6 +90,7 @@ export function CashFlowReportModal({
   const contactLabel = contactId !== 'all'
     ? contacts.find(c => c.id === contactId)?.name || 'Todos'
     : 'Todos';
+  const typeLabel = typeFilter === 'receita' ? 'A Receber' : typeFilter === 'despesa' ? 'A Pagar' : 'Todos';
 
   const clearDates = () => { setStartDate(''); setEndDate(''); };
 
