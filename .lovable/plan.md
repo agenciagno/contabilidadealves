@@ -1,93 +1,45 @@
 
 
-# Preview Intermediario na Importacao de Planilha
+## Plano: Módulo de Backup Manual e Restauração
 
-## Resumo
+### Arquitetura
 
-Adicionar um Step 3 (Preview) entre o upload e a confirmacao final. Apos o upload processar os dados, ao inves de importar diretamente, exibir uma tabela com os lancamentos lidos para o usuario revisar, com opcao de confirmar ou voltar.
+Um novo componente `BackupTab` será adicionado como aba em Configurações. A lógica de export/import ficará toda no cliente (não precisa de edge function), usando o SDK Supabase para buscar e upsert dados.
 
----
+### 1. Novo componente: `src/components/settings/BackupTab.tsx`
 
-## Arquivo Modificado
+**Exportação:**
+- Botão "Exportar Backup (JSON)" que busca todas as linhas (com paginação para ultrapassar o limite de 1000) das tabelas: `transactions`, `contacts`, `categories`, `banks`, `recurring_transactions`, `contact_partners`, `contact_notes`, `contact_documents`, `contact_messages`, `boleto_controls`
+- Todas com `.is('deleted_at', null)` onde aplicável (transactions)
+- Compila em objeto JSON `{ version: 1, exported_at, tables: { transactions: [...], contacts: [...], ... } }`
+- Dispara download via `URL.createObjectURL` + `<a>` com nome `backup_contabilidade_YYYY-MM-DD.json`
 
-| Arquivo | Mudanca |
+**Restauração:**
+- Input de upload (drag-and-drop zone + botão) aceita apenas `.json`
+- Ao selecionar arquivo: lê com `FileReader`, parseia JSON, valida estrutura (deve ter `version` e `tables` com arrays)
+- Abre AlertDialog de confirmação: "Atenção: A restauração pode sobrescrever dados atuais. Deseja continuar?"
+- Ao confirmar: executa `.upsert()` em cada tabela na ordem correta (respeitando foreign keys): `categories` → `contacts` → `banks` → `transactions` → demais tabelas dependentes
+- Progress bar visual durante o processo
+- Toast de sucesso/erro
+- Após sucesso: `queryClient.invalidateQueries()` global + `window.location.reload()` após 2s
+
+**Feedback visual:**
+- Estado de loading no botão de export com spinner
+- Progress indicator durante restauração
+- Toasts de sucesso/erro via sonner
+
+### 2. Integração em `SettingsPage.tsx`
+
+- Importar `BackupTab`
+- Adicionar nova aba "Backup" com ícone `Database` entre "Lixeira" e o final
+- Nova `TabsTrigger` + `TabsContent`
+
+### Arquivos
+
+| Arquivo | Mudança |
 |---|---|
-| `src/components/transactions/ImportSpreadsheetDialog.tsx` | Adicionar step 3 com tabela de preview, separar parsing de importacao |
+| `src/components/settings/BackupTab.tsx` | **Novo** — UI completa de backup/restauração |
+| `src/pages/SettingsPage.tsx` | Adicionar aba "Backup e Restauração" |
 
----
-
-## Mudancas Detalhadas
-
-### 1. Novo estado para armazenar dados parseados
-
-```typescript
-const [parsedData, setParsedData] = useState<TransactionInsert[]>([]);
-```
-
-### 2. Alterar `processFile` para nao importar direto
-
-Em vez de chamar `onImport(transactions)` ao final do parsing, salvar em `setParsedData(transactions)` e avancar para `setStep(3)`.
-
-### 3. Step indicator com 3 passos
-
-Adicionar terceiro circulo "Revisar" no indicador de progresso (Modelo -> Upload -> Revisar).
-
-### 4. Step 3: Tabela de Preview
-
-- Dialog expandido para `sm:max-w-4xl` quando no step 3
-- Contador: "X lancamento(s) encontrado(s)"
-- Tabela com ScrollArea (max-height ~400px) contendo colunas:
-  - Data | Cliente | Tipo | Valor | Status | Vencimento | Banco | Categoria
-- Cada linha mostra dados legivel (data formatada dd/MM/yyyy, valor em R$, tipo como badge colorido Receita/Despesa, status como badge Pago/Pendente)
-- Lookup reverso de bank_id/category_id/contact_id para exibir nomes (ou "---" se nao vinculado)
-- Botoes: "Voltar" (ghost, volta ao step 2) e "Confirmar Importacao" (primary, chama onImport)
-- Ao confirmar: spinner de "Importando..." e fluxo existente de toast + fechar modal
-
-### 5. Ajuste no resetState
-
-Incluir `setParsedData([])` no reset.
-
-### 6. DialogDescription dinâmica
-
-Step 3 exibe: "Revise os dados antes de confirmar"
-
----
-
-## Secao Tecnica
-
-### Lookup reverso para exibicao
-
-Para mostrar nomes na tabela de preview ao inves de IDs:
-
-```typescript
-const bankName = (id: string | null) => banks.find(b => b.id === id)?.name ?? '—';
-const categoryName = (id: string | null) => categories.find(c => c.id === id)?.name ?? '—';
-const contactName = (id: string | null) => contacts.find(c => c.id === id)?.name ?? '—';
-```
-
-### Formatacao na tabela
-
-```typescript
-// Data: format(parseISO(row.date), 'dd/MM/yyyy')
-// Valor: row.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-// Tipo: Badge verde "Receita" ou vermelho "Despesa"
-// Status: Badge "Pago" ou "Pendente"
-```
-
-### Handler de confirmacao
-
-```typescript
-const handleConfirmImport = async () => {
-  setIsProcessing(true);
-  try {
-    await onImport(parsedData);
-    toast({ title: `${parsedData.length} lançamento(s) importado(s) com sucesso!` });
-    handleClose(false);
-  } catch (err) {
-    toast({ title: 'Erro ao importar.', variant: 'destructive' });
-  } finally {
-    setIsProcessing(false);
-  }
-};
-```
+Nenhuma migration necessária.
 
