@@ -49,7 +49,7 @@ async function fetchAllRows(table: string, extraFilter?: (q: any) => any) {
   let from = 0;
   let hasMore = true;
   while (hasMore) {
-    let query = supabase.from(table).select('*').range(from, from + PAGE - 1);
+    let query = (supabase.from as any)(table).select('*').range(from, from + PAGE - 1);
     if (extraFilter) query = extraFilter(query);
     const { data, error } = await query;
     if (error) throw new Error(`Erro ao buscar ${table}: ${error.message}`);
