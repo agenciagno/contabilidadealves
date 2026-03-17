@@ -70,6 +70,8 @@ export function TransactionFormDialog({
   const [contactId, setContactId] = useState<string>('');
   const [notes, setNotes] = useState('');
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [yearWarningDates, setYearWarningDates] = useState<{ label: string; value: string }[]>([]);
+  const [pendingPayload, setPendingPayload] = useState<{ data: TransactionInsert; files: File[]; shouldClose: boolean } | null>(null);
 
   const isAPrazo = paymentCondition === 'a_prazo' && !isEditing && !isSettleMode;
 
