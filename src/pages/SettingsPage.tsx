@@ -552,6 +552,11 @@ export default function SettingsPage() {
         <TabsContent value="logs" className="mt-0">
           <GlobalLogsTab />
         </TabsContent>
+
+        {/* ═══════════ ABA 5: LIXEIRA ═══════════ */}
+        <TabsContent value="lixeira" className="mt-0">
+          <TrashTab />
+        </TabsContent>
       </Tabs>
     </div>
   );

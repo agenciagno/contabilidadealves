@@ -46,6 +46,7 @@ export function useReportData(filters: ReportFilters) {
           bank:banks(id, name, color),
           contact:contacts(id, name, type, tax_regime, phone)
         `)
+        .is('deleted_at', null)
         .order('date', { ascending: false });
 
       if (filters.startDate) {

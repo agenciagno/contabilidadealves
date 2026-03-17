@@ -74,6 +74,7 @@ export function useCashFlowForecast(days: number = 30) {
           is_paid,
           category:categories(name, color)
         `)
+        .is('deleted_at', null)
         .eq('is_paid', false)
         .gte('date', format(today, 'yyyy-MM-dd'))
         .lte('date', format(endDate, 'yyyy-MM-dd'))

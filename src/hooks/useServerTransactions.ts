@@ -171,6 +171,7 @@ export function useTransactionKPIs(filters: ServerFilters) {
         // Re-create query for next page
         query = supabase.from('transactions').select('id, type, amount, paid_amount, is_paid, date, due_date');
         query = applyFilters(query, filters);
+        query = query.is('deleted_at', null);
       }
 
       const today = new Date().toISOString().split('T')[0];

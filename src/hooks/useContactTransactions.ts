@@ -34,6 +34,7 @@ export function useContactTransactions(contactId: string | undefined) {
           category:categories(id, name, color),
           bank:banks(id, name)
         `)
+        .is('deleted_at', null)
         .eq('contact_id', contactId)
         .order('date', { ascending: false });
 

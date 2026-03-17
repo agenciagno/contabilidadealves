@@ -160,7 +160,7 @@ export function useTransactions() {
 
   const deleteTransaction = useMutation({
     mutationFn: async (id: string) => {
-      // Get transaction info before deleting for logging
+      // Get transaction info before soft-deleting for logging
       const { data: transaction } = await supabase
         .from('transactions')
         .select('description, amount, type')
@@ -169,7 +169,7 @@ export function useTransactions() {
 
       const { error } = await supabase
         .from('transactions')
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .eq('id', id);
 
       if (error) throw error;
