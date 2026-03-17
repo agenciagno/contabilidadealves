@@ -763,7 +763,12 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
                       />
                     </TableHead>
                     <TableHead className="text-xs whitespace-nowrap text-right">
-                      <span className="text-xs">A Pagar</span>
+                      <NumericMultiFilter
+                        label="A Pagar"
+                        selected={columnFilters.despesaAmounts || []}
+                        onChange={v => setColumnFilters(prev => { const n = { ...prev }; if (v.length) n.despesaAmounts = v; else delete n.despesaAmounts; return n; })}
+                        values={despesaAmounts}
+                      />
                     </TableHead>
                     <TableHead className="text-xs whitespace-nowrap">
                       <Popover>
