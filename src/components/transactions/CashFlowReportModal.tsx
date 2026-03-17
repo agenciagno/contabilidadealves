@@ -115,10 +115,11 @@ export function CashFlowReportModal({
 
     if (categoryId !== 'all') result = result.filter(t => t.category_id === categoryId);
     if (contactId !== 'all') result = result.filter(t => t.contact_id === contactId);
+    if (typeFilter !== 'all') result = result.filter(t => t.type === typeFilter);
 
     result.sort((a, b) => (a.expected_date || '').localeCompare(b.expected_date || ''));
     return result;
-  }, [transactions, startDate, endDate, categoryId, contactId]);
+  }, [transactions, startDate, endDate, categoryId, contactId, typeFilter]);
 
   // Running balance rows
   const rowsWithBalance = useMemo(() => {
