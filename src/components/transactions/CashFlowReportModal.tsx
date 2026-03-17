@@ -67,6 +67,7 @@ export function CashFlowReportModal({
   const [endDate, setEndDate] = useState('');
   const [categoryId, setCategoryId] = useState('all');
   const [contactId, setContactId] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
 
   useEffect(() => {
     if (open) {
