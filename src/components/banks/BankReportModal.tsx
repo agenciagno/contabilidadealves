@@ -392,52 +392,53 @@ ${transactions}
             </div>
           </div>
 
-          {/* Bank selection */}
-          <div>
-            <Label className="text-sm font-semibold mb-2 block">Contas Bancárias</Label>
-            <div className="grid grid-cols-2 gap-2">
-              {banks.map(bank => (
-                <div
-                  key={bank.id}
-                  className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${
-                    selectedBankIds.includes(bank.id)
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border/50 hover:border-border'
-                  }`}
-                  onClick={() => toggleBank(bank.id)}
-                >
-                  <Checkbox
-                    checked={selectedBankIds.includes(bank.id)}
-                    onCheckedChange={() => toggleBank(bank.id)}
-                    className="pointer-events-none"
-                  />
-                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: bank.color }} />
-                  <span className="text-sm truncate">{bank.name}</span>
-                </div>
-              ))}
-              {banks.length === 0 && (
-                <p className="text-sm text-muted-foreground col-span-2">Nenhuma conta cadastrada</p>
+          {/* Bank + Category side by side */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-sm font-semibold mb-1 block">Contas Bancárias</Label>
+              <div className="grid grid-cols-1 gap-1 max-h-28 overflow-y-auto">
+                {banks.map(bank => (
+                  <div
+                    key={bank.id}
+                    className={`flex items-center gap-2 p-1.5 rounded border cursor-pointer transition-colors ${
+                      selectedBankIds.includes(bank.id)
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border/50 hover:border-border'
+                    }`}
+                    onClick={() => toggleBank(bank.id)}
+                  >
+                    <Checkbox
+                      checked={selectedBankIds.includes(bank.id)}
+                      onCheckedChange={() => toggleBank(bank.id)}
+                      className="pointer-events-none h-3.5 w-3.5"
+                    />
+                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: bank.color }} />
+                    <span className="text-xs truncate">{bank.name}</span>
+                  </div>
+                ))}
+                {banks.length === 0 && (
+                  <p className="text-xs text-muted-foreground">Nenhuma conta</p>
+                )}
+              </div>
+              {selectedBankIds.length === 0 && (
+                <p className="text-[10px] text-muted-foreground mt-0.5">Nenhuma = todas</p>
               )}
             </div>
-            {selectedBankIds.length === 0 && (
-              <p className="text-xs text-muted-foreground mt-1">Nenhuma conta selecionada = todas as contas</p>
-            )}
-          </div>
 
-          {/* Category */}
-          <div>
-            <Label className="text-sm font-semibold mb-2 block">Evento Contábil</Label>
-            <Select value={categoryId} onValueChange={setCategoryId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Todos os eventos contábeis" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                {categories.map(c => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div>
+              <Label className="text-sm font-semibold mb-1 block">Evento Contábil</Label>
+              <Select value={categoryId} onValueChange={setCategoryId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {categories.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <Separator />
