@@ -379,7 +379,7 @@ ${transactions}
         <div className="space-y-3">
           {/* Period */}
           <div>
-            <Label className="text-sm font-semibold mb-2 block">Período</Label>
+            <Label className="text-sm font-semibold mb-1 block">Período</Label>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Data Início</Label>
