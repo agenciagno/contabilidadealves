@@ -61,13 +61,17 @@ function getStatus(isPaid: boolean, dueDate: string | null): 'pago' | 'pendente'
 
 // ─── Column filter components ──────────────────────────────────────
 
+const IS_EMPTY = '__IS_EMPTY_OR_NULL__';
+
 interface CashFlowColumnFilters {
   expected_date?: { start: string; end: string };
+  expected_date_empty?: boolean;
   due_date?: { start: string; end: string };
+  due_date_empty?: boolean;
   contactIds?: string[];
   eventNames?: string[];
-  amounts?: number[];
-  despesaAmounts?: number[];
+  amounts?: (number | string)[];
+  despesaAmounts?: (number | string)[];
   status?: string[];
 }
 
@@ -83,13 +87,15 @@ function ColumnFilterIcon({ active }: { active: boolean }) {
   );
 }
 
-function DateColumnFilter({ value, onChange, sortField, currentSortField, currentSortOrder, onSort }: {
+function DateColumnFilter({ value, onChange, sortField, currentSortField, currentSortOrder, onSort, includeEmpty, onIncludeEmptyChange }: {
   value?: { start: string; end: string };
   onChange: (v?: { start: string; end: string }) => void;
   sortField: SortField;
   currentSortField: SortField;
   currentSortOrder: SortOrder;
   onSort: (field: SortField, order: SortOrder) => void;
+  includeEmpty?: boolean;
+  onIncludeEmptyChange?: (v: boolean) => void;
 }) {
   const [start, setStart] = useState(value?.start || '');
   const [end, setEnd] = useState(value?.end || '');
@@ -104,7 +110,7 @@ function DateColumnFilter({ value, onChange, sortField, currentSortField, curren
     if (start || end) onChange({ start, end });
     else onChange(undefined);
   };
-  const clear = () => { setStart(''); setEnd(''); onChange(undefined); };
+  const clear = () => { setStart(''); setEnd(''); onChange(undefined); onIncludeEmptyChange?.(false); };
 
   return (
     <div className="space-y-2 p-2 w-56">
@@ -116,6 +122,10 @@ function DateColumnFilter({ value, onChange, sortField, currentSortField, curren
           <ChevronDown className="w-3 h-3" /> Mais recente primeiro
         </button>
       </div>
+      <label className="flex items-center gap-2 px-1 py-1 rounded hover:bg-muted cursor-pointer text-xs">
+        <Checkbox checked={!!includeEmpty} onCheckedChange={(c) => onIncludeEmptyChange?.(!!c)} className="h-3.5 w-3.5" />
+        <span className="text-muted-foreground italic">(Vazio)</span>
+      </label>
       <div className="space-y-1">
         <label className="text-xs text-muted-foreground">De</label>
         <Input type="date" value={start} onChange={e => setStart(e.target.value)} max="9999-12-31" className="h-8 text-xs" />
@@ -196,6 +206,11 @@ function ContactEventMultiFilter({
             </div>
           </div>
           <div className="max-h-60 overflow-auto p-1">
+            {/* (Vazio) option */}
+            <label className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-xs border-b border-border/40 mb-1">
+              <Checkbox checked={selectedContacts.includes(IS_EMPTY)} onCheckedChange={() => toggleContact(IS_EMPTY)} className="h-3.5 w-3.5" />
+              <span className="text-muted-foreground italic">(Vazio)</span>
+            </label>
             {filteredContacts.length > 0 && (
               <>
                 <div className="pt-1 pb-0.5 px-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Clientes / Fornecedores</div>
@@ -236,16 +251,16 @@ function ContactEventMultiFilter({
 }
 
 function NumericMultiFilter({ label, selected, onChange, values }: {
-  label: string; selected: number[]; onChange: (v: number[]) => void; values: number[];
+  label: string; selected: (number | string)[]; onChange: (v: (number | string)[]) => void; values: number[];
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const [temp, setTemp] = useState<number[]>([]);
+  const [temp, setTemp] = useState<(number | string)[]>([]);
 
   const isActive = selected.length > 0;
   const uniqueSorted = useMemo(() => Array.from(new Set(values)).sort((a, b) => a - b), [values]);
   const filtered = search ? uniqueSorted.filter(v => formatCurrency(v).toLowerCase().includes(search.toLowerCase())) : uniqueSorted;
-  const toggle = (v: number) => setTemp(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v]);
+  const toggle = (v: number | string) => setTemp(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v]);
   const clearAll = () => { setTemp([]); setSearch(''); };
 
   const handleOpenChange = (nextOpen: boolean) => {
@@ -273,6 +288,10 @@ function NumericMultiFilter({ label, selected, onChange, values }: {
             </div>
           </div>
           <div className="max-h-60 overflow-auto p-1">
+            <label className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-xs border-b border-border/40 mb-1">
+              <Checkbox checked={displaySelected.includes(IS_EMPTY)} onCheckedChange={() => toggle(IS_EMPTY)} className="h-3.5 w-3.5" />
+              <span className="text-muted-foreground italic">(Vazio)</span>
+            </label>
             {filtered.length > 0 ? filtered.map(v => (
               <label key={v} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-xs">
                 <Checkbox checked={displaySelected.includes(v)} onCheckedChange={() => toggle(v)} className="h-3.5 w-3.5" />
@@ -378,6 +397,10 @@ function EventoMultiFilter({ selected, onChange, categories }: {
             </div>
           </div>
           <div className="max-h-60 overflow-auto p-1">
+            <label className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-xs border-b border-border/40 mb-1">
+              <Checkbox checked={displaySelected.includes(IS_EMPTY)} onCheckedChange={() => toggle(IS_EMPTY)} className="h-3.5 w-3.5" />
+              <span className="text-muted-foreground italic">(Vazio)</span>
+            </label>
             {filtered.length > 0 ? filtered.map(c => (
               <label key={c.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-xs">
                 <Checkbox checked={displaySelected.includes(c.id)} onCheckedChange={() => toggle(c.id)} className="h-3.5 w-3.5" />
@@ -460,65 +483,86 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
       });
     }
 
-    // Column date filters
-    if (columnFilters.expected_date) {
-      const { start, end } = columnFilters.expected_date;
+    // Column date filters (expected_date)
+    if (columnFilters.expected_date || columnFilters.expected_date_empty) {
+      const range = columnFilters.expected_date;
+      const includeEmpty = !!columnFilters.expected_date_empty;
       result = result.filter(t => {
         const d = t.expected_date || t.due_date || t.issue_date;
-        if (!d) return true;
-        if (start && d < start) return false;
-        if (end && d > end) return false;
-        return true;
+        if (includeEmpty && !d) return true;
+        if (range) {
+          if (!d) return false;
+          if (range.start && d < range.start) return false;
+          if (range.end && d > range.end) return false;
+          return true;
+        }
+        return !includeEmpty ? true : false;
       });
     }
-    if (columnFilters.due_date) {
-      const { start, end } = columnFilters.due_date;
+    if (columnFilters.due_date || columnFilters.due_date_empty) {
+      const range = columnFilters.due_date;
+      const includeEmpty = !!columnFilters.due_date_empty;
       result = result.filter(t => {
-        if (!t.due_date) return true;
-        if (start && t.due_date < start) return false;
-        if (end && t.due_date > end) return false;
-        return true;
+        if (includeEmpty && !t.due_date) return true;
+        if (range) {
+          if (!t.due_date) return false;
+          if (range.start && t.due_date < range.start) return false;
+          if (range.end && t.due_date > range.end) return false;
+          return true;
+        }
+        return !includeEmpty ? true : false;
       });
     }
 
-    // Contact / event filters
-    if (columnFilters.contactIds?.length) {
-      result = result.filter(t => t.contact_id && columnFilters.contactIds!.includes(t.contact_id));
-    }
-    if (columnFilters.eventNames?.length) {
-      result = result.filter(t => !t.contact_id && columnFilters.eventNames!.includes(t.description));
-    }
-    if (columnFilters.contactIds?.length && columnFilters.eventNames?.length) {
-      // OR logic between contacts and events
-      const contactIds = columnFilters.contactIds;
-      const eventNames = columnFilters.eventNames;
-      result = transactions.filter(t => !t.is_paid && t.expected_date).filter(t => {
-        // re-apply global date
-        const dateKey = t.expected_date || t.due_date || t.issue_date;
-        if (globalStartDate && dateKey && dateKey < globalStartDate) return false;
-        if (globalEndDate && dateKey && dateKey > globalEndDate) return false;
-        return (t.contact_id && contactIds.includes(t.contact_id)) || (!t.contact_id && eventNames.includes(t.description));
+    // Contact / event filters (with IS_EMPTY support)
+    const hasContactFilter = columnFilters.contactIds?.length;
+    const hasEventFilter = columnFilters.eventNames?.length;
+    if (hasContactFilter || hasEventFilter) {
+      const contactIds = columnFilters.contactIds || [];
+      const eventNames = columnFilters.eventNames || [];
+      const includeEmptyContact = contactIds.includes(IS_EMPTY);
+      const realContactIds = contactIds.filter(id => id !== IS_EMPTY);
+
+      result = result.filter(t => {
+        let matchContact = false;
+        let matchEvent = false;
+
+        if (includeEmptyContact && !t.contact_id) matchContact = true;
+        if (realContactIds.length && t.contact_id && realContactIds.includes(t.contact_id)) matchContact = true;
+        if (eventNames.length && !t.contact_id && eventNames.includes(t.description)) matchEvent = true;
+
+        if (hasContactFilter && hasEventFilter) return matchContact || matchEvent;
+        if (hasContactFilter) return matchContact;
+        return matchEvent;
       });
     }
 
-    // Evento contábil (category) filter — separate from contactEvent
-    // Use eventNames to also filter by category_id if present
-    // Actually we have a dedicated EventoMultiFilter for categories
-    // We'll store category filter in a separate state key — let's reuse eventNames for the contactEvent filter
-    // and add categoryIds
+    // Evento contábil (category) filter — handled in finalFiltered below
 
-    // Amount filters (receita)
+    // Amount filters (receita) with IS_EMPTY support
     if (columnFilters.amounts?.length) {
+      const includeEmpty = columnFilters.amounts.includes(IS_EMPTY);
+      const realAmounts = columnFilters.amounts.filter(v => v !== IS_EMPTY) as number[];
       result = result.filter(t => {
-        if (t.type === 'receita') return columnFilters.amounts!.includes(Number(t.amount));
-        return !columnFilters.despesaAmounts?.length; // keep despesas if no despesa filter
+        if (t.type === 'receita') {
+          if (includeEmpty && (t.amount == null)) return true;
+          if (realAmounts.length && realAmounts.includes(Number(t.amount))) return true;
+          return false;
+        }
+        return !columnFilters.despesaAmounts?.length;
       });
     }
-    // Amount filters (despesa)
+    // Amount filters (despesa) with IS_EMPTY support
     if (columnFilters.despesaAmounts?.length) {
+      const includeEmpty = columnFilters.despesaAmounts.includes(IS_EMPTY);
+      const realAmounts = columnFilters.despesaAmounts.filter(v => v !== IS_EMPTY) as number[];
       result = result.filter(t => {
-        if (t.type === 'despesa') return columnFilters.despesaAmounts!.includes(Number(t.amount));
-        return !columnFilters.amounts?.length; // keep receitas if no receita filter
+        if (t.type === 'despesa') {
+          if (includeEmpty && (t.amount == null)) return true;
+          if (realAmounts.length && realAmounts.includes(Number(t.amount))) return true;
+          return false;
+        }
+        return !columnFilters.amounts?.length;
       });
     }
 
@@ -549,7 +593,13 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
 
   const finalFiltered = useMemo(() => {
     if (!categoryFilterIds.length) return filtered;
-    return filtered.filter(t => t.category_id && categoryFilterIds.includes(t.category_id));
+    const includeEmpty = categoryFilterIds.includes(IS_EMPTY);
+    const realIds = categoryFilterIds.filter(id => id !== IS_EMPTY);
+    return filtered.filter(t => {
+      if (includeEmpty && !t.category_id) return true;
+      if (realIds.length && t.category_id && realIds.includes(t.category_id)) return true;
+      return false;
+    });
   }, [filtered, categoryFilterIds]);
 
   // KPIs from finalFiltered
@@ -731,7 +781,7 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
                         <PopoverTrigger asChild>
                           <div className="flex items-center gap-0.5 cursor-pointer">
                             <span>Data Prevista</span>
-                            <ColumnFilterIcon active={!!columnFilters.expected_date || sortField === 'expected_date'} />
+                            <ColumnFilterIcon active={!!columnFilters.expected_date || !!columnFilters.expected_date_empty || sortField === 'expected_date'} />
                           </div>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start" onOpenAutoFocus={e => e.preventDefault()}>
@@ -742,6 +792,8 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
                             currentSortField={sortField}
                             currentSortOrder={sortOrder}
                             onSort={handleSort}
+                            includeEmpty={!!columnFilters.expected_date_empty}
+                            onIncludeEmptyChange={v => setColumnFilters(prev => ({ ...prev, expected_date_empty: v || undefined }))}
                           />
                         </PopoverContent>
                       </Popover>
@@ -775,7 +827,7 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
                         <PopoverTrigger asChild>
                           <div className="flex items-center gap-0.5 cursor-pointer">
                             <span>Vencimento</span>
-                            <ColumnFilterIcon active={!!columnFilters.due_date || sortField === 'due_date'} />
+                            <ColumnFilterIcon active={!!columnFilters.due_date || !!columnFilters.due_date_empty || sortField === 'due_date'} />
                           </div>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start" onOpenAutoFocus={e => e.preventDefault()}>
@@ -786,6 +838,8 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
                             currentSortField={sortField}
                             currentSortOrder={sortOrder}
                             onSort={handleSort}
+                            includeEmpty={!!columnFilters.due_date_empty}
+                            onIncludeEmptyChange={v => setColumnFilters(prev => ({ ...prev, due_date_empty: v || undefined }))}
                           />
                         </PopoverContent>
                       </Popover>
