@@ -251,16 +251,16 @@ function ContactEventMultiFilter({
 }
 
 function NumericMultiFilter({ label, selected, onChange, values }: {
-  label: string; selected: number[]; onChange: (v: number[]) => void; values: number[];
+  label: string; selected: (number | string)[]; onChange: (v: (number | string)[]) => void; values: number[];
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const [temp, setTemp] = useState<number[]>([]);
+  const [temp, setTemp] = useState<(number | string)[]>([]);
 
   const isActive = selected.length > 0;
   const uniqueSorted = useMemo(() => Array.from(new Set(values)).sort((a, b) => a - b), [values]);
   const filtered = search ? uniqueSorted.filter(v => formatCurrency(v).toLowerCase().includes(search.toLowerCase())) : uniqueSorted;
-  const toggle = (v: number) => setTemp(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v]);
+  const toggle = (v: number | string) => setTemp(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v]);
   const clearAll = () => { setTemp([]); setSearch(''); };
 
   const handleOpenChange = (nextOpen: boolean) => {
@@ -288,6 +288,10 @@ function NumericMultiFilter({ label, selected, onChange, values }: {
             </div>
           </div>
           <div className="max-h-60 overflow-auto p-1">
+            <label className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-xs border-b border-border/40 mb-1">
+              <Checkbox checked={displaySelected.includes(IS_EMPTY)} onCheckedChange={() => toggle(IS_EMPTY)} className="h-3.5 w-3.5" />
+              <span className="text-muted-foreground italic">(Vazio)</span>
+            </label>
             {filtered.length > 0 ? filtered.map(v => (
               <label key={v} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-xs">
                 <Checkbox checked={displaySelected.includes(v)} onCheckedChange={() => toggle(v)} className="h-3.5 w-3.5" />
