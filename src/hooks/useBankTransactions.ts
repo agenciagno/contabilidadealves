@@ -83,7 +83,6 @@ export function useBankTransactions(
         `)
         .is('deleted_at', null)
         .eq('is_paid', true)
-        .not('paid_amount', 'is', null)
         .order('date', { ascending: true })
         .order('created_at', { ascending: true });
 
