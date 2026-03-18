@@ -61,13 +61,17 @@ function getStatus(isPaid: boolean, dueDate: string | null): 'pago' | 'pendente'
 
 // ─── Column filter components ──────────────────────────────────────
 
+const IS_EMPTY = '__IS_EMPTY_OR_NULL__';
+
 interface CashFlowColumnFilters {
   expected_date?: { start: string; end: string };
+  expected_date_empty?: boolean;
   due_date?: { start: string; end: string };
+  due_date_empty?: boolean;
   contactIds?: string[];
   eventNames?: string[];
-  amounts?: number[];
-  despesaAmounts?: number[];
+  amounts?: (number | string)[];
+  despesaAmounts?: (number | string)[];
   status?: string[];
 }
 
