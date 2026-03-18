@@ -935,6 +935,9 @@ export default function Transactions() {
             <PopoverContent className="w-36 p-2" align="start">
               <div className="space-y-1">
                 <button onClick={() => setTypeFilter('all')} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted ${typeFilter === 'all' ? 'bg-primary/10 text-primary font-medium' : ''}`}>Todos</button>
+                <button onClick={() => setTypeFilter(IS_EMPTY)} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted flex items-center gap-2 ${typeFilter === IS_EMPTY ? 'bg-primary/10 text-primary font-medium' : ''}`}>
+                  <span className="italic text-muted-foreground">(Vazio)</span>
+                </button>
                 <button onClick={() => setTypeFilter('receita')} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted flex items-center gap-2 ${typeFilter === 'receita' ? 'bg-primary/10 text-primary font-medium' : ''}`}>
                   <TrendingUp className="w-3 h-3 text-emerald-500" /> Receita
                 </button>
