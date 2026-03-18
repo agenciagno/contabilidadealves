@@ -593,7 +593,13 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
 
   const finalFiltered = useMemo(() => {
     if (!categoryFilterIds.length) return filtered;
-    return filtered.filter(t => t.category_id && categoryFilterIds.includes(t.category_id));
+    const includeEmpty = categoryFilterIds.includes(IS_EMPTY);
+    const realIds = categoryFilterIds.filter(id => id !== IS_EMPTY);
+    return filtered.filter(t => {
+      if (includeEmpty && !t.category_id) return true;
+      if (realIds.length && t.category_id && realIds.includes(t.category_id)) return true;
+      return false;
+    });
   }, [filtered, categoryFilterIds]);
 
   // KPIs from finalFiltered
