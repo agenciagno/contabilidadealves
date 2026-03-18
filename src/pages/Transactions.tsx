@@ -11,7 +11,7 @@ import {
   Building2, CheckCircle2, Search, Filter, X, ArrowUpDown, CircleDollarSign
 } from 'lucide-react';
 import { useTransactions, Transaction, TransactionInsert } from '@/hooks/useTransactions';
-import { useServerTransactions, useTransactionKPIs, PAGE_SIZE, ServerFilters } from '@/hooks/useServerTransactions';
+import { useServerTransactions, useTransactionKPIs, PAGE_SIZE, ServerFilters, IS_EMPTY } from '@/hooks/useServerTransactions';
 import { isEffectivelyPaid } from '@/lib/financial-utils';
 import { useCategories } from '@/hooks/useCategories';
 import { useBanks } from '@/hooks/useBanks';
@@ -52,24 +52,30 @@ type SortOrder = 'asc' | 'desc';
 
 interface ColumnFilters {
   issue_date?: { start: string; end: string };
+  issue_date_empty?: boolean;
   due_date?: { start: string; end: string };
+  due_date_empty?: boolean;
   expected_date?: { start: string; end: string };
+  expected_date_empty?: boolean;
   date?: { start: string; end: string };
+  date_empty?: boolean;
   contactIds?: string[];
   eventNames?: string[];
   status?: string;
-  amounts?: number[];
-  paidAmounts?: number[];
+  amounts?: (number | string)[];
+  paidAmounts?: (number | string)[];
 }
 
 // Column filter popover for date columns
-function DateColumnFilter({ value, onChange, sortField, currentSortField, currentSortOrder, onSort }: {
+function DateColumnFilter({ value, onChange, sortField, currentSortField, currentSortOrder, onSort, includeEmpty, onIncludeEmptyChange }: {
   value?: { start: string; end: string };
   onChange: (v?: { start: string; end: string }) => void;
   sortField: SortField;
   currentSortField: SortField;
   currentSortOrder: SortOrder;
   onSort: (field: SortField, order: SortOrder) => void;
+  includeEmpty?: boolean;
+  onIncludeEmptyChange?: (v: boolean) => void;
 }) {
   const [start, setStart] = useState(value?.start || '');
   const [end, setEnd] = useState(value?.end || '');
@@ -85,7 +91,7 @@ function DateColumnFilter({ value, onChange, sortField, currentSortField, curren
     else onChange(undefined);
   };
 
-  const clear = () => { setStart(''); setEnd(''); onChange(undefined); };
+  const clear = () => { setStart(''); setEnd(''); onChange(undefined); onIncludeEmptyChange?.(false); };
 
   return (
     <div className="space-y-2 p-2 w-56">
@@ -103,6 +109,10 @@ function DateColumnFilter({ value, onChange, sortField, currentSortField, curren
           <ChevronDown className="w-3 h-3" /> Mais recente primeiro
         </button>
       </div>
+      <label className="flex items-center gap-2 px-1 py-1 cursor-pointer text-xs">
+        <Checkbox checked={!!includeEmpty} onCheckedChange={(c) => onIncludeEmptyChange?.(!!c)} className="h-3.5 w-3.5" />
+        <span className="italic text-muted-foreground">(Vazio)</span>
+      </label>
       <div className="space-y-1">
         <label className="text-xs text-muted-foreground">De</label>
         <Input type="date" value={start} onChange={e => setStart(e.target.value)} max="9999-12-31" className="h-8 text-xs" />
@@ -138,13 +148,13 @@ function NumericMultiFilter({
   label, selected, onChange, values,
 }: {
   label: string;
-  selected: number[];
-  onChange: (v: number[]) => void;
+  selected: (number | string)[];
+  onChange: (v: (number | string)[]) => void;
   values: number[];
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const [temp, setTemp] = useState<number[]>([]);
+  const [temp, setTemp] = useState<(number | string)[]>([]);
 
   const isActive = selected.length > 0;
 
@@ -157,7 +167,7 @@ function NumericMultiFilter({
     ? uniqueSorted.filter(v => formatCurrency(v).toLowerCase().includes(search.toLowerCase()))
     : uniqueSorted;
 
-  const toggle = (v: number) => {
+  const toggle = (v: number | string) => {
     setTemp(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v]);
   };
 
@@ -197,6 +207,10 @@ function NumericMultiFilter({
             </div>
           </div>
           <div className="max-h-60 overflow-auto p-1">
+            <label className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-xs border-b border-border/30 mb-1">
+              <Checkbox checked={displaySelected.includes(IS_EMPTY)} onCheckedChange={() => toggle(IS_EMPTY)} className="h-3.5 w-3.5" />
+              <span className="truncate italic text-muted-foreground">(Vazio)</span>
+            </label>
             {filtered.length > 0 ? filtered.map(v => (
               <label key={v} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-xs">
                 <Checkbox checked={displaySelected.includes(v)} onCheckedChange={() => toggle(v)} className="h-3.5 w-3.5" />
@@ -279,6 +293,10 @@ function CategoryMultiFilter({
           </div>
         </div>
         <div className="max-h-60 overflow-auto p-1">
+          <label className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-xs border-b border-border/30 mb-1">
+            <Checkbox checked={displaySelected.includes(IS_EMPTY)} onCheckedChange={() => toggle(IS_EMPTY)} className="h-3.5 w-3.5" />
+            <span className="truncate italic text-muted-foreground">(Vazio)</span>
+          </label>
           {filtered.length > 0 ? filtered.map(c => (
             <label key={c.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-xs">
               <Checkbox checked={displaySelected.includes(c.id)} onCheckedChange={() => toggle(c.id)} className="h-3.5 w-3.5" />
@@ -401,6 +419,14 @@ function ContactEventMultiFilter({
             </div>
           </div>
           <div className="max-h-60 overflow-auto p-1">
+            <label className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-xs border-b border-border/30 mb-1">
+              <Checkbox
+                checked={selectedContacts.includes(IS_EMPTY)}
+                onCheckedChange={() => toggleContact(IS_EMPTY)}
+                className="h-3.5 w-3.5"
+              />
+              <span className="truncate italic text-muted-foreground">(Vazio)</span>
+            </label>
             {filteredContacts.length > 0 && (
               <>
                 <div className="pt-1 pb-0.5 px-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Clientes / Fornecedores</div>
@@ -876,6 +902,9 @@ export default function Transactions() {
             <PopoverContent className="w-48 p-2" align="start">
               <div className="space-y-1 max-h-60 overflow-auto">
                 <button onClick={() => setBankFilter('all')} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted ${bankFilter === 'all' ? 'bg-primary/10 text-primary font-medium' : ''}`}>Todos</button>
+                <button onClick={() => setBankFilter(IS_EMPTY)} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted flex items-center gap-2 ${bankFilter === IS_EMPTY ? 'bg-primary/10 text-primary font-medium' : ''}`}>
+                  <span className="italic text-muted-foreground">(Vazio)</span>
+                </button>
                 {banks.filter(b => b.is_active).map(b => (
                   <button key={b.id} onClick={() => setBankFilter(b.id)} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted flex items-center gap-2 ${bankFilter === b.id ? 'bg-primary/10 text-primary font-medium' : ''}`}>
                     <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: b.color || '#10B981' }} />
@@ -906,6 +935,9 @@ export default function Transactions() {
             <PopoverContent className="w-36 p-2" align="start">
               <div className="space-y-1">
                 <button onClick={() => setTypeFilter('all')} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted ${typeFilter === 'all' ? 'bg-primary/10 text-primary font-medium' : ''}`}>Todos</button>
+                <button onClick={() => setTypeFilter(IS_EMPTY)} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted flex items-center gap-2 ${typeFilter === IS_EMPTY ? 'bg-primary/10 text-primary font-medium' : ''}`}>
+                  <span className="italic text-muted-foreground">(Vazio)</span>
+                </button>
                 <button onClick={() => setTypeFilter('receita')} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted flex items-center gap-2 ${typeFilter === 'receita' ? 'bg-primary/10 text-primary font-medium' : ''}`}>
                   <TrendingUp className="w-3 h-3 text-emerald-500" /> Receita
                 </button>
@@ -963,8 +995,8 @@ export default function Transactions() {
                 <div className="flex items-center gap-0.5">
                   <span>Emissão</span>
                   <Popover>
-                    <PopoverTrigger asChild><button className="p-1 rounded hover:bg-muted/60 transition-colors"><ColumnFilterIcon active={!!columnFilters.issue_date || sortField === 'issue_date'} /></button></PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.issue_date} onChange={v => updateColumnFilter('issue_date', v)} sortField="issue_date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} /></PopoverContent>
+                    <PopoverTrigger asChild><button className="p-1 rounded hover:bg-muted/60 transition-colors"><ColumnFilterIcon active={!!columnFilters.issue_date || !!columnFilters.issue_date_empty || sortField === 'issue_date'} /></button></PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.issue_date} onChange={v => updateColumnFilter('issue_date', v)} sortField="issue_date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} includeEmpty={!!columnFilters.issue_date_empty} onIncludeEmptyChange={v => updateColumnFilter('issue_date_empty', v || undefined)} /></PopoverContent>
                   </Popover>
                 </div>
 
@@ -978,24 +1010,24 @@ export default function Transactions() {
                 <div className="flex items-center justify-center gap-0.5">
                   <span>Vencimento</span>
                   <Popover>
-                    <PopoverTrigger asChild><button className="p-1 rounded hover:bg-muted/60 transition-colors"><ColumnFilterIcon active={!!columnFilters.due_date || sortField === 'due_date'} /></button></PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.due_date} onChange={v => updateColumnFilter('due_date', v)} sortField="due_date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} /></PopoverContent>
+                    <PopoverTrigger asChild><button className="p-1 rounded hover:bg-muted/60 transition-colors"><ColumnFilterIcon active={!!columnFilters.due_date || !!columnFilters.due_date_empty || sortField === 'due_date'} /></button></PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.due_date} onChange={v => updateColumnFilter('due_date', v)} sortField="due_date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} includeEmpty={!!columnFilters.due_date_empty} onIncludeEmptyChange={v => updateColumnFilter('due_date_empty', v || undefined)} /></PopoverContent>
                   </Popover>
                 </div>
 
                 <div className="flex items-center justify-center gap-0.5">
                   <span>Prevista</span>
                   <Popover>
-                    <PopoverTrigger asChild><button className="p-1 rounded hover:bg-muted/60 transition-colors"><ColumnFilterIcon active={!!columnFilters.expected_date || sortField === 'expected_date'} /></button></PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.expected_date} onChange={v => updateColumnFilter('expected_date', v)} sortField="expected_date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} /></PopoverContent>
+                    <PopoverTrigger asChild><button className="p-1 rounded hover:bg-muted/60 transition-colors"><ColumnFilterIcon active={!!columnFilters.expected_date || !!columnFilters.expected_date_empty || sortField === 'expected_date'} /></button></PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.expected_date} onChange={v => updateColumnFilter('expected_date', v)} sortField="expected_date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} includeEmpty={!!columnFilters.expected_date_empty} onIncludeEmptyChange={v => updateColumnFilter('expected_date_empty', v || undefined)} /></PopoverContent>
                   </Popover>
                 </div>
 
                 <div className="flex items-center justify-center gap-0.5">
                   <span>Pagamento</span>
                   <Popover>
-                    <PopoverTrigger asChild><button className="p-1 rounded hover:bg-muted/60 transition-colors"><ColumnFilterIcon active={!!columnFilters.date || sortField === 'date'} /></button></PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.date} onChange={v => updateColumnFilter('date', v)} sortField="date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} /></PopoverContent>
+                    <PopoverTrigger asChild><button className="p-1 rounded hover:bg-muted/60 transition-colors"><ColumnFilterIcon active={!!columnFilters.date || !!columnFilters.date_empty || sortField === 'date'} /></button></PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.date} onChange={v => updateColumnFilter('date', v)} sortField="date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} includeEmpty={!!columnFilters.date_empty} onIncludeEmptyChange={v => updateColumnFilter('date_empty', v || undefined)} /></PopoverContent>
                   </Popover>
                 </div>
 

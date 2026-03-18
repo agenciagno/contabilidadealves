@@ -1,66 +1,93 @@
 
 
-## Plano: Opção "(Vazio)" nos Filtros da Página Lançamentos
+# Preview Intermediario na Importacao de Planilha
 
-A página Lançamentos usa filtros server-side (Supabase query em `useServerTransactions`). A lógica precisa tratar o sentinela `IS_EMPTY` tanto na UI quanto na query.
+## Resumo
 
-### Constante
+Adicionar um Step 3 (Preview) entre o upload e a confirmacao final. Apos o upload processar os dados, ao inves de importar diretamente, exibir uma tabela com os lancamentos lidos para o usuario revisar, com opcao de confirmar ou voltar.
 
-```ts
-const IS_EMPTY = '__IS_EMPTY_OR_NULL__';
+---
+
+## Arquivo Modificado
+
+| Arquivo | Mudanca |
+|---|---|
+| `src/components/transactions/ImportSpreadsheetDialog.tsx` | Adicionar step 3 com tabela de preview, separar parsing de importacao |
+
+---
+
+## Mudancas Detalhadas
+
+### 1. Novo estado para armazenar dados parseados
+
+```typescript
+const [parsedData, setParsedData] = useState<TransactionInsert[]>([]);
 ```
 
-### Arquivos modificados
+### 2. Alterar `processFile` para nao importar direto
 
-| Arquivo | Mudança |
-|---|---|
-| `src/pages/Transactions.tsx` | Injetar "(Vazio)" nos filtros de toolbar (Banco, Evento Contábil, Tipo) e nos filtros de cabeçalho (DateColumnFilter, NumericMultiFilter, ContactEventMultiFilter) |
-| `src/hooks/useServerTransactions.ts` | Tratar sentinela `IS_EMPTY` na função `applyFilters` com `.is('col', null)` e `.or()` para combinar com valores reais |
+Em vez de chamar `onImport(transactions)` ao final do parsing, salvar em `setParsedData(transactions)` e avancar para `setStep(3)`.
 
-### 1. Toolbar — Banco (single-select → multi-select)
+### 3. Step indicator com 3 passos
 
-Converter `bankFilter` de `string` para `string[]` para suportar seleção de "(Vazio)" + bancos reais simultaneamente. Adicionar opção "(Vazio)" no topo da lista. Na query server-side, quando `IS_EMPTY` estiver no array: `.or('bank_id.in.(ids),bank_id.is.null')`.
+Adicionar terceiro circulo "Revisar" no indicador de progresso (Modelo -> Upload -> Revisar).
 
-Alternativa mais simples: manter single-select mas adicionar "(Vazio)" como opção que filtra `bank_id.is.null`. Quando selecionado, `bankId = IS_EMPTY`.
+### 4. Step 3: Tabela de Preview
 
-### 2. Toolbar — Evento Contábil (CategoryMultiFilter)
+- Dialog expandido para `sm:max-w-4xl` quando no step 3
+- Contador: "X lancamento(s) encontrado(s)"
+- Tabela com ScrollArea (max-height ~400px) contendo colunas:
+  - Data | Cliente | Tipo | Valor | Status | Vencimento | Banco | Categoria
+- Cada linha mostra dados legivel (data formatada dd/MM/yyyy, valor em R$, tipo como badge colorido Receita/Despesa, status como badge Pago/Pendente)
+- Lookup reverso de bank_id/category_id/contact_id para exibir nomes (ou "---" se nao vinculado)
+- Botoes: "Voltar" (ghost, volta ao step 2) e "Confirmar Importacao" (primary, chama onImport)
+- Ao confirmar: spinner de "Importando..." e fluxo existente de toast + fechar modal
 
-Injetar opção "(Vazio)" no topo da lista de categorias. Na query: quando `IS_EMPTY` está em `categoryIds`, usar `.or('category_id.in.(realIds),category_id.is.null')`.
+### 5. Ajuste no resetState
 
-### 3. Toolbar — Tipo (single-select)
+Incluir `setParsedData([])` no reset.
 
-Adicionar opção "(Vazio)" no popover de Tipo. Quando selecionado, filtrar `type.is.null` ou `type.eq.''` na query.
+### 6. DialogDescription dinâmica
 
-### 4. Header — DateColumnFilter
+Step 3 exibe: "Revise os dados antes de confirmar"
 
-Adicionar checkbox "(Vazio)" no popover. Novos campos no `ColumnFilters`: `issue_date_empty`, `due_date_empty`, `expected_date_empty`, `date_empty`. Na query: `.or('due_date.gte.start,due_date.is.null')` quando empty + range.
+---
 
-### 5. Header — NumericMultiFilter (Valor / Recebido)
+## Secao Tecnica
 
-Injetar "(Vazio)" no topo. Mudar tipo de `number[]` para `(number | string)[]`. Na query: `.or('amount.in.(vals),amount.is.null')`.
+### Lookup reverso para exibicao
 
-### 6. Header — ContactEventMultiFilter
+Para mostrar nomes na tabela de preview ao inves de IDs:
 
-Injetar "(Vazio)" para filtrar transações sem contato. Na query: adicionar `contact_id.is.null` ao OR existente.
+```typescript
+const bankName = (id: string | null) => banks.find(b => b.id === id)?.name ?? '—';
+const categoryName = (id: string | null) => categories.find(c => c.id === id)?.name ?? '—';
+const contactName = (id: string | null) => contacts.find(c => c.id === id)?.name ?? '—';
+```
 
-### 7. Server-side (`applyFilters` em `useServerTransactions.ts`)
+### Formatacao na tabela
 
-Atualizar `ServerFilters` interface para suportar:
-- `bankId: string | string[]` ou novo campo `bankIds`
-- Campos `*_empty: boolean` para datas
-- `amounts` e `paidAmounts` como `(number | string)[]`
+```typescript
+// Data: format(parseISO(row.date), 'dd/MM/yyyy')
+// Valor: row.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+// Tipo: Badge verde "Receita" ou vermelho "Despesa"
+// Status: Badge "Pago" ou "Pendente"
+```
 
-Para cada filtro, implementar a lógica OR com `.or()`:
-```ts
-// Exemplo: categoryIds com IS_EMPTY
-const hasEmpty = categoryIds.includes(IS_EMPTY);
-const realIds = categoryIds.filter(id => id !== IS_EMPTY);
-if (hasEmpty && realIds.length) {
-  query = query.or(`category_id.in.(${realIds.join(',')}),category_id.is.null`);
-} else if (hasEmpty) {
-  query = query.is('category_id', null);
-} else {
-  query = query.in('category_id', realIds);
-}
+### Handler de confirmacao
+
+```typescript
+const handleConfirmImport = async () => {
+  setIsProcessing(true);
+  try {
+    await onImport(parsedData);
+    toast({ title: `${parsedData.length} lançamento(s) importado(s) com sucesso!` });
+    handleClose(false);
+  } catch (err) {
+    toast({ title: 'Erro ao importar.', variant: 'destructive' });
+  } finally {
+    setIsProcessing(false);
+  }
+};
 ```
 
