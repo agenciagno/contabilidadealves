@@ -4,6 +4,7 @@ import { Transaction } from '@/hooks/useTransactions';
 import { isEffectivelyPaid } from '@/lib/financial-utils';
 
 export const PAGE_SIZE = 99;
+export const IS_EMPTY = '__IS_EMPTY_OR_NULL__';
 
 export interface ServerFilters {
   type?: string;
@@ -12,14 +13,18 @@ export interface ServerFilters {
   searchTerm?: string;
   columnFilters: {
     issue_date?: { start: string; end: string };
+    issue_date_empty?: boolean;
     due_date?: { start: string; end: string };
+    due_date_empty?: boolean;
     expected_date?: { start: string; end: string };
+    expected_date_empty?: boolean;
     date?: { start: string; end: string };
+    date_empty?: boolean;
     contactIds?: string[];
     eventNames?: string[];
     status?: string;
-    amounts?: number[];
-    paidAmounts?: number[];
+    amounts?: (number | string)[];
+    paidAmounts?: (number | string)[];
   };
   sortField: string;
   sortOrder: 'asc' | 'desc';
