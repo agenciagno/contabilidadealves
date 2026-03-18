@@ -397,6 +397,10 @@ function EventoMultiFilter({ selected, onChange, categories }: {
             </div>
           </div>
           <div className="max-h-60 overflow-auto p-1">
+            <label className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-xs border-b border-border/40 mb-1">
+              <Checkbox checked={displaySelected.includes(IS_EMPTY)} onCheckedChange={() => toggle(IS_EMPTY)} className="h-3.5 w-3.5" />
+              <span className="text-muted-foreground italic">(Vazio)</span>
+            </label>
             {filtered.length > 0 ? filtered.map(c => (
               <label key={c.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-xs">
                 <Checkbox checked={displaySelected.includes(c.id)} onCheckedChange={() => toggle(c.id)} className="h-3.5 w-3.5" />
