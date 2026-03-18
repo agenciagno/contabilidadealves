@@ -995,8 +995,8 @@ export default function Transactions() {
                 <div className="flex items-center gap-0.5">
                   <span>Emissão</span>
                   <Popover>
-                    <PopoverTrigger asChild><button className="p-1 rounded hover:bg-muted/60 transition-colors"><ColumnFilterIcon active={!!columnFilters.issue_date || sortField === 'issue_date'} /></button></PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.issue_date} onChange={v => updateColumnFilter('issue_date', v)} sortField="issue_date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} /></PopoverContent>
+                    <PopoverTrigger asChild><button className="p-1 rounded hover:bg-muted/60 transition-colors"><ColumnFilterIcon active={!!columnFilters.issue_date || !!columnFilters.issue_date_empty || sortField === 'issue_date'} /></button></PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.issue_date} onChange={v => updateColumnFilter('issue_date', v)} sortField="issue_date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} includeEmpty={!!columnFilters.issue_date_empty} onIncludeEmptyChange={v => updateColumnFilter('issue_date_empty', v || undefined)} /></PopoverContent>
                   </Popover>
                 </div>
 
