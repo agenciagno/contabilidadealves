@@ -30,6 +30,34 @@ export interface ServerFilters {
   sortOrder: 'asc' | 'desc';
 }
 
+function applyDateFilter(
+  query: any,
+  col: string,
+  range?: { start: string; end: string },
+  includeEmpty?: boolean
+) {
+  const hasRange = range?.start || range?.end;
+  if (includeEmpty && hasRange) {
+    // OR: date in range OR date is null
+    const parts: string[] = [];
+    if (range?.start && range?.end) {
+      parts.push(`and(${col}.gte.${range.start},${col}.lte.${range.end})`);
+    } else if (range?.start) {
+      parts.push(`${col}.gte.${range.start}`);
+    } else if (range?.end) {
+      parts.push(`${col}.lte.${range.end}`);
+    }
+    parts.push(`${col}.is.null`);
+    query = query.or(parts.join(','));
+  } else if (includeEmpty) {
+    query = query.is(col, null);
+  } else {
+    if (range?.start) query = query.gte(col, range.start);
+    if (range?.end) query = query.lte(col, range.end);
+  }
+  return query;
+}
+
 function applyFilters(
   query: any,
   filters: ServerFilters
@@ -37,15 +65,37 @@ function applyFilters(
   // Always exclude soft-deleted records
   query = query.is('deleted_at', null);
 
+  // Type filter
   if (filters.type && filters.type !== 'all') {
-    query = query.eq('type', filters.type);
+    if (filters.type === IS_EMPTY) {
+      query = query.or('type.is.null,type.eq.');
+    } else {
+      query = query.eq('type', filters.type);
+    }
   }
+
+  // Category filter with IS_EMPTY support
   if (filters.categoryIds && filters.categoryIds.length > 0) {
-    query = query.in('category_id', filters.categoryIds);
+    const hasEmpty = filters.categoryIds.includes(IS_EMPTY);
+    const realIds = filters.categoryIds.filter(id => id !== IS_EMPTY);
+    if (hasEmpty && realIds.length) {
+      query = query.or(`category_id.in.(${realIds.join(',')}),category_id.is.null`);
+    } else if (hasEmpty) {
+      query = query.is('category_id', null);
+    } else {
+      query = query.in('category_id', realIds);
+    }
   }
+
+  // Bank filter with IS_EMPTY support
   if (filters.bankId && filters.bankId !== 'all') {
-    query = query.eq('bank_id', filters.bankId);
+    if (filters.bankId === IS_EMPTY) {
+      query = query.is('bank_id', null);
+    } else {
+      query = query.eq('bank_id', filters.bankId);
+    }
   }
+
   if (filters.searchTerm) {
     const term = filters.searchTerm.replace(/%/g, '');
     query = query.or(`description.ilike.%${term}%,notes.ilike.%${term}%`);
@@ -53,45 +103,61 @@ function applyFilters(
 
   const cf = filters.columnFilters;
 
-  // Date column filters
-  if (cf.issue_date?.start) query = query.gte('issue_date', cf.issue_date.start);
-  if (cf.issue_date?.end) query = query.lte('issue_date', cf.issue_date.end);
-  if (cf.due_date?.start) query = query.gte('due_date', cf.due_date.start);
-  if (cf.due_date?.end) query = query.lte('due_date', cf.due_date.end);
-  if (cf.expected_date?.start) query = query.gte('expected_date', cf.expected_date.start);
-  if (cf.expected_date?.end) query = query.lte('expected_date', cf.expected_date.end);
-  if (cf.date?.start) query = query.gte('date', cf.date.start);
-  if (cf.date?.end) query = query.lte('date', cf.date.end);
+  // Date column filters with empty support
+  query = applyDateFilter(query, 'issue_date', cf.issue_date, cf.issue_date_empty);
+  query = applyDateFilter(query, 'due_date', cf.due_date, cf.due_date_empty);
+  query = applyDateFilter(query, 'expected_date', cf.expected_date, cf.expected_date_empty);
+  query = applyDateFilter(query, 'date', cf.date, cf.date_empty);
 
-  // Amount filters
+  // Amount filters with IS_EMPTY support
   if (cf.amounts && cf.amounts.length > 0) {
-    query = query.in('amount', cf.amounts);
+    const hasEmpty = cf.amounts.includes(IS_EMPTY);
+    const realVals = cf.amounts.filter(v => v !== IS_EMPTY) as number[];
+    if (hasEmpty && realVals.length) {
+      query = query.or(`amount.in.(${realVals.join(',')}),amount.is.null`);
+    } else if (hasEmpty) {
+      query = query.is('amount', null);
+    } else {
+      query = query.in('amount', realVals);
+    }
   }
   if (cf.paidAmounts && cf.paidAmounts.length > 0) {
-    query = query.in('paid_amount', cf.paidAmounts);
+    const hasEmpty = cf.paidAmounts.includes(IS_EMPTY);
+    const realVals = cf.paidAmounts.filter(v => v !== IS_EMPTY) as number[];
+    if (hasEmpty && realVals.length) {
+      query = query.or(`paid_amount.in.(${realVals.join(',')}),paid_amount.is.null`);
+    } else if (hasEmpty) {
+      query = query.is('paid_amount', null);
+    } else {
+      query = query.in('paid_amount', realVals);
+    }
   }
 
-  // Contact multi-select + event names with OR logic
-  const hasContacts = cf.contactIds && cf.contactIds.length > 0;
+  // Contact multi-select + event names with OR logic + IS_EMPTY support
+  const allContactIds = cf.contactIds || [];
+  const hasContactEmpty = allContactIds.includes(IS_EMPTY);
+  const realContactIds = allContactIds.filter(id => id !== IS_EMPTY);
+  const hasContacts = realContactIds.length > 0;
   const hasEvents = cf.eventNames && cf.eventNames.length > 0;
 
-  if (hasContacts && hasEvents) {
-    // OR: contact_id in list OR (contact_id is null AND description in list)
-    const contactFilter = `contact_id.in.(${cf.contactIds!.join(',')})`;
-    const eventFilter = `and(contact_id.is.null,description.in.(${cf.eventNames!.map(e => `"${e.replace(/"/g, '\\"')}"`).join(',')}))`;
-    query = query.or(`${contactFilter},${eventFilter}`);
-  } else if (hasContacts) {
-    query = query.in('contact_id', cf.contactIds!);
-  } else if (hasEvents) {
-    query = query.is('contact_id', null).in('description', cf.eventNames!);
+  const orParts: string[] = [];
+  if (hasContacts) {
+    orParts.push(`contact_id.in.(${realContactIds.join(',')})`);
+  }
+  if (hasEvents) {
+    orParts.push(`and(contact_id.is.null,description.in.(${cf.eventNames!.map(e => `"${e.replace(/"/g, '\\"')}"`).join(',')}))`);
+  }
+  if (hasContactEmpty) {
+    orParts.push('contact_id.is.null');
+  }
+  if (orParts.length > 0) {
+    query = query.or(orParts.join(','));
   }
 
-  // Status filter — server-side we filter is_paid, but isEffectivelyPaid is checked on frontend
+  // Status filter
   if (cf.status === 'Pago') {
     query = query.eq('is_paid', true);
   } else if (cf.status === 'Pendente') {
-    // Pendente includes is_paid=false OR is_paid=true but missing date/paid_amount (handled on frontend)
-    // We can't fully express this in Supabase, so we don't filter server-side for Pendente
     // Frontend will re-check with isEffectivelyPaid
   }
 
