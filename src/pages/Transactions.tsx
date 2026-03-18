@@ -52,14 +52,18 @@ type SortOrder = 'asc' | 'desc';
 
 interface ColumnFilters {
   issue_date?: { start: string; end: string };
+  issue_date_empty?: boolean;
   due_date?: { start: string; end: string };
+  due_date_empty?: boolean;
   expected_date?: { start: string; end: string };
+  expected_date_empty?: boolean;
   date?: { start: string; end: string };
+  date_empty?: boolean;
   contactIds?: string[];
   eventNames?: string[];
   status?: string;
-  amounts?: number[];
-  paidAmounts?: number[];
+  amounts?: (number | string)[];
+  paidAmounts?: (number | string)[];
 }
 
 // Column filter popover for date columns
