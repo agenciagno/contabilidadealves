@@ -1,93 +1,82 @@
 
 
-# Preview Intermediario na Importacao de Planilha
+## Plano: Opção "(Vazio)" nos Filtros da Aba Pagar/Receber
 
-## Resumo
+A filtragem nesta tela é **client-side** (useMemo sobre o array `transactions`). A constante sentinela `IS_EMPTY_OR_NULL` será usada internamente para representar campos nulos/vazios.
 
-Adicionar um Step 3 (Preview) entre o upload e a confirmacao final. Apos o upload processar os dados, ao inves de importar diretamente, exibir uma tabela com os lancamentos lidos para o usuario revisar, com opcao de confirmar ou voltar.
+### Arquivos modificados
 
----
-
-## Arquivo Modificado
-
-| Arquivo | Mudanca |
+| Arquivo | Mudança |
 |---|---|
-| `src/components/transactions/ImportSpreadsheetDialog.tsx` | Adicionar step 3 com tabela de preview, separar parsing de importacao |
+| `src/components/transactions/CashFlowTab.tsx` | Adicionar opção "(Vazio)" em EventoMultiFilter, NumericMultiFilter, DateColumnFilter; atualizar lógica de filtragem com OR |
 
----
+### Constante sentinela
 
-## Mudancas Detalhadas
-
-### 1. Novo estado para armazenar dados parseados
-
-```typescript
-const [parsedData, setParsedData] = useState<TransactionInsert[]>([]);
+```ts
+const IS_EMPTY = '__IS_EMPTY_OR_NULL__';
 ```
 
-### 2. Alterar `processFile` para nao importar direto
+### 1. EventoMultiFilter (Evento Contábil)
 
-Em vez de chamar `onImport(transactions)` ao final do parsing, salvar em `setParsedData(transactions)` e avancar para `setStep(3)`.
+- Injetar opção estática "(Vazio)" no topo da lista (antes das categorias reais), com valor `IS_EMPTY`.
+- No pipeline de filtragem (`finalFiltered`), quando `categoryFilterIds` contém `IS_EMPTY`:
+  - Se contém apenas `IS_EMPTY`: filtrar `t.category_id == null`
+  - Se contém `IS_EMPTY` + outros IDs: `.filter(t => t.category_id == null || categoryFilterIds.includes(t.category_id))` (OR)
 
-### 3. Step indicator com 3 passos
+### 2. NumericMultiFilter (A Receber / A Pagar)
 
-Adicionar terceiro circulo "Revisar" no indicador de progresso (Modelo -> Upload -> Revisar).
+- Injetar opção "(Vazio)" no topo da lista de valores.
+- Usar valor sentinela numérico especial: `-999999.99` ou melhor, mudar o tipo de `number[]` para `(number | string)[]` e usar string `IS_EMPTY`.
+- Na filtragem de amounts/despesaAmounts:
+  - Se inclui `IS_EMPTY`: incluir linhas onde o valor da coluna correspondente é nulo (receita sem amount ou despesa sem amount — raro mas coberto).
+  - Combinar com OR: `amount in selected_values OR amount is null`.
 
-### 4. Step 3: Tabela de Preview
+### 3. DateColumnFilter (Data Prevista / Vencimento)
 
-- Dialog expandido para `sm:max-w-4xl` quando no step 3
-- Contador: "X lancamento(s) encontrado(s)"
-- Tabela com ScrollArea (max-height ~400px) contendo colunas:
-  - Data | Cliente | Tipo | Valor | Status | Vencimento | Banco | Categoria
-- Cada linha mostra dados legivel (data formatada dd/MM/yyyy, valor em R$, tipo como badge colorido Receita/Despesa, status como badge Pago/Pendente)
-- Lookup reverso de bank_id/category_id/contact_id para exibir nomes (ou "---" se nao vinculado)
-- Botoes: "Voltar" (ghost, volta ao step 2) e "Confirmar Importacao" (primary, chama onImport)
-- Ao confirmar: spinner de "Importando..." e fluxo existente de toast + fechar modal
+- Adicionar checkbox "(Vazio)" dentro do popover do DateColumnFilter, abaixo dos inputs de data.
+- Novo campo no `CashFlowColumnFilters`: `expected_date_empty?: boolean`, `due_date_empty?: boolean`.
+- Na filtragem:
+  - Se `expected_date_empty` e tem range: `t.expected_date == null || (t.expected_date >= start && t.expected_date <= end)` (OR)
+  - Se `expected_date_empty` sem range: `t.expected_date == null`
 
-### 5. Ajuste no resetState
+### 4. ContactEventMultiFilter (Cliente/Fornecedor)
 
-Incluir `setParsedData([])` no reset.
+- Injetar opção "(Vazio)" no topo para filtrar transações sem contato E sem descrição de evento.
+- Quando selecionado: incluir `t.contact_id == null && !t.description` ou simplesmente `t.contact_id == null`.
+- OR com outros contatos selecionados.
 
-### 6. DialogDescription dinâmica
+### 5. Atualização do CashFlowColumnFilters
 
-Step 3 exibe: "Revise os dados antes de confirmar"
-
----
-
-## Secao Tecnica
-
-### Lookup reverso para exibicao
-
-Para mostrar nomes na tabela de preview ao inves de IDs:
-
-```typescript
-const bankName = (id: string | null) => banks.find(b => b.id === id)?.name ?? '—';
-const categoryName = (id: string | null) => categories.find(c => c.id === id)?.name ?? '—';
-const contactName = (id: string | null) => contacts.find(c => c.id === id)?.name ?? '—';
+```ts
+interface CashFlowColumnFilters {
+  expected_date?: { start: string; end: string };
+  expected_date_empty?: boolean;
+  due_date?: { start: string; end: string };
+  due_date_empty?: boolean;
+  contactIds?: string[];    // pode incluir IS_EMPTY
+  eventNames?: string[];
+  amounts?: (number | string)[];     // pode incluir IS_EMPTY
+  despesaAmounts?: (number | string)[];
+  status?: string[];
+}
 ```
 
-### Formatacao na tabela
+### 6. Lógica de filtragem (useMemo)
 
-```typescript
-// Data: format(parseISO(row.date), 'dd/MM/yyyy')
-// Valor: row.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-// Tipo: Badge verde "Receita" ou vermelho "Despesa"
-// Status: Badge "Pago" ou "Pendente"
+Para cada filtro com possível "(Vazio)", a lógica segue o padrão OR:
+
+```ts
+// Exemplo: category filter
+if (categoryFilterIds.length) {
+  const includeEmpty = categoryFilterIds.includes(IS_EMPTY);
+  const realIds = categoryFilterIds.filter(id => id !== IS_EMPTY);
+  result = result.filter(t => {
+    if (includeEmpty && !t.category_id) return true;
+    if (realIds.length && t.category_id && realIds.includes(t.category_id)) return true;
+    return false;
+  });
+}
 ```
 
-### Handler de confirmacao
-
-```typescript
-const handleConfirmImport = async () => {
-  setIsProcessing(true);
-  try {
-    await onImport(parsedData);
-    toast({ title: `${parsedData.length} lançamento(s) importado(s) com sucesso!` });
-    handleClose(false);
-  } catch (err) {
-    toast({ title: 'Erro ao importar.', variant: 'destructive' });
-  } finally {
-    setIsProcessing(false);
-  }
-};
-```
+Mesmo padrão aplicado a: amounts, despesaAmounts, contactIds, datas.
 
