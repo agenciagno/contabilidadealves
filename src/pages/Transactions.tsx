@@ -1026,8 +1026,8 @@ export default function Transactions() {
                 <div className="flex items-center justify-center gap-0.5">
                   <span>Pagamento</span>
                   <Popover>
-                    <PopoverTrigger asChild><button className="p-1 rounded hover:bg-muted/60 transition-colors"><ColumnFilterIcon active={!!columnFilters.date || sortField === 'date'} /></button></PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.date} onChange={v => updateColumnFilter('date', v)} sortField="date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} /></PopoverContent>
+                    <PopoverTrigger asChild><button className="p-1 rounded hover:bg-muted/60 transition-colors"><ColumnFilterIcon active={!!columnFilters.date || !!columnFilters.date_empty || sortField === 'date'} /></button></PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.date} onChange={v => updateColumnFilter('date', v)} sortField="date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} includeEmpty={!!columnFilters.date_empty} onIncludeEmptyChange={v => updateColumnFilter('date_empty', v || undefined)} /></PopoverContent>
                   </Popover>
                 </div>
 
