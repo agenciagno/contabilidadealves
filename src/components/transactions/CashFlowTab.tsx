@@ -483,65 +483,86 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
       });
     }
 
-    // Column date filters
-    if (columnFilters.expected_date) {
-      const { start, end } = columnFilters.expected_date;
+    // Column date filters (expected_date)
+    if (columnFilters.expected_date || columnFilters.expected_date_empty) {
+      const range = columnFilters.expected_date;
+      const includeEmpty = !!columnFilters.expected_date_empty;
       result = result.filter(t => {
         const d = t.expected_date || t.due_date || t.issue_date;
-        if (!d) return true;
-        if (start && d < start) return false;
-        if (end && d > end) return false;
-        return true;
+        if (includeEmpty && !d) return true;
+        if (range) {
+          if (!d) return false;
+          if (range.start && d < range.start) return false;
+          if (range.end && d > range.end) return false;
+          return true;
+        }
+        return !includeEmpty ? true : false;
       });
     }
-    if (columnFilters.due_date) {
-      const { start, end } = columnFilters.due_date;
+    if (columnFilters.due_date || columnFilters.due_date_empty) {
+      const range = columnFilters.due_date;
+      const includeEmpty = !!columnFilters.due_date_empty;
       result = result.filter(t => {
-        if (!t.due_date) return true;
-        if (start && t.due_date < start) return false;
-        if (end && t.due_date > end) return false;
-        return true;
+        if (includeEmpty && !t.due_date) return true;
+        if (range) {
+          if (!t.due_date) return false;
+          if (range.start && t.due_date < range.start) return false;
+          if (range.end && t.due_date > range.end) return false;
+          return true;
+        }
+        return !includeEmpty ? true : false;
       });
     }
 
-    // Contact / event filters
-    if (columnFilters.contactIds?.length) {
-      result = result.filter(t => t.contact_id && columnFilters.contactIds!.includes(t.contact_id));
-    }
-    if (columnFilters.eventNames?.length) {
-      result = result.filter(t => !t.contact_id && columnFilters.eventNames!.includes(t.description));
-    }
-    if (columnFilters.contactIds?.length && columnFilters.eventNames?.length) {
-      // OR logic between contacts and events
-      const contactIds = columnFilters.contactIds;
-      const eventNames = columnFilters.eventNames;
-      result = transactions.filter(t => !t.is_paid && t.expected_date).filter(t => {
-        // re-apply global date
-        const dateKey = t.expected_date || t.due_date || t.issue_date;
-        if (globalStartDate && dateKey && dateKey < globalStartDate) return false;
-        if (globalEndDate && dateKey && dateKey > globalEndDate) return false;
-        return (t.contact_id && contactIds.includes(t.contact_id)) || (!t.contact_id && eventNames.includes(t.description));
+    // Contact / event filters (with IS_EMPTY support)
+    const hasContactFilter = columnFilters.contactIds?.length;
+    const hasEventFilter = columnFilters.eventNames?.length;
+    if (hasContactFilter || hasEventFilter) {
+      const contactIds = columnFilters.contactIds || [];
+      const eventNames = columnFilters.eventNames || [];
+      const includeEmptyContact = contactIds.includes(IS_EMPTY);
+      const realContactIds = contactIds.filter(id => id !== IS_EMPTY);
+
+      result = result.filter(t => {
+        let matchContact = false;
+        let matchEvent = false;
+
+        if (includeEmptyContact && !t.contact_id) matchContact = true;
+        if (realContactIds.length && t.contact_id && realContactIds.includes(t.contact_id)) matchContact = true;
+        if (eventNames.length && !t.contact_id && eventNames.includes(t.description)) matchEvent = true;
+
+        if (hasContactFilter && hasEventFilter) return matchContact || matchEvent;
+        if (hasContactFilter) return matchContact;
+        return matchEvent;
       });
     }
 
-    // Evento contábil (category) filter — separate from contactEvent
-    // Use eventNames to also filter by category_id if present
-    // Actually we have a dedicated EventoMultiFilter for categories
-    // We'll store category filter in a separate state key — let's reuse eventNames for the contactEvent filter
-    // and add categoryIds
+    // Evento contábil (category) filter — handled in finalFiltered below
 
-    // Amount filters (receita)
+    // Amount filters (receita) with IS_EMPTY support
     if (columnFilters.amounts?.length) {
+      const includeEmpty = columnFilters.amounts.includes(IS_EMPTY);
+      const realAmounts = columnFilters.amounts.filter(v => v !== IS_EMPTY) as number[];
       result = result.filter(t => {
-        if (t.type === 'receita') return columnFilters.amounts!.includes(Number(t.amount));
-        return !columnFilters.despesaAmounts?.length; // keep despesas if no despesa filter
+        if (t.type === 'receita') {
+          if (includeEmpty && (t.amount == null)) return true;
+          if (realAmounts.length && realAmounts.includes(Number(t.amount))) return true;
+          return false;
+        }
+        return !columnFilters.despesaAmounts?.length;
       });
     }
-    // Amount filters (despesa)
+    // Amount filters (despesa) with IS_EMPTY support
     if (columnFilters.despesaAmounts?.length) {
+      const includeEmpty = columnFilters.despesaAmounts.includes(IS_EMPTY);
+      const realAmounts = columnFilters.despesaAmounts.filter(v => v !== IS_EMPTY) as number[];
       result = result.filter(t => {
-        if (t.type === 'despesa') return columnFilters.despesaAmounts!.includes(Number(t.amount));
-        return !columnFilters.amounts?.length; // keep receitas if no receita filter
+        if (t.type === 'despesa') {
+          if (includeEmpty && (t.amount == null)) return true;
+          if (realAmounts.length && realAmounts.includes(Number(t.amount))) return true;
+          return false;
+        }
+        return !columnFilters.amounts?.length;
       });
     }
 
