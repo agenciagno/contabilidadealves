@@ -902,6 +902,9 @@ export default function Transactions() {
             <PopoverContent className="w-48 p-2" align="start">
               <div className="space-y-1 max-h-60 overflow-auto">
                 <button onClick={() => setBankFilter('all')} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted ${bankFilter === 'all' ? 'bg-primary/10 text-primary font-medium' : ''}`}>Todos</button>
+                <button onClick={() => setBankFilter(IS_EMPTY)} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted flex items-center gap-2 ${bankFilter === IS_EMPTY ? 'bg-primary/10 text-primary font-medium' : ''}`}>
+                  <span className="italic text-muted-foreground">(Vazio)</span>
+                </button>
                 {banks.filter(b => b.is_active).map(b => (
                   <button key={b.id} onClick={() => setBankFilter(b.id)} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted flex items-center gap-2 ${bankFilter === b.id ? 'bg-primary/10 text-primary font-medium' : ''}`}>
                     <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: b.color || '#10B981' }} />
