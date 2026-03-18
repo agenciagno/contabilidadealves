@@ -206,6 +206,11 @@ function ContactEventMultiFilter({
             </div>
           </div>
           <div className="max-h-60 overflow-auto p-1">
+            {/* (Vazio) option */}
+            <label className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-xs border-b border-border/40 mb-1">
+              <Checkbox checked={selectedContacts.includes(IS_EMPTY)} onCheckedChange={() => toggleContact(IS_EMPTY)} className="h-3.5 w-3.5" />
+              <span className="text-muted-foreground italic">(Vazio)</span>
+            </label>
             {filteredContacts.length > 0 && (
               <>
                 <div className="pt-1 pb-0.5 px-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Clientes / Fornecedores</div>
