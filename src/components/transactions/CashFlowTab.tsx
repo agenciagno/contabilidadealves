@@ -827,7 +827,7 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
                         <PopoverTrigger asChild>
                           <div className="flex items-center gap-0.5 cursor-pointer">
                             <span>Vencimento</span>
-                            <ColumnFilterIcon active={!!columnFilters.due_date || sortField === 'due_date'} />
+                            <ColumnFilterIcon active={!!columnFilters.due_date || !!columnFilters.due_date_empty || sortField === 'due_date'} />
                           </div>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start" onOpenAutoFocus={e => e.preventDefault()}>
@@ -838,6 +838,8 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
                             currentSortField={sortField}
                             currentSortOrder={sortOrder}
                             onSort={handleSort}
+                            includeEmpty={!!columnFilters.due_date_empty}
+                            onIncludeEmptyChange={v => setColumnFilters(prev => ({ ...prev, due_date_empty: v || undefined }))}
                           />
                         </PopoverContent>
                       </Popover>
