@@ -1018,8 +1018,8 @@ export default function Transactions() {
                 <div className="flex items-center justify-center gap-0.5">
                   <span>Prevista</span>
                   <Popover>
-                    <PopoverTrigger asChild><button className="p-1 rounded hover:bg-muted/60 transition-colors"><ColumnFilterIcon active={!!columnFilters.expected_date || sortField === 'expected_date'} /></button></PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.expected_date} onChange={v => updateColumnFilter('expected_date', v)} sortField="expected_date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} /></PopoverContent>
+                    <PopoverTrigger asChild><button className="p-1 rounded hover:bg-muted/60 transition-colors"><ColumnFilterIcon active={!!columnFilters.expected_date || !!columnFilters.expected_date_empty || sortField === 'expected_date'} /></button></PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.expected_date} onChange={v => updateColumnFilter('expected_date', v)} sortField="expected_date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} includeEmpty={!!columnFilters.expected_date_empty} onIncludeEmptyChange={v => updateColumnFilter('expected_date_empty', v || undefined)} /></PopoverContent>
                   </Popover>
                 </div>
 
