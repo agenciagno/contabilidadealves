@@ -1,93 +1,45 @@
 
 
-# Preview Intermediario na Importacao de Planilha
+## Plano: Corrigir saldo e visual de extrato bancário
 
-## Resumo
+### Diagnóstico
 
-Adicionar um Step 3 (Preview) entre o upload e a confirmacao final. Apos o upload processar os dados, ao inves de importar diretamente, exibir uma tabela com os lancamentos lidos para o usuario revisar, com opcao de confirmar ou voltar.
+Encontrei a causa exata da diferença de R$406,00: existe uma transação liquidada com data futura (05/06/2026, R$406,00 receita). A trigger do banco soma **todas** as transações pagas sem limite de data, inflando o `current_balance`. O extrato, que vai até hoje, não inclui essa transação — gerando a divergência.
 
----
+Além disso, o período padrão está como "primeiro dia do mês atual" em vez de "01/01 do ano corrente", e o header do extrato individual mostra `current_balance` (all-time) em vez do saldo final do período.
 
-## Arquivo Modificado
+### Correções
 
-| Arquivo | Mudanca |
-|---|---|
-| `src/components/transactions/ImportSpreadsheetDialog.tsx` | Adicionar step 3 com tabela de preview, separar parsing de importacao |
+| # | Arquivo / Local | Mudança |
+|---|---|---|
+| 1 | **Trigger `update_bank_balance`** (migration SQL) | Adicionar `AND date <= CURRENT_DATE` para ignorar transações com data futura no cálculo do saldo |
+| 2 | **`BankDetailSheet.tsx`** | Trocar `bank.current_balance` por `closingBalance` no header; mudar período padrão para 01/01 do ano |
+| 3 | **`UnifiedStatementAccordion.tsx`** | Mudar período padrão para 01/01 do ano corrente |
+| 4 | **`BankReportModal.tsx`** | Mudar período padrão para 01/01 do ano corrente |
+| 5 | **`BankDetailSheet.tsx`** | Agrupar linhas do extrato por dia com separador visual (data como cabeçalho de grupo, saldo do dia ao lado) |
+| 6 | **`UnifiedStatementAccordion.tsx`** | Mesma lógica de agrupamento por dia |
 
----
+### Detalhes técnicos
 
-## Mudancas Detalhadas
+**1. Trigger (SQL)**
+```sql
+AND date <= CURRENT_DATE
+```
+Adicionado nas 3 queries da trigger. Isso alinha `current_balance` com a realidade do extrato até hoje.
 
-### 1. Novo estado para armazenar dados parseados
-
-```typescript
-const [parsedData, setParsedData] = useState<TransactionInsert[]>([]);
+**2-4. Período padrão**
+```ts
+// De:
+const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+// Para:
+const firstOfYear = new Date(today.getFullYear(), 0, 1)
 ```
 
-### 2. Alterar `processFile` para nao importar direto
+**5-6. Agrupamento por dia (visual)**
+As linhas do extrato serão agrupadas por data. Cada grupo terá:
+- Um cabeçalho com a data (ex: "Qua, 02/01/2026") e o saldo final daquele dia
+- As transações do dia listadas abaixo sem repetir a coluna de data
+- Separador visual entre grupos de dias
 
-Em vez de chamar `onImport(transactions)` ao final do parsing, salvar em `setParsedData(transactions)` e avancar para `setStep(3)`.
-
-### 3. Step indicator com 3 passos
-
-Adicionar terceiro circulo "Revisar" no indicador de progresso (Modelo -> Upload -> Revisar).
-
-### 4. Step 3: Tabela de Preview
-
-- Dialog expandido para `sm:max-w-4xl` quando no step 3
-- Contador: "X lancamento(s) encontrado(s)"
-- Tabela com ScrollArea (max-height ~400px) contendo colunas:
-  - Data | Cliente | Tipo | Valor | Status | Vencimento | Banco | Categoria
-- Cada linha mostra dados legivel (data formatada dd/MM/yyyy, valor em R$, tipo como badge colorido Receita/Despesa, status como badge Pago/Pendente)
-- Lookup reverso de bank_id/category_id/contact_id para exibir nomes (ou "---" se nao vinculado)
-- Botoes: "Voltar" (ghost, volta ao step 2) e "Confirmar Importacao" (primary, chama onImport)
-- Ao confirmar: spinner de "Importando..." e fluxo existente de toast + fechar modal
-
-### 5. Ajuste no resetState
-
-Incluir `setParsedData([])` no reset.
-
-### 6. DialogDescription dinâmica
-
-Step 3 exibe: "Revise os dados antes de confirmar"
-
----
-
-## Secao Tecnica
-
-### Lookup reverso para exibicao
-
-Para mostrar nomes na tabela de preview ao inves de IDs:
-
-```typescript
-const bankName = (id: string | null) => banks.find(b => b.id === id)?.name ?? '—';
-const categoryName = (id: string | null) => categories.find(c => c.id === id)?.name ?? '—';
-const contactName = (id: string | null) => contacts.find(c => c.id === id)?.name ?? '—';
-```
-
-### Formatacao na tabela
-
-```typescript
-// Data: format(parseISO(row.date), 'dd/MM/yyyy')
-// Valor: row.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-// Tipo: Badge verde "Receita" ou vermelho "Despesa"
-// Status: Badge "Pago" ou "Pendente"
-```
-
-### Handler de confirmacao
-
-```typescript
-const handleConfirmImport = async () => {
-  setIsProcessing(true);
-  try {
-    await onImport(parsedData);
-    toast({ title: `${parsedData.length} lançamento(s) importado(s) com sucesso!` });
-    handleClose(false);
-  } catch (err) {
-    toast({ title: 'Erro ao importar.', variant: 'destructive' });
-  } finally {
-    setIsProcessing(false);
-  }
-};
-```
+Inspirado no layout do anexo 3 (extrato real do Sicoob).
 
