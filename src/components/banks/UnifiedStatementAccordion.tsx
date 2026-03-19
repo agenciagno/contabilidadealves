@@ -87,7 +87,7 @@ export function UnifiedStatementAccordion({ banks }: UnifiedStatementAccordionPr
     return acc;
   }, {});
 
-  const dayGroups = groupByDay(rows);
+  const dayGroups = groupByDay(rows).reverse();
 
   return (
     <Accordion type="single" collapsible>
