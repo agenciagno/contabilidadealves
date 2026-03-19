@@ -266,12 +266,12 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
         setCreatedBanks(newBanksMap);
       }
 
-      const findCategoryId = (name: unknown): string | null => {
+      const findCategoryId = (name: unknown, type: 'receita' | 'despesa'): string | null => {
         if (!name || typeof name !== 'string') return null;
         const lower = name.trim().toLowerCase();
-        const existing = categories.find((c) => c.name.toLowerCase() === lower);
+        const existing = categories.find((c) => c.name.toLowerCase() === lower && c.type === type);
         if (existing) return existing.id;
-        return newCatsMap.get(lower) ?? null;
+        return newCatsMap.get(`${lower}::${type}`) ?? null;
       };
 
       const findContactId = (name: unknown): string | null => {
