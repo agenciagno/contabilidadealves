@@ -11,7 +11,7 @@ import { Download, Upload, FileSpreadsheet, Loader2, CheckCircle2, ArrowRight, A
 import type { TransactionInsert } from '@/hooks/useTransactions';
 
 interface Bank { id: string; name: string; }
-interface Category { id: string; name: string; }
+interface Category { id: string; name: string; type: string; }
 interface Contact { id: string; name: string; }
 
 interface ImportSpreadsheetDialogProps {
