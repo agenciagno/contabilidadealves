@@ -178,27 +178,37 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
 
       const transactions: TransactionInsert[] = [];
 
-      // Collect unique category names and auto-create missing ones
+      // Collect unique category names+types and auto-create missing ones
       const newCatsMap = new Map<string, string>();
       if (onCreateCategory) {
-        const uniqueCatNames = new Set<string>();
+        // First pass: determine type per row, then collect unique (name, type) pairs
+        const uniqueCats = new Map<string, 'receita' | 'despesa'>();
         for (const row of rows) {
-          const key = Object.keys(row).find((k) => k.trim().toLowerCase() === 'evento contábil');
-          const val = key ? row[key] : undefined;
-          if (val && typeof val === 'string' && val.trim()) {
-            const normalized = normalizeName(String(val));
-            const lower = normalized.toLowerCase();
-            if (!categories.find((c) => c.name.toLowerCase() === lower)) {
-              uniqueCatNames.add(normalized);
+          const catKey = Object.keys(row).find((k) => k.trim().toLowerCase() === 'evento contábil');
+          const catVal = catKey ? row[catKey] : undefined;
+          if (catVal && typeof catVal === 'string' && catVal.trim()) {
+            const normalized = normalizeName(String(catVal));
+            const tipoKey = Object.keys(row).find((k) => k.trim().toLowerCase() === 'tipo (receita ou despesa)');
+            const tipoRaw = String(tipoKey ? row[tipoKey] : '').trim().toLowerCase();
+            const tipo: 'receita' | 'despesa' = tipoRaw.includes('receita') ? 'receita' : 'despesa';
+            const mapKey = `${normalized.toLowerCase()}::${tipo}`;
+            if (!categories.find((c) => c.name.toLowerCase() === normalized.toLowerCase() && c.type === tipo)) {
+              uniqueCats.set(mapKey, tipo);
             }
           }
         }
-        for (const name of uniqueCatNames) {
+        for (const [mapKey, tipo] of uniqueCats) {
+          const name = mapKey.split('::')[0];
+          // Recover original casing from first occurrence
+          const originalName = normalizeName([...new Set(rows.map(r => {
+            const k = Object.keys(r).find((k) => k.trim().toLowerCase() === 'evento contábil');
+            return k ? String(r[k]) : '';
+          }))].find(n => n.trim().toLowerCase() === name) || name);
           try {
-            const created = await onCreateCategory(name);
-            newCatsMap.set(name.toLowerCase(), created.id);
+            const created = await onCreateCategory(originalName, tipo);
+            newCatsMap.set(mapKey, created.id);
           } catch (err) {
-            console.error(`Failed to create category "${name}":`, err);
+            console.error(`Failed to create category "${originalName}" (${tipo}):`, err);
           }
         }
         setCreatedCategories(newCatsMap);
