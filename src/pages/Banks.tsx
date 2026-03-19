@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, Pencil, Trash2, Building2, CircleDollarSign, FileBarChart2 } from 'lucide-react';
 import { useBanks, Bank } from '@/hooks/useBanks';
+import { useBankTransactions } from '@/hooks/useBankTransactions';
 import { BankFormDialog } from '@/components/banks/BankFormDialog';
 import { BankDetailSheet } from '@/components/banks/BankDetailSheet';
 import { UnifiedStatementAccordion } from '@/components/banks/UnifiedStatementAccordion';
@@ -27,7 +28,12 @@ export default function Banks() {
 
   const activeBanks = banks.filter((b) => b.is_active);
   const inactiveBanks = banks.filter((b) => !b.is_active);
-  const totalBalance = activeBanks.reduce((sum, b) => sum + Number(b.current_balance), 0);
+
+  const banksList = banks.map(b => ({ id: b.id, initial_balance: b.initial_balance, is_active: b.is_active }));
+  const { closingBalance: totalBalance } = useBankTransactions(
+    { bankId: 'all', startDate: new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0], endDate: new Date().toISOString().split('T')[0] },
+    banksList
+  );
 
   const handleSubmit = (data: {
     name: string;
@@ -70,52 +76,63 @@ export default function Banks() {
     setDetailOpen(true);
   };
 
-  const BankCard = ({ bank }: {bank: Bank;}) =>
-  <Card
-    className="bg-card border-border/50 hover:border-primary/40 hover:shadow-md transition-all cursor-pointer group"
-    onClick={() => handleBankCardClick(bank)}>
-    
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div
-            className="w-12 h-12 rounded-xl flex items-center justify-center"
-            style={{ backgroundColor: bank.color + '20' }}>
-            
-              <Building2 className="w-6 h-6" style={{ color: bank.color }} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">{bank.name}</h3>
-                {!bank.is_active && <Badge variant="secondary" className="text-xs">Inativa</Badge>}
+  const today = new Date();
+  const firstOfYear = new Date(today.getFullYear(), 0, 1).toISOString().split('T')[0];
+  const todayStr = today.toISOString().split('T')[0];
+
+  const BankCard = ({ bank }: {bank: Bank;}) => {
+    const banksList = [{ id: bank.id, initial_balance: bank.initial_balance, is_active: bank.is_active }];
+    const { closingBalance } = useBankTransactions(
+      { bankId: bank.id, startDate: firstOfYear, endDate: todayStr },
+      banksList
+    );
+
+    return (
+      <Card
+        className="bg-card border-border/50 hover:border-primary/40 hover:shadow-md transition-all cursor-pointer group"
+        onClick={() => handleBankCardClick(bank)}>
+        <CardContent className="p-4">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center"
+                style={{ backgroundColor: bank.color + '20' }}>
+                <Building2 className="w-6 h-6" style={{ color: bank.color }} />
               </div>
-              {(bank.bank_code || bank.agency || bank.account_number) &&
-            <p className="text-sm text-muted-foreground">
-                  {[bank.bank_code, bank.agency, bank.account_number].filter(Boolean).join(' • ')}
-                </p>
-            }
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">{bank.name}</h3>
+                  {!bank.is_active && <Badge variant="secondary" className="text-xs">Inativa</Badge>}
+                </div>
+                {(bank.bank_code || bank.agency || bank.account_number) &&
+                  <p className="text-sm text-muted-foreground">
+                    {[bank.bank_code, bank.agency, bank.account_number].filter(Boolean).join(' • ')}
+                  </p>
+                }
+              </div>
+            </div>
+            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Button variant="ghost" size="icon" onClick={(e) => handleEdit(bank, e)}>
+                <Pencil className="w-4 h-4" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={(e) => handleDeleteClick(bank.id, e)}>
+                <Trash2 className="w-4 h-4 text-destructive" />
+              </Button>
             </div>
           </div>
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button variant="ghost" size="icon" onClick={(e) => handleEdit(bank, e)}>
-              <Pencil className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={(e) => handleDeleteClick(bank.id, e)}>
-              <Trash2 className="w-4 h-4 text-destructive" />
-            </Button>
+          <div className="mt-4 pt-4 border-t border-border/50">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Saldo atual</span>
+              <span className={`text-lg font-bold ${closingBalance >= 0 ? 'text-green-500' : 'text-destructive'}`}>
+                {formatCurrency(closingBalance)}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Clique para ver o extrato</p>
           </div>
-        </div>
-        <div className="mt-4 pt-4 border-t border-border/50">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Saldo atual</span>
-            <span className={`text-lg font-bold ${Number(bank.current_balance) >= 0 ? 'text-green-500' : 'text-destructive'}`}>
-              {formatCurrency(Number(bank.current_balance))}
-            </span>
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">Clique para ver o extrato</p>
-        </div>
-      </CardContent>
-    </Card>;
+        </CardContent>
+      </Card>
+    );
+  };
 
 
   if (isLoading) {

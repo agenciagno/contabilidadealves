@@ -87,7 +87,7 @@ export function UnifiedStatementAccordion({ banks }: UnifiedStatementAccordionPr
     return acc;
   }, {});
 
-  const dayGroups = groupByDay(rows);
+  const dayGroups = groupByDay(rows).reverse();
 
   return (
     <Accordion type="single" collapsible>
@@ -182,11 +182,13 @@ export function UnifiedStatementAccordion({ banks }: UnifiedStatementAccordionPr
             </div>
           ) : (
             <div className="space-y-1">
-              {/* Opening balance */}
-              <div className="flex items-center justify-between px-3 py-2 bg-muted/40 rounded-lg">
-                <span className="text-xs text-muted-foreground italic">Saldo Inicial do Período</span>
-                <span className="text-xs font-semibold">{formatCurrency(openingBalance)}</span>
-              </div>
+              {/* Closing balance (top, since newest first) */}
+              {rows.length > 0 && (
+                <div className="flex items-center justify-between px-3 py-2 bg-primary/5 rounded-lg border-2 border-primary/20">
+                  <span className="text-xs text-muted-foreground italic font-bold">Saldo Final do Período</span>
+                  <span className="text-xs font-bold">{formatCurrency(closingBalance)}</span>
+                </div>
+              )}
 
               {dayGroups.length === 0 ? (
                 <div className="text-center text-muted-foreground py-8 text-sm">
@@ -195,14 +197,12 @@ export function UnifiedStatementAccordion({ banks }: UnifiedStatementAccordionPr
               ) : (
                 dayGroups.map((group) => (
                   <div key={group.dateRaw} className="border border-border/50 rounded-lg overflow-hidden">
-                    {/* Day header */}
                     <div className="flex items-center justify-between px-3 py-2 bg-muted/50 border-b border-border/30">
                       <span className="text-xs font-semibold text-foreground">{group.dateLabel}</span>
                       <span className={`text-xs font-bold ${group.dayBalance >= 0 ? 'text-green-500' : 'text-destructive'}`}>
-                        {formatCurrency(group.dayBalance)}
+                        Saldo {formatCurrency(group.dayBalance)}
                       </span>
                     </div>
-                    {/* Day transactions */}
                     <div className="divide-y divide-border/30">
                       {group.rows.map((row: any) => {
                         const color = row.bank_id ? bankColorMap[row.bank_id] : undefined;
@@ -239,13 +239,11 @@ export function UnifiedStatementAccordion({ banks }: UnifiedStatementAccordionPr
                 ))
               )}
 
-              {/* Closing balance */}
-              {rows.length > 0 && (
-                <div className="flex items-center justify-between px-3 py-2 bg-primary/5 rounded-lg border-2 border-primary/20">
-                  <span className="text-xs text-muted-foreground italic font-bold">Saldo Final do Período</span>
-                  <span className="text-xs font-bold">{formatCurrency(closingBalance)}</span>
-                </div>
-              )}
+              {/* Opening balance (bottom, since newest first) */}
+              <div className="flex items-center justify-between px-3 py-2 bg-muted/40 rounded-lg">
+                <span className="text-xs text-muted-foreground italic">Saldo Inicial do Período</span>
+                <span className="text-xs font-semibold">{formatCurrency(openingBalance)}</span>
+              </div>
             </div>
           )}
         </AccordionContent>
