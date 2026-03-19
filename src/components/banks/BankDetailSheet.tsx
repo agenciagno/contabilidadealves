@@ -84,7 +84,7 @@ export function BankDetailSheet({ bank, open, onOpenChange }: BankDetailSheetPro
     banks
   );
 
-  const dayGroups = groupByDay(rows);
+  const dayGroups = groupByDay(rows).reverse();
 
   if (!bank) return null;
 
