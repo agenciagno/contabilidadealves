@@ -21,7 +21,7 @@ interface ImportSpreadsheetDialogProps {
   categories: Category[];
   contacts: Contact[];
   onImport: (transactions: TransactionInsert[]) => Promise<void>;
-  onCreateCategory?: (name: string) => Promise<{ id: string }>;
+  onCreateCategory?: (name: string, type: 'receita' | 'despesa') => Promise<{ id: string }>;
   onCreateContact?: (name: string) => Promise<{ id: string }>;
   onCreateBank?: (name: string) => Promise<{ id: string }>;
 }
