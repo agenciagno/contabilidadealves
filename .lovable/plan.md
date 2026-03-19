@@ -1,33 +1,38 @@
 
 
-## Plano: Limpar banco de dados e confirmar planilha soberana
+## Plano: Alinhar planilha de importação com o estado atual do sistema
 
-### Parte 1 — Limpeza do banco de dados
+### Problema identificado
 
-Executar DELETEs sequenciais via insert tool na seguinte ordem:
+A planilha modelo e a lógica de processamento estão desatualizadas em relação ao sistema de categorias. O sistema separa Eventos Contábeis por tipo (`receita` / `despesa`), mas:
 
-1. `DELETE FROM transaction_attachments`
-2. `DELETE FROM contact_documents`
-3. `DELETE FROM contact_partners`
-4. `DELETE FROM contact_notes`
-5. `DELETE FROM contact_messages`
-6. `DELETE FROM contact_logs`
-7. `DELETE FROM boleto_controls`
-8. `DELETE FROM global_logs`
-9. `DELETE FROM transactions` (inclui soft-deleted)
-10. `DELETE FROM contacts`
-11. `DELETE FROM categories`
-12. `DELETE FROM recurring_transactions`
-13. `DELETE FROM banks`
+1. **Auto-criação de categorias** sempre usa `type: 'receita'` (hardcoded na linha 1181 de `Transactions.tsx`)
+2. **Busca de categorias** ignora o `type` — uma categoria "Honorários" de despesa pode ser vinculada a uma receita
+3. **Interface `Category`** no dialog só tem `id` e `name`, faltando `type`
 
-**Preservados**: `companies`, `profiles`, `user_roles`.
+A soberania de datas já está correta — campos vazios permanecem `null`.
 
-### Parte 2 — Planilha soberana
+### Mudanças
 
-Já verificado: `ImportSpreadsheetDialog.tsx` **não contém** nenhuma chamada a `calculateExpectedDate` nem lógica de preenchimento automático de datas. Datas vazias na planilha já resultam em `null`. **Nenhuma alteração de código é necessária.**
+| # | Arquivo | Mudança |
+|---|---|---|
+| 1 | `ImportSpreadsheetDialog.tsx` | Expandir interface `Category` para incluir `type` |
+| 2 | `ImportSpreadsheetDialog.tsx` | Alterar `onCreateCategory` prop para aceitar `(name: string, type: 'receita' \| 'despesa')` |
+| 3 | `ImportSpreadsheetDialog.tsx` | Na coleta de categorias únicas, agrupar por `(nome, tipo)` usando o tipo da linha |
+| 4 | `ImportSpreadsheetDialog.tsx` | Alterar `findCategoryId` para receber e filtrar por `type` |
+| 5 | `Transactions.tsx` | Atualizar callback `onCreateCategory` para usar o `type` recebido em vez de `'receita'` hardcoded |
 
-### Resumo
+### Detalhes técnicos
 
-- 13 comandos DELETE sequenciais
-- 0 alterações de código
+**Interface atualizada**:
+```typescript
+interface Category { id: string; name: string; type: 'receita' | 'despesa'; }
+onCreateCategory?: (name: string, type: 'receita' | 'despesa') => Promise<{ id: string }>;
+```
+
+**Coleta de categorias únicas**: Em vez de `Set<string>`, usar `Map<string, 'receita' | 'despesa'>` com chave `nome::tipo` para diferenciar categorias com mesmo nome mas tipos diferentes.
+
+**Busca**: `findCategoryId(name, type)` → `categories.find(c => c.name.toLowerCase() === lower && c.type === type)`
+
+**Nenhuma alteração na planilha modelo** — as 12 colunas atuais já contêm a coluna "Tipo (Receita ou Despesa)" que fornece o tipo necessário para vincular à categoria correta.
 
