@@ -11,7 +11,7 @@ import { Download, Upload, FileSpreadsheet, Loader2, CheckCircle2, ArrowRight, A
 import type { TransactionInsert } from '@/hooks/useTransactions';
 
 interface Bank { id: string; name: string; }
-interface Category { id: string; name: string; }
+interface Category { id: string; name: string; type: string; }
 interface Contact { id: string; name: string; }
 
 interface ImportSpreadsheetDialogProps {
@@ -21,7 +21,7 @@ interface ImportSpreadsheetDialogProps {
   categories: Category[];
   contacts: Contact[];
   onImport: (transactions: TransactionInsert[]) => Promise<void>;
-  onCreateCategory?: (name: string) => Promise<{ id: string }>;
+  onCreateCategory?: (name: string, type: 'receita' | 'despesa') => Promise<{ id: string }>;
   onCreateContact?: (name: string) => Promise<{ id: string }>;
   onCreateBank?: (name: string) => Promise<{ id: string }>;
 }
@@ -114,8 +114,8 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
   const categoryName = (id: string | null | undefined) => {
     const found = categories.find(c => c.id === id);
     if (found) return found.name;
-    for (const [name, cId] of createdCategories) {
-      if (cId === id) return name;
+    for (const [key, cId] of createdCategories) {
+      if (cId === id) return key.split('::')[0];
     }
     return '—';
   };
@@ -178,27 +178,37 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
 
       const transactions: TransactionInsert[] = [];
 
-      // Collect unique category names and auto-create missing ones
+      // Collect unique category names+types and auto-create missing ones
       const newCatsMap = new Map<string, string>();
       if (onCreateCategory) {
-        const uniqueCatNames = new Set<string>();
+        // First pass: determine type per row, then collect unique (name, type) pairs
+        const uniqueCats = new Map<string, 'receita' | 'despesa'>();
         for (const row of rows) {
-          const key = Object.keys(row).find((k) => k.trim().toLowerCase() === 'evento contábil');
-          const val = key ? row[key] : undefined;
-          if (val && typeof val === 'string' && val.trim()) {
-            const normalized = normalizeName(String(val));
-            const lower = normalized.toLowerCase();
-            if (!categories.find((c) => c.name.toLowerCase() === lower)) {
-              uniqueCatNames.add(normalized);
+          const catKey = Object.keys(row).find((k) => k.trim().toLowerCase() === 'evento contábil');
+          const catVal = catKey ? row[catKey] : undefined;
+          if (catVal && typeof catVal === 'string' && catVal.trim()) {
+            const normalized = normalizeName(String(catVal));
+            const tipoKey = Object.keys(row).find((k) => k.trim().toLowerCase() === 'tipo (receita ou despesa)');
+            const tipoRaw = String(tipoKey ? row[tipoKey] : '').trim().toLowerCase();
+            const tipo: 'receita' | 'despesa' = tipoRaw.includes('receita') ? 'receita' : 'despesa';
+            const mapKey = `${normalized.toLowerCase()}::${tipo}`;
+            if (!categories.find((c) => c.name.toLowerCase() === normalized.toLowerCase() && c.type === tipo)) {
+              uniqueCats.set(mapKey, tipo);
             }
           }
         }
-        for (const name of uniqueCatNames) {
+        for (const [mapKey, tipo] of uniqueCats) {
+          const name = mapKey.split('::')[0];
+          // Recover original casing from first occurrence
+          const originalName = normalizeName([...new Set(rows.map(r => {
+            const k = Object.keys(r).find((k) => k.trim().toLowerCase() === 'evento contábil');
+            return k ? String(r[k]) : '';
+          }))].find(n => n.trim().toLowerCase() === name) || name);
           try {
-            const created = await onCreateCategory(name);
-            newCatsMap.set(name.toLowerCase(), created.id);
+            const created = await onCreateCategory(originalName, tipo);
+            newCatsMap.set(mapKey, created.id);
           } catch (err) {
-            console.error(`Failed to create category "${name}":`, err);
+            console.error(`Failed to create category "${originalName}" (${tipo}):`, err);
           }
         }
         setCreatedCategories(newCatsMap);
@@ -256,12 +266,12 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
         setCreatedBanks(newBanksMap);
       }
 
-      const findCategoryId = (name: unknown): string | null => {
+      const findCategoryId = (name: unknown, type: 'receita' | 'despesa'): string | null => {
         if (!name || typeof name !== 'string') return null;
         const lower = name.trim().toLowerCase();
-        const existing = categories.find((c) => c.name.toLowerCase() === lower);
+        const existing = categories.find((c) => c.name.toLowerCase() === lower && c.type === type);
         if (existing) return existing.id;
-        return newCatsMap.get(lower) ?? null;
+        return newCatsMap.get(`${lower}::${type}`) ?? null;
       };
 
       const findContactId = (name: unknown): string | null => {
@@ -327,7 +337,7 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
           description,
           due_date: dueDateStr || null,
           bank_id: findBankId(get('Conta Bancária')),
-          category_id: findCategoryId(eventoContabil),
+          category_id: findCategoryId(eventoContabil, type),
           contact_id: findContactId(get('Cliente/Fornecedor')),
           notes: historico ? String(historico) : null,
         });
