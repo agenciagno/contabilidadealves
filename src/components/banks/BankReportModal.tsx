@@ -39,10 +39,10 @@ export function BankReportModal({ open, onOpenChange, banks }: BankReportModalPr
   const summaryRef = useRef<HTMLDivElement>(null);
 
   const today = new Date();
-  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+  const firstOfYear = new Date(today.getFullYear(), 0, 1).toISOString().split('T')[0];
   const todayStr = today.toISOString().split('T')[0];
 
-  const [startDate, setStartDate] = useState(firstOfMonth);
+  const [startDate, setStartDate] = useState(firstOfYear);
   const [endDate, setEndDate] = useState(todayStr);
   const [categoryId, setCategoryId] = useState('all');
   const [selectedBankIds, setSelectedBankIds] = useState<string[]>([]);

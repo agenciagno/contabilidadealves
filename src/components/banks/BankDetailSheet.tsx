@@ -9,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface BankDetailSheetProps {
   bank: Bank | null;
@@ -21,15 +20,53 @@ function formatCurrency(value: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 }
 
+interface DayGroup {
+  dateLabel: string;
+  dateRaw: string;
+  rows: typeof import('@/hooks/useBankTransactions').BankStatementRow extends never ? never : any[];
+  dayBalance: number;
+}
+
+function groupByDay(rows: any[]): DayGroup[] {
+  const groups: DayGroup[] = [];
+  let currentDate = '';
+  let currentGroup: DayGroup | null = null;
+
+  for (const row of rows) {
+    if (row.date !== currentDate) {
+      currentDate = row.date;
+      currentGroup = {
+        dateLabel: formatDayLabel(row.date),
+        dateRaw: row.date,
+        rows: [],
+        dayBalance: 0,
+      };
+      groups.push(currentGroup);
+    }
+    currentGroup!.rows.push(row);
+    currentGroup!.dayBalance = row.running_balance;
+  }
+
+  return groups;
+}
+
+function formatDayLabel(dateStr: string) {
+  // dateStr is "dd/mm/yyyy"
+  const [d, m, y] = dateStr.split('/');
+  const date = new Date(Number(y), Number(m) - 1, Number(d));
+  const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  return `${weekDays[date.getDay()]}, ${d}/${m}/${y}`;
+}
+
 export function BankDetailSheet({ bank, open, onOpenChange }: BankDetailSheetProps) {
   const { contacts } = useContacts();
   const { categories } = useCategories();
 
   const today = new Date();
-  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+  const firstOfYear = new Date(today.getFullYear(), 0, 1).toISOString().split('T')[0];
   const todayStr = today.toISOString().split('T')[0];
 
-  const [startDate, setStartDate] = useState(firstOfMonth);
+  const [startDate, setStartDate] = useState(firstOfYear);
   const [endDate, setEndDate] = useState(todayStr);
   const [contactId, setContactId] = useState<string>('all');
   const [categoryId, setCategoryId] = useState<string>('all');
@@ -46,6 +83,8 @@ export function BankDetailSheet({ bank, open, onOpenChange }: BankDetailSheetPro
     },
     banks
   );
+
+  const dayGroups = groupByDay(rows);
 
   if (!bank) return null;
 
@@ -70,8 +109,8 @@ export function BankDetailSheet({ bank, open, onOpenChange }: BankDetailSheetPro
                     .join(' • ')}
                 </p>
               )}
-              <p className={`text-2xl font-bold mt-2 ${Number(bank.current_balance) >= 0 ? 'text-green-500' : 'text-destructive'}`}>
-                {formatCurrency(Number(bank.current_balance))}
+              <p className={`text-2xl font-bold mt-2 ${closingBalance >= 0 ? 'text-green-500' : 'text-destructive'}`}>
+                {formatCurrency(closingBalance)}
               </p>
             </div>
           </div>
@@ -149,73 +188,70 @@ export function BankDetailSheet({ bank, open, onOpenChange }: BankDetailSheetPro
           </div>
         </div>
 
-        {/* Statement Table */}
+        {/* Statement grouped by day */}
         <div className="flex-1 overflow-auto px-6 py-4">
           {isLoading ? (
             <div className="space-y-2">
               {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-xs">Data</TableHead>
-                  <TableHead className="text-xs">Cliente/Fornecedor</TableHead>
-                  <TableHead className="text-xs">Evento Contábil</TableHead>
-                  <TableHead className="text-xs text-right">Valor</TableHead>
-                  <TableHead className="text-xs text-right">Saldo</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {/* Opening balance row */}
-                <TableRow className="bg-muted/40 hover:bg-muted/50">
-                  <TableCell colSpan={4} className="text-xs text-muted-foreground italic py-2">
-                    Saldo Inicial do Período
-                  </TableCell>
-                  <TableCell className="text-xs text-right font-semibold py-2">
-                    {formatCurrency(openingBalance)}
-                  </TableCell>
-                </TableRow>
+            <div className="space-y-1">
+              {/* Opening balance */}
+              <div className="flex items-center justify-between px-3 py-2 bg-muted/40 rounded-lg">
+                <span className="text-xs text-muted-foreground italic">Saldo Inicial do Período</span>
+                <span className="text-xs font-semibold">{formatCurrency(openingBalance)}</span>
+              </div>
 
-                {rows.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8 text-sm">
-                      Nenhuma movimentação encontrada neste período
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  rows.map(row => (
-                    <TableRow key={row.id}>
-                      <TableCell className="text-xs">{row.date}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{row.contact_name ?? '—'}</TableCell>
-                      <TableCell className="text-xs">
-                        {row.category_name ? (
-                          <Badge variant="secondary" className="text-xs font-normal">{row.category_name}</Badge>
-                        ) : '—'}
-                      </TableCell>
-                      <TableCell className={`text-xs text-right font-medium ${row.type === 'receita' ? 'text-green-500' : 'text-destructive'}`}>
-                        {row.type === 'receita' ? '+' : '-'}{formatCurrency(row.amount)}
-                      </TableCell>
-                      <TableCell className="text-xs text-right font-semibold">
-                        {formatCurrency(row.running_balance)}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
+              {dayGroups.length === 0 ? (
+                <div className="text-center text-muted-foreground py-8 text-sm">
+                  Nenhuma movimentação encontrada neste período
+                </div>
+              ) : (
+                dayGroups.map((group) => (
+                  <div key={group.dateRaw} className="border border-border/50 rounded-lg overflow-hidden">
+                    {/* Day header */}
+                    <div className="flex items-center justify-between px-3 py-2 bg-muted/50 border-b border-border/30">
+                      <span className="text-xs font-semibold text-foreground">{group.dateLabel}</span>
+                      <span className={`text-xs font-bold ${group.dayBalance >= 0 ? 'text-green-500' : 'text-destructive'}`}>
+                        {formatCurrency(group.dayBalance)}
+                      </span>
+                    </div>
+                    {/* Day transactions */}
+                    <div className="divide-y divide-border/30">
+                      {group.rows.map((row: any) => (
+                        <div key={row.id} className="flex items-center gap-3 px-3 py-2 hover:bg-muted/20 transition-colors">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-foreground truncate">{row.description}</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              {row.contact_name && (
+                                <span className="text-[11px] text-muted-foreground truncate">{row.contact_name}</span>
+                              )}
+                              {row.category_name && (
+                                <Badge variant="secondary" className="text-[10px] font-normal px-1.5 py-0">{row.category_name}</Badge>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className={`text-xs font-semibold ${row.type === 'receita' ? 'text-green-500' : 'text-destructive'}`}>
+                              {row.type === 'receita' ? '+' : '-'}{formatCurrency(row.amount)}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">{formatCurrency(row.running_balance)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
 
-                {/* Closing balance row */}
-                {rows.length > 0 && (
-                  <TableRow className="bg-primary/5 font-bold border-t-2 border-primary/20">
-                    <TableCell colSpan={4} className="text-xs text-muted-foreground italic py-2">
-                      Saldo Final do Período
-                    </TableCell>
-                    <TableCell className="text-xs text-right font-bold py-2">
-                      {formatCurrency(closingBalance)}
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+              {/* Closing balance */}
+              {rows.length > 0 && (
+                <div className="flex items-center justify-between px-3 py-2 bg-primary/5 rounded-lg border-2 border-primary/20">
+                  <span className="text-xs text-muted-foreground italic font-bold">Saldo Final do Período</span>
+                  <span className="text-xs font-bold">{formatCurrency(closingBalance)}</span>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </SheetContent>
