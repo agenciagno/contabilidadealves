@@ -1,45 +1,24 @@
 
 
-## Plano: Corrigir saldo e visual de extrato bancário
+## Plano: Ajustes visuais e de saldo no extrato bancário
 
-### Diagnóstico
+### Mudanças
 
-Encontrei a causa exata da diferença de R$406,00: existe uma transação liquidada com data futura (05/06/2026, R$406,00 receita). A trigger do banco soma **todas** as transações pagas sem limite de data, inflando o `current_balance`. O extrato, que vai até hoje, não inclui essa transação — gerando a divergência.
-
-Além disso, o período padrão está como "primeiro dia do mês atual" em vez de "01/01 do ano corrente", e o header do extrato individual mostra `current_balance` (all-time) em vez do saldo final do período.
-
-### Correções
-
-| # | Arquivo / Local | Mudança |
+| # | Arquivo | Mudança |
 |---|---|---|
-| 1 | **Trigger `update_bank_balance`** (migration SQL) | Adicionar `AND date <= CURRENT_DATE` para ignorar transações com data futura no cálculo do saldo |
-| 2 | **`BankDetailSheet.tsx`** | Trocar `bank.current_balance` por `closingBalance` no header; mudar período padrão para 01/01 do ano |
-| 3 | **`UnifiedStatementAccordion.tsx`** | Mudar período padrão para 01/01 do ano corrente |
-| 4 | **`BankReportModal.tsx`** | Mudar período padrão para 01/01 do ano corrente |
-| 5 | **`BankDetailSheet.tsx`** | Agrupar linhas do extrato por dia com separador visual (data como cabeçalho de grupo, saldo do dia ao lado) |
-| 6 | **`UnifiedStatementAccordion.tsx`** | Mesma lógica de agrupamento por dia |
+| 1 | `BankDetailSheet.tsx` | Inverter ordem dos `dayGroups` (`.reverse()`) para mais recentes no topo |
+| 2 | `BankDetailSheet.tsx` | Adicionar "Saldo " antes do valor no cabeçalho de cada dia |
+| 3 | `BankDetailSheet.tsx` | Trocar posições: "Saldo Final do Período" vai para o topo, "Saldo Inicial do Período" vai para o final |
+| 4 | `UnifiedStatementAccordion.tsx` | Mesmas 3 mudanças acima |
+| 5 | `Banks.tsx` | Substituir `bank.current_balance` no card por `closingBalance` calculado pelo hook, para que o "Saldo Atual" do card corresponda ao valor exibido no header do extrato individual |
 
-### Detalhes técnicos
+### Detalhes
 
-**1. Trigger (SQL)**
-```sql
-AND date <= CURRENT_DATE
-```
-Adicionado nas 3 queries da trigger. Isso alinha `current_balance` com a realidade do extrato até hoje.
+**Inversão de ordem**: `dayGroups.reverse()` — os dias mais recentes aparecem primeiro na lista. Dentro de cada dia, a ordem das transações se mantém cronológica.
 
-**2-4. Período padrão**
-```ts
-// De:
-const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
-// Para:
-const firstOfYear = new Date(today.getFullYear(), 0, 1)
-```
+**"Saldo" no cabeçalho do dia**: De `{formatCurrency(group.dayBalance)}` para `Saldo {formatCurrency(group.dayBalance)}`.
 
-**5-6. Agrupamento por dia (visual)**
-As linhas do extrato serão agrupadas por data. Cada grupo terá:
-- Um cabeçalho com a data (ex: "Qua, 02/01/2026") e o saldo final daquele dia
-- As transações do dia listadas abaixo sem repetir a coluna de data
-- Separador visual entre grupos de dias
+**Inversão Saldo Inicial/Final**: O "Saldo Final do Período" aparece no topo da lista (antes dos grupos de dias) e o "Saldo Inicial do Período" aparece no final (após os grupos). Isso faz sentido com a ordem invertida (mais recente primeiro).
 
-Inspirado no layout do anexo 3 (extrato real do Sicoob).
+**Card = Extrato**: Para o card na página principal mostrar o mesmo valor do extrato, precisarei usar `useBankTransactions` dentro do componente `BankCard` (ou calcular via query) com o período padrão (01/01 do ano até hoje). Isso substitui `bank.current_balance` pelo `closingBalance` calculado pelo hook.
 
