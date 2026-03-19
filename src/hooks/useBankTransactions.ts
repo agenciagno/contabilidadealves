@@ -43,6 +43,7 @@ export function useBankTransactions(
   banks: { id: string; initial_balance: number; is_active: boolean }[] = []
 ): BankStatementResult {
   const { bankId, startDate, endDate, contactId, categoryId } = filters;
+  const activeBankIds = banks.filter(b => b.is_active).map(b => b.id);
 
   // Query 1: All transactions before startDate (for opening_balance)
   const { data: priorTransactions = [], isLoading: isLoadingPrior } = useQuery({
@@ -59,6 +60,10 @@ export function useBankTransactions(
 
       if (bankId !== 'all') {
         query = query.eq('bank_id', bankId);
+      } else if (activeBankIds.length > 0) {
+        query = query.in('bank_id', activeBankIds);
+      } else {
+        return [];
       }
 
       const { data, error } = await query;
@@ -88,6 +93,10 @@ export function useBankTransactions(
 
       if (bankId !== 'all') {
         query = query.eq('bank_id', bankId);
+      } else if (activeBankIds.length > 0) {
+        query = query.in('bank_id', activeBankIds);
+      } else {
+        return [];
       }
 
       if (startDate) query = query.gte('date', startDate);
