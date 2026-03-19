@@ -23,7 +23,7 @@ function formatCurrency(value: number) {
 interface DayGroup {
   dateLabel: string;
   dateRaw: string;
-  rows: typeof import('@/hooks/useBankTransactions').BankStatementRow extends never ? never : any[];
+  rows: any[];
   dayBalance: number;
 }
 
