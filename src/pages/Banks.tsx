@@ -28,7 +28,12 @@ export default function Banks() {
 
   const activeBanks = banks.filter((b) => b.is_active);
   const inactiveBanks = banks.filter((b) => !b.is_active);
-  const totalBalance = activeBanks.reduce((sum, b) => sum + Number(b.current_balance), 0);
+
+  const banksList = banks.map(b => ({ id: b.id, initial_balance: b.initial_balance, is_active: b.is_active }));
+  const { closingBalance: totalBalance } = useBankTransactions(
+    { bankId: 'all', startDate: new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0], endDate: new Date().toISOString().split('T')[0] },
+    banksList
+  );
 
   const handleSubmit = (data: {
     name: string;
