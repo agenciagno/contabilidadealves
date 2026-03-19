@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, Pencil, Trash2, Building2, CircleDollarSign, FileBarChart2 } from 'lucide-react';
 import { useBanks, Bank } from '@/hooks/useBanks';
+import { useBankTransactions } from '@/hooks/useBankTransactions';
 import { BankFormDialog } from '@/components/banks/BankFormDialog';
 import { BankDetailSheet } from '@/components/banks/BankDetailSheet';
 import { UnifiedStatementAccordion } from '@/components/banks/UnifiedStatementAccordion';
