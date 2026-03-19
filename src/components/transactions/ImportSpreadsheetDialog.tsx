@@ -114,8 +114,8 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
   const categoryName = (id: string | null | undefined) => {
     const found = categories.find(c => c.id === id);
     if (found) return found.name;
-    for (const [name, cId] of createdCategories) {
-      if (cId === id) return name;
+    for (const [key, cId] of createdCategories) {
+      if (cId === id) return key.split('::')[0];
     }
     return '—';
   };
