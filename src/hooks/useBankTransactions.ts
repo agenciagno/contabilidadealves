@@ -93,6 +93,10 @@ export function useBankTransactions(
 
       if (bankId !== 'all') {
         query = query.eq('bank_id', bankId);
+      } else if (activeBankIds.length > 0) {
+        query = query.in('bank_id', activeBankIds);
+      } else {
+        return [];
       }
 
       if (startDate) query = query.gte('date', startDate);
