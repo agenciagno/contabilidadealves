@@ -1,24 +1,29 @@
 
 
-## Plano: Ajustes visuais e de saldo no extrato bancário
+## Diagnóstico: Saldo total divergente da soma dos cards
 
-### Mudanças
+### Causa raiz
+
+Quando o saldo total é calculado com `bankId: 'all'`, as queries buscam **todas** as transações liquidadas — incluindo:
+
+1. **Transações sem banco vinculado** (`bank_id = NULL`): não aparecem em nenhum card individual, mas inflam o total
+2. **Transações de bancos inativos**: são somadas nas transações, mas o `baseBalance` (saldo inicial) só considera bancos ativos
+
+Isso cria a divergência: Caixa Geral (R$ 0) + Sicoob (R$ 4.344) = R$ 4.344, mas o total mostra R$ 23.325 por incluir transações órfãs/inativas.
+
+### Correção
 
 | # | Arquivo | Mudança |
 |---|---|---|
-| 1 | `BankDetailSheet.tsx` | Inverter ordem dos `dayGroups` (`.reverse()`) para mais recentes no topo |
-| 2 | `BankDetailSheet.tsx` | Adicionar "Saldo " antes do valor no cabeçalho de cada dia |
-| 3 | `BankDetailSheet.tsx` | Trocar posições: "Saldo Final do Período" vai para o topo, "Saldo Inicial do Período" vai para o final |
-| 4 | `UnifiedStatementAccordion.tsx` | Mesmas 3 mudanças acima |
-| 5 | `Banks.tsx` | Substituir `bank.current_balance` no card por `closingBalance` calculado pelo hook, para que o "Saldo Atual" do card corresponda ao valor exibido no header do extrato individual |
+| 1 | `src/hooks/useBankTransactions.ts` | Quando `bankId === 'all'`, filtrar as queries para incluir apenas transações cujo `bank_id` pertence a um dos bancos ativos (usando `.in('bank_id', activeBankIds)`) |
+| 2 | `src/hooks/useBankTransactions.ts` | Garantir que `baseBalance` e as queries de transações usem exatamente o mesmo conjunto de bancos |
 
-### Detalhes
+### Detalhes técnicos
 
-**Inversão de ordem**: `dayGroups.reverse()` — os dias mais recentes aparecem primeiro na lista. Dentro de cada dia, a ordem das transações se mantém cronológica.
+No hook `useBankTransactions`, quando `bankId === 'all'`:
+- Extrair `activeBankIds` da lista de bancos ativos passada como parâmetro
+- Adicionar `.in('bank_id', activeBankIds)` em ambas as queries (prior e period)
+- Isso garante que apenas transações vinculadas a bancos ativos sejam contabilizadas, excluindo transações com `bank_id = NULL` ou de bancos inativos
 
-**"Saldo" no cabeçalho do dia**: De `{formatCurrency(group.dayBalance)}` para `Saldo {formatCurrency(group.dayBalance)}`.
-
-**Inversão Saldo Inicial/Final**: O "Saldo Final do Período" aparece no topo da lista (antes dos grupos de dias) e o "Saldo Inicial do Período" aparece no final (após os grupos). Isso faz sentido com a ordem invertida (mais recente primeiro).
-
-**Card = Extrato**: Para o card na página principal mostrar o mesmo valor do extrato, precisarei usar `useBankTransactions` dentro do componente `BankCard` (ou calcular via query) com o período padrão (01/01 do ano até hoje). Isso substitui `bank.current_balance` pelo `closingBalance` calculado pelo hook.
+Resultado: o saldo total será a soma exata dos saldos individuais dos cards.
 
