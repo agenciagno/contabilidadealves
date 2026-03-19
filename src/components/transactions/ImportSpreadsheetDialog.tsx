@@ -337,7 +337,7 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
           description,
           due_date: dueDateStr || null,
           bank_id: findBankId(get('Conta Bancária')),
-          category_id: findCategoryId(eventoContabil),
+          category_id: findCategoryId(eventoContabil, type),
           contact_id: findContactId(get('Cliente/Fornecedor')),
           notes: historico ? String(historico) : null,
         });
