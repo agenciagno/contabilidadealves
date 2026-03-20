@@ -2,11 +2,13 @@ import { useState, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Database, Download, Upload, Loader2, FileJson, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Database, Download, Upload, Loader2, FileJson, AlertTriangle, CheckCircle2, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
@@ -76,6 +78,28 @@ function validateBackup(obj: any): obj is BackupPayload {
   return true;
 }
 
+// ── Hard Reset types ──
+interface CleanupModule {
+  key: string;
+  label: string;
+  description: string;
+}
+
+const CLEANUP_MODULES: CleanupModule[] = [
+  { key: 'transactions', label: 'Transações', description: 'Transações, anexos, recorrências e logs globais' },
+  { key: 'clients', label: 'Clientes', description: 'Clientes, sócios, notas, documentos, mensagens e logs' },
+  { key: 'boletos', label: 'Boletos', description: 'Controles de boletos' },
+  { key: 'categories', label: 'Eventos Contábeis', description: 'Categorias de receita e despesa' },
+  { key: 'banks', label: 'Conta Corrente / Bancos', description: 'Todas as contas bancárias' },
+];
+
+async function deleteAll(table: string) {
+  const { error } = await (supabase.from as any)(table)
+    .delete()
+    .neq('id', '00000000-0000-0000-0000-000000000000');
+  if (error) throw new Error(`Erro ao apagar ${table}: ${error.message}`);
+}
+
 export default function BackupTab() {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -86,6 +110,16 @@ export default function BackupTab() {
   const [pendingFile, setPendingFile] = useState<BackupPayload | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+
+  // Hard Reset state
+  const [selectedModules, setSelectedModules] = useState<Record<string, boolean>>(
+    Object.fromEntries(CLEANUP_MODULES.map(m => [m.key, true]))
+  );
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetConfirmText, setResetConfirmText] = useState('');
+  const [resetting, setResetting] = useState(false);
+  const [resetProgress, setResetProgress] = useState(0);
+  const [resetStep, setResetStep] = useState('');
 
   // ── EXPORT ──
   const handleExport = async () => {
@@ -175,7 +209,6 @@ export default function BackupTab() {
 
         setRestoreStep(`Restaurando ${table} (${rows.length} registros)...`);
 
-        // Upsert in batches of 500
         const BATCH = 500;
         for (let i = 0; i < rows.length; i += BATCH) {
           const batch = rows.slice(i, i + BATCH);
@@ -199,6 +232,67 @@ export default function BackupTab() {
       setPendingFile(null);
     }
   };
+
+  // ── HARD RESET ──
+  const handleHardReset = async () => {
+    setShowResetConfirm(false);
+    setResetConfirmText('');
+    setResetting(true);
+    setResetProgress(0);
+
+    // Build ordered delete steps based on selected modules
+    const steps: { table: string; label: string }[] = [];
+
+    if (selectedModules.transactions) {
+      steps.push({ table: 'transaction_attachments', label: 'Anexos de transações' });
+    }
+    if (selectedModules.clients) {
+      steps.push({ table: 'contact_documents', label: 'Documentos de clientes' });
+      steps.push({ table: 'contact_partners', label: 'Sócios de clientes' });
+      steps.push({ table: 'contact_notes', label: 'Notas de clientes' });
+      steps.push({ table: 'contact_messages', label: 'Mensagens de clientes' });
+      steps.push({ table: 'contact_logs', label: 'Logs de clientes' });
+    }
+    if (selectedModules.boletos) {
+      steps.push({ table: 'boleto_controls', label: 'Controles de boletos' });
+    }
+    if (selectedModules.transactions) {
+      steps.push({ table: 'global_logs', label: 'Logs globais' });
+      steps.push({ table: 'transactions', label: 'Transações' });
+    }
+    if (selectedModules.clients) {
+      steps.push({ table: 'contacts', label: 'Clientes' });
+    }
+    if (selectedModules.categories) {
+      steps.push({ table: 'categories', label: 'Eventos contábeis' });
+    }
+    if (selectedModules.transactions) {
+      steps.push({ table: 'recurring_transactions', label: 'Transações recorrentes' });
+    }
+    if (selectedModules.banks) {
+      steps.push({ table: 'banks', label: 'Contas bancárias' });
+    }
+
+    try {
+      for (let i = 0; i < steps.length; i++) {
+        const step = steps[i];
+        setResetStep(`Apagando ${step.label}...`);
+        await deleteAll(step.table);
+        setResetProgress(Math.round(((i + 1) / steps.length) * 100));
+      }
+
+      toast.success('Limpeza concluída com sucesso! Recarregando...');
+      queryClient.invalidateQueries();
+      setTimeout(() => window.location.reload(), 2000);
+    } catch (err: any) {
+      toast.error(err.message || 'Erro durante a limpeza');
+      setResetting(false);
+      setResetProgress(0);
+      setResetStep('');
+    }
+  };
+
+  const anyModuleSelected = Object.values(selectedModules).some(Boolean);
 
   return (
     <div className="space-y-6">
@@ -282,7 +376,73 @@ export default function BackupTab() {
         </CardContent>
       </Card>
 
-      {/* Confirmation Dialog */}
+      {/* Hard Reset Card */}
+      <Card className="bg-card border-destructive/30">
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-destructive/10">
+              <Trash2 className="w-5 h-5 text-destructive" />
+            </div>
+            <div>
+              <CardTitle>Limpeza de Sistema / Reset</CardTitle>
+              <CardDescription>Apague dados selecionados permanentemente. Esta ação é irreversível.</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+            <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-destructive">
+              <strong>Atenção:</strong> Os dados apagados não podem ser recuperados. Faça um backup antes de prosseguir.
+            </p>
+          </div>
+
+          {resetting ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>{resetStep}</span>
+              </div>
+              <Progress value={resetProgress} className="h-2" />
+              <p className="text-xs text-muted-foreground text-right">{resetProgress}%</p>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-3">
+                {CLEANUP_MODULES.map((mod) => (
+                  <label key={mod.key} className="flex items-start gap-3 cursor-pointer group">
+                    <Checkbox
+                      checked={selectedModules[mod.key]}
+                      onCheckedChange={(checked) =>
+                        setSelectedModules(prev => ({ ...prev, [mod.key]: !!checked }))
+                      }
+                      className="mt-0.5"
+                    />
+                    <div>
+                      <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
+                        {mod.label}
+                      </span>
+                      <p className="text-xs text-muted-foreground">{mod.description}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+
+              <Button
+                variant="destructive"
+                onClick={() => setShowResetConfirm(true)}
+                disabled={!anyModuleSelected}
+                className="mt-2"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Apagar Dados Selecionados
+              </Button>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Restore Confirmation Dialog */}
       <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -309,6 +469,71 @@ export default function BackupTab() {
             <AlertDialogAction onClick={handleRestore} className="bg-amber-600 hover:bg-amber-700 text-white">
               Sim, Restaurar
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Hard Reset Confirmation Dialog */}
+      <AlertDialog open={showResetConfirm} onOpenChange={(open) => {
+        setShowResetConfirm(open);
+        if (!open) setResetConfirmText('');
+      }}>
+        <AlertDialogContent className="max-h-[90vh] overflow-y-auto">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="w-5 h-5" />
+              Exclusão Definitiva de Dados
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p className="text-sm">
+                  <strong className="text-destructive">Esta operação é irreversível.</strong> Todos os dados dos módulos selecionados serão permanentemente apagados do banco de dados.
+                </p>
+
+                <div className="rounded-lg border border-border p-3 space-y-1">
+                  <p className="text-xs font-medium text-foreground">Módulos selecionados para exclusão:</p>
+                  <ul className="text-xs text-muted-foreground space-y-0.5">
+                    {CLEANUP_MODULES.filter(m => selectedModules[m.key]).map(m => (
+                      <li key={m.key}>• {m.label} — {m.description}</li>
+                    ))}
+                  </ul>
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExport}
+                  disabled={exporting}
+                  className="w-full border-primary text-primary hover:bg-primary/10"
+                >
+                  {exporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+                  Baixar Backup Antes de Apagar
+                </Button>
+
+                <div className="space-y-2 pt-1">
+                  <p className="text-xs text-muted-foreground">
+                    Digite <strong className="text-foreground">CONFIRMAR</strong> para desbloquear a exclusão:
+                  </p>
+                  <Input
+                    value={resetConfirmText}
+                    onChange={(e) => setResetConfirmText(e.target.value)}
+                    placeholder="Digite CONFIRMAR"
+                    className="text-center font-mono tracking-widest"
+                  />
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              disabled={resetConfirmText !== 'CONFIRMAR'}
+              onClick={handleHardReset}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Executar Exclusão Definitiva
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
