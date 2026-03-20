@@ -281,6 +281,36 @@ export default function BackupTab() {
         setResetProgress(Math.round(((i + 1) / steps.length) * 100));
       }
 
+      // Log audit entry after all deletes
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData.user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('company_id, full_name, username')
+            .eq('user_id', userData.user.id)
+            .single();
+
+          if (profile) {
+            const modulesDeleted = CLEANUP_MODULES
+              .filter(m => selectedModules[m.key])
+              .map(m => m.label)
+              .join(', ');
+
+            await supabase.from('global_logs').insert({
+              company_id: profile.company_id,
+              user_id: userData.user.id,
+              user_name: profile.full_name || profile.username || 'Usuário',
+              action: 'HARD_RESET',
+              module: 'configuracoes',
+              details: `Limpeza de dados executada. Módulos apagados: ${modulesDeleted}`,
+            });
+          }
+        }
+      } catch (logErr) {
+        console.error('Erro ao registrar log de auditoria:', logErr);
+      }
+
       toast.success('Limpeza concluída com sucesso! Recarregando...');
       queryClient.invalidateQueries();
       setTimeout(() => window.location.reload(), 2000);
