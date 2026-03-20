@@ -1,37 +1,46 @@
 
 
-## Plano: Adicionar paginação iterativa nas queries do useBankTransactions
+## Plano: Implementar "Limpeza de Dados (Hard Reset)" na aba Backup
 
-### Causa raiz
+### Resumo
 
-Ambas as queries (prior e period) não usam `.range()` e estão sujeitas ao limite padrão de 1000 registros do banco de dados. Se houver mais de 1000 transações no período ou anteriores, o saldo será calculado incorretamente.
+Adicionar uma seção de "Limpeza de Sistema / Reset" dentro do componente `BackupTab.tsx`, com checkboxes para selecionar módulos, modal de confirmação com backup integrado e campo de digitação "CONFIRMAR".
 
-### Mudança
+### Mudanças
 
 | # | Arquivo | Mudança |
 |---|---|---|
-| 1 | `src/hooks/useBankTransactions.ts` | Criar função auxiliar `fetchAllRows` que busca registros iterativamente usando `.range(offset, offset+pageSize-1)` até que não haja mais dados |
-| 2 | `src/hooks/useBankTransactions.ts` | Aplicar `fetchAllRows` nas duas queries (prior e period) |
+| 1 | `src/components/settings/BackupTab.tsx` | Adicionar seção completa de Hard Reset com checkboxes, modal e lógica de exclusão |
 
 ### Detalhes técnicos
 
-Criar uma função genérica de paginação:
+**UI — Seção de Limpeza** (abaixo dos cards de Export/Restore existentes):
+- Card com ícone vermelho e título "Limpeza de Sistema / Reset"
+- 5 checkboxes (todos marcados por padrão): Conta Corrente/Bancos, Eventos Contábeis, Boletos, Transações, Clientes
+- Botão vermelho "Apagar Dados Selecionados"
 
-```typescript
-async function fetchAllRows(baseQuery: any, pageSize = 1000) {
-  let allData: any[] = [];
-  let offset = 0;
-  while (true) {
-    const { data, error } = await baseQuery.range(offset, offset + pageSize - 1);
-    if (error) throw error;
-    if (!data || data.length === 0) break;
-    allData = allData.concat(data);
-    if (data.length < pageSize) break;
-    offset += pageSize;
-  }
-  return allData;
-}
+**Modal de Alerta Crítico**:
+- `AlertDialog` com aviso de operação irreversível
+- Botão "Baixar Backup Antes de Apagar" que chama `handleExport` (já existente)
+- Input onde o usuário deve digitar "CONFIRMAR" para desbloquear o botão final
+- Botão "Executar Exclusão Definitiva" (desabilitado até digitar CONFIRMAR)
+
+**Lógica de Exclusão** — Ordem estrita respeitando FKs, condicional aos checkboxes:
+
+```text
+Se Transações   → DELETE transaction_attachments
+Se Clientes     → DELETE contact_documents, contact_partners, contact_notes, contact_messages, contact_logs
+Se Boletos      → DELETE boleto_controls
+Se Transações   → DELETE global_logs, transactions (sem filtro de deleted_at)
+Se Clientes     → DELETE contacts
+Se Eventos      → DELETE categories
+Se Transações   → DELETE recurring_transactions
+Se Bancos       → DELETE banks
 ```
 
-Como `.range()` não pode ser chamado num query já executado, a abordagem será construir a query base sem executá-la e passar para `fetchAllRows`. Ambas as queryFn serão atualizadas para usar este padrão.
+Cada DELETE usa `supabase.from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000')` (workaround para deletar todos os registros via SDK).
+
+**Pós-exclusão**: toast de sucesso + `queryClient.invalidateQueries()` + `window.location.reload()`.
+
+**Proteção**: tabelas `companies`, `profiles`, `user_roles` nunca são tocadas.
 
