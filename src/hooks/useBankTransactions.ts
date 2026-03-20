@@ -38,6 +38,90 @@ function formatDate(dateStr: string) {
   return `${d}/${m}/${y}`;
 }
 
+const PAGE_SIZE = 1000;
+
+async function fetchAllPriorRows(
+  bankId: string | 'all',
+  activeBankIds: string[],
+  startDate: string
+) {
+  let allData: any[] = [];
+  let offset = 0;
+  while (true) {
+    let query = supabase
+      .from('transactions')
+      .select('type, amount, paid_amount, bank_id, is_paid')
+      .is('deleted_at', null)
+      .lt('date', startDate)
+      .eq('is_paid', true);
+
+    if (bankId !== 'all') {
+      query = query.eq('bank_id', bankId);
+    } else if (activeBankIds.length > 0) {
+      query = query.in('bank_id', activeBankIds);
+    } else {
+      return [];
+    }
+
+    query = query.order('created_at', { ascending: true }).order('id', { ascending: true });
+
+    const { data, error } = await query.range(offset, offset + PAGE_SIZE - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    allData = allData.concat(data);
+    if (data.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
+  }
+  return allData;
+}
+
+async function fetchAllPeriodRows(
+  bankId: string | 'all',
+  activeBankIds: string[],
+  startDate?: string | null,
+  endDate?: string | null,
+  contactId?: string | null,
+  categoryId?: string | null
+) {
+  let allData: any[] = [];
+  let offset = 0;
+  while (true) {
+    let query = supabase
+      .from('transactions')
+      .select(`
+        id, date, description, type, amount, paid_amount, is_paid, bank_id,
+        contacts:contact_id (name),
+        categories:category_id (name),
+        banks:bank_id (name)
+      `)
+      .is('deleted_at', null)
+      .eq('is_paid', true)
+      .order('date', { ascending: true })
+      .order('created_at', { ascending: true });
+
+    if (bankId !== 'all') {
+      query = query.eq('bank_id', bankId);
+    } else if (activeBankIds.length > 0) {
+      query = query.in('bank_id', activeBankIds);
+    } else {
+      return [];
+    }
+
+    if (startDate) query = query.gte('date', startDate);
+    if (endDate) query = query.lte('date', endDate);
+    if (contactId) query = query.eq('contact_id', contactId);
+    if (categoryId) query = query.eq('category_id', categoryId);
+
+    const { data, error } = await query.range(offset, offset + PAGE_SIZE - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    allData = allData.concat(data);
+    if (data.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
+  }
+  return allData;
+}
+
 export function useBankTransactions(
   filters: BankStatementFilters,
   banks: { id: string; initial_balance: number; is_active: boolean }[] = []
@@ -45,76 +129,21 @@ export function useBankTransactions(
   const { bankId, startDate, endDate, contactId, categoryId } = filters;
   const activeBankIds = banks.filter(b => b.is_active).map(b => b.id);
 
-  // Query 1: All transactions before startDate (for opening_balance)
   const { data: priorTransactions = [], isLoading: isLoadingPrior } = useQuery({
     queryKey: ['bank-transactions-prior', bankId, startDate],
-    queryFn: async () => {
-      if (!startDate) return [];
-
-      let query = supabase
-        .from('transactions')
-        .select('type, amount, paid_amount, bank_id, is_paid')
-        .is('deleted_at', null)
-        .lt('date', startDate)
-        .eq('is_paid', true);
-
-      if (bankId !== 'all') {
-        query = query.eq('bank_id', bankId);
-      } else if (activeBankIds.length > 0) {
-        query = query.in('bank_id', activeBankIds);
-      } else {
-        return [];
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => fetchAllPriorRows(bankId, activeBankIds, startDate!),
     enabled: !!startDate,
     staleTime: 1000 * 30,
   });
 
-  // Query 2: Transactions in period with filters
   const { data: periodTransactions = [], isLoading: isLoadingPeriod } = useQuery({
     queryKey: ['bank-transactions-period', bankId, startDate, endDate, contactId, categoryId],
-    queryFn: async () => {
-      let query = supabase
-        .from('transactions')
-        .select(`
-          id, date, description, type, amount, paid_amount, is_paid, bank_id,
-          contacts:contact_id (name),
-          categories:category_id (name),
-          banks:bank_id (name)
-        `)
-        .is('deleted_at', null)
-        .eq('is_paid', true)
-        .order('date', { ascending: true })
-        .order('created_at', { ascending: true });
-
-      if (bankId !== 'all') {
-        query = query.eq('bank_id', bankId);
-      } else if (activeBankIds.length > 0) {
-        query = query.in('bank_id', activeBankIds);
-      } else {
-        return [];
-      }
-
-      if (startDate) query = query.gte('date', startDate);
-      if (endDate) query = query.lte('date', endDate);
-      if (contactId) query = query.eq('contact_id', contactId);
-      if (categoryId) query = query.eq('category_id', categoryId);
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => fetchAllPeriodRows(bankId, activeBankIds, startDate, endDate, contactId, categoryId),
     staleTime: 1000 * 30,
   });
 
-  // Calculate opening balance
   let baseBalance = 0;
   if (bankId === 'all') {
-    // Sum all active banks' initial_balance
     baseBalance = banks
       .filter(b => b.is_active)
       .reduce((sum, b) => sum + Number(b.initial_balance), 0);
@@ -131,7 +160,6 @@ export function useBankTransactions(
 
   const openingBalance = startDate ? baseBalance + priorBalance : baseBalance;
 
-  // Build statement rows with running balance
   let runningBalance = openingBalance;
   const rows: BankStatementRow[] = periodTransactions.map((t: any) => {
     const eff = t.paid_amount != null ? Number(t.paid_amount) : Number(t.amount);
