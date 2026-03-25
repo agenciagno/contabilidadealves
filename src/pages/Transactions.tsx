@@ -633,10 +633,9 @@ export default function Transactions() {
 
   // Bank totals for KPI cards
   const bankTotals = useMemo(() => {
-    const activeBanks = banks.filter(b => b.is_active);
+    const activeBanks = banks.filter(b => b.is_active && !b.is_invisible);
     const totalBalance = activeBanks.reduce((sum, b) => sum + Number(b.current_balance), 0);
-    const caixaGeral = activeBanks.find(b => b.is_caixa_geral);
-    return { totalBalance, caixaGeralBalance: caixaGeral ? Number(caixaGeral.current_balance) : null, caixaGeralName: caixaGeral?.name ?? null };
+    return { totalBalance };
   }, [banks]);
 
   // BI Ticker — uses allTransactions from original hook for global metrics
