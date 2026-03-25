@@ -97,6 +97,13 @@ function applyFilters(
     }
   }
 
+  // Exclude invisible bank transactions globally (unless a specific bank is selected)
+  if (!filters.bankId || filters.bankId === 'all') {
+    if (filters.invisibleBankIds && filters.invisibleBankIds.length > 0) {
+      query = query.not('bank_id', 'in', `(${filters.invisibleBankIds.join(',')})`);
+    }
+  }
+
   if (filters.searchTerm) {
     const term = filters.searchTerm.replace(/%/g, '');
     query = query.or(`description.ilike.%${term}%,notes.ilike.%${term}%`);

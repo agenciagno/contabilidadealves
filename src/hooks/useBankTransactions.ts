@@ -127,7 +127,7 @@ export function useBankTransactions(
   banks: { id: string; initial_balance: number; is_active: boolean }[] = []
 ): BankStatementResult {
   const { bankId, startDate, endDate, contactId, categoryId } = filters;
-  const activeBankIds = banks.filter(b => b.is_active).map(b => b.id);
+  const activeBankIds = banks.filter(b => b.is_active && !(bankId === 'all' && (b as any).is_invisible)).map(b => b.id);
 
   const { data: priorTransactions = [], isLoading: isLoadingPrior } = useQuery({
     queryKey: ['bank-transactions-prior', bankId, startDate],

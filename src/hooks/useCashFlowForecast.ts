@@ -51,9 +51,9 @@ export interface CashFlowForecastData {
 export function useCashFlowForecast(days: number = 30) {
   const { banks = [] } = useBanks();
   
-  // Calculate current balance from all active banks
+  // Calculate current balance from all active visible banks (exclude invisible)
   const currentBalance = banks
-    .filter(b => b.is_active)
+    .filter(b => b.is_active && !b.is_invisible)
     .reduce((sum, bank) => sum + Number(bank.current_balance), 0);
 
   const today = startOfDay(new Date());

@@ -76,17 +76,18 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     retry: false,
   });
 
-  // Direct query for banks to calculate cash flow
+  // Direct query for banks to calculate cash flow (exclude invisible)
   const { data: banks = [] } = useQuery({
     queryKey: ['notifications-banks'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('banks')
-        .select('current_balance')
+        .select('current_balance, is_invisible')
         .eq('is_active', true);
       
       if (error) return [];
-      return data;
+      // Exclude invisible banks from balance calculation
+      return data.filter((b: any) => !b.is_invisible);
     },
     staleTime: 1000 * 60,
     gcTime: 1000 * 60 * 5,
