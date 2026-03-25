@@ -6,10 +6,14 @@ import { CashFlowTab } from '@/components/transactions/CashFlowTab';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function PagarReceber() {
-  const { transactions, isLoading, togglePaid } = useTransactions();
+  const { transactions: allTransactions, isLoading, togglePaid } = useTransactions();
   const { categories } = useCategories();
   const { banks } = useBanks();
   const { contacts } = useContacts();
+
+  // Filter out transactions linked to invisible banks
+  const invisibleBankIds = new Set(banks.filter(b => b.is_invisible).map(b => b.id));
+  const transactions = allTransactions.filter(t => !t.bank_id || !invisibleBankIds.has(t.bank_id));
 
   if (isLoading) {
     return (

@@ -69,7 +69,9 @@ export function UnifiedStatementAccordion({ banks }: UnifiedStatementAccordionPr
   const [categoryId, setCategoryId] = useState('all');
   const [bankId, setBankId] = useState('all');
 
-  const banksList = banks.map(b => ({ id: b.id, initial_balance: b.initial_balance, is_active: b.is_active }));
+  // Exclude invisible banks from unified statement
+  const visibleBanks = banks.filter(b => !b.is_invisible);
+  const banksList = visibleBanks.map(b => ({ id: b.id, initial_balance: b.initial_balance, is_active: b.is_active }));
 
   const { rows, openingBalance, totalIncome, totalExpense, closingBalance, isLoading } = useBankTransactions(
     {

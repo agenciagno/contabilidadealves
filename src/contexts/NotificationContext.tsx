@@ -38,6 +38,7 @@ interface SimpleTransaction {
   due_date: string | null;
   is_paid: boolean;
   contact_id: string | null;
+  bank_id: string | null;
   type: string;
   contact?: { id: string; name: string } | null;
 }
@@ -60,7 +61,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       try {
         const { data, error } = await supabase
           .from('transactions')
-          .select('id, amount, due_date, is_paid, contact_id, type, contact:contacts(id, name)')
+          .select('id, amount, due_date, is_paid, contact_id, bank_id, type, contact:contacts(id, name)')
           .is('deleted_at', null)
           .eq('is_paid', false)
           .not('due_date', 'is', null);
@@ -76,13 +77,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     retry: false,
   });
 
-  // Direct query for banks to calculate cash flow
-  const { data: banks = [] } = useQuery({
+  // Direct query for banks to calculate cash flow (exclude invisible)
+  const { data: banksData = [] } = useQuery({
     queryKey: ['notifications-banks'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('banks')
-        .select('current_balance')
+        .select('id, current_balance, is_invisible')
         .eq('is_active', true);
       
       if (error) return [];
@@ -92,6 +93,15 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     gcTime: 1000 * 60 * 5,
     retry: false,
   });
+
+  const invisibleBankIds = useMemo(() => new Set(banksData.filter((b: any) => b.is_invisible).map((b: any) => b.id)), [banksData]);
+  const banks = useMemo(() => banksData.filter((b: any) => !b.is_invisible), [banksData]);
+  
+  // Filter out invisible bank transactions from notifications
+  const filteredTransactions = useMemo(() => 
+    transactions.filter(t => !t.bank_id || !invisibleBankIds.has(t.bank_id)), 
+    [transactions, invisibleBankIds]
+  );
 
   // Save read IDs to localStorage
   useEffect(() => {
@@ -107,7 +117,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     // Inadimplência notifications - group by contact
     const overdueByContact = new Map<string, { name: string; count: number; oldestDate: string }>();
     
-    transactions.forEach((t) => {
+    filteredTransactions.forEach((t) => {
       if (!t.due_date || !t.contact_id || t.due_date >= todayStr) return;
       
       const existing = overdueByContact.get(t.contact_id);
@@ -144,7 +154,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     });
 
     // Vencimentos do dia
-    const dueTodayTransactions = transactions.filter(
+    const dueTodayTransactions = filteredTransactions.filter(
       (t) => t.due_date && isToday(parseISO(t.due_date))
     );
     
@@ -165,7 +175,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     // Projeção de saldo negativo (simplified calculation)
     const totalBalance = banks.reduce((sum, b) => sum + Number(b.current_balance || 0), 0);
-    const next7DaysExpenses = transactions
+    const next7DaysExpenses = filteredTransactions
       .filter((t) => {
         if (!t.due_date || t.type !== 'despesa') return false;
         const dueDate = parseISO(t.due_date);
@@ -188,7 +198,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
 
     return notifications;
-  }, [transactions, banks, readIds]);
+  }, [filteredTransactions, banks, readIds]);
 
   // Combine all notifications
   const notifications = useMemo(() => {

@@ -582,16 +582,30 @@ export default function Transactions() {
   const [sortField, setSortField] = useState<SortField>('due_date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
+  // Keep useTransactions for mutations only
+  const {
+    createTransaction, updateTransaction, deleteTransaction,
+    togglePaid, bulkTogglePaid, bulkCreateTransactions
+  } = useTransactions();
+
+  const { categories, createCategory } = useCategories();
+  const { banks, createBank } = useBanks();
+  const { contacts, createContact } = useContacts();
+  const { uploadAttachment } = useTransactionAttachments();
+
   // Build server filters object
+  const invisibleBankIds = useMemo(() => banks.filter(b => b.is_invisible).map(b => b.id), [banks]);
+
   const serverFilters: ServerFilters = useMemo(() => ({
     type: typeFilter,
     categoryIds: categoryFilters.length > 0 ? categoryFilters : undefined,
     bankId: bankFilter,
     searchTerm: searchTerm || undefined,
+    invisibleBankIds: invisibleBankIds.length > 0 ? invisibleBankIds : undefined,
     columnFilters,
     sortField,
     sortOrder,
-  }), [typeFilter, categoryFilters, bankFilter, searchTerm, columnFilters, sortField, sortOrder]);
+  }), [typeFilter, categoryFilters, bankFilter, searchTerm, invisibleBankIds, columnFilters, sortField, sortOrder]);
 
   // Reset page when filters change
   useEffect(() => {
@@ -603,17 +617,6 @@ export default function Transactions() {
 
   // Independent KPIs (no pagination)
   const { kpis } = useTransactionKPIs(serverFilters);
-
-  // Keep useTransactions for mutations only
-  const {
-    createTransaction, updateTransaction, deleteTransaction,
-    togglePaid, bulkTogglePaid, bulkCreateTransactions
-  } = useTransactions();
-
-  const { categories, createCategory } = useCategories();
-  const { banks, createBank } = useBanks();
-  const { contacts, createContact } = useContacts();
-  const { uploadAttachment } = useTransactionAttachments();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'edit' | 'settle'>('edit');
@@ -633,10 +636,9 @@ export default function Transactions() {
 
   // Bank totals for KPI cards
   const bankTotals = useMemo(() => {
-    const activeBanks = banks.filter(b => b.is_active);
+    const activeBanks = banks.filter(b => b.is_active && !b.is_invisible);
     const totalBalance = activeBanks.reduce((sum, b) => sum + Number(b.current_balance), 0);
-    const caixaGeral = activeBanks.find(b => b.is_caixa_geral);
-    return { totalBalance, caixaGeralBalance: caixaGeral ? Number(caixaGeral.current_balance) : null, caixaGeralName: caixaGeral?.name ?? null };
+    return { totalBalance };
   }, [banks]);
 
   // BI Ticker — uses allTransactions from original hook for global metrics
@@ -823,7 +825,7 @@ export default function Transactions() {
               <p className="text-xs text-muted-foreground">Saldo Bancário</p>
             </div>
             <p className={`text-base font-bold ${bankTotals.totalBalance >= 0 ? 'text-primary' : 'text-red-500'}`}>{formatCurrency(bankTotals.totalBalance)}</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">{bankTotals.caixaGeralName ? `Caixa: ${formatCurrency(bankTotals.caixaGeralBalance ?? 0)}` : 'Total bancos'}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Total bancos visíveis</p>
           </CardContent>
         </Card>
         <Card className="bg-card border-border/50 border-l-2 border-l-red-500">
@@ -1180,7 +1182,7 @@ export default function Transactions() {
         onImport={async (txns) => { await bulkCreateTransactions.mutateAsync(txns); }}
         onCreateCategory={async (name, type) => { const data = await createCategory.mutateAsync({ name, type, color: '#3B82F6', icon: 'tag' }); return { id: data.id }; }}
         onCreateContact={async (name) => { const data = await createContact.mutateAsync({ name, type: 'cliente', is_active: true, boleto_active: false, document: null, email: null, phone: null, cep: null, address: null, address_number: null, neighborhood: null, city: null, state: null, notes: null, tax_regime: null, representative_legal: null, boleto_value: null, boleto_due_day: null, boleto_start_date: null, origin: 'imported' }); return { id: data.id }; }}
-        onCreateBank={async (name) => { const data = await createBank.mutateAsync({ name, initial_balance: 0, color: '#10B981', is_active: true, is_caixa_geral: false, bank_code: null, agency: null, account_number: null }); return { id: data.id }; }}
+        onCreateBank={async (name) => { const data = await createBank.mutateAsync({ name, initial_balance: 0, color: '#10B981', is_active: true, is_invisible: false, bank_code: null, agency: null, account_number: null }); return { id: data.id }; }}
       />
 
       <BulkEditDialog

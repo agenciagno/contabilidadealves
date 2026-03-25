@@ -29,10 +29,11 @@ export default function Banks() {
   const activeBanks = banks.filter((b) => b.is_active);
   const inactiveBanks = banks.filter((b) => !b.is_active);
 
-  const banksList = banks.map(b => ({ id: b.id, initial_balance: b.initial_balance, is_active: b.is_active }));
+  // Exclude invisible banks from total balance calculation
+  const visibleBanksList = banks.filter(b => !b.is_invisible).map(b => ({ id: b.id, initial_balance: b.initial_balance, is_active: b.is_active }));
   const { closingBalance: totalBalance } = useBankTransactions(
     { bankId: 'all', startDate: new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0], endDate: new Date().toISOString().split('T')[0] },
-    banksList
+    visibleBanksList
   );
 
   const handleSubmit = (data: {
@@ -43,7 +44,7 @@ export default function Banks() {
     initial_balance: number;
     color: string;
     is_active: boolean;
-    is_caixa_geral: boolean;
+    is_invisible: boolean;
   }) => {
     if (editingBank) {
       updateBank.mutate({ id: editingBank.id, ...data }, {
@@ -102,6 +103,7 @@ export default function Banks() {
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">{bank.name}</h3>
+                  {bank.is_invisible && <Badge variant="destructive" className="text-xs">Invisível</Badge>}
                   {!bank.is_active && <Badge variant="secondary" className="text-xs">Inativa</Badge>}
                 </div>
                 {(bank.bank_code || bank.agency || bank.account_number) &&

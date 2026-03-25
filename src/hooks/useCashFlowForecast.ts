@@ -51,19 +51,22 @@ export interface CashFlowForecastData {
 export function useCashFlowForecast(days: number = 30) {
   const { banks = [] } = useBanks();
   
-  // Calculate current balance from all active banks
+  // Calculate current balance from all active visible banks (exclude invisible)
   const currentBalance = banks
-    .filter(b => b.is_active)
+    .filter(b => b.is_active && !b.is_invisible)
     .reduce((sum, bank) => sum + Number(bank.current_balance), 0);
 
   const today = startOfDay(new Date());
   const endDate = addDays(today, days);
 
+  // Get invisible bank IDs
+  const invisibleBankIds = banks.filter(b => b.is_invisible).map(b => b.id);
+
   // Fetch pending transactions for the next X days
   const { data: pendingTransactions = [], isLoading: loadingTransactions } = useQuery({
-    queryKey: ['cash-flow-pending', days],
+    queryKey: ['cash-flow-pending', days, invisibleBankIds],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('transactions')
         .select(`
           id,
@@ -72,6 +75,7 @@ export function useCashFlowForecast(days: number = 30) {
           amount,
           type,
           is_paid,
+          bank_id,
           category:categories(name, color)
         `)
         .is('deleted_at', null)
@@ -80,6 +84,12 @@ export function useCashFlowForecast(days: number = 30) {
         .lte('date', format(endDate, 'yyyy-MM-dd'))
         .order('date');
 
+      // Exclude transactions from invisible banks
+      if (invisibleBankIds.length > 0) {
+        query = query.not('bank_id', 'in', `(${invisibleBankIds.join(',')})`);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data.map(t => ({
         id: t.id,

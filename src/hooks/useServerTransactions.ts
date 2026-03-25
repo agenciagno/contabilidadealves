@@ -11,6 +11,7 @@ export interface ServerFilters {
   categoryIds?: string[];
   bankId?: string;
   searchTerm?: string;
+  invisibleBankIds?: string[];
   columnFilters: {
     issue_date?: { start: string; end: string };
     issue_date_empty?: boolean;
@@ -93,6 +94,13 @@ function applyFilters(
       query = query.is('bank_id', null);
     } else {
       query = query.eq('bank_id', filters.bankId);
+    }
+  }
+
+  // Exclude invisible bank transactions globally (unless a specific bank is selected)
+  if (!filters.bankId || filters.bankId === 'all') {
+    if (filters.invisibleBankIds && filters.invisibleBankIds.length > 0) {
+      query = query.not('bank_id', 'in', `(${filters.invisibleBankIds.join(',')})`);
     }
   }
 

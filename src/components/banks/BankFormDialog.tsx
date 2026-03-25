@@ -22,7 +22,7 @@ interface BankFormDialogProps {
     initial_balance: number;
     color: string;
     is_active: boolean;
-    is_caixa_geral: boolean;
+    is_invisible: boolean;
   }) => void;
   isLoading?: boolean;
 }
@@ -44,7 +44,7 @@ export function BankFormDialog({ open, onOpenChange, bank, onSubmit, isLoading }
       setAccountNumber(bank.account_number || '');
       setInitialBalance(formatCurrencyInput((bank.initial_balance * 100).toString()));
       setIsActive(bank.is_active);
-      setIsCaixaGeral(bank.is_caixa_geral || false);
+      setIsCaixaGeral(bank.is_invisible || false);
     } else {
       setName('');
       setBankCode('');
@@ -67,7 +67,7 @@ export function BankFormDialog({ open, onOpenChange, bank, onSubmit, isLoading }
       initial_balance: parseCurrencyInput(initialBalance),
       color,
       is_active: isActive,
-      is_caixa_geral: isCaixaGeral,
+      is_invisible: isCaixaGeral,
     });
   };
 
@@ -138,12 +138,12 @@ export function BankFormDialog({ open, onOpenChange, bank, onSubmit, isLoading }
 
           <div className="flex items-center space-x-2">
             <Checkbox
-              id="is_caixa_geral"
+              id="is_invisible"
               checked={isCaixaGeral}
               onCheckedChange={(checked) => setIsCaixaGeral(!!checked)}
             />
-            <Label htmlFor="is_caixa_geral" className="cursor-pointer">
-              Marcar como Caixa Geral
+            <Label htmlFor="is_invisible" className="cursor-pointer">
+              Banco Invisível
             </Label>
           </div>
 

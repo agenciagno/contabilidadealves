@@ -96,11 +96,15 @@ export default function Dashboard() {
   const [customEndDate, setCustomEndDate] = useState<Date | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
-  const { transactions: allTransactions, isLoading: loadingTransactions, createTransaction } = useTransactions();
+  const { transactions: rawTransactions, isLoading: loadingTransactions, createTransaction } = useTransactions();
   const { banks, isLoading: loadingBanks, createBank } = useBanks();
   const { recurringTransactions } = useRecurringTransactions();
   const { contacts, createContact } = useContacts();
   const { categories, createCategory } = useCategories();
+
+  // Filter out transactions linked to invisible banks
+  const invisibleBankIds = useMemo(() => new Set(banks.filter(b => b.is_invisible).map(b => b.id)), [banks]);
+  const allTransactions = useMemo(() => rawTransactions.filter(t => !t.bank_id || !invisibleBankIds.has(t.bank_id)), [rawTransactions, invisibleBankIds]);
 
   // Get date range for filtering
   const getDateRange = (): { start: Date; end: Date } | null => {
@@ -190,11 +194,7 @@ export default function Dashboard() {
 
     // Saldos
     const saldoBancario = banks
-      .filter(b => b.is_active)
-      .reduce((sum, b) => sum + Number(b.current_balance), 0);
-
-    const caixaGeral = banks
-      .filter(b => b.is_active && b.is_caixa_geral)
+      .filter(b => b.is_active && !b.is_invisible)
       .reduce((sum, b) => sum + Number(b.current_balance), 0);
 
     return {
@@ -203,7 +203,6 @@ export default function Dashboard() {
       despesasPagas,
       aPagar,
       saldoBancario,
-      caixaGeral,
     };
   }, [transactions, banks]);
 
@@ -362,8 +361,9 @@ export default function Dashboard() {
   const lastMonthStart = startOfMonth(subMonths(now, 1));
   const lastMonthEnd = endOfMonth(subMonths(now, 1));
 
-  const { data: thisMonthTx = [] } = useReportData({ startDate: thisMonthStart, endDate: now });
-  const { data: lastMonthTx = [] } = useReportData({ startDate: lastMonthStart, endDate: lastMonthEnd });
+  const invisibleBankIdArray = useMemo(() => Array.from(invisibleBankIds), [invisibleBankIds]);
+  const { data: thisMonthTx = [] } = useReportData({ startDate: thisMonthStart, endDate: now, invisibleBankIds: invisibleBankIdArray });
+  const { data: lastMonthTx = [] } = useReportData({ startDate: lastMonthStart, endDate: lastMonthEnd, invisibleBankIds: invisibleBankIdArray });
 
   const thisMonthData = useMemo(() => processReportData(thisMonthTx), [thisMonthTx]);
   const lastMonthData = useMemo(() => processReportData(lastMonthTx), [lastMonthTx]);
@@ -625,7 +625,7 @@ export default function Dashboard() {
                   </p>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  Caixa Geral: <span className="text-primary">{formatCurrency(summary.caixaGeral)}</span>
+                  Total bancos visíveis
                 </p>
               </div>
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">

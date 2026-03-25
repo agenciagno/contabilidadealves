@@ -14,12 +14,12 @@ export interface Bank {
   current_balance: number;
   color: string;
   is_active: boolean;
-  is_caixa_geral: boolean;
+  is_invisible: boolean;
   created_at: string;
   updated_at: string;
 }
 
-export type BankInsert = Omit<Bank, 'id' | 'created_at' | 'updated_at' | 'current_balance'> & { is_caixa_geral?: boolean };
+export type BankInsert = Omit<Bank, 'id' | 'created_at' | 'updated_at' | 'current_balance'> & { is_invisible?: boolean };
 export type BankUpdate = Partial<Omit<Bank, 'id' | 'company_id' | 'created_at' | 'updated_at'>>;
 
 export function useBanks() {
