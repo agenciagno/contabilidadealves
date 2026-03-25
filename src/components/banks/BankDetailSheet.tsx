@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Building2, TrendingUp, TrendingDown, Calendar } from 'lucide-react';
+import { Building2, TrendingUp, TrendingDown, Calendar, FileBarChart2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { BankReportModal } from './BankReportModal';
 import { Bank } from '@/hooks/useBanks';
 import { useContacts } from '@/hooks/useContacts';
 import { useCategories } from '@/hooks/useCategories';
@@ -70,6 +72,7 @@ export function BankDetailSheet({ bank, open, onOpenChange }: BankDetailSheetPro
   const [endDate, setEndDate] = useState(todayStr);
   const [contactId, setContactId] = useState<string>('all');
   const [categoryId, setCategoryId] = useState<string>('all');
+  const [reportOpen, setReportOpen] = useState(false);
 
   const banks = bank ? [{ id: bank.id, initial_balance: bank.initial_balance, is_active: bank.is_active }] : [];
 
@@ -89,6 +92,7 @@ export function BankDetailSheet({ bank, open, onOpenChange }: BankDetailSheetPro
   if (!bank) return null;
 
   return (
+    <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-5xl p-0 flex flex-col overflow-hidden">
         {/* Header */}
@@ -113,6 +117,10 @@ export function BankDetailSheet({ bank, open, onOpenChange }: BankDetailSheetPro
                 {formatCurrency(closingBalance)}
               </p>
             </div>
+            <Button variant="outline" size="sm" className="gap-2 flex-shrink-0" onClick={() => setReportOpen(true)}>
+              <FileBarChart2 className="w-4 h-4" />
+              Relatório
+            </Button>
           </div>
 
           {/* Summary cards */}
@@ -256,5 +264,13 @@ export function BankDetailSheet({ bank, open, onOpenChange }: BankDetailSheetPro
         </div>
       </SheetContent>
     </Sheet>
+
+    <BankReportModal
+      open={reportOpen}
+      onOpenChange={setReportOpen}
+      banks={[bank]}
+    />
+    </>
   );
 }
+

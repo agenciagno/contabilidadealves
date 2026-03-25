@@ -10,17 +10,18 @@ export interface ContactTransaction {
   date: string;
   due_date: string | null;
   is_paid: boolean;
+  bank_id: string | null;
   category: { id: string; name: string; color: string | null } | null;
   bank: { id: string; name: string } | null;
 }
 
-export function useContactTransactions(contactId: string | undefined) {
+export function useContactTransactions(contactId: string | undefined, invisibleBankIds?: string[]) {
   return useQuery({
-    queryKey: ['contact-transactions', contactId],
+    queryKey: ['contact-transactions', contactId, invisibleBankIds],
     queryFn: async () => {
       if (!contactId) return [];
       
-      const { data, error } = await supabase
+      let query = supabase
         .from('transactions')
         .select(`
           id,
@@ -31,12 +32,19 @@ export function useContactTransactions(contactId: string | undefined) {
           date,
           due_date,
           is_paid,
+          bank_id,
           category:categories(id, name, color),
           bank:banks(id, name)
         `)
         .is('deleted_at', null)
-        .eq('contact_id', contactId)
-        .order('date', { ascending: false });
+        .eq('contact_id', contactId);
+
+      // Exclude transactions from invisible banks
+      if (invisibleBankIds && invisibleBankIds.length > 0) {
+        query = query.not('bank_id', 'in', `(${invisibleBankIds.join(',')})`);
+      }
+
+      const { data, error } = await query.order('date', { ascending: false });
 
       if (error) throw error;
       return data as ContactTransaction[];
