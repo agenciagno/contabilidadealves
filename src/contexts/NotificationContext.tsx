@@ -175,7 +175,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     // Projeção de saldo negativo (simplified calculation)
     const totalBalance = banks.reduce((sum, b) => sum + Number(b.current_balance || 0), 0);
-    const next7DaysExpenses = transactions
+    const next7DaysExpenses = filteredTransactions
       .filter((t) => {
         if (!t.due_date || t.type !== 'despesa') return false;
         const dueDate = parseISO(t.due_date);
