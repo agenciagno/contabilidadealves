@@ -154,7 +154,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     });
 
     // Vencimentos do dia
-    const dueTodayTransactions = transactions.filter(
+    const dueTodayTransactions = filteredTransactions.filter(
       (t) => t.due_date && isToday(parseISO(t.due_date))
     );
     
