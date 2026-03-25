@@ -92,6 +92,7 @@ export function BankDetailSheet({ bank, open, onOpenChange }: BankDetailSheetPro
   if (!bank) return null;
 
   return (
+    <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-5xl p-0 flex flex-col overflow-hidden">
         {/* Header */}
