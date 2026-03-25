@@ -116,6 +116,10 @@ export function BankDetailSheet({ bank, open, onOpenChange }: BankDetailSheetPro
                 {formatCurrency(closingBalance)}
               </p>
             </div>
+            <Button variant="outline" size="sm" className="gap-2 flex-shrink-0" onClick={() => setReportOpen(true)}>
+              <FileBarChart2 className="w-4 h-4" />
+              Relatório
+            </Button>
           </div>
 
           {/* Summary cards */}
