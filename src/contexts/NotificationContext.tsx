@@ -61,7 +61,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       try {
         const { data, error } = await supabase
           .from('transactions')
-          .select('id, amount, due_date, is_paid, contact_id, type, contact:contacts(id, name)')
+          .select('id, amount, due_date, is_paid, contact_id, bank_id, type, contact:contacts(id, name)')
           .is('deleted_at', null)
           .eq('is_paid', false)
           .not('due_date', 'is', null);
