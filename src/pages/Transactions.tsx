@@ -822,7 +822,7 @@ export default function Transactions() {
               <p className="text-xs text-muted-foreground">Saldo Bancário</p>
             </div>
             <p className={`text-base font-bold ${bankTotals.totalBalance >= 0 ? 'text-primary' : 'text-red-500'}`}>{formatCurrency(bankTotals.totalBalance)}</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">{bankTotals.caixaGeralName ? `Caixa: ${formatCurrency(bankTotals.caixaGeralBalance ?? 0)}` : 'Total bancos'}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Total bancos visíveis</p>
           </CardContent>
         </Card>
         <Card className="bg-card border-border/50 border-l-2 border-l-red-500">
