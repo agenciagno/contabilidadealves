@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/select';
 import { TrendingUp, Clock, CalendarPlus, ArrowUpDown, AlertTriangle } from 'lucide-react';
 import { useContactTransactions } from '@/hooks/useContactTransactions';
+import { useBanks } from '@/hooks/useBanks';
 import { ContactContractsCard } from './ContactContractsCard';
 import { RecurringFormDialog } from '@/components/recurring/RecurringFormDialog';
 import { useRecurringTransactions, RecurringTransactionInsert } from '@/hooks/useRecurringTransactions';
