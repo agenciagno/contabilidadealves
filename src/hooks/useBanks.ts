@@ -14,7 +14,7 @@ export interface Bank {
   current_balance: number;
   color: string;
   is_active: boolean;
-  is_caixa_geral: boolean;
+  is_invisible: boolean;
   created_at: string;
   updated_at: string;
 }
