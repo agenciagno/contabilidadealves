@@ -78,22 +78,30 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   });
 
   // Direct query for banks to calculate cash flow (exclude invisible)
-  const { data: banks = [] } = useQuery({
+  const { data: banksData = [] } = useQuery({
     queryKey: ['notifications-banks'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('banks')
-        .select('current_balance, is_invisible')
+        .select('id, current_balance, is_invisible')
         .eq('is_active', true);
       
       if (error) return [];
-      // Exclude invisible banks from balance calculation
-      return data.filter((b: any) => !b.is_invisible);
+      return data;
     },
     staleTime: 1000 * 60,
     gcTime: 1000 * 60 * 5,
     retry: false,
   });
+
+  const invisibleBankIds = useMemo(() => new Set(banksData.filter((b: any) => b.is_invisible).map((b: any) => b.id)), [banksData]);
+  const banks = useMemo(() => banksData.filter((b: any) => !b.is_invisible), [banksData]);
+  
+  // Filter out invisible bank transactions from notifications
+  const filteredTransactions = useMemo(() => 
+    transactions.filter(t => !t.bank_id || !invisibleBankIds.has(t.bank_id)), 
+    [transactions, invisibleBankIds]
+  );
 
   // Save read IDs to localStorage
   useEffect(() => {
