@@ -190,11 +190,7 @@ export default function Dashboard() {
 
     // Saldos
     const saldoBancario = banks
-      .filter(b => b.is_active)
-      .reduce((sum, b) => sum + Number(b.current_balance), 0);
-
-    const caixaGeral = banks
-      .filter(b => b.is_active && b.is_caixa_geral)
+      .filter(b => b.is_active && !b.is_invisible)
       .reduce((sum, b) => sum + Number(b.current_balance), 0);
 
     return {
@@ -203,7 +199,6 @@ export default function Dashboard() {
       despesasPagas,
       aPagar,
       saldoBancario,
-      caixaGeral,
     };
   }, [transactions, banks]);
 
