@@ -1,45 +1,53 @@
 
 
-## Plano: Implementar "Banco Invisível" para Antecipação de Títulos
+## Plano: Auditoria e Blindagem Completa do Banco Invisível
 
-### Resumo
+### Problemas Encontrados
 
-Renomear `is_caixa_geral` para `is_invisible` na tabela `banks`, atualizar o modal de banco, isolar saldo de bancos invisíveis do total global, adicionar badge visual nos cards, e filtrar transações de bancos invisíveis de todas as queries globais (exceto extrato individual).
-
-### Mudanças
-
-| # | Arquivo / Recurso | Mudança |
+| # | Local | Problema |
 |---|---|---|
-| 1 | **Migration SQL** | Renomear coluna `is_caixa_geral` → `is_invisible` com `ALTER TABLE banks RENAME COLUMN` |
-| 2 | `src/hooks/useBanks.ts` | Renomear `is_caixa_geral` → `is_invisible` na interface `Bank` e tipos derivados |
-| 3 | `src/components/banks/BankFormDialog.tsx` | Trocar label de "Marcar como Caixa Geral" para "Banco Invisível" e usar `is_invisible` |
-| 4 | `src/pages/Banks.tsx` | (a) Excluir bancos `is_invisible` do cálculo de saldo total; (b) Adicionar badge vermelha "Invisível" nos cards de bancos marcados; (c) Atualizar `handleSubmit` para `is_invisible` |
-| 5 | `src/hooks/useServerTransactions.ts` | Adicionar `invisibleBankIds` ao `ServerFilters`; no `applyFilters`, quando `bankId` não for específico, excluir transações com `bank_id` em bancos invisíveis via `.not('bank_id', 'in', (...))` |
-| 6 | `src/hooks/useTransactions.ts` | Receber lista de `invisibleBankIds` e filtrar transações de bancos invisíveis na query |
-| 7 | `src/hooks/useReportData.ts` | Excluir transações de bancos invisíveis da query de relatórios |
-| 8 | `src/hooks/useCashFlowForecast.ts` | Excluir bancos invisíveis do `currentBalance` e transações pendentes |
-| 9 | `src/components/banks/UnifiedStatementAccordion.tsx` | No extrato unificado, excluir bancos invisíveis |
-| 10 | `src/hooks/useBankTransactions.ts` | No modo `bankId: 'all'`, excluir bancos invisíveis do `activeBankIds` |
-| 11 | `src/pages/Transactions.tsx` | Atualizar ref a `is_caixa_geral` → `is_invisible` |
-| 12 | `src/pages/Dashboard.tsx` | Atualizar ref a `is_caixa_geral` → `is_invisible` |
-| 13 | `src/contexts/NotificationContext.tsx` | Excluir transações de bancos invisíveis das notificações de inadimplência |
+| 1 | `CashFlowTab.tsx` L451 | `activeBanks` não filtra `is_invisible` — card "Saldos Atuais" e `totalBankBalance` incluem bancos invisíveis |
+| 2 | `Banks.tsx` L250 | Passa todos os `banks` ao `BankReportModal`, incluindo invisíveis |
+| 3 | `BankReportModal.tsx` L400 | Lista de seleção de bancos inclui invisíveis |
+| 4 | `useContactTransactions.ts` | Nenhum filtro de banco invisível — perfil do cliente mostra transações de bancos invisíveis |
+| 5 | `BankDetailSheet.tsx` | Sem botão "Gerar Relatório" no extrato individual (regra 4) |
+
+### Correções
+
+| # | Arquivo | Mudança |
+|---|---|---|
+| 1 | `src/components/transactions/CashFlowTab.tsx` | Filtrar `is_invisible` no `activeBanks` (L451): `banks.filter(b => b.is_active && !b.is_invisible)` |
+| 2 | `src/pages/Banks.tsx` | Passar `banks.filter(b => !b.is_invisible)` ao `BankReportModal` |
+| 3 | `src/hooks/useContactTransactions.ts` | Adicionar `bank_id` ao select e receber `invisibleBankIds` como parâmetro opcional; filtrar no cliente (ou via join) transações de bancos invisíveis |
+| 4 | `src/components/banks/BankDetailSheet.tsx` | Adicionar botão "Gerar Relatório" que abre o `BankReportModal` travado no banco individual |
 
 ### Detalhes técnicos
 
-**Migration:**
-```sql
-ALTER TABLE public.banks RENAME COLUMN is_caixa_geral TO is_invisible;
-```
-
-**Estratégia de filtragem global:** Criar um hook utilitário ou exportar uma função que retorna os IDs dos bancos invisíveis a partir do cache de `useBanks`. Nas queries que já usam `useBanks` (maioria), filtrar com:
+**CashFlowTab (regra 1 e 2):**
 ```typescript
-const invisibleIds = banks.filter(b => b.is_invisible).map(b => b.id);
-// Na query: .not('bank_id', 'in', `(${invisibleIds.join(',')})`)
+// Linha 451 — de:
+const activeBanks = useMemo(() => banks.filter(b => b.is_active), [banks]);
+// para:
+const activeBanks = useMemo(() => banks.filter(b => b.is_active && !b.is_invisible), [banks]);
+```
+Isso corrige tanto o card "Saldos Atuais" quanto o `totalBankBalance` usado no cálculo do saldo acumulado.
+
+**Banks.tsx → BankReportModal (regra 3):**
+```typescript
+// Linha 250 — de:
+banks={banks}
+// para:
+banks={banks.filter(b => !b.is_invisible)}
 ```
 
-**Exceção — Extrato Individual:** O `BankDetailSheet` já chama `useBankTransactions` com `bankId` específico (não `'all'`), então automaticamente busca apenas transações daquele banco. Nenhuma alteração necessária nesse componente.
+**useContactTransactions (regra 2):**
+Adicionar campo `bank_id` ao select e filtrar no retorno transações cujo `bank_id` pertença a bancos invisíveis. O componente `ContactFinancialTab` e `ContactProfile` já usam `useBanks`, então basta passar os IDs invisíveis e filtrar client-side.
 
-**Saldo Total (Banks.tsx):** Filtrar `activeBankIds` passado ao `useBankTransactions` removendo os invisíveis, e ajustar o `baseBalance` para não somar `initial_balance` de bancos invisíveis.
+**BankDetailSheet — Relatório Individual (regra 4):**
+Adicionar um botão `<FileBarChart2>` no header do extrato individual que abre o `BankReportModal` com prop `banks` travado no array `[bank]` — o modal já suporta exatamente este cenário (seleção de banco único). Isso reusa 100% da estrutura visual existente.
 
-**Badge visual:** No `BankCard`, se `bank.is_invisible`, renderizar `<Badge variant="destructive">Invisível</Badge>` ao lado do nome.
+### Resumo
+- 4 arquivos editados
+- 0 migrations
+- Foco: fechar todos os vazamentos identificados na auditoria
 
