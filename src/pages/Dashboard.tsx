@@ -361,8 +361,9 @@ export default function Dashboard() {
   const lastMonthStart = startOfMonth(subMonths(now, 1));
   const lastMonthEnd = endOfMonth(subMonths(now, 1));
 
-  const { data: thisMonthTx = [] } = useReportData({ startDate: thisMonthStart, endDate: now });
-  const { data: lastMonthTx = [] } = useReportData({ startDate: lastMonthStart, endDate: lastMonthEnd });
+  const invisibleBankIdArray = useMemo(() => Array.from(invisibleBankIds), [invisibleBankIds]);
+  const { data: thisMonthTx = [] } = useReportData({ startDate: thisMonthStart, endDate: now, invisibleBankIds: invisibleBankIdArray });
+  const { data: lastMonthTx = [] } = useReportData({ startDate: lastMonthStart, endDate: lastMonthEnd, invisibleBankIds: invisibleBankIdArray });
 
   const thisMonthData = useMemo(() => processReportData(thisMonthTx), [thisMonthTx]);
   const lastMonthData = useMemo(() => processReportData(lastMonthTx), [lastMonthTx]);
