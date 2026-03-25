@@ -1,53 +1,56 @@
 
 
-## Plano: Auditoria e Blindagem Completa do Banco Invisível
+## Plano: Estruturação da Área DRE + Hierarquia de Eventos Contábeis
 
-### Problemas Encontrados
+### Mudanças
 
-| # | Local | Problema |
+| # | Recurso | Mudança |
 |---|---|---|
-| 1 | `CashFlowTab.tsx` L451 | `activeBanks` não filtra `is_invisible` — card "Saldos Atuais" e `totalBankBalance` incluem bancos invisíveis |
-| 2 | `Banks.tsx` L250 | Passa todos os `banks` ao `BankReportModal`, incluindo invisíveis |
-| 3 | `BankReportModal.tsx` L400 | Lista de seleção de bancos inclui invisíveis |
-| 4 | `useContactTransactions.ts` | Nenhum filtro de banco invisível — perfil do cliente mostra transações de bancos invisíveis |
-| 5 | `BankDetailSheet.tsx` | Sem botão "Gerar Relatório" no extrato individual (regra 4) |
-
-### Correções
-
-| # | Arquivo | Mudança |
-|---|---|---|
-| 1 | `src/components/transactions/CashFlowTab.tsx` | Filtrar `is_invisible` no `activeBanks` (L451): `banks.filter(b => b.is_active && !b.is_invisible)` |
-| 2 | `src/pages/Banks.tsx` | Passar `banks.filter(b => !b.is_invisible)` ao `BankReportModal` |
-| 3 | `src/hooks/useContactTransactions.ts` | Adicionar `bank_id` ao select e receber `invisibleBankIds` como parâmetro opcional; filtrar no cliente (ou via join) transações de bancos invisíveis |
-| 4 | `src/components/banks/BankDetailSheet.tsx` | Adicionar botão "Gerar Relatório" que abre o `BankReportModal` travado no banco individual |
+| 1 | **Migration SQL** | Adicionar coluna `parent_id UUID NULL` na tabela `categories` com FK self-referencing |
+| 2 | `src/pages/DRE.tsx` | Nova página placeholder com cabeçalho "DRE - Demonstração do Resultado do Exercício" |
+| 3 | `src/App.tsx` | Adicionar rota `/dre` com import da página |
+| 4 | `src/components/layout/AppSidebar.tsx` | Adicionar item "DRE" no módulo Financeiro (ícone `FileBarChart`, após Eventos Contábeis) |
+| 5 | `src/hooks/useCategories.ts` | Adicionar `parent_id: string \| null` à interface `Category`; incluir no `CategoryInsert`/`CategoryUpdate` |
+| 6 | `src/components/categories/CategoryFormDialog.tsx` | Adicionar dropdown "Pertence a qual Evento Macro?" listando apenas categorias com `parent_id IS NULL` do mesmo tipo; salvar `parent_id` |
+| 7 | `src/pages/Categories.tsx` | Exibir hierarquia visual: agrupar sub eventos sob seus macros com indentação e label do macro pai |
 
 ### Detalhes técnicos
 
-**CashFlowTab (regra 1 e 2):**
-```typescript
-// Linha 451 — de:
-const activeBanks = useMemo(() => banks.filter(b => b.is_active), [banks]);
-// para:
-const activeBanks = useMemo(() => banks.filter(b => b.is_active && !b.is_invisible), [banks]);
-```
-Isso corrige tanto o card "Saldos Atuais" quanto o `totalBankBalance` usado no cálculo do saldo acumulado.
-
-**Banks.tsx → BankReportModal (regra 3):**
-```typescript
-// Linha 250 — de:
-banks={banks}
-// para:
-banks={banks.filter(b => !b.is_invisible)}
+**Migration:**
+```sql
+ALTER TABLE public.categories
+ADD COLUMN parent_id uuid NULL
+REFERENCES public.categories(id) ON DELETE SET NULL;
 ```
 
-**useContactTransactions (regra 2):**
-Adicionar campo `bank_id` ao select e filtrar no retorno transações cujo `bank_id` pertença a bancos invisíveis. O componente `ContactFinancialTab` e `ContactProfile` já usam `useBanks`, então basta passar os IDs invisíveis e filtrar client-side.
+**CategoryFormDialog — Dropdown de Macro:**
+- Receber `categories` (todas) como nova prop
+- Filtrar macros: `categories.filter(c => !c.parent_id && c.type === type)`
+- Excluir a própria categoria sendo editada (evitar self-reference)
+- Se nada selecionado → `parent_id: null` (é um Macro)
 
-**BankDetailSheet — Relatório Individual (regra 4):**
-Adicionar um botão `<FileBarChart2>` no header do extrato individual que abre o `BankReportModal` com prop `banks` travado no array `[bank]` — o modal já suporta exatamente este cenário (seleção de banco único). Isso reusa 100% da estrutura visual existente.
+**Categories.tsx — Visualização hierárquica:**
+- Separar macros (`parent_id === null`) e subs (`parent_id !== null`)
+- Renderizar macros primeiro; abaixo de cada macro, renderizar seus subs com indentação (`pl-12`) e prefixo visual `↳` + nome do macro em cinza
+- Subs órfãos (sem macro válido) aparecem no final da lista
 
-### Resumo
-- 4 arquivos editados
-- 0 migrations
-- Foco: fechar todos os vazamentos identificados na auditoria
+**DRE.tsx — Página placeholder:**
+```tsx
+export default function DRE() {
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold">DRE - Demonstração do Resultado do Exercício</h1>
+      <Card><CardContent className="p-12 text-center text-muted-foreground">
+        Em construção...
+      </CardContent></Card>
+    </div>
+  );
+}
+```
+
+**Sidebar — Novo item:**
+```typescript
+{ title: 'DRE', url: '/dre', icon: FileBarChart, iconName: 'file-bar-chart' }
+```
+Posicionado após "Eventos Contábeis" no array de items do módulo Financeiro.
 
