@@ -9,11 +9,12 @@ export interface Category {
   type: 'receita' | 'despesa';
   color: string;
   icon: string;
+  parent_id: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export type CategoryInsert = Omit<Category, 'id' | 'created_at' | 'updated_at'>;
+export type CategoryInsert = Omit<Category, 'id' | 'created_at' | 'updated_at' | 'parent_id'> & { parent_id?: string | null };
 export type CategoryUpdate = Partial<Omit<Category, 'id' | 'company_id' | 'created_at' | 'updated_at'>>;
 
 export function useCategories() {

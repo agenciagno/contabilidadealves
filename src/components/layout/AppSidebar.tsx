@@ -91,6 +91,7 @@ const menuModules: MenuModule[] = [
       { title: 'Boletos', url: '/boletos', icon: FileCheck, iconName: 'file-check' },
       { title: 'Conta Corrente', url: '/bancos', icon: Building2, iconName: 'building-2' },
       { title: 'Eventos Contábeis', url: '/categorias', icon: Tags, iconName: 'tags' },
+      { title: 'DRE', url: '/dre', icon: FileBarChart, iconName: 'file-bar-chart' },
     ],
   },
   {
