@@ -11,6 +11,7 @@ export interface ServerFilters {
   categoryIds?: string[];
   bankId?: string;
   searchTerm?: string;
+  invisibleBankIds?: string[];
   columnFilters: {
     issue_date?: { start: string; end: string };
     issue_date_empty?: boolean;
