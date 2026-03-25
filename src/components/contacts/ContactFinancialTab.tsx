@@ -37,7 +37,9 @@ interface ContactFinancialTabProps {
 type SortOrder = 'newest' | 'oldest';
 
 export function ContactFinancialTab({ contactId, contactName }: ContactFinancialTabProps) {
-  const { data: transactions, isLoading } = useContactTransactions(contactId);
+  const { banks } = useBanks();
+  const invisibleBankIds = useMemo(() => banks.filter(b => b.is_invisible).map(b => b.id), [banks]);
+  const { data: transactions, isLoading } = useContactTransactions(contactId, invisibleBankIds);
   const { createRecurring } = useRecurringTransactions();
   const queryClient = useQueryClient();
   const [recurringDialogOpen, setRecurringDialogOpen] = useState(false);
