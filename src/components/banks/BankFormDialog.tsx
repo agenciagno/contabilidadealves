@@ -67,7 +67,7 @@ export function BankFormDialog({ open, onOpenChange, bank, onSubmit, isLoading }
       initial_balance: parseCurrencyInput(initialBalance),
       color,
       is_active: isActive,
-      is_caixa_geral: isCaixaGeral,
+      is_invisible: isCaixaGeral,
     });
   };
 
