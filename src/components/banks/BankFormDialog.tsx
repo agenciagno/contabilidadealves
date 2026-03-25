@@ -22,7 +22,7 @@ interface BankFormDialogProps {
     initial_balance: number;
     color: string;
     is_active: boolean;
-    is_caixa_geral: boolean;
+    is_invisible: boolean;
   }) => void;
   isLoading?: boolean;
 }
