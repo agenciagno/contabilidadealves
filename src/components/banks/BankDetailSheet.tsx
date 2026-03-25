@@ -72,6 +72,7 @@ export function BankDetailSheet({ bank, open, onOpenChange }: BankDetailSheetPro
   const [endDate, setEndDate] = useState(todayStr);
   const [contactId, setContactId] = useState<string>('all');
   const [categoryId, setCategoryId] = useState<string>('all');
+  const [reportOpen, setReportOpen] = useState(false);
 
   const banks = bank ? [{ id: bank.id, initial_balance: bank.initial_balance, is_active: bank.is_active }] : [];
 
