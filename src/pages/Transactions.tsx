@@ -582,6 +582,17 @@ export default function Transactions() {
   const [sortField, setSortField] = useState<SortField>('due_date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
+  // Keep useTransactions for mutations only
+  const {
+    createTransaction, updateTransaction, deleteTransaction,
+    togglePaid, bulkTogglePaid, bulkCreateTransactions
+  } = useTransactions();
+
+  const { categories, createCategory } = useCategories();
+  const { banks, createBank } = useBanks();
+  const { contacts, createContact } = useContacts();
+  const { uploadAttachment } = useTransactionAttachments();
+
   // Build server filters object
   const invisibleBankIds = useMemo(() => banks.filter(b => b.is_invisible).map(b => b.id), [banks]);
 
@@ -606,17 +617,6 @@ export default function Transactions() {
 
   // Independent KPIs (no pagination)
   const { kpis } = useTransactionKPIs(serverFilters);
-
-  // Keep useTransactions for mutations only
-  const {
-    createTransaction, updateTransaction, deleteTransaction,
-    togglePaid, bulkTogglePaid, bulkCreateTransactions
-  } = useTransactions();
-
-  const { categories, createCategory } = useCategories();
-  const { banks, createBank } = useBanks();
-  const { contacts, createContact } = useContacts();
-  const { uploadAttachment } = useTransactionAttachments();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'edit' | 'settle'>('edit');
