@@ -1179,7 +1179,7 @@ export default function Transactions() {
         onImport={async (txns) => { await bulkCreateTransactions.mutateAsync(txns); }}
         onCreateCategory={async (name, type) => { const data = await createCategory.mutateAsync({ name, type, color: '#3B82F6', icon: 'tag' }); return { id: data.id }; }}
         onCreateContact={async (name) => { const data = await createContact.mutateAsync({ name, type: 'cliente', is_active: true, boleto_active: false, document: null, email: null, phone: null, cep: null, address: null, address_number: null, neighborhood: null, city: null, state: null, notes: null, tax_regime: null, representative_legal: null, boleto_value: null, boleto_due_day: null, boleto_start_date: null, origin: 'imported' }); return { id: data.id }; }}
-        onCreateBank={async (name) => { const data = await createBank.mutateAsync({ name, initial_balance: 0, color: '#10B981', is_active: true, is_caixa_geral: false, bank_code: null, agency: null, account_number: null }); return { id: data.id }; }}
+        onCreateBank={async (name) => { const data = await createBank.mutateAsync({ name, initial_balance: 0, color: '#10B981', is_active: true, is_invisible: false, bank_code: null, agency: null, account_number: null }); return { id: data.id }; }}
       />
 
       <BulkEditDialog

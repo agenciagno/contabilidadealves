@@ -103,6 +103,7 @@ export default function Banks() {
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">{bank.name}</h3>
+                  {bank.is_invisible && <Badge variant="destructive" className="text-xs">Invisível</Badge>}
                   {!bank.is_active && <Badge variant="secondary" className="text-xs">Inativa</Badge>}
                 </div>
                 {(bank.bank_code || bank.agency || bank.account_number) &&

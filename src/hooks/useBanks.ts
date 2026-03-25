@@ -19,7 +19,7 @@ export interface Bank {
   updated_at: string;
 }
 
-export type BankInsert = Omit<Bank, 'id' | 'created_at' | 'updated_at' | 'current_balance'> & { is_caixa_geral?: boolean };
+export type BankInsert = Omit<Bank, 'id' | 'created_at' | 'updated_at' | 'current_balance'> & { is_invisible?: boolean };
 export type BankUpdate = Partial<Omit<Bank, 'id' | 'company_id' | 'created_at' | 'updated_at'>>;
 
 export function useBanks() {

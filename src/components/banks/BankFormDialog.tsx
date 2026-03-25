@@ -138,12 +138,12 @@ export function BankFormDialog({ open, onOpenChange, bank, onSubmit, isLoading }
 
           <div className="flex items-center space-x-2">
             <Checkbox
-              id="is_caixa_geral"
+              id="is_invisible"
               checked={isCaixaGeral}
               onCheckedChange={(checked) => setIsCaixaGeral(!!checked)}
             />
-            <Label htmlFor="is_caixa_geral" className="cursor-pointer">
-              Marcar como Caixa Geral
+            <Label htmlFor="is_invisible" className="cursor-pointer">
+              Banco Invisível
             </Label>
           </div>
 
