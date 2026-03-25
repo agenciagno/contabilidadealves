@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Building2, TrendingUp, TrendingDown, Calendar } from 'lucide-react';
+import { Building2, TrendingUp, TrendingDown, Calendar, FileBarChart2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { BankReportModal } from './BankReportModal';
 import { Bank } from '@/hooks/useBanks';
 import { useContacts } from '@/hooks/useContacts';
 import { useCategories } from '@/hooks/useCategories';
