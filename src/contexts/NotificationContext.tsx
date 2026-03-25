@@ -198,7 +198,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
 
     return notifications;
-  }, [transactions, banks, readIds]);
+  }, [filteredTransactions, banks, readIds]);
 
   // Combine all notifications
   const notifications = useMemo(() => {
