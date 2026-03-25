@@ -583,15 +583,18 @@ export default function Transactions() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
   // Build server filters object
+  const invisibleBankIds = useMemo(() => banks.filter(b => b.is_invisible).map(b => b.id), [banks]);
+
   const serverFilters: ServerFilters = useMemo(() => ({
     type: typeFilter,
     categoryIds: categoryFilters.length > 0 ? categoryFilters : undefined,
     bankId: bankFilter,
     searchTerm: searchTerm || undefined,
+    invisibleBankIds: invisibleBankIds.length > 0 ? invisibleBankIds : undefined,
     columnFilters,
     sortField,
     sortOrder,
-  }), [typeFilter, categoryFilters, bankFilter, searchTerm, columnFilters, sortField, sortOrder]);
+  }), [typeFilter, categoryFilters, bankFilter, searchTerm, invisibleBankIds, columnFilters, sortField, sortOrder]);
 
   // Reset page when filters change
   useEffect(() => {
