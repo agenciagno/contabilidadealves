@@ -38,6 +38,7 @@ interface SimpleTransaction {
   due_date: string | null;
   is_paid: boolean;
   contact_id: string | null;
+  bank_id: string | null;
   type: string;
   contact?: { id: string; name: string } | null;
 }
