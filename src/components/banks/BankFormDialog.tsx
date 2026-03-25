@@ -44,7 +44,7 @@ export function BankFormDialog({ open, onOpenChange, bank, onSubmit, isLoading }
       setAccountNumber(bank.account_number || '');
       setInitialBalance(formatCurrencyInput((bank.initial_balance * 100).toString()));
       setIsActive(bank.is_active);
-      setIsCaixaGeral(bank.is_caixa_geral || false);
+      setIsCaixaGeral(bank.is_invisible || false);
     } else {
       setName('');
       setBankCode('');
