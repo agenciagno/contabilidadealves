@@ -26,7 +26,7 @@ export type Database = {
           id: string
           initial_balance: number
           is_active: boolean
-          is_caixa_geral: boolean | null
+          is_invisible: boolean | null
           name: string
           updated_at: string
         }
@@ -41,7 +41,7 @@ export type Database = {
           id?: string
           initial_balance?: number
           is_active?: boolean
-          is_caixa_geral?: boolean | null
+          is_invisible?: boolean | null
           name: string
           updated_at?: string
         }
@@ -56,7 +56,7 @@ export type Database = {
           id?: string
           initial_balance?: number
           is_active?: boolean
-          is_caixa_geral?: boolean | null
+          is_invisible?: boolean | null
           name?: string
           updated_at?: string
         }

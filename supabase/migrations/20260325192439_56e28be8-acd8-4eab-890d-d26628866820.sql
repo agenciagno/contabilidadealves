@@ -1,0 +1,1 @@
+ALTER TABLE public.banks RENAME COLUMN is_caixa_geral TO is_invisible;
