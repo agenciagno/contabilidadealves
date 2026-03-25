@@ -1,0 +1,1 @@
+ALTER TABLE public.categories ADD COLUMN parent_id uuid NULL REFERENCES public.categories(id) ON DELETE SET NULL;
