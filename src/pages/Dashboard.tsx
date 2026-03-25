@@ -97,14 +97,14 @@ export default function Dashboard() {
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const { transactions: rawTransactions, isLoading: loadingTransactions, createTransaction } = useTransactions();
-  
-  // Filter out transactions linked to invisible banks
-  const invisibleBankIds = useMemo(() => new Set(banks.filter(b => b.is_invisible).map(b => b.id)), [banks]);
-  const allTransactions = useMemo(() => rawTransactions.filter(t => !t.bank_id || !invisibleBankIds.has(t.bank_id)), [rawTransactions, invisibleBankIds]);
   const { banks, isLoading: loadingBanks, createBank } = useBanks();
   const { recurringTransactions } = useRecurringTransactions();
   const { contacts, createContact } = useContacts();
   const { categories, createCategory } = useCategories();
+
+  // Filter out transactions linked to invisible banks
+  const invisibleBankIds = useMemo(() => new Set(banks.filter(b => b.is_invisible).map(b => b.id)), [banks]);
+  const allTransactions = useMemo(() => rawTransactions.filter(t => !t.bank_id || !invisibleBankIds.has(t.bank_id)), [rawTransactions, invisibleBankIds]);
 
   // Get date range for filtering
   const getDateRange = (): { start: Date; end: Date } | null => {
