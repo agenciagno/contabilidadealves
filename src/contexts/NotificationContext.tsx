@@ -117,7 +117,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     // Inadimplência notifications - group by contact
     const overdueByContact = new Map<string, { name: string; count: number; oldestDate: string }>();
     
-    transactions.forEach((t) => {
+    filteredTransactions.forEach((t) => {
       if (!t.due_date || !t.contact_id || t.due_date >= todayStr) return;
       
       const existing = overdueByContact.get(t.contact_id);
