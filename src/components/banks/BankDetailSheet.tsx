@@ -263,5 +263,13 @@ export function BankDetailSheet({ bank, open, onOpenChange }: BankDetailSheetPro
         </div>
       </SheetContent>
     </Sheet>
+
+    <BankReportModal
+      open={reportOpen}
+      onOpenChange={setReportOpen}
+      banks={[bank]}
+    />
+    </>
   );
 }
+
