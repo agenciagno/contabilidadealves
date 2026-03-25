@@ -1,46 +1,45 @@
 
 
-## Plano: Implementar "Limpeza de Dados (Hard Reset)" na aba Backup
+## Plano: Implementar "Banco Invisível" para Antecipação de Títulos
 
 ### Resumo
 
-Adicionar uma seção de "Limpeza de Sistema / Reset" dentro do componente `BackupTab.tsx`, com checkboxes para selecionar módulos, modal de confirmação com backup integrado e campo de digitação "CONFIRMAR".
+Renomear `is_caixa_geral` para `is_invisible` na tabela `banks`, atualizar o modal de banco, isolar saldo de bancos invisíveis do total global, adicionar badge visual nos cards, e filtrar transações de bancos invisíveis de todas as queries globais (exceto extrato individual).
 
 ### Mudanças
 
-| # | Arquivo | Mudança |
+| # | Arquivo / Recurso | Mudança |
 |---|---|---|
-| 1 | `src/components/settings/BackupTab.tsx` | Adicionar seção completa de Hard Reset com checkboxes, modal e lógica de exclusão |
+| 1 | **Migration SQL** | Renomear coluna `is_caixa_geral` → `is_invisible` com `ALTER TABLE banks RENAME COLUMN` |
+| 2 | `src/hooks/useBanks.ts` | Renomear `is_caixa_geral` → `is_invisible` na interface `Bank` e tipos derivados |
+| 3 | `src/components/banks/BankFormDialog.tsx` | Trocar label de "Marcar como Caixa Geral" para "Banco Invisível" e usar `is_invisible` |
+| 4 | `src/pages/Banks.tsx` | (a) Excluir bancos `is_invisible` do cálculo de saldo total; (b) Adicionar badge vermelha "Invisível" nos cards de bancos marcados; (c) Atualizar `handleSubmit` para `is_invisible` |
+| 5 | `src/hooks/useServerTransactions.ts` | Adicionar `invisibleBankIds` ao `ServerFilters`; no `applyFilters`, quando `bankId` não for específico, excluir transações com `bank_id` em bancos invisíveis via `.not('bank_id', 'in', (...))` |
+| 6 | `src/hooks/useTransactions.ts` | Receber lista de `invisibleBankIds` e filtrar transações de bancos invisíveis na query |
+| 7 | `src/hooks/useReportData.ts` | Excluir transações de bancos invisíveis da query de relatórios |
+| 8 | `src/hooks/useCashFlowForecast.ts` | Excluir bancos invisíveis do `currentBalance` e transações pendentes |
+| 9 | `src/components/banks/UnifiedStatementAccordion.tsx` | No extrato unificado, excluir bancos invisíveis |
+| 10 | `src/hooks/useBankTransactions.ts` | No modo `bankId: 'all'`, excluir bancos invisíveis do `activeBankIds` |
+| 11 | `src/pages/Transactions.tsx` | Atualizar ref a `is_caixa_geral` → `is_invisible` |
+| 12 | `src/pages/Dashboard.tsx` | Atualizar ref a `is_caixa_geral` → `is_invisible` |
+| 13 | `src/contexts/NotificationContext.tsx` | Excluir transações de bancos invisíveis das notificações de inadimplência |
 
 ### Detalhes técnicos
 
-**UI — Seção de Limpeza** (abaixo dos cards de Export/Restore existentes):
-- Card com ícone vermelho e título "Limpeza de Sistema / Reset"
-- 5 checkboxes (todos marcados por padrão): Conta Corrente/Bancos, Eventos Contábeis, Boletos, Transações, Clientes
-- Botão vermelho "Apagar Dados Selecionados"
-
-**Modal de Alerta Crítico**:
-- `AlertDialog` com aviso de operação irreversível
-- Botão "Baixar Backup Antes de Apagar" que chama `handleExport` (já existente)
-- Input onde o usuário deve digitar "CONFIRMAR" para desbloquear o botão final
-- Botão "Executar Exclusão Definitiva" (desabilitado até digitar CONFIRMAR)
-
-**Lógica de Exclusão** — Ordem estrita respeitando FKs, condicional aos checkboxes:
-
-```text
-Se Transações   → DELETE transaction_attachments
-Se Clientes     → DELETE contact_documents, contact_partners, contact_notes, contact_messages, contact_logs
-Se Boletos      → DELETE boleto_controls
-Se Transações   → DELETE global_logs, transactions (sem filtro de deleted_at)
-Se Clientes     → DELETE contacts
-Se Eventos      → DELETE categories
-Se Transações   → DELETE recurring_transactions
-Se Bancos       → DELETE banks
+**Migration:**
+```sql
+ALTER TABLE public.banks RENAME COLUMN is_caixa_geral TO is_invisible;
 ```
 
-Cada DELETE usa `supabase.from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000')` (workaround para deletar todos os registros via SDK).
+**Estratégia de filtragem global:** Criar um hook utilitário ou exportar uma função que retorna os IDs dos bancos invisíveis a partir do cache de `useBanks`. Nas queries que já usam `useBanks` (maioria), filtrar com:
+```typescript
+const invisibleIds = banks.filter(b => b.is_invisible).map(b => b.id);
+// Na query: .not('bank_id', 'in', `(${invisibleIds.join(',')})`)
+```
 
-**Pós-exclusão**: toast de sucesso + `queryClient.invalidateQueries()` + `window.location.reload()`.
+**Exceção — Extrato Individual:** O `BankDetailSheet` já chama `useBankTransactions` com `bankId` específico (não `'all'`), então automaticamente busca apenas transações daquele banco. Nenhuma alteração necessária nesse componente.
 
-**Proteção**: tabelas `companies`, `profiles`, `user_roles` nunca são tocadas.
+**Saldo Total (Banks.tsx):** Filtrar `activeBankIds` passado ao `useBankTransactions` removendo os invisíveis, e ajustar o `baseBalance` para não somar `initial_balance` de bancos invisíveis.
+
+**Badge visual:** No `BankCard`, se `bank.is_invisible`, renderizar `<Badge variant="destructive">Invisível</Badge>` ao lado do nome.
 
