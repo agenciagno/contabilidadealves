@@ -13,6 +13,7 @@ interface ReportFilters {
   transactionType?: string;
   contactId?: string;
   paymentStatus?: string;
+  invisibleBankIds?: string[];
 }
 
 export interface ReportTransaction {
