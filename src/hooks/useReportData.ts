@@ -71,6 +71,10 @@ export function useReportData(filters: ReportFilters) {
       if (filters.paymentStatus && filters.paymentStatus !== 'all') {
         query = query.eq('is_paid', filters.paymentStatus === 'paid');
       }
+      // Exclude invisible bank transactions
+      if (filters.invisibleBankIds && filters.invisibleBankIds.length > 0) {
+        query = query.not('bank_id', 'in', `(${filters.invisibleBankIds.join(',')})`);
+      }
 
       const { data, error } = await query;
       if (error) throw error;
