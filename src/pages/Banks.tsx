@@ -43,7 +43,7 @@ export default function Banks() {
     initial_balance: number;
     color: string;
     is_active: boolean;
-    is_caixa_geral: boolean;
+    is_invisible: boolean;
   }) => {
     if (editingBank) {
       updateBank.mutate({ id: editingBank.id, ...data }, {
