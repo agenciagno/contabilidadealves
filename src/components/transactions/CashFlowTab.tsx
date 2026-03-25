@@ -448,7 +448,7 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
   };
 
   // Active banks total
-  const activeBanks = useMemo(() => banks.filter(b => b.is_active), [banks]);
+  const activeBanks = useMemo(() => banks.filter(b => b.is_active && !b.is_invisible), [banks]);
   const totalBankBalance = useMemo(() => activeBanks.reduce((s, b) => s + Number(b.current_balance), 0), [activeBanks]);
 
   // Unique options for filters

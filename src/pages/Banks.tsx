@@ -247,7 +247,7 @@ export default function Banks() {
       <BankReportModal
         open={reportOpen}
         onOpenChange={setReportOpen}
-        banks={banks} />
+        banks={banks.filter(b => !b.is_invisible)} />
       
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>

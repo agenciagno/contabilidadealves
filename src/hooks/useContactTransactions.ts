@@ -10,6 +10,7 @@ export interface ContactTransaction {
   date: string;
   due_date: string | null;
   is_paid: boolean;
+  bank_id: string | null;
   category: { id: string; name: string; color: string | null } | null;
   bank: { id: string; name: string } | null;
 }
