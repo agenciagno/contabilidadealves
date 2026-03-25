@@ -48,6 +48,7 @@ const App = () => (
               <Route path="/crm/cliente/:id" element={<AppLayout><ContactProfile /></AppLayout>} />
               <Route path="/bancos" element={<AppLayout><Banks /></AppLayout>} />
               <Route path="/categorias" element={<AppLayout><Categories /></AppLayout>} />
+              <Route path="/dre" element={<AppLayout><DRE /></AppLayout>} />
               
               <Route path="/configuracoes" element={<AppLayout><SettingsPage /></AppLayout>} />
               <Route path="/disparos" element={<AppLayout><CrmDispatches /></AppLayout>} />

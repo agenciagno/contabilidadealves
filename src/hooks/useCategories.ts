@@ -9,6 +9,7 @@ export interface Category {
   type: 'receita' | 'despesa';
   color: string;
   icon: string;
+  parent_id: string | null;
   created_at: string;
   updated_at: string;
 }
