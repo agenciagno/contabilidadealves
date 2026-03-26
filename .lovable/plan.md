@@ -1,56 +1,43 @@
 
 
-## Plano: Estruturação da Área DRE + Hierarquia de Eventos Contábeis
+## Plano: Corrigir filtro de banco invisível que oculta transações pendentes
 
-### Mudanças
+### Causa raiz
 
-| # | Recurso | Mudança |
+Os dados estão intactos no banco (2249 pendentes, 0 deletadas). O problema foi introduzido na implementação do "Banco Invisível": o filtro `.not('bank_id', 'in', '(uuid)')` gera `bank_id NOT IN (...)` em SQL. Em PostgreSQL, quando `bank_id` é `NULL`, essa expressão retorna `NULL` (não `TRUE`), excluindo silenciosamente todas as 2249 transações sem banco vinculado.
+
+### Correção
+
+Substituir `.not('bank_id', 'in', ...)` por `.or('bank_id.is.null,...')` em 4 arquivos:
+
+| # | Arquivo | Linha |
 |---|---|---|
-| 1 | **Migration SQL** | Adicionar coluna `parent_id UUID NULL` na tabela `categories` com FK self-referencing |
-| 2 | `src/pages/DRE.tsx` | Nova página placeholder com cabeçalho "DRE - Demonstração do Resultado do Exercício" |
-| 3 | `src/App.tsx` | Adicionar rota `/dre` com import da página |
-| 4 | `src/components/layout/AppSidebar.tsx` | Adicionar item "DRE" no módulo Financeiro (ícone `FileBarChart`, após Eventos Contábeis) |
-| 5 | `src/hooks/useCategories.ts` | Adicionar `parent_id: string \| null` à interface `Category`; incluir no `CategoryInsert`/`CategoryUpdate` |
-| 6 | `src/components/categories/CategoryFormDialog.tsx` | Adicionar dropdown "Pertence a qual Evento Macro?" listando apenas categorias com `parent_id IS NULL` do mesmo tipo; salvar `parent_id` |
-| 7 | `src/pages/Categories.tsx` | Exibir hierarquia visual: agrupar sub eventos sob seus macros com indentação e label do macro pai |
+| 1 | `src/hooks/useServerTransactions.ts` | L103 |
+| 2 | `src/hooks/useReportData.ts` | L76 |
+| 3 | `src/hooks/useCashFlowForecast.ts` | L89 |
+| 4 | `src/hooks/useContactTransactions.ts` | L44 |
 
-### Detalhes técnicos
+### Lógica corrigida (mesmo padrão nos 4 arquivos)
 
-**Migration:**
-```sql
-ALTER TABLE public.categories
-ADD COLUMN parent_id uuid NULL
-REFERENCES public.categories(id) ON DELETE SET NULL;
-```
-
-**CategoryFormDialog — Dropdown de Macro:**
-- Receber `categories` (todas) como nova prop
-- Filtrar macros: `categories.filter(c => !c.parent_id && c.type === type)`
-- Excluir a própria categoria sendo editada (evitar self-reference)
-- Se nada selecionado → `parent_id: null` (é um Macro)
-
-**Categories.tsx — Visualização hierárquica:**
-- Separar macros (`parent_id === null`) e subs (`parent_id !== null`)
-- Renderizar macros primeiro; abaixo de cada macro, renderizar seus subs com indentação (`pl-12`) e prefixo visual `↳` + nome do macro em cinza
-- Subs órfãos (sem macro válido) aparecem no final da lista
-
-**DRE.tsx — Página placeholder:**
-```tsx
-export default function DRE() {
-  return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">DRE - Demonstração do Resultado do Exercício</h1>
-      <Card><CardContent className="p-12 text-center text-muted-foreground">
-        Em construção...
-      </CardContent></Card>
-    </div>
-  );
-}
-```
-
-**Sidebar — Novo item:**
+De:
 ```typescript
-{ title: 'DRE', url: '/dre', icon: FileBarChart, iconName: 'file-bar-chart' }
+query = query.not('bank_id', 'in', `(${invisibleBankIds.join(',')})`);
 ```
-Posicionado após "Eventos Contábeis" no array de items do módulo Financeiro.
+
+Para:
+```typescript
+query = query.or(`bank_id.is.null,${invisibleBankIds.map(id => `bank_id.neq.${id}`).join(',')}`);
+```
+
+Ou, de forma mais limpa usando a sintaxe `not.in` combinada com `or` para preservar NULLs:
+```typescript
+// Exclude invisible banks but keep bank_id IS NULL
+const notInFilter = invisibleBankIds.map(id => `bank_id.neq.${id}`).join(',');
+query = query.or(`bank_id.is.null,and(${notInFilter})`);
+```
+
+### Impacto
+- 4 arquivos editados, mesma correção aplicada
+- 0 migrations
+- As 2249 transações pendentes voltarão a aparecer imediatamente
 
