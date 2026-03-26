@@ -41,7 +41,8 @@ export function useContactTransactions(contactId: string | undefined, invisibleB
 
       // Exclude transactions from invisible banks
       if (invisibleBankIds && invisibleBankIds.length > 0) {
-        query = query.not('bank_id', 'in', `(${invisibleBankIds.join(',')})`);
+        const notInFilter = invisibleBankIds.map(id => `bank_id.neq.${id}`).join(',');
+        query = query.or(`bank_id.is.null,and(${notInFilter})`);
       }
 
       const { data, error } = await query.order('date', { ascending: false });
