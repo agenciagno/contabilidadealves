@@ -504,6 +504,36 @@ export type Database = {
           },
         ]
       }
+      dre_budgets: {
+        Row: {
+          budget_value: number
+          category_id: string
+          company_id: string
+          created_at: string
+          id: string
+          month_year: string
+          updated_at: string
+        }
+        Insert: {
+          budget_value?: number
+          category_id: string
+          company_id: string
+          created_at?: string
+          id?: string
+          month_year: string
+          updated_at?: string
+        }
+        Update: {
+          budget_value?: number
+          category_id?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          month_year?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       global_logs: {
         Row: {
           action: string
