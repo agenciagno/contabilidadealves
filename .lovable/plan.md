@@ -1,105 +1,79 @@
 
 
-## Plano: Construir Interface e Lógica Completa da Tela DRE
+## Plano: Refatorar DRE com Date Range Picker e lógica baseada em transações reais
+
+### Resumo
+
+Substituir o seletor de mês/ano por um filtro de período (Data Inicial / Data Final) idêntico ao da aba Pagar/Receber. Mudar completamente a lógica das colunas: **Previsto** passa a somar transações pendentes filtradas por `expected_date`, e **Realizado** soma transações pagas filtradas por `date` (data pagamento). Remover a dependência da tabela `dre_budgets` e o inline editing.
 
 ### Mudanças
 
-| # | Recurso | Mudança |
+| # | Arquivo | Mudança |
 |---|---|---|
-| 1 | **Migration SQL** | Criar tabela `dre_budgets` com RLS policies |
-| 2 | `src/hooks/useDREData.ts` | Novo hook: busca categories, transações pagas do mês, e budgets; calcula roll-up |
-| 3 | `src/pages/DRE.tsx` | Reescrever com seletor de mês/ano, tabela acordeão com 3 colunas, inline editing |
-
-### 1. Migration — Tabela `dre_budgets`
-
-```sql
-CREATE TABLE public.dre_budgets (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  company_id uuid NOT NULL,
-  category_id uuid NOT NULL,
-  month_year text NOT NULL,          -- formato 'YYYY-MM'
-  budget_value numeric NOT NULL DEFAULT 0,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (company_id, category_id, month_year)
-);
-
-ALTER TABLE public.dre_budgets ENABLE ROW LEVEL SECURITY;
-
--- RLS (mesma lógica das demais tabelas)
-CREATE POLICY "Users can view budgets" ON public.dre_budgets
-  FOR SELECT USING (company_id = get_user_company_id(auth.uid()) OR is_super_admin(auth.uid()));
-CREATE POLICY "Users can create budgets" ON public.dre_budgets
-  FOR INSERT WITH CHECK (company_id = get_user_company_id(auth.uid()) OR is_super_admin(auth.uid()));
-CREATE POLICY "Users can update budgets" ON public.dre_budgets
-  FOR UPDATE USING (company_id = get_user_company_id(auth.uid()) OR is_super_admin(auth.uid()));
-CREATE POLICY "Users can delete budgets" ON public.dre_budgets
-  FOR DELETE USING (company_id = get_user_company_id(auth.uid()) OR is_super_admin(auth.uid()));
-```
-
-### 2. Hook `useDREData.ts`
-
-- **Parâmetro**: `monthYear` (string `'YYYY-MM'`)
-- **Queries paralelas**:
-  - `categories` (já existe via `useCategories`)
-  - `transactions` filtradas: `is_paid = true`, `deleted_at IS NULL`, `date` dentro do mês, excluindo bancos invisíveis
-  - `dre_budgets` filtradas pelo `month_year`
-- **Cálculo client-side**:
-  - Para cada sub evento: `realizado` = soma transações com `category_id` = sub evento id; `previsto` = valor do budget
-  - Para cada macro: `realizado` = soma dos sub eventos; `previsto` = soma dos budgets dos sub eventos
-  - `RXP` = `realizado - previsto`
-- **Mutation**: `upsertBudget` — faz upsert na `dre_budgets` (ON CONFLICT company_id, category_id, month_year)
-
-### 3. Página `DRE.tsx`
-
-**Layout**:
-- Header com titulo + seletor de Mês/Ano (popover com mês e ano)
-- Tabela com colunas: `Evento Contábil | Previsto (R$) | Realizado (R$) | RXP (R$)`
-- Seções separadas: **Receitas** e **Despesas**
-
-**Acordeão (TreeTable)**:
-- Linhas macro com `ChevronRight` que rotaciona ao expandir
-- Ao expandir, sub eventos aparecem indentados com `pl-8`
-- Linha macro exibe totais roll-up (soma dos filhos)
-- Macros sem filhos exibem seus próprios valores diretos
-
-**Inline Editing (coluna Previsto)**:
-- Clique no valor "Previsto" de um sub evento → transforma em `<Input type="number">`
-- onBlur ou Enter → chama `upsertBudget` e salva
-- Macros NÃO são editáveis (são roll-up)
-
-**Cores**:
-- RXP positivo → verde (`text-emerald-500`)
-- RXP negativo → vermelho (`text-red-500`)
-- RXP zero → cinza
-
-**Rodapé da tabela**:
-- Linha "RESULTADO LÍQUIDO" = Total Receitas Realizado - Total Despesas Realizado
+| 1 | `src/hooks/useDREData.ts` | Refatorar para receber `startDate`/`endDate` em vez de `monthYear`; criar 2 queries separadas (previsto + realizado); remover budgets |
+| 2 | `src/pages/DRE.tsx` | Substituir MonthYearPicker por date range inputs; remover InlineEdit; ajustar props |
+| 3 | `src/hooks/useTransactions.ts` | Adicionar invalidação de `dre-previsto` e `dre-realizado` nos onSuccess de create/update/delete |
+| 4 | `src/components/transactions/BulkEditDialog.tsx` | Adicionar invalidação das queries DRE |
 
 ### Detalhes técnicos
 
-**Query de transações para o mês:**
+**1. useDREData.ts — Nova lógica de queries**
+
+Parâmetros: `startDate: string, endDate: string` (formato `yyyy-MM-dd`)
+
+**Query "Previsto"** (`dre-previsto`):
 ```typescript
-const startDate = `${monthYear}-01`;
-const endDate = last day of month;
+supabase.from('transactions')
+  .select('category_id, amount, type')
+  .is('deleted_at', null)
+  .eq('is_paid', false)              // status pendente/vencido = não pago
+  .not('expected_date', 'is', null)  // expected_date obrigatório
+  .gte('expected_date', startDate)
+  .lte('expected_date', endDate)
+  // + filtro banco invisível
+```
+
+**Query "Realizado"** (`dre-realizado`):
+```typescript
 supabase.from('transactions')
   .select('category_id, paid_amount, amount, type')
   .is('deleted_at', null)
-  .eq('is_paid', true)
+  .eq('is_paid', true)               // status pago/recebido
+  .not('date', 'is', null)           // data pagamento obrigatória
   .gte('date', startDate)
   .lte('date', endDate)
   // + filtro banco invisível
 ```
 
-**Upsert budget:**
+**Cálculo client-side (sem mudança na estrutura DRERow):**
+- Sub evento: `previsto` = soma `amount` das transações pendentes com `category_id` matching; `realizado` = soma `paid_amount ?? amount` das pagas
+- Macro: roll-up (soma dos filhos)
+- RXP = `realizado - previsto`
+- Remover toda lógica de `dre_budgets`, `upsertBudget`
+
+**2. DRE.tsx — Novo filtro de período**
+
+Substituir `MonthYearPicker` por dois `<Input type="date">` com o mesmo design do CashFlowTab:
+```
+[CalendarDays icon] [Data Inicial] até [Data Final] [X limpar]
+```
+Default: primeiro dia do mês atual → último dia do mês atual.
+
+Remover componente `InlineEdit` e `MonthYearPicker`.
+Coluna "Previsto" agora exibe apenas `formatCurrency(row.previsto)` (não editável).
+
+**3. Invalidação de cache (reatividade)**
+
+Nos `onSuccess` de `useTransactions.ts` (create, update, delete, togglePaid) e `BulkEditDialog.tsx`, adicionar:
 ```typescript
-supabase.from('dre_budgets')
-  .upsert({ company_id, category_id, month_year, budget_value }, 
-    { onConflict: 'company_id,category_id,month_year' })
+queryClient.invalidateQueries({ queryKey: ['dre-previsto'] });
+queryClient.invalidateQueries({ queryKey: ['dre-realizado'] });
 ```
 
+Isso garante que qualquer alteração em transações (incluindo mudança de `expected_date`, `date`, ou `is_paid`) reflita automaticamente na DRE.
+
 ### Resumo
-- 1 migration (nova tabela + RLS)
-- 2 arquivos criados/reescritos
-- 0 arquivos existentes impactados
+- 4 arquivos editados
+- 0 migrations
+- Tabela `dre_budgets` permanece no banco (sem migration de remoção) mas deixa de ser consultada
 
