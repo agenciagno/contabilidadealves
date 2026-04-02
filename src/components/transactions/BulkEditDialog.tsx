@@ -60,6 +60,8 @@ export function BulkEditDialog({
       queryClient.invalidateQueries({ queryKey: ['transaction-kpis'] });
       queryClient.invalidateQueries({ queryKey: ['banks'] });
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['dre-previsto'] });
+      queryClient.invalidateQueries({ queryKey: ['dre-realizado'] });
       handleOpenChange(false);
       onSuccess();
     } catch (err: any) {

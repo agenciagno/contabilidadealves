@@ -295,6 +295,8 @@ export function useTransactions() {
       queryClient.invalidateQueries({ queryKey: ['bank-transactions-period'] });
       queryClient.invalidateQueries({ queryKey: ['banks'] });
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['dre-previsto'] });
+      queryClient.invalidateQueries({ queryKey: ['dre-realizado'] });
     },
     onError: (error: Error) => {
       if (error.message.startsWith('BULK_BLOCKED:')) {
