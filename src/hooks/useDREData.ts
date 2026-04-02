@@ -1,9 +1,7 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useCategories, Category } from '@/hooks/useCategories';
 import { useBanks } from '@/hooks/useBanks';
-import { useToast } from '@/hooks/use-toast';
-import { format, lastDayOfMonth, parse } from 'date-fns';
 
 export interface DRERow {
   id: string;
@@ -17,9 +15,7 @@ export interface DRERow {
   isMacro: boolean;
 }
 
-export function useDREData(monthYear: string) {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
+export function useDREData(startDate: string, endDate: string) {
   const { categories } = useCategories();
   const { banks } = useBanks();
 
@@ -27,49 +23,56 @@ export function useDREData(monthYear: string) {
     .filter(b => b.is_invisible)
     .map(b => b.id);
 
-  const startDate = `${monthYear}-01`;
-  const endDate = format(
-    lastDayOfMonth(parse(`${monthYear}-01`, 'yyyy-MM-dd', new Date())),
-    'yyyy-MM-dd'
-  );
+  const buildInvisibleFilter = (query: any) => {
+    if (invisibleBankIds.length > 0) {
+      const notInFilter = invisibleBankIds.map(id => `bank_id.neq.${id}`).join(',');
+      return query.or(`bank_id.is.null,and(${notInFilter})`);
+    }
+    return query;
+  };
 
-  // Fetch paid transactions for the month
-  const { data: transactions = [] } = useQuery({
-    queryKey: ['dre-transactions', monthYear, invisibleBankIds],
+  // Query "Previsto": pending transactions with expected_date in range
+  const { data: previstoTxns = [] } = useQuery({
+    queryKey: ['dre-previsto', startDate, endDate, invisibleBankIds],
+    queryFn: async () => {
+      let query = supabase
+        .from('transactions')
+        .select('category_id, amount, type')
+        .is('deleted_at', null)
+        .eq('is_paid', false)
+        .not('expected_date', 'is', null)
+        .gte('expected_date', startDate)
+        .lte('expected_date', endDate);
+
+      query = buildInvisibleFilter(query);
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!startDate && !!endDate,
+  });
+
+  // Query "Realizado": paid transactions with date (payment date) in range
+  const { data: realizadoTxns = [] } = useQuery({
+    queryKey: ['dre-realizado', startDate, endDate, invisibleBankIds],
     queryFn: async () => {
       let query = supabase
         .from('transactions')
         .select('category_id, paid_amount, amount, type')
         .is('deleted_at', null)
         .eq('is_paid', true)
+        .not('date', 'is', null)
         .gte('date', startDate)
         .lte('date', endDate);
 
-      if (invisibleBankIds.length > 0) {
-        const notInFilter = invisibleBankIds.map(id => `bank_id.neq.${id}`).join(',');
-        query = query.or(`bank_id.is.null,and(${notInFilter})`);
-      }
+      query = buildInvisibleFilter(query);
 
       const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
-    enabled: !!monthYear,
-  });
-
-  // Fetch budgets for the month
-  const { data: budgets = [] } = useQuery({
-    queryKey: ['dre-budgets', monthYear],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('dre_budgets')
-        .select('*')
-        .eq('month_year', monthYear);
-
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!monthYear,
+    enabled: !!startDate && !!endDate,
   });
 
   // Build DRE tree
@@ -96,12 +99,13 @@ export function useDREData(monthYear: string) {
       }
 
       // Leaf node
-      const realizado = transactions
+      const previsto = previstoTxns
+        .filter(t => t.category_id === cat.id)
+        .reduce((s, t) => s + Number(t.amount), 0);
+
+      const realizado = realizadoTxns
         .filter(t => t.category_id === cat.id)
         .reduce((s, t) => s + Number(t.paid_amount ?? t.amount), 0);
-
-      const budget = budgets.find(b => b.category_id === cat.id);
-      const previsto = budget ? Number(budget.budget_value) : 0;
 
       return {
         id: cat.id,
@@ -121,18 +125,19 @@ export function useDREData(monthYear: string) {
       return buildRow(macro, children);
     });
 
-    // Macros without children: treat as leaf (own transactions + budget)
+    // Macros without children: treat as leaf
     rows.forEach(row => {
       if (row.children.length === 0) {
-        const realizado = transactions
+        const previsto = previstoTxns
+          .filter(t => t.category_id === row.id)
+          .reduce((s, t) => s + Number(t.amount), 0);
+        const realizado = realizadoTxns
           .filter(t => t.category_id === row.id)
           .reduce((s, t) => s + Number(t.paid_amount ?? t.amount), 0);
-        const budget = budgets.find(b => b.category_id === row.id);
-        const previsto = budget ? Number(budget.budget_value) : 0;
-        row.realizado = realizado;
         row.previsto = previsto;
+        row.realizado = realizado;
         row.rxp = realizado - previsto;
-        row.isMacro = false; // editable since no children
+        row.isMacro = false;
       }
     });
 
@@ -143,42 +148,6 @@ export function useDREData(monthYear: string) {
   };
 
   const dreData = buildDRETree();
-
-  // Upsert budget mutation
-  const upsertBudget = useMutation({
-    mutationFn: async ({ categoryId, value }: { categoryId: string; value: number }) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Não autenticado');
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('company_id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!profile) throw new Error('Perfil não encontrado');
-
-      const { error } = await supabase
-        .from('dre_budgets')
-        .upsert(
-          {
-            company_id: profile.company_id,
-            category_id: categoryId,
-            month_year: monthYear,
-            budget_value: value,
-          },
-          { onConflict: 'company_id,category_id,month_year' }
-        );
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['dre-budgets', monthYear] });
-    },
-    onError: (error: Error) => {
-      toast({ title: 'Erro ao salvar orçamento', description: error.message, variant: 'destructive' });
-    },
-  });
 
   const totalReceitas = {
     previsto: dreData.receitas.reduce((s, r) => s + r.previsto, 0),
@@ -201,7 +170,6 @@ export function useDREData(monthYear: string) {
     totalReceitas,
     totalDespesas,
     resultadoLiquido,
-    upsertBudget,
     isLoading: false,
   };
 }

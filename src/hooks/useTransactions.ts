@@ -123,6 +123,8 @@ export function useTransactions() {
       queryClient.invalidateQueries({ queryKey: ['bank-transactions-period'] });
       queryClient.invalidateQueries({ queryKey: ['banks'] });
       queryClient.invalidateQueries({ queryKey: ['global-logs'] });
+      queryClient.invalidateQueries({ queryKey: ['dre-previsto'] });
+      queryClient.invalidateQueries({ queryKey: ['dre-realizado'] });
       toast({ title: 'Transação criada com sucesso!' });
     },
     onError: (error: Error) => {
@@ -151,6 +153,8 @@ export function useTransactions() {
       queryClient.invalidateQueries({ queryKey: ['banks'] });
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
       queryClient.invalidateQueries({ queryKey: ['global-logs'] });
+      queryClient.invalidateQueries({ queryKey: ['dre-previsto'] });
+      queryClient.invalidateQueries({ queryKey: ['dre-realizado'] });
       toast({ title: 'Transação atualizada!' });
     },
     onError: (error: Error) => {
@@ -194,6 +198,8 @@ export function useTransactions() {
       queryClient.invalidateQueries({ queryKey: ['banks'] });
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
       queryClient.invalidateQueries({ queryKey: ['global-logs'] });
+      queryClient.invalidateQueries({ queryKey: ['dre-previsto'] });
+      queryClient.invalidateQueries({ queryKey: ['dre-realizado'] });
       toast({ title: 'Transação excluída!' });
     },
     onError: (error: Error) => {
@@ -238,6 +244,8 @@ export function useTransactions() {
       queryClient.invalidateQueries({ queryKey: ['bank-transactions-period'] });
       queryClient.invalidateQueries({ queryKey: ['banks'] });
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['dre-previsto'] });
+      queryClient.invalidateQueries({ queryKey: ['dre-realizado'] });
     },
     onError: (error: Error) => {
       if (error.message === 'SETTLEMENT_BLOCKED') {
@@ -287,6 +295,8 @@ export function useTransactions() {
       queryClient.invalidateQueries({ queryKey: ['bank-transactions-period'] });
       queryClient.invalidateQueries({ queryKey: ['banks'] });
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['dre-previsto'] });
+      queryClient.invalidateQueries({ queryKey: ['dre-realizado'] });
     },
     onError: (error: Error) => {
       if (error.message.startsWith('BULK_BLOCKED:')) {
