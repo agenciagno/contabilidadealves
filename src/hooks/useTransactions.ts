@@ -198,6 +198,8 @@ export function useTransactions() {
       queryClient.invalidateQueries({ queryKey: ['banks'] });
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
       queryClient.invalidateQueries({ queryKey: ['global-logs'] });
+      queryClient.invalidateQueries({ queryKey: ['dre-previsto'] });
+      queryClient.invalidateQueries({ queryKey: ['dre-realizado'] });
       toast({ title: 'Transação excluída!' });
     },
     onError: (error: Error) => {
