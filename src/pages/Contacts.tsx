@@ -26,6 +26,7 @@ export default function Contacts() {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  const { isSuperAdmin, isAdmin } = useUserRole();
   const { contacts, isLoading, createContact, updateContact, deleteContact } = useContacts();
   const { transactions } = useTransactions();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -34,6 +35,10 @@ export default function Contacts() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterFinancialStatus, setFilterFinancialStatus] = useState('all');
   const [viewMode, setViewMode] = useState<ViewMode>('card');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const canBulkAction = isSuperAdmin || isAdmin;
 
   useEffect(() => {
     if (location.state?.filterStatus === 'inadimplente') {
