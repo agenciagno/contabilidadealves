@@ -584,36 +584,48 @@ export type Database = {
       profiles: {
         Row: {
           allowed_modules: string[]
+          avatar_url: string | null
           company_id: string
           created_at: string
           email: string
+          force_password_change: boolean
           full_name: string | null
           id: string
           is_super_admin: boolean
+          role: string
+          status_active: boolean
           updated_at: string
           user_id: string
           username: string | null
         }
         Insert: {
           allowed_modules?: string[]
+          avatar_url?: string | null
           company_id: string
           created_at?: string
           email: string
+          force_password_change?: boolean
           full_name?: string | null
           id?: string
           is_super_admin?: boolean
+          role?: string
+          status_active?: boolean
           updated_at?: string
           user_id: string
           username?: string | null
         }
         Update: {
           allowed_modules?: string[]
+          avatar_url?: string | null
           company_id?: string
           created_at?: string
           email?: string
+          force_password_change?: boolean
           full_name?: string | null
           id?: string
           is_super_admin?: boolean
+          role?: string
+          status_active?: boolean
           updated_at?: string
           user_id?: string
           username?: string | null

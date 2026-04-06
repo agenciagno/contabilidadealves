@@ -24,19 +24,25 @@ import {
 const MODULE_LABELS: Record<string, string> = {
   financeiro: 'Financeiro',
   crm: 'CRM',
-  relatorios: 'Relatórios',
   comercial: 'Comercial',
   fiscal: 'Fiscal',
   pessoal_rh: 'Pessoal/RH',
   configuracoes: 'Config.',
 };
 
+const ROLE_LABELS: Record<string, string> = {
+  colaborador: 'Colaborador',
+  admin: 'Admin',
+  super_admin: 'Super Admin',
+};
+
 interface Profile {
   id: string;
   user_id: string;
   full_name: string | null;
-  username: string | null;
   email: string;
+  role: string;
+  status_active: boolean;
   is_super_admin: boolean;
   allowed_modules: string[];
   created_at: string;
@@ -58,7 +64,7 @@ export default function UsersTab({ companyId, currentUserId }: UsersTabProps) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, user_id, full_name, username, email, is_super_admin, allowed_modules, created_at')
+        .select('id, user_id, full_name, email, role, status_active, is_super_admin, allowed_modules, created_at')
         .eq('company_id', companyId)
         .order('created_at', { ascending: false });
 
@@ -96,7 +102,9 @@ export default function UsersTab({ companyId, currentUserId }: UsersTabProps) {
     setEditUser({
       userId: user.user_id,
       fullName: user.full_name || '',
-      username: user.username || user.email.split('@')[0],
+      email: user.email,
+      role: user.role || 'colaborador',
+      statusActive: user.status_active ?? true,
       allowedModules: user.allowed_modules ?? [],
     });
     setIsDialogOpen(true);
@@ -122,7 +130,7 @@ export default function UsersTab({ companyId, currentUserId }: UsersTabProps) {
               <Users className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <CardTitle>Usuários Internos</CardTitle>
+              <CardTitle>Minha Equipe</CardTitle>
               <CardDescription>Gerencie os usuários que podem acessar o sistema</CardDescription>
             </div>
           </div>
@@ -143,17 +151,18 @@ export default function UsersTab({ companyId, currentUserId }: UsersTabProps) {
             <Users className="w-12 h-12 text-muted-foreground mb-4" />
             <h3 className="font-medium text-foreground">Nenhum usuário cadastrado</h3>
             <p className="text-sm text-muted-foreground mt-1">
-              Adicione usuários internos para acessar o sistema
+              Adicione usuários para acessar o sistema
             </p>
           </div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nome Completo</TableHead>
-                <TableHead>Nome de Usuário</TableHead>
-                <TableHead>Módulos de Acesso</TableHead>
-                <TableHead>Data de Criação</TableHead>
+                <TableHead>Nome</TableHead>
+                <TableHead>E-mail</TableHead>
+                <TableHead>Nível de Acesso</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Módulos</TableHead>
                 <TableHead className="w-[100px]">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -167,29 +176,40 @@ export default function UsersTab({ companyId, currentUserId }: UsersTabProps) {
                     )}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {user.username || user.email.split('@')[0]}
+                    {user.email}
                   </TableCell>
                   <TableCell>
-                    {user.is_super_admin ? (
+                    {user.role === 'super_admin' || user.is_super_admin ? (
                       <Badge className="bg-primary/10 text-primary hover:bg-primary/20">
                         <Shield className="w-3 h-3 mr-1" />
                         Super Admin
                       </Badge>
                     ) : (
+                      <Badge variant="outline">{ROLE_LABELS[user.role] || user.role}</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={user.status_active ? 'default' : 'secondary'}>
+                      {user.status_active ? 'Ativo' : 'Inativo'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {user.role === 'super_admin' || user.is_super_admin ? (
+                      <span className="text-xs text-muted-foreground">Acesso total</span>
+                    ) : (
                       <div className="flex flex-wrap gap-1">
-                        {(user.allowed_modules ?? []).map(mod => (
+                        {(user.allowed_modules ?? []).slice(0, 3).map(mod => (
                           <Badge key={mod} variant="outline" className="text-xs px-1.5 py-0">
                             {MODULE_LABELS[mod] ?? mod}
                           </Badge>
                         ))}
-                        {(user.allowed_modules ?? []).length === 0 && (
-                          <span className="text-muted-foreground text-xs">Nenhum</span>
+                        {(user.allowed_modules ?? []).length > 3 && (
+                          <Badge variant="outline" className="text-xs px-1.5 py-0">
+                            +{(user.allowed_modules ?? []).length - 3}
+                          </Badge>
                         )}
                       </div>
                     )}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {format(new Date(user.created_at), "dd/MM/yyyy", { locale: ptBR })}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
