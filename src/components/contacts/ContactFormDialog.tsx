@@ -222,7 +222,8 @@ export function ContactFormDialog({
       boleto_value: boletoActive && boletoValue ? parseFloat(boletoValue.replace(/\./g, '').replace(',', '.')) : null,
       boleto_due_day: boletoActive && boletoDueDay ? parseInt(boletoDueDay) : null,
       boleto_start_date: boletoActive && boletoStartDate ? boletoStartDate : null,
-    });
+      responsible_id: responsibleId || null,
+    } as any);
   };
 
   const isFormValid = name.trim();
