@@ -243,7 +243,7 @@ export default function Contacts() {
   const ContactTableSection = ({ contacts: list, label }: { contacts: Contact[]; label: string }) => (
     <>
       <TableRow className="hover:bg-transparent border-0">
-        <TableCell colSpan={6} className="py-2 px-4">
+        <TableCell colSpan={canBulkAction ? 8 : 7} className="py-2 px-4">
           <span className="text-xs font-medium text-muted-foreground">{label} ({list.length})</span>
         </TableCell>
       </TableRow>
@@ -251,6 +251,14 @@ export default function Contacts() {
         const { isInadimplente } = getFinancialStatus(contact.id);
         return (
           <TableRow key={contact.id} className={`${!contact.is_active ? 'opacity-60' : ''}`}>
+            {canBulkAction && (
+              <TableCell className="w-10" onClick={e => e.stopPropagation()}>
+                <Checkbox
+                  checked={selectedIds.includes(contact.id)}
+                  onCheckedChange={() => toggleSelectContact(contact.id)}
+                />
+              </TableCell>
+            )}
             <TableCell className="font-medium">
               <button
                 onClick={() => copyToClipboard(contact.name, 'Nome')}
