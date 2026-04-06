@@ -11,7 +11,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Validate caller JWT
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -20,7 +19,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Use anon client to validate caller's session
     const anonClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!,
@@ -38,38 +36,46 @@ Deno.serve(async (req) => {
 
     const callerUserId = claimsData.claims.sub;
 
-    // Verify caller is super admin
     const { data: callerProfile, error: profileError } = await anonClient
       .from('profiles')
-      .select('is_super_admin')
+      .select('is_super_admin, role')
       .eq('user_id', callerUserId)
       .single();
 
-    if (profileError || !callerProfile?.is_super_admin) {
-      return new Response(JSON.stringify({ error: 'Forbidden: Super admin access required' }), {
+    const isCallerAdmin = callerProfile?.is_super_admin || 
+      callerProfile?.role === 'super_admin' || 
+      callerProfile?.role === 'admin';
+
+    if (profileError || !isCallerAdmin) {
+      return new Response(JSON.stringify({ error: 'Forbidden: Admin access required' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Use service role for admin operations
     const adminClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Parse body
     const body = await req.json();
-    const { userId, email, password, fullName, companyId, allowedModules = ['financeiro', 'crm', 'relatorios'], username } = body;
+    const { 
+      userId, email, password, fullName, companyId, 
+      allowedModules = ['financeiro', 'crm'], 
+      role = 'colaborador',
+      statusActive = true,
+      forcePasswordChange = true,
+    } = body;
 
     // ─── UPDATE MODE ───────────────────────────────────────────────
     if (userId) {
-      // Update profile
       const profileUpdate: Record<string, unknown> = {
         full_name: fullName,
         allowed_modules: allowedModules,
+        role,
+        status_active: statusActive,
+        is_super_admin: role === 'super_admin',
       };
-      if (username !== undefined) profileUpdate.username = username;
 
       const { error: updateProfileError } = await adminClient
         .from('profiles')
@@ -83,7 +89,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Optionally update password
       if (password) {
         const { error: passwordError } = await adminClient.auth.admin.updateUserById(userId, { password });
         if (passwordError) {
@@ -127,23 +132,23 @@ Deno.serve(async (req) => {
 
     const newUserId = authData.user.id;
 
-    // Insert profile
     const profileData: Record<string, unknown> = {
       user_id: newUserId,
       company_id: companyId,
       full_name: fullName,
       email: email,
-      is_super_admin: false,
+      is_super_admin: role === 'super_admin',
       allowed_modules: allowedModules,
+      role,
+      status_active: statusActive,
+      force_password_change: forcePasswordChange,
     };
-    if (username) profileData.username = username;
 
     const { error: profileInsertError } = await adminClient
       .from('profiles')
       .insert(profileData);
 
     if (profileInsertError) {
-      // Rollback: delete auth user
       await adminClient.auth.admin.deleteUser(newUserId);
       return new Response(JSON.stringify({ error: profileInsertError.message }), {
         status: 500,
@@ -151,12 +156,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Insert user role
     const { error: roleError } = await adminClient
       .from('user_roles')
       .insert({
         user_id: newUserId,
-        role: 'admin',
+        role: role === 'super_admin' ? 'admin' : role === 'admin' ? 'admin' : 'colaborador',
       });
 
     if (roleError) {
