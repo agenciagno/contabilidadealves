@@ -24,6 +24,7 @@ import CrmDispatches from "@/pages/CrmDispatches";
 import ClientReport from "@/pages/ClientReport";
 import Boletos from "@/pages/Boletos";
 import PagarReceber from "@/pages/PagarReceber";
+import FiscalTasks from "@/pages/FiscalTasks";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
