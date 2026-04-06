@@ -394,12 +394,38 @@ export default function Contacts() {
               </>
             )}
 
+            {/* Bulk Action Bar */}
+            {canBulkAction && selectedIds.length > 0 && (
+              <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                <span className="text-sm font-medium text-foreground">{selectedIds.length} selecionado(s)</span>
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setBulkEditOpen(true)}>
+                  <Pencil className="w-3.5 h-3.5" />
+                  Editar Selecionados
+                </Button>
+                <Button variant="destructive" size="sm" className="gap-1.5" onClick={() => setBulkDeleteOpen(true)}>
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Excluir Selecionados
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])}>
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            )}
+
             {/* List View */}
             {viewMode === 'list' && filteredContacts.length > 0 && (
               <Card className="bg-card border-border/50">
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      {canBulkAction && (
+                        <TableHead className="w-10">
+                          <Checkbox
+                            checked={selectedIds.length === filteredContacts.length && filteredContacts.length > 0}
+                            onCheckedChange={toggleSelectAll}
+                          />
+                        </TableHead>
+                      )}
                       <TableHead>Nome</TableHead>
                       <TableHead>CPF/CNPJ</TableHead>
                       <TableHead>Telefone</TableHead>
