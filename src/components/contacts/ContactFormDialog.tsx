@@ -61,7 +61,22 @@ export function ContactFormDialog({
   const [isFetchingCnpj, setIsFetchingCnpj] = useState(false);
   const [isLoadingCep, setIsLoadingCep] = useState(false);
   const [addressFieldsLocked, setAddressFieldsLocked] = useState(false);
+  const [responsibleId, setResponsibleId] = useState('');
   const { toast } = useToast();
+  const { company } = useCompany();
+
+  const { data: companyProfiles = [] } = useQuery({
+    queryKey: ['company-profiles-form', company?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .eq('company_id', company!.id);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!company?.id && open,
+  });
 
   useEffect(() => {
     if (contact) {
