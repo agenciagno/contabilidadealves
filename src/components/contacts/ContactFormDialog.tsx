@@ -460,6 +460,24 @@ export function ContactFormDialog({
             )}
           </div>
 
+          {/* Seção: Colaborador Responsável */}
+          <div className="space-y-3">
+            <Separator />
+            <div>
+              <Label>Colaborador Responsável</Label>
+              <Select value={responsibleId} onValueChange={setResponsibleId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o responsável" />
+                </SelectTrigger>
+                <SelectContent>
+                  {companyProfiles.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.full_name || 'Sem nome'}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
