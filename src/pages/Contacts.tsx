@@ -89,6 +89,26 @@ export default function Contacts() {
     setFilterFinancialStatus('all');
   };
 
+  const toggleSelectContact = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredContacts.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredContacts.map(c => c.id));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    for (const id of selectedIds) {
+      deleteContact.mutate(id);
+    }
+    setSelectedIds([]);
+    setBulkDeleteOpen(false);
+  };
+
   const copyToClipboard = async (text: string, label: string) => {
     try {
       await navigator.clipboard.writeText(text);
