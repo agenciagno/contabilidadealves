@@ -95,6 +95,7 @@ export function ContactFormDialog({
       setBoletoValue(contact.boleto_value?.toString() || '');
       setBoletoDueDay(contact.boleto_due_day?.toString() || '');
       setBoletoStartDate(contact.boleto_start_date || '');
+      setResponsibleId((contact as any).responsible_id || '');
     } else {
       setName('');
       setDocument('');
@@ -111,6 +112,7 @@ export function ContactFormDialog({
       setBoletoValue('');
       setBoletoDueDay('');
       setBoletoStartDate('');
+      setResponsibleId('');
     }
   }, [contact, open]);
 
