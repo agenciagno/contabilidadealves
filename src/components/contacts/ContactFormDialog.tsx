@@ -12,6 +12,9 @@ import { maskCPFCNPJ, maskPhone } from '@/lib/utils';
 import { Search, Loader2, FileCheck } from 'lucide-react';
 import { fetchCnpjData } from '@/lib/cnpj-api';
 import { useToast } from '@/hooks/use-toast';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useCompany } from '@/hooks/useCompany';
 
 interface ContactFormDialogProps {
   open: boolean;
