@@ -1,79 +1,141 @@
 
 
-## Plano: Refatorar DRE com Date Range Picker e lógica baseada em transações reais
+## Plano: Sistema RBAC + Refatoração Sidebar + Fluxo de Criação de Usuários
 
 ### Resumo
 
-Substituir o seletor de mês/ano por um filtro de período (Data Inicial / Data Final) idêntico ao da aba Pagar/Receber. Mudar completamente a lógica das colunas: **Previsto** passa a somar transações pendentes filtradas por `expected_date`, e **Realizado** soma transações pagas filtradas por `date` (data pagamento). Remover a dependência da tabela `dre_budgets` e o inline editing.
+Adicionar colunas `role`, `status_active`, `force_password_change` e `avatar_url` à tabela `profiles`. Reestruturar a sidebar (perfil no rodapé, configurações condicionais por role). Refatorar o modal de criação de usuários (sem senha/username, senha padrão automática). Criar AuthGuard para forçar troca de senha no primeiro login. Separar "Meu Perfil" (modal) de "Configurações" (tela).
 
 ### Mudanças
 
-| # | Arquivo | Mudança |
+| # | Recurso | Mudança |
 |---|---|---|
-| 1 | `src/hooks/useDREData.ts` | Refatorar para receber `startDate`/`endDate` em vez de `monthYear`; criar 2 queries separadas (previsto + realizado); remover budgets |
-| 2 | `src/pages/DRE.tsx` | Substituir MonthYearPicker por date range inputs; remover InlineEdit; ajustar props |
-| 3 | `src/hooks/useTransactions.ts` | Adicionar invalidação de `dre-previsto` e `dre-realizado` nos onSuccess de create/update/delete |
-| 4 | `src/components/transactions/BulkEditDialog.tsx` | Adicionar invalidação das queries DRE |
+| 1 | **Migration SQL** | Adicionar `role`, `status_active`, `force_password_change`, `avatar_url` em `profiles`; remover `relatorios` do default de `allowed_modules` |
+| 2 | `src/hooks/useSuperAdmin.ts` | Refatorar para `useUserRole.ts` — retornar `role`, `isSuperAdmin`, `isAdmin`, `isColaborador`, `allowedModules` |
+| 3 | `src/components/layout/AppSidebar.tsx` | Reestruturar footer: avatar+nome+sair; condicionar "Configurações" a Admin/SuperAdmin; remover "Sair" avulso |
+| 4 | `src/components/profile/ProfileModal.tsx` | Novo modal: upload avatar, nome, email atual, alterar email, alterar senha, link lixeira |
+| 5 | `src/pages/SettingsPage.tsx` | Remover aba "Perfil & Conta" e "Aparência"; adicionar "Dados da Empresa" como aba; condicionar abas por role |
+| 6 | `src/components/users/UserFormDialog.tsx` | Remover campos senha/username; adicionar dropdown role + multi-select módulos condicional; senha padrão `Mudar@123` |
+| 7 | `src/components/users/UsersTab.tsx` | Atualizar tabela: mostrar email, role, status em vez de username |
+| 8 | `supabase/functions/create-user-v2/index.ts` | Aceitar `role`, `status_active`, `force_password_change`; gravar no profile |
+| 9 | `src/components/auth/ForcePasswordChange.tsx` | Nova tela bloqueada para troca de senha obrigatória |
+| 10 | `src/components/layout/AppLayout.tsx` | Integrar AuthGuard: verificar `force_password_change` antes de renderizar conteúdo |
 
-### Detalhes técnicos
+---
 
-**1. useDREData.ts — Nova lógica de queries**
+### 1. Migration SQL
 
-Parâmetros: `startDate: string, endDate: string` (formato `yyyy-MM-dd`)
+```sql
+-- Adicionar novas colunas
+ALTER TABLE public.profiles 
+  ADD COLUMN IF NOT EXISTS role text NOT NULL DEFAULT 'colaborador',
+  ADD COLUMN IF NOT EXISTS status_active boolean NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS force_password_change boolean NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS avatar_url text;
 
-**Query "Previsto"** (`dre-previsto`):
+-- Atualizar usuários existentes: admin por padrão (não forçar troca)
+UPDATE public.profiles SET role = 'admin', force_password_change = false WHERE role = 'colaborador';
+
+-- Marcar super admins
+UPDATE public.profiles SET role = 'super_admin' WHERE is_super_admin = true;
+
+-- Remover 'relatorios' do default de allowed_modules
+ALTER TABLE public.profiles 
+  ALTER COLUMN allowed_modules SET DEFAULT ARRAY['financeiro','crm'];
+```
+
+### 2. `useUserRole.ts` (substituir `useSuperAdmin.ts`)
+
+- Query `profiles` buscando `role, is_super_admin, allowed_modules, force_password_change, avatar_url, status_active`
+- Retornar: `role`, `isSuperAdmin` (role === 'super_admin'), `isAdmin` (role === 'admin'), `isColaborador` (role === 'colaborador'), `allowedModules`, `forcePasswordChange`, `avatarUrl`
+- Atualizar TODAS as importações de `useSuperAdmin` para `useUserRole`
+
+### 3. Sidebar — Reestruturação do Footer
+
+**Lógica de visibilidade do botão Configurações:**
+- `Colaborador` → NÃO vê "Configurações"
+- `Admin` / `Super Admin` → Vê "Configurações"
+
+**Footer layout:**
+```
+[Configurações]  (condicional)
+─────────────────
+[Avatar] Nome do Usuário    [Sair]
+         clique → abre ProfileModal
+```
+
+### 4. `ProfileModal.tsx` — Novo componente
+
+Modal/Sheet contendo:
+- Upload de avatar (storage bucket `company-logos` ou novo bucket)
+- Nome completo (editável)
+- Email atual (readonly) + botão Alterar Email
+- Alterar Senha (nova + confirmar)
+- Link para Lixeira (navegar para `/configuracoes?tab=lixeira` ou renderizar TrashTab inline)
+- **SEM** configuração de Aparência
+
+### 5. `SettingsPage.tsx` — Reestruturar abas
+
+Abas por role:
+
+| Aba | Colaborador | Admin | Super Admin |
+|-----|:-----------:|:-----:|:-----------:|
+| Dados da Empresa | - | Sim | Sim |
+| Minha Equipe | - | Sim | Sim |
+| Empresas Clientes | - | - | Sim |
+| Logs Globais | - | - | Sim |
+| Lixeira | - | Sim | Sim |
+| Backup | - | - | Sim |
+
+Remover: "Perfil & Conta" e "Aparência" (migram para ProfileModal).
+
+### 6. `UserFormDialog.tsx` — Simplificação
+
+Campos do formulário:
+- Nome Completo (input)
+- E-mail (input, obrigatório)
+- Status (toggle Ativo/Inativo)
+- Nível de Acesso (Select: Colaborador, Admin, Super Admin)
+- Módulos de Acesso (multi-select, **visível apenas se role === 'colaborador'**)
+
+**Remover:** campos Senha, Confirmar Senha, Nome de Usuário.
+
+**Criar:** ao salvar, enviar para `create-user-v2` com `password: 'Mudar@123'` e `force_password_change: true`.
+
+**Editar:** enviar `role`, `status_active`, `allowedModules`. Senha não é editável pelo admin.
+
+### 7. `UsersTab.tsx` — Atualizar tabela
+
+Colunas: Nome | E-mail | Nível de Acesso | Status | Módulos | Ações
+
+### 8. Edge Function `create-user-v2`
+
+- Aceitar novos campos: `role`, `statusActive`, `forcePasswordChange`
+- No INSERT/UPDATE de profile, gravar `role`, `status_active`, `force_password_change`
+- Manter `is_super_admin` sincronizado: `is_super_admin = (role === 'super_admin')`
+
+### 9. `ForcePasswordChange.tsx`
+
+Tela bloqueada full-screen:
+- Título: "Cadastre sua nova senha definitiva"
+- Campos: Nova Senha + Confirmar + PasswordStrength
+- Ao salvar: `supabase.auth.updateUser({ password })` + update `profiles.force_password_change = false`
+- Não permite navegar para nenhuma outra rota
+
+### 10. `AppLayout.tsx` — AuthGuard
+
 ```typescript
-supabase.from('transactions')
-  .select('category_id, amount, type')
-  .is('deleted_at', null)
-  .eq('is_paid', false)              // status pendente/vencido = não pago
-  .not('expected_date', 'is', null)  // expected_date obrigatório
-  .gte('expected_date', startDate)
-  .lte('expected_date', endDate)
-  // + filtro banco invisível
+const { forcePasswordChange, isLoading: roleLoading } = useUserRole();
+
+if (forcePasswordChange) {
+  return <ForcePasswordChange />;
+}
+// ... render normal layout
 ```
-
-**Query "Realizado"** (`dre-realizado`):
-```typescript
-supabase.from('transactions')
-  .select('category_id, paid_amount, amount, type')
-  .is('deleted_at', null)
-  .eq('is_paid', true)               // status pago/recebido
-  .not('date', 'is', null)           // data pagamento obrigatória
-  .gte('date', startDate)
-  .lte('date', endDate)
-  // + filtro banco invisível
-```
-
-**Cálculo client-side (sem mudança na estrutura DRERow):**
-- Sub evento: `previsto` = soma `amount` das transações pendentes com `category_id` matching; `realizado` = soma `paid_amount ?? amount` das pagas
-- Macro: roll-up (soma dos filhos)
-- RXP = `realizado - previsto`
-- Remover toda lógica de `dre_budgets`, `upsertBudget`
-
-**2. DRE.tsx — Novo filtro de período**
-
-Substituir `MonthYearPicker` por dois `<Input type="date">` com o mesmo design do CashFlowTab:
-```
-[CalendarDays icon] [Data Inicial] até [Data Final] [X limpar]
-```
-Default: primeiro dia do mês atual → último dia do mês atual.
-
-Remover componente `InlineEdit` e `MonthYearPicker`.
-Coluna "Previsto" agora exibe apenas `formatCurrency(row.previsto)` (não editável).
-
-**3. Invalidação de cache (reatividade)**
-
-Nos `onSuccess` de `useTransactions.ts` (create, update, delete, togglePaid) e `BulkEditDialog.tsx`, adicionar:
-```typescript
-queryClient.invalidateQueries({ queryKey: ['dre-previsto'] });
-queryClient.invalidateQueries({ queryKey: ['dre-realizado'] });
-```
-
-Isso garante que qualquer alteração em transações (incluindo mudança de `expected_date`, `date`, ou `is_paid`) reflita automaticamente na DRE.
 
 ### Resumo
-- 4 arquivos editados
-- 0 migrations
-- Tabela `dre_budgets` permanece no banco (sem migration de remoção) mas deixa de ser consultada
+- 1 migration
+- 3 arquivos novos (`useUserRole.ts`, `ProfileModal.tsx`, `ForcePasswordChange.tsx`)
+- 7 arquivos editados
+- 1 edge function atualizada
 
