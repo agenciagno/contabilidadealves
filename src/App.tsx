@@ -55,6 +55,7 @@ const App = () => (
               <Route path="/disparos" element={<AppLayout><CrmDispatches /></AppLayout>} />
               <Route path="/relatorio-clientes" element={<AppLayout><ClientReport /></AppLayout>} />
               <Route path="/boletos" element={<AppLayout><Boletos /></AppLayout>} />
+              <Route path="/fiscal/tarefas" element={<AppLayout><FiscalTasks /></AppLayout>} />
               <Route path="*" element={<NotFound />} />
               </Routes>
             </NotificationProvider>

@@ -32,7 +32,8 @@ export interface FiscalTaskFilters {
 
 export function useFiscalTasks(filters: FiscalTaskFilters = {}) {
   const { user } = useAuth();
-  const { companyId } = useCompany();
+  const { company } = useCompany();
+  const companyId = company?.id;
   const { isColaborador } = useUserRole();
   const { toast } = useToast();
   const queryClient = useQueryClient();

@@ -24,7 +24,8 @@ import { TaskCreateModal } from '@/components/fiscal/TaskCreateModal';
 type ViewMode = 'kanban' | 'list' | 'calendar';
 
 export default function FiscalTasks() {
-  const { companyId } = useCompany();
+  const { company } = useCompany();
+  const companyId = company?.id;
   const { isColaborador, isSuperAdmin, isAdmin } = useUserRole();
   const { contacts } = useContacts();
 

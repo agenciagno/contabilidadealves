@@ -32,7 +32,8 @@ const STATUS_OPTIONS = [
 
 export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, onUpdate, onDelete }: TaskDetailModalProps) {
   const { isColaborador, isSuperAdmin, isAdmin } = useUserRole();
-  const { companyId } = useCompany();
+  const { company } = useCompany();
+  const companyId = company?.id;
   const { toast } = useToast();
   const canEdit = isSuperAdmin || isAdmin;
 

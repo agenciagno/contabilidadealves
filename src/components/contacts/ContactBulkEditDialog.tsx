@@ -20,7 +20,8 @@ interface ContactBulkEditDialogProps {
 export function ContactBulkEditDialog({ open, onOpenChange, selectedIds, onDone }: ContactBulkEditDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { companyId } = useCompany();
+  const { company } = useCompany();
+  const companyId = company?.id;
   const [saving, setSaving] = useState(false);
 
   const [editBoleto, setEditBoleto] = useState(false);
