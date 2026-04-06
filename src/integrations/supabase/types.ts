@@ -437,6 +437,7 @@ export type Database = {
           origin: string
           phone: string | null
           representative_legal: string | null
+          responsible_id: string | null
           state: string | null
           tax_regime: string | null
           type: string
@@ -463,6 +464,7 @@ export type Database = {
           origin?: string
           phone?: string | null
           representative_legal?: string | null
+          responsible_id?: string | null
           state?: string | null
           tax_regime?: string | null
           type: string
@@ -489,6 +491,7 @@ export type Database = {
           origin?: string
           phone?: string | null
           representative_legal?: string | null
+          responsible_id?: string | null
           state?: string | null
           tax_regime?: string | null
           type?: string
@@ -530,6 +533,51 @@ export type Database = {
           created_at?: string
           id?: string
           month_year?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      fiscal_tasks: {
+        Row: {
+          attachment_url: string | null
+          company_id: string
+          contact_id: string
+          created_at: string
+          description: string | null
+          due_date: string
+          id: string
+          notes: string | null
+          responsible_id: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          attachment_url?: string | null
+          company_id: string
+          contact_id: string
+          created_at?: string
+          description?: string | null
+          due_date: string
+          id?: string
+          notes?: string | null
+          responsible_id?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          attachment_url?: string | null
+          company_id?: string
+          contact_id?: string
+          created_at?: string
+          description?: string | null
+          due_date?: string
+          id?: string
+          notes?: string | null
+          responsible_id?: string | null
+          status?: string
+          title?: string
           updated_at?: string
         }
         Relationships: []

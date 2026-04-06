@@ -9,13 +9,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Plus, Search, Edit2, Trash2, User, Mail, Phone, Copy, Eye, Users, AlertTriangle, X, FileText, RefreshCw, LayoutGrid, List } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Plus, Search, Edit2, Trash2, User, Mail, Phone, Copy, Eye, Users, AlertTriangle, X, FileText, RefreshCw, LayoutGrid, List, Pencil } from 'lucide-react';
 import { useContacts, Contact, ContactInsert } from '@/hooks/useContacts';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useContactDependencies } from '@/hooks/useContactDependencies';
 import { ContactFormDialog } from '@/components/contacts/ContactFormDialog';
+import { ContactBulkEditDialog } from '@/components/contacts/ContactBulkEditDialog';
 import { useToast } from '@/hooks/use-toast';
 import { NewClients2026Tab } from '@/components/contacts/NewClients2026Tab';
+import { useUserRole } from '@/hooks/useUserRole';
 
 type ViewMode = 'card' | 'list';
 
@@ -23,6 +26,7 @@ export default function Contacts() {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  const { isSuperAdmin, isAdmin } = useUserRole();
   const { contacts, isLoading, createContact, updateContact, deleteContact } = useContacts();
   const { transactions } = useTransactions();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -31,6 +35,10 @@ export default function Contacts() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterFinancialStatus, setFilterFinancialStatus] = useState('all');
   const [viewMode, setViewMode] = useState<ViewMode>('card');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const canBulkAction = isSuperAdmin || isAdmin;
 
   useEffect(() => {
     if (location.state?.filterStatus === 'inadimplente') {
@@ -79,6 +87,26 @@ export default function Contacts() {
   const clearFilters = () => {
     setSearchTerm('');
     setFilterFinancialStatus('all');
+  };
+
+  const toggleSelectContact = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredContacts.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredContacts.map(c => c.id));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    for (const id of selectedIds) {
+      deleteContact.mutate(id);
+    }
+    setSelectedIds([]);
+    setBulkDeleteOpen(false);
   };
 
   const copyToClipboard = async (text: string, label: string) => {
@@ -215,7 +243,7 @@ export default function Contacts() {
   const ContactTableSection = ({ contacts: list, label }: { contacts: Contact[]; label: string }) => (
     <>
       <TableRow className="hover:bg-transparent border-0">
-        <TableCell colSpan={6} className="py-2 px-4">
+        <TableCell colSpan={canBulkAction ? 8 : 7} className="py-2 px-4">
           <span className="text-xs font-medium text-muted-foreground">{label} ({list.length})</span>
         </TableCell>
       </TableRow>
@@ -223,6 +251,14 @@ export default function Contacts() {
         const { isInadimplente } = getFinancialStatus(contact.id);
         return (
           <TableRow key={contact.id} className={`${!contact.is_active ? 'opacity-60' : ''}`}>
+            {canBulkAction && (
+              <TableCell className="w-10" onClick={e => e.stopPropagation()}>
+                <Checkbox
+                  checked={selectedIds.includes(contact.id)}
+                  onCheckedChange={() => toggleSelectContact(contact.id)}
+                />
+              </TableCell>
+            )}
             <TableCell className="font-medium">
               <button
                 onClick={() => copyToClipboard(contact.name, 'Nome')}
@@ -366,12 +402,38 @@ export default function Contacts() {
               </>
             )}
 
+            {/* Bulk Action Bar */}
+            {canBulkAction && selectedIds.length > 0 && (
+              <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                <span className="text-sm font-medium text-foreground">{selectedIds.length} selecionado(s)</span>
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setBulkEditOpen(true)}>
+                  <Pencil className="w-3.5 h-3.5" />
+                  Editar Selecionados
+                </Button>
+                <Button variant="destructive" size="sm" className="gap-1.5" onClick={() => setBulkDeleteOpen(true)}>
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Excluir Selecionados
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])}>
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            )}
+
             {/* List View */}
             {viewMode === 'list' && filteredContacts.length > 0 && (
               <Card className="bg-card border-border/50">
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      {canBulkAction && (
+                        <TableHead className="w-10">
+                          <Checkbox
+                            checked={selectedIds.length === filteredContacts.length && filteredContacts.length > 0}
+                            onCheckedChange={toggleSelectAll}
+                          />
+                        </TableHead>
+                      )}
                       <TableHead>Nome</TableHead>
                       <TableHead>CPF/CNPJ</TableHead>
                       <TableHead>Telefone</TableHead>
@@ -453,6 +515,32 @@ export default function Contacts() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground" disabled={loadingDependencies}>
               {dependencies?.hasDependencies ? 'Excluir mesmo assim' : 'Excluir'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Edit Dialog */}
+      <ContactBulkEditDialog
+        open={bulkEditOpen}
+        onOpenChange={setBulkEditOpen}
+        selectedIds={selectedIds}
+        onDone={() => setSelectedIds([])}
+      />
+
+      {/* Bulk Delete Confirm */}
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir {selectedIds.length} cliente(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Todos os clientes selecionados serão removidos permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground">
+              Excluir {selectedIds.length}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

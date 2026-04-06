@@ -24,6 +24,7 @@ import CrmDispatches from "@/pages/CrmDispatches";
 import ClientReport from "@/pages/ClientReport";
 import Boletos from "@/pages/Boletos";
 import PagarReceber from "@/pages/PagarReceber";
+import FiscalTasks from "@/pages/FiscalTasks";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -54,6 +55,7 @@ const App = () => (
               <Route path="/disparos" element={<AppLayout><CrmDispatches /></AppLayout>} />
               <Route path="/relatorio-clientes" element={<AppLayout><ClientReport /></AppLayout>} />
               <Route path="/boletos" element={<AppLayout><Boletos /></AppLayout>} />
+              <Route path="/fiscal/tarefas" element={<AppLayout><FiscalTasks /></AppLayout>} />
               <Route path="*" element={<NotFound />} />
               </Routes>
             </NotificationProvider>

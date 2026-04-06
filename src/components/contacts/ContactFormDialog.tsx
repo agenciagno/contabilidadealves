@@ -12,6 +12,9 @@ import { maskCPFCNPJ, maskPhone } from '@/lib/utils';
 import { Search, Loader2, FileCheck } from 'lucide-react';
 import { fetchCnpjData } from '@/lib/cnpj-api';
 import { useToast } from '@/hooks/use-toast';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useCompany } from '@/hooks/useCompany';
 
 interface ContactFormDialogProps {
   open: boolean;
@@ -58,7 +61,22 @@ export function ContactFormDialog({
   const [isFetchingCnpj, setIsFetchingCnpj] = useState(false);
   const [isLoadingCep, setIsLoadingCep] = useState(false);
   const [addressFieldsLocked, setAddressFieldsLocked] = useState(false);
+  const [responsibleId, setResponsibleId] = useState('');
   const { toast } = useToast();
+  const { company } = useCompany();
+
+  const { data: companyProfiles = [] } = useQuery({
+    queryKey: ['company-profiles-form', company?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .eq('company_id', company!.id);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!company?.id && open,
+  });
 
   useEffect(() => {
     if (contact) {
@@ -77,6 +95,7 @@ export function ContactFormDialog({
       setBoletoValue(contact.boleto_value?.toString() || '');
       setBoletoDueDay(contact.boleto_due_day?.toString() || '');
       setBoletoStartDate(contact.boleto_start_date || '');
+      setResponsibleId((contact as any).responsible_id || '');
     } else {
       setName('');
       setDocument('');
@@ -93,6 +112,7 @@ export function ContactFormDialog({
       setBoletoValue('');
       setBoletoDueDay('');
       setBoletoStartDate('');
+      setResponsibleId('');
     }
   }, [contact, open]);
 
@@ -202,7 +222,8 @@ export function ContactFormDialog({
       boleto_value: boletoActive && boletoValue ? parseFloat(boletoValue.replace(/\./g, '').replace(',', '.')) : null,
       boleto_due_day: boletoActive && boletoDueDay ? parseInt(boletoDueDay) : null,
       boleto_start_date: boletoActive && boletoStartDate ? boletoStartDate : null,
-    });
+      responsible_id: responsibleId || null,
+    } as any);
   };
 
   const isFormValid = name.trim();
@@ -437,6 +458,24 @@ export function ContactFormDialog({
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Seção: Colaborador Responsável */}
+          <div className="space-y-3">
+            <Separator />
+            <div>
+              <Label>Colaborador Responsável</Label>
+              <Select value={responsibleId} onValueChange={setResponsibleId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o responsável" />
+                </SelectTrigger>
+                <SelectContent>
+                  {companyProfiles.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.full_name || 'Sem nome'}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="flex justify-end gap-2 pt-4">

@@ -104,6 +104,14 @@ const menuModules: MenuModule[] = [
       { title: 'Disparos', url: '/disparos', icon: Send, iconName: 'send' },
     ],
   },
+  {
+    title: 'Fiscal',
+    icon: FileCheck,
+    moduleKey: 'fiscal',
+    items: [
+      { title: 'Tarefas', url: '/fiscal/tarefas', icon: CalendarClock, iconName: 'calendar-clock' },
+    ],
+  },
 ];
 
 export function AppSidebar() {
