@@ -10,6 +10,8 @@ export interface Category {
   color: string;
   icon: string;
   parent_id: string | null;
+  display_order: number;
+  dre_section: string;
   created_at: string;
   updated_at: string;
 }
