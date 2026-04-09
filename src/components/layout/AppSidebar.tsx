@@ -19,6 +19,7 @@ import {
   UserCircle,
   BarChart3,
   FileCheck,
+  type LucideIcon,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
@@ -49,7 +50,7 @@ import {
 } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 
-const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+const iconMap: Record<string, LucideIcon> = {
   'layout-dashboard': LayoutDashboard,
   'arrow-left-right': ArrowLeftRight,
   'arrow-up-down': ArrowUpDown,
@@ -67,13 +68,13 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 interface MenuItem {
   title: string;
   url: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
   iconName: string;
 }
 
 interface MenuModule {
   title: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
   defaultOpen?: boolean;
   moduleKey?: string;
   items: MenuItem[];
@@ -166,7 +167,7 @@ export function AppSidebar() {
             className="flex items-center gap-2 pl-8 pr-3 py-1.5 rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors group text-sm"
             activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
           >
-            <IconComponent className="w-3.5 h-3.5 shrink-0" />
+            <IconComponent className="w-4 h-4 shrink-0" strokeWidth={1.5} />
             {!collapsed && (
               <>
                 <span className="flex-1 truncate">{shortcut.title}</span>
@@ -191,10 +192,10 @@ export function AppSidebar() {
   return (
     <>
       <Sidebar collapsible="icon" className="border-r border-sidebar-border/40">
-        <SidebarHeader className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary">
-              <Building2 className="w-5 h-5 text-primary-foreground" />
+        <SidebarHeader className="p-3">
+          <div className="flex items-center gap-3 justify-center">
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary shrink-0">
+              <Building2 className="w-4 h-4 text-primary-foreground" strokeWidth={1.5} />
             </div>
             {!collapsed && (
               <div className="flex flex-col min-w-0">
@@ -220,7 +221,7 @@ export function AppSidebar() {
                       className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
                       activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                     >
-                      <Home className="w-5 h-5 shrink-0" />
+                      <Home className="w-[18px] h-[18px] shrink-0" strokeWidth={1.5} />
                       {!collapsed && <span>Home</span>}
                     </NavLink>
                   </SidebarMenuButton>
@@ -256,7 +257,7 @@ export function AppSidebar() {
                 <CollapsibleTrigger asChild>
                   <SidebarGroupLabel className="flex items-center justify-between cursor-pointer hover:bg-sidebar-accent rounded-lg px-3 py-2.5 transition-colors">
                     <div className="flex items-center gap-3 text-sidebar-foreground">
-                      <module.icon className="w-5 h-5" />
+                      <module.icon className="w-[18px] h-[18px]" strokeWidth={1.5} />
                       {!collapsed && <span className="text-sm font-semibold">{module.title}</span>}
                     </div>
                     {!collapsed && (
@@ -280,7 +281,7 @@ export function AppSidebar() {
                               className="flex items-center gap-2 pl-8 pr-3 py-1.5 rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors group text-sm"
                               activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                             >
-                              <item.icon className="w-3.5 h-3.5 shrink-0" />
+                              <item.icon className="w-4 h-4 shrink-0" strokeWidth={1.5} />
                               {!collapsed && (
                                 <>
                                   <span className="flex-1 truncate">{item.title}</span>
@@ -319,7 +320,7 @@ export function AppSidebar() {
                     className="flex items-center gap-3 px-3 py-2 rounded-lg text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
                     activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                   >
-                    <Settings className="w-5 h-5 shrink-0" />
+                    <Settings className="w-[18px] h-[18px] shrink-0" strokeWidth={1.5} />
                     {!collapsed && <span>Configurações</span>}
                   </NavLink>
                 </SidebarMenuButton>
@@ -350,7 +351,7 @@ export function AppSidebar() {
               onClick={signOut}
               title="Sair"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="w-[18px] h-[18px]" strokeWidth={1.5} />
             </Button>
           </div>
         </SidebarFooter>
