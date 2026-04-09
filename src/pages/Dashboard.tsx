@@ -450,11 +450,11 @@ export default function Dashboard() {
   }, [period, customStartDate, customEndDate]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Dashboard</h1>
           <p className="text-muted-foreground">
             {periodLabel}
           </p>
@@ -572,16 +572,16 @@ export default function Dashboard() {
       </Collapsible>
 
       {/* KPI Cards - 3 columns matching Transactions page style */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="bg-card border-border/50">
-          <CardContent className="p-5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <Card className="border-border/30">
+          <CardContent className="p-6">
             <div className="flex items-start justify-between">
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Receitas Recebidas</p>
                 {isLoading ? (
                   <Skeleton className="h-10 w-32" />
                 ) : (
-                  <p className="text-4xl font-extrabold tracking-tight text-emerald-500">{formatCurrency(summary.receitasPagas)}</p>
+                  <p className="text-3xl font-semibold tracking-tight text-emerald-500">{formatCurrency(summary.receitasPagas)}</p>
                 )}
                 <p className="text-xs text-muted-foreground">
                   A Receber: <span className="text-emerald-400">{formatCurrency(summary.aReceber)}</span>
@@ -594,15 +594,15 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="bg-card border-border/50">
-          <CardContent className="p-5">
+        <Card className="border-border/30">
+          <CardContent className="p-6">
             <div className="flex items-start justify-between">
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Contas Pagas</p>
                 {isLoading ? (
                   <Skeleton className="h-10 w-32" />
                 ) : (
-                  <p className="text-4xl font-extrabold tracking-tight text-red-500">{formatCurrency(summary.despesasPagas)}</p>
+                  <p className="text-3xl font-semibold tracking-tight text-red-500">{formatCurrency(summary.despesasPagas)}</p>
                 )}
                 <p className="text-xs text-muted-foreground">
                   A Pagar: <span className="text-red-400">{formatCurrency(summary.aPagar)}</span>
@@ -615,15 +615,15 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="bg-card border-border/50">
-          <CardContent className="p-5">
+        <Card className="border-border/30">
+          <CardContent className="p-6">
             <div className="flex items-start justify-between">
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Saldo Bancário</p>
                 {isLoading ? (
                   <Skeleton className="h-10 w-32" />
                 ) : (
-                  <p className={`text-4xl font-extrabold tracking-tight ${summary.saldoBancario >= 0 ? 'text-primary' : 'text-red-500'}`}>
+                  <p className={`text-3xl font-semibold tracking-tight ${summary.saldoBancario >= 0 ? 'text-primary' : 'text-red-500'}`}>
                     {formatCurrency(summary.saldoBancario)}
                   </p>
                 )}
@@ -641,7 +641,7 @@ export default function Dashboard() {
 
       {/* Annual Ticker Cards - 4 columns */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Card className="bg-card border-border/50 border-l-2 border-l-emerald-500">
+        <Card className="border-border/30 border-l-2 border-l-emerald-500">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
               <BarChart3 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
@@ -654,7 +654,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="bg-card border-border/50 border-l-2 border-l-amber-500">
+        <Card className="border-border/30 border-l-2 border-l-amber-500">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
               <CalendarCheck className="w-3.5 h-3.5 text-amber-500 shrink-0" />
@@ -667,7 +667,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="bg-card border-border/50 border-l-2 border-l-green-500">
+        <Card className="border-border/30 border-l-2 border-l-green-500">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
               <TrendingUp className="w-3.5 h-3.5 text-green-500 shrink-0" />
@@ -680,7 +680,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="bg-card border-border/50 border-l-2 border-l-red-500">
+        <Card className="border-border/30 border-l-2 border-l-red-500">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
               <TrendingDown className="w-3.5 h-3.5 text-red-500 shrink-0" />
@@ -696,7 +696,7 @@ export default function Dashboard() {
 
       {/* Lista Unificada de Contas Pendentes - moved above evolution */}
       {isWidgetEnabled('pendingList') && (
-        <Card className="bg-card border-border/50">
+        <Card className="border-border/30">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base flex items-center gap-2">
@@ -778,7 +778,7 @@ export default function Dashboard() {
 
       {/* Monthly Evolution - Full Width & Larger */}
       {isWidgetEnabled('evolution') && (
-        <Card className="bg-card border-border/50">
+        <Card className="border-border/30">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Evolução Mensal</CardTitle>
           </CardHeader>
@@ -846,10 +846,10 @@ export default function Dashboard() {
 
       {/* Category Charts Row */}
       {(isWidgetEnabled('revenueCategoryChart') || isWidgetEnabled('categoryChart')) && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           {/* Revenue Category Pie Chart */}
           {isWidgetEnabled('revenueCategoryChart') && (
-            <Card className="bg-card border-border/50">
+            <Card className="border-border/30">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Receitas por Evento Contábil</CardTitle>
               </CardHeader>
@@ -895,7 +895,7 @@ export default function Dashboard() {
 
           {/* Expense Category Pie Chart */}
           {isWidgetEnabled('categoryChart') && (
-            <Card className="bg-card border-border/50">
+            <Card className="border-border/30">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Despesas por Evento Contábil</CardTitle>
               </CardHeader>
