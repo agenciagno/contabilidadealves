@@ -69,9 +69,16 @@ function parseAmount(value: unknown): number | null {
   if (value == null || value === '') return null;
   if (typeof value === 'number') return value;
   if (typeof value === 'string') {
-    const cleaned = value.replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.');
-    const num = parseFloat(cleaned);
-    return isNaN(num) ? null : num;
+    let s = value.trim();
+    if (s === '' || s === '—' || s === '–' || s === '-') return null;
+    const isNeg = s.startsWith('(') && s.endsWith(')');
+    if (isNeg) s = s.slice(1, -1);
+    s = s.replace(/[R$\u00A0\s]/gi, '');
+    s = s.replace(/\./g, '').replace(',', '.');
+    s = s.replace(/[^\d.\-]/g, '');
+    const num = parseFloat(s);
+    if (isNaN(num)) return null;
+    return isNeg ? -num : num;
   }
   return null;
 }
@@ -156,9 +163,9 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
     setIsProcessing(true);
     try {
       const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data, { type: 'array' });
+      const workbook = XLSX.read(data, { type: 'array', raw: true });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet);
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: null });
 
       if (!rows.length) {
         toast({ title: 'Nenhum dado encontrado na planilha.', variant: 'destructive' });
@@ -341,6 +348,11 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
           contact_id: findContactId(get('Cliente/Fornecedor')),
           notes: historico ? String(historico) : null,
         });
+      }
+
+      const skippedRows = rows.length - transactions.length;
+      if (skippedRows > 0) {
+        toast({ title: `${skippedRows} linha(s) ignorada(s)`, description: 'Motivo: coluna "Valor" vazia ou com formato não reconhecido.', variant: 'destructive' });
       }
 
       if (!transactions.length) {
