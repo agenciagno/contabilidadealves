@@ -67,13 +67,13 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 interface MenuItem {
   title: string;
   url: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
   iconName: string;
 }
 
 interface MenuModule {
   title: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
   defaultOpen?: boolean;
   moduleKey?: string;
   items: MenuItem[];
