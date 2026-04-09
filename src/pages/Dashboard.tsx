@@ -28,6 +28,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
 import { useTransactions } from '@/hooks/useTransactions';
+import { isEffectivelyPaid, getEffectiveAmount } from '@/lib/financial-utils';
 import { useBanks } from '@/hooks/useBanks';
 import { useRecurringTransactions } from '@/hooks/useRecurringTransactions';
 import { useContacts } from '@/hooks/useContacts';
@@ -176,20 +177,20 @@ export default function Dashboard() {
   const summary = useMemo(() => {
     // Receitas
     const receitasPagas = transactions
-      .filter(t => t.type === 'receita' && t.is_paid)
-      .reduce((sum, t) => sum + Number(t.amount), 0);
+      .filter(t => t.type === 'receita' && isEffectivelyPaid(t))
+      .reduce((sum, t) => sum + getEffectiveAmount(t), 0);
 
     const aReceber = transactions
-      .filter(t => t.type === 'receita' && !t.is_paid)
+      .filter(t => t.type === 'receita' && !isEffectivelyPaid(t))
       .reduce((sum, t) => sum + Number(t.amount), 0);
 
     // Despesas
     const despesasPagas = transactions
-      .filter(t => t.type === 'despesa' && t.is_paid)
-      .reduce((sum, t) => sum + Number(t.amount), 0);
+      .filter(t => t.type === 'despesa' && isEffectivelyPaid(t))
+      .reduce((sum, t) => sum + getEffectiveAmount(t), 0);
 
     const aPagar = transactions
-      .filter(t => t.type === 'despesa' && !t.is_paid)
+      .filter(t => t.type === 'despesa' && !isEffectivelyPaid(t))
       .reduce((sum, t) => sum + Number(t.amount), 0);
 
     // Saldos
@@ -233,12 +234,14 @@ export default function Dashboard() {
       const tDateStr = t.date || t.due_date || t.issue_date;
       if (tDateStr && tDateStr >= yearStartStr && tDateStr <= yearEndStr) {
         const amount = Number(t.amount);
+        const paid = isEffectivelyPaid(t);
+        const effectiveAmt = paid ? getEffectiveAmount(t) : amount;
         if (t.type === 'receita') {
           receitasAno += amount;
-          if (t.is_paid) receitasPagasAno += amount;
+          if (paid) receitasPagasAno += effectiveAmt;
         } else {
           despesasAno += amount;
-          if (t.is_paid) despesasPagasAno += amount;
+          if (paid) despesasPagasAno += effectiveAmt;
         }
       }
     }

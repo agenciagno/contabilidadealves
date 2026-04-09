@@ -347,6 +347,8 @@ export function useTransactions() {
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       queryClient.invalidateQueries({ queryKey: ['global-logs'] });
+      queryClient.invalidateQueries({ queryKey: ['dre-previsto'] });
+      queryClient.invalidateQueries({ queryKey: ['dre-realizado'] });
       toast({ title: `${count} transações importadas com sucesso!` });
     },
     onError: (error: Error) => {
