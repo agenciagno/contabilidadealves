@@ -91,6 +91,12 @@ export function useCategories() {
 
   const deleteCategory = useMutation({
     mutationFn: async (id: string) => {
+      // Desvincular sub-eventos órfãos antes de deletar
+      await supabase
+        .from('categories')
+        .update({ parent_id: null })
+        .eq('parent_id', id);
+
       const { error } = await supabase
         .from('categories')
         .delete()
