@@ -50,7 +50,7 @@ import {
 } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 
-const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+const iconMap: Record<string, LucideIcon> = {
   'layout-dashboard': LayoutDashboard,
   'arrow-left-right': ArrowLeftRight,
   'arrow-up-down': ArrowUpDown,
@@ -167,7 +167,7 @@ export function AppSidebar() {
             className="flex items-center gap-2 pl-8 pr-3 py-1.5 rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors group text-sm"
             activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
           >
-            <IconComponent className="w-3.5 h-3.5 shrink-0" />
+            <IconComponent className="w-4 h-4 shrink-0" strokeWidth={1.5} />
             {!collapsed && (
               <>
                 <span className="flex-1 truncate">{shortcut.title}</span>
