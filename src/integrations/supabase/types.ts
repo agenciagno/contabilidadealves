@@ -108,8 +108,6 @@ export type Database = {
           color: string | null
           company_id: string
           created_at: string
-          display_order: number
-          dre_section: string
           icon: string | null
           id: string
           name: string
@@ -121,8 +119,6 @@ export type Database = {
           color?: string | null
           company_id: string
           created_at?: string
-          display_order?: number
-          dre_section?: string
           icon?: string | null
           id?: string
           name: string
@@ -134,8 +130,6 @@ export type Database = {
           color?: string | null
           company_id?: string
           created_at?: string
-          display_order?: number
-          dre_section?: string
           icon?: string | null
           id?: string
           name?: string

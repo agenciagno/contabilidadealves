@@ -1,172 +1,72 @@
 
-## Plano: Reestruturar DRE para refletir o layout do PDF (Balancete Mensal)
 
-### Diferenças identificadas entre o PDF e o sistema atual
+## Plano: Correção de Divergências em Saldos, Cálculos e Integridade de Eventos Contábeis
 
-| Aspecto | Sistema Atual | PDF |
-|---|---|---|
-| Estrutura | 2 seções planas (Receitas / Despesas) | Estrutura hierárquica com subtotais intermediários (Receita Bruta → Receita Líquida → Lucro Bruto → Lucro Operacional → Lucro Líquido) |
-| Colunas | 4 (Evento, Previsto, Realizado, RXP) | 6 (Evento, Previsto, Realizado, RXP, % Previsto, % Realizado) |
-| Subtotais computados | Apenas "Total Receitas" e "Total Despesas" | 7 linhas calculadas: Receita Bruta, Deduções, Receita Líquida, Lucro Bruto, Lucro Operacional, Lucro Operacional (2), Lucro/Prejuízo Líquido |
-| Ordenação | Ordem aleatória por tipo | Sequência fixa: Receitas Op. → Deduções → Custo Pessoal → Desp. Fixas → Variáveis → Imobilizados → Financeiras → Receita Financeira → Tributárias → Parcelamentos → Terc. Serviços → Sócios → Não Operacionais |
-| Resumo superior | Inexistente | Card resumo com Receita Líquida, Custo Pessoal, Desp. Operacionais, Receitas/Despesas não Op., Lucro/Prejuízo, Saldo em Caixa |
-| Seção não-operacional | Misturada com despesas | Separada após o resultado operacional |
-| Fluxo de caixa | Inexistente na DRE | Linha final com saldo em caixa |
+### Problemas Identificados
+
+**1. Dashboard usa `t.amount` em vez de `paid_amount` para transações pagas**
+- `Dashboard.tsx` linhas 178-193: Os KPIs "Receitas Recebidas" e "Contas Pagas" somam `t.amount` para transações pagas, ignorando `paid_amount`. Se o valor pago difere do original, o KPI fica errado.
+- Linhas 228-243: Métricas anuais (`annualMetrics`) cometem o mesmo erro — usam `Number(t.amount)` para transações pagas em vez de `paid_amount`.
+- **Regra do sistema**: transações pagas devem usar `paid_amount` (via `isEffectivelyPaid` + `getEffectiveAmount`).
+
+**2. Dashboard não usa `isEffectivelyPaid` para determinar status**
+- Linhas 179, 183, 188, 191: Usa `t.is_paid` diretamente sem verificar `isEffectivelyPaid`. Uma transação com `is_paid=true` mas sem `date` ou `paid_amount` é tratada como paga.
+
+**3. CashFlowTab (Pagar/Receber) — running balance usa `t.amount` para pendentes (OK), mas honorários com juros não refletem no saldo acumulado**
+- Linha 641-645: O saldo acumulado usa `amt` (amount original), não `displayAmount` (com juros/multa). Isso é inconsistente — o KPI mostra um valor com juros mas o saldo não o inclui.
+
+**4. `bulkCreateTransactions` não invalida DRE**
+- Linha 344-349: Após importação em massa, invalida `transactions`, `banks`, `contacts`, `categories` mas **falta** invalidar `dre-previsto` e `dre-realizado`.
+
+**5. Integridade de Eventos Contábeis ao mudar hierarquia**
+- `useCategories.ts` → `updateCategory`: quando um Evento Macro vira Sub Evento (ou vice-versa), a transação continua vinculada ao `category_id` correto. **Não há problema de integridade** porque `category_id` referencia o ID do evento, não sua posição na hierarquia. O `parent_id` é atributo da categoria, não da transação.
+- **Porém**, se um Evento Macro é deletado, seus Sub Eventos ficam órfãos (`parent_id` aponta para ID inexistente). O `deleteCategory` não limpa os filhos.
+
+**6. Planilha de importação — modelo está correto**
+- Os 12 headers estão alinhados com os campos do sistema.
+- A lógica de matching por nome+tipo para Eventos Contábeis está correta.
+- **Único problema menor**: a importação não invalida `dre-previsto`/`dre-realizado` (item 4).
 
 ### Mudanças
 
-| # | Recurso | Mudança |
-|---|---|---|
-| 1 | **Migration SQL** | Adicionar `display_order` (int) e `dre_section` (text) à tabela `categories` |
-| 2 | `src/hooks/useDREData.ts` | Reescrever: agrupar macros por `dre_section`, calcular subtotais intermediários, % sobre Receita Líquida |
-| 3 | `src/pages/DRE.tsx` | Reescrever layout completo: resumo superior + tabela hierárquica com subtotais computados na sequência do PDF |
+| # | Arquivo | Mudança |
+|---|---------|---------|
+| 1 | `src/pages/Dashboard.tsx` | Corrigir `summary` e `annualMetrics` para usar `isEffectivelyPaid` + `getEffectiveAmount` |
+| 2 | `src/hooks/useTransactions.ts` | Adicionar invalidação de DRE em `bulkCreateTransactions` |
+| 3 | `src/hooks/useCategories.ts` | No `deleteCategory`, limpar `parent_id` dos filhos órfãos antes de deletar |
+| 4 | `src/components/transactions/CashFlowTab.tsx` | Manter running balance consistente (sem mudança funcional — decisão de design sobre juros) |
 
-### 1. Migration SQL
+### Detalhes Técnicos
 
-```sql
-ALTER TABLE public.categories
-  ADD COLUMN IF NOT EXISTS display_order integer NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS dre_section text NOT NULL DEFAULT 'despesas_operacionais';
-```
-
-`dre_section` define em qual bloco estrutural da DRE o Macro pertence. Valores possíveis:
-- `receitas_operacionais`
-- `deducoes_receita`
-- `custo_pessoal`
-- `despesas_fixas`
-- `despesas_variaveis`
-- `despesas_imobilizados`
-- `despesas_financeiras`
-- `receita_financeira`
-- `despesas_tributarias`
-- `despesas_parcelamentos`
-- `despesas_terceirizacao`
-- `despesas_socios`
-- `nao_operacional_receita`
-- `nao_operacional_despesa`
-
-`display_order` controla a ordem de exibição dentro de cada seção.
-
-### 2. Hook `useDREData.ts` — Reestruturação completa
-
-**Novo retorno:**
+**Dashboard.tsx — summary corrigido:**
 ```typescript
-interface DREResult {
-  // Seções na ordem do PDF
-  receitasOperacionais: DRERow[];
-  deducoesReceita: DRERow[];
-  custoPessoal: DRERow[];
-  despesasFixas: DRERow[];
-  despesasVariaveis: DRERow[];
-  despesasImobilizados: DRERow[];
-  despesasFinanceiras: DRERow[];
-  receitaFinanceira: DRERow[];
-  despesasTributarias: DRERow[];
-  despesasParcelamentos: DRERow[];
-  despesasTerceirizacao: DRERow[];
-  despesasSocios: DRERow[];
-  naoOperacionalReceita: DRERow[];
-  naoOperacionalDespesa: DRERow[];
-  
-  // Subtotais computados
-  receitaBruta: { previsto: number; realizado: number };
-  deducoes: { previsto: number; realizado: number };
-  receitaLiquida: { previsto: number; realizado: number };
-  lucroBruto: { previsto: number; realizado: number };
-  totalDespesasOperacionais: { previsto: number; realizado: number };
-  lucroOperacional: { previsto: number; realizado: number };
-  lucroOperacional2: { previsto: number; realizado: number };
-  lucroPrejuizoLiquido: { previsto: number; realizado: number };
-  fluxoCaixa: number; // saldo dos bancos
-}
+import { isEffectivelyPaid, getEffectiveAmount } from '@/lib/financial-utils';
+
+const receitasPagas = transactions
+  .filter(t => t.type === 'receita' && isEffectivelyPaid(t))
+  .reduce((sum, t) => sum + getEffectiveAmount(t), 0);
+```
+Mesma lógica para `despesasPagas` e `annualMetrics`.
+
+**bulkCreateTransactions — invalidação DRE:**
+```typescript
+queryClient.invalidateQueries({ queryKey: ['dre-previsto'] });
+queryClient.invalidateQueries({ queryKey: ['dre-realizado'] });
 ```
 
-**Lógica de cálculo (sequência do PDF):**
+**deleteCategory — proteção de órfãos:**
+```typescript
+// Antes de deletar, desvincula filhos
+await supabase
+  .from('categories')
+  .update({ parent_id: null })
+  .eq('parent_id', id);
 ```
-Receita Bruta = Σ Receitas Operacionais
-Deduções = Σ Deduções Receita
-Receita Líquida = Receita Bruta + Deduções (deduções são negativas)
-Lucro Bruto = Receita Líquida - Custo com Pessoal
-Despesas Operacionais = Fixas + Variáveis + Imobilizados + Financeiras - Rec. Financeira + Tributárias + Parcelamentos + Terceirização
-Lucro Operacional = Lucro Bruto - Despesas Operacionais
-Lucro Operacional (2) = Lucro Operacional - Despesas c/ Sócios
-Lucro/Prejuízo Líquido = Lucro Op. (2) + Não Op. Receita - Não Op. Despesa
-```
-
-**% Previsto e % Realizado:** cada linha calcula `valor / receitaLiquida * 100`.
-
-**Ordenação:** macros dentro de cada seção ordenados por `display_order`.
-
-### 3. Página `DRE.tsx` — Layout do PDF
-
-**Resumo superior (card):** tabela compacta com:
-- Receita Líquida | Previsto | Realizado | RXP | Análise | Saldo a Pagar
-- Custo com Pessoal | ...
-- Despesas Operacionais | ...
-- Receitas não operacionais | ...
-- Despesas não operacionais | ...
-- Lucro/Prejuízo Líquido | ...
-
-Campo "Análise": "Positivo" se RXP > 0, "Negativo" se < 0, "Saldo em Caixa" para Receita Líquida.
-Campo "Saldo a Pagar": soma das transações pendentes daquela seção.
-
-**Tabela principal — sequência fixa de renderização:**
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│ Evento Contábil        │ Previsto │ Realizado │ RXP │ %P │ %R  │
-├─────────────────────────────────────────────────────────────────┤
-│ [Seção] Receitas Operacionais                                  │
-│   > Macro expandível → Sub eventos                             │
-│ ═ Receita Bruta (subtotal)                                     │
-│                                                                │
-│ [Seção] Deduções Receita Bruta                                 │
-│   > Macro expandível → Sub eventos                             │
-│ ═ Total Deduções (subtotal)                                    │
-│                                                                │
-│ ══ RECEITA LÍQUIDA (calculada)                                 │
-│                                                                │
-│ [Seção] Custo com Pessoal                                      │
-│   > Macro expandível → Sub eventos                             │
-│ ═ Total Custo com Pessoal                                      │
-│                                                                │
-│ ══ LUCRO BRUTO (calculada)                                     │
-│                                                                │
-│ [Seção] Despesas Fixas                                         │
-│ [Seção] Despesas Variáveis                                     │
-│ [Seção] Despesas Imobilizados                                  │
-│ [Seção] Despesas Financeiras                                   │
-│ [Seção] (+) Receita Financeira                                 │
-│ [Seção] Despesas Tributárias                                   │
-│ [Seção] Desp. c/ Parcelamentos                                 │
-│ [Seção] Desp. c/ Terc. de Serviços                             │
-│                                                                │
-│ ══ LUCRO/PREJUÍZO OPERACIONAL (calculada)                      │
-│                                                                │
-│ [Seção] Despesas c/ Sócios                                     │
-│                                                                │
-│ ══ LUCRO/PREJUÍZO OPERACIONAL (2)                              │
-│                                                                │
-│ [Seção] Despesas/Receitas não Operacionais                     │
-│   > Empréstimos Recebidos PF/PJ                                │
-│   > Despesas Empréstimos                                       │
-│                                                                │
-│ ══ LUCRO/PREJUÍZO LÍQUIDO (destaque final)                     │
-│ Fluxo de Caixa: R$ X.XXX,XX                                   │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-**Linhas computadas** têm estilo visual destacado (bold, background diferenciado) e não são clicáveis.
-
-**Cada seção de Macros** mantém o comportamento de acordeão existente (expandir/recolher sub eventos).
-
-### 4. Configuração inicial dos Eventos Macro existentes
-
-Será necessário que o usuário classifique seus Macros existentes no campo `dre_section`. Para facilitar, o formulário de criação/edição de Evento Contábil (CategoryFormDialog) receberá:
-- Dropdown "Seção DRE" (apenas para Macros, visível quando `parent_id` é null)
-- Campo "Ordem de Exibição" (número)
 
 ### Resumo
-- 1 migration (2 colunas em `categories`)
-- 2 arquivos reescritos (`useDREData.ts`, `DRE.tsx`)
-- 1 arquivo editado (`CategoryFormDialog.tsx` — adicionar campos seção DRE e ordem)
+- 3 arquivos editados
+- 0 migrations
+- Corrige divergências nos KPIs do Dashboard que usam `amount` ao invés de `paid_amount`
+- Garante invalidação de cache DRE na importação em massa
+- Protege integridade hierárquica ao excluir Eventos Macro
+
