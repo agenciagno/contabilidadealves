@@ -1,72 +1,136 @@
 
 
-## Plano: Correção de Divergências em Saldos, Cálculos e Integridade de Eventos Contábeis
+## Plano: Reestruturar DRE para Espelhar Exatamente o Layout do PDF
 
-### Problemas Identificados
+### Problema
 
-**1. Dashboard usa `t.amount` em vez de `paid_amount` para transações pagas**
-- `Dashboard.tsx` linhas 178-193: Os KPIs "Receitas Recebidas" e "Contas Pagas" somam `t.amount` para transações pagas, ignorando `paid_amount`. Se o valor pago difere do original, o KPI fica errado.
-- Linhas 228-243: Métricas anuais (`annualMetrics`) cometem o mesmo erro — usam `Number(t.amount)` para transações pagas em vez de `paid_amount`.
-- **Regra do sistema**: transações pagas devem usar `paid_amount` (via `isEffectivelyPaid` + `getEffectiveAmount`).
+A DRE atual divide tudo em 2 blocos genéricos ("Receitas" e "Despesas") e calcula apenas um "Resultado Líquido". O PDF tem **15 grupos macro** em sequência específica e **7 linhas calculadas intermediárias**, incluindo "Despesas c/ Sócios" entre "Lucro Operacional" e "Despesas/Receitas não Operacionais".
 
-**2. Dashboard não usa `isEffectivelyPaid` para determinar status**
-- Linhas 179, 183, 188, 191: Usa `t.is_paid` diretamente sem verificar `isEffectivelyPaid`. Uma transação com `is_paid=true` mas sem `date` ou `paid_amount` é tratada como paga.
+### Estrutura-Alvo Corrigida (extraída do PDF)
 
-**3. CashFlowTab (Pagar/Receber) — running balance usa `t.amount` para pendentes (OK), mas honorários com juros não refletem no saldo acumulado**
-- Linha 641-645: O saldo acumulado usa `amt` (amount original), não `displayAmount` (com juros/multa). Isso é inconsistente — o KPI mostra um valor com juros mas o saldo não o inclui.
+```text
+┌──────────────────────────────────────────────────────┐
+│ RECEITAS OPERACIONAIS (macro)                        │
+│   ↳ sub-eventos em ordem alfabética                  │
+├─── RECEITA BRUTA (calculada = soma Rec. Operacionais)│
+│ DEDUÇÕES RECEITA BRUTA (macro)                       │
+│   ↳ sub-eventos em ordem alfabética                  │
+├─── RECEITA LÍQUIDA (calc = Bruta - Deduções)  ──────┤
+│ CUSTO COM PESSOAL (macro)                            │
+│   ↳ sub-eventos em ordem alfabética                  │
+├─── LUCRO BRUTO (calc = Líquida - Pessoal) ──────────┤
+│ DESPESAS FIXAS (macro)                               │
+│ DESPESAS VARIÁVEIS (macro)                           │
+│ DESPESAS IMOBILIZADOS (macro)                        │
+│ DESPESAS FINANCEIRAS (macro)                         │
+│ (+) RECEITA FINANCEIRA (macro)                       │
+│ DESPESAS TRIBUTÁRIAS (macro)                         │
+│ DESPESAS C/ PARCELAMENTOS (macro)                    │
+│ DESPESAS C/ TERC. DE SERVIÇOS (macro)                │
+├─── LUCRO/PREJUÍZO OPERACIONAL (calculada) ──────────┤
+│ DESPESAS C/ SÓCIOS (macro)                           │
+│   ↳ sub-eventos em ordem alfabética                  │
+├─── LUCRO/PREJUÍZO OPERACIONAL (2) (calculada) ──────┤
+├─── DESPESAS/RECEITAS NÃO OPERACIONAIS (calculada) ──┤
+│ EMPRÉSTIMOS RECEBIDOS PF/PJ (macro)                 │
+│ DESPESAS EMPRÉSTIMOS (macro)                         │
+├─── LUCRO/PREJUÍZO LÍQUIDO (calculada final) ────────┤
+└──────────────────────────────────────────────────────┘
+```
 
-**4. `bulkCreateTransactions` não invalida DRE**
-- Linha 344-349: Após importação em massa, invalida `transactions`, `banks`, `contacts`, `categories` mas **falta** invalidar `dre-previsto` e `dre-realizado`.
+### Colunas que Faltam na DRE Atual (existem no PDF)
 
-**5. Integridade de Eventos Contábeis ao mudar hierarquia**
-- `useCategories.ts` → `updateCategory`: quando um Evento Macro vira Sub Evento (ou vice-versa), a transação continua vinculada ao `category_id` correto. **Não há problema de integridade** porque `category_id` referencia o ID do evento, não sua posição na hierarquia. O `parent_id` é atributo da categoria, não da transação.
-- **Porém**, se um Evento Macro é deletado, seus Sub Eventos ficam órfãos (`parent_id` aponta para ID inexistente). O `deleteCategory` não limpa os filhos.
+| Coluna | Descrição |
+|---|---|
+| **% Previsto** | Percentual do item sobre a Receita Líquida Prevista |
+| **% Realizado** | Percentual do item sobre a Receita Líquida Realizada |
+| **Análise** (resumo topo) | Indicador textual (Positivo/Negativo) — será omitido pois é exclusivo do resumo do Excel |
+| **Saldo a Pagar** (resumo topo) | Diferença entre previsto e realizado pendente — será omitido pois é fluxo de caixa |
 
-**6. Planilha de importação — modelo está correto**
-- Os 12 headers estão alinhados com os campos do sistema.
-- A lógica de matching por nome+tipo para Eventos Contábeis está correta.
-- **Único problema menor**: a importação não invalida `dre-previsto`/`dre-realizado` (item 4).
+### Informações de Cabeçalho que Faltam (existem no PDF)
+
+| Info | Descrição |
+|---|---|
+| **Resumo Balancete** | Painel resumo no topo com Receita Líquida, Custo Pessoal, Despesas Operacionais, Receitas/Despesas não Operacionais, Lucro/Prejuízo |
+| **Data Inicial / Data Final** | Já existe (Date Range Picker) |
+| **Mês/Ano** | Label dinâmico baseado no período selecionado (ex: "abril-26") |
+| **Fluxo de Caixa** | Valor do saldo em caixa no período |
+| **Lucro/Prejuízo Médio Anual** | Cálculo do lucro médio baseado nos meses do ano |
+| **Total Despesas %** | Linha calculada com % total de despesas sobre receita líquida |
 
 ### Mudanças
 
 | # | Arquivo | Mudança |
 |---|---------|---------|
-| 1 | `src/pages/Dashboard.tsx` | Corrigir `summary` e `annualMetrics` para usar `isEffectivelyPaid` + `getEffectiveAmount` |
-| 2 | `src/hooks/useTransactions.ts` | Adicionar invalidação de DRE em `bulkCreateTransactions` |
-| 3 | `src/hooks/useCategories.ts` | No `deleteCategory`, limpar `parent_id` dos filhos órfãos antes de deletar |
-| 4 | `src/components/transactions/CashFlowTab.tsx` | Manter running balance consistente (sem mudança funcional — decisão de design sobre juros) |
+| 1 | `src/hooks/useDREData.ts` | Reescrever: match macros por `name` na estrutura fixa; calcular linhas intermediárias + colunas % Previsto e % Realizado |
+| 2 | `src/pages/DRE.tsx` | Reescrever: renderizar estrutura fixa com macros, sub-eventos (alfabéticos), linhas calculadas destacadas, painel resumo no topo, colunas % |
 
 ### Detalhes Técnicos
 
-**Dashboard.tsx — summary corrigido:**
-```typescript
-import { isEffectivelyPaid, getEffectiveAmount } from '@/lib/financial-utils';
+**Nenhuma alteração no cadastro de Eventos Contábeis.** A DRE fará match por nome exato do Evento Macro cadastrado com a lista fixa de seções. Macros que não correspondem a nenhuma seção conhecida serão ignorados na DRE. Os sub-eventos serão puxados automaticamente via `parent_id` e ordenados alfabeticamente.
 
-const receitasPagas = transactions
-  .filter(t => t.type === 'receita' && isEffectivelyPaid(t))
-  .reduce((sum, t) => sum + getEffectiveAmount(t), 0);
-```
-Mesma lógica para `despesasPagas` e `annualMetrics`.
+**1. `useDREData.ts` — Nova lógica**
 
-**bulkCreateTransactions — invalidação DRE:**
+Define um array fixo `DRE_SECTIONS` com a sequência de nomes de macro e linhas calculadas. Para cada seção, busca o macro com aquele nome exato (case-insensitive), constrói o roll-up dos sub-eventos (ordenados alfabeticamente):
+
 ```typescript
-queryClient.invalidateQueries({ queryKey: ['dre-previsto'] });
-queryClient.invalidateQueries({ queryKey: ['dre-realizado'] });
+const DRE_STRUCTURE = [
+  { type: 'section', name: 'Receitas Operacionais' },
+  { type: 'calculated', key: 'receita_bruta', label: 'Receita Bruta',
+    calc: (ctx) => ctx.receitas_operacionais },
+  { type: 'section', name: 'Deduções receita Bruta' },
+  { type: 'calculated', key: 'receita_liquida', label: 'Receita Líquida',
+    calc: (ctx) => ctx.receita_bruta - Math.abs(ctx.deducoes_receita) },
+  { type: 'section', name: 'Custo com Pessoal' },
+  { type: 'calculated', key: 'lucro_bruto', label: 'Lucro Bruto',
+    calc: (ctx) => ctx.receita_liquida - ctx.custo_pessoal },
+  { type: 'section', name: 'Despesas Fixas' },
+  { type: 'section', name: 'Despesas Variáveis' },
+  { type: 'section', name: 'Despesas Imobilizados' },
+  { type: 'section', name: 'Despesas Financeiras' },
+  { type: 'section', name: '( + ) Receita Financeira' },
+  { type: 'section', name: 'Despesas Tributárias' },
+  { type: 'section', name: 'Depesas c/ Parcelamentos' },
+  { type: 'section', name: 'Despesas c/ Terc. de Serviços' },
+  { type: 'calculated', key: 'lucro_operacional', label: 'Lucro/Prejuízo Operacional' },
+  { type: 'section', name: 'Desepsas c/ Sócios' },
+  { type: 'calculated', key: 'lucro_operacional_2', label: 'Lucro/Prejuízo Operacional (2)' },
+  { type: 'calculated', key: 'despesas_receitas_nao_op', label: 'Despesas/Receitas não Operacionais' },
+  { type: 'section', name: 'Empréstimos Recebidos PF/PJ' },
+  { type: 'section', name: 'Despesas Empréstimos' },
+  { type: 'calculated', key: 'lucro_liquido', label: 'Lucro/Prejuízo Líquido' },
+];
 ```
 
-**deleteCategory — proteção de órfãos:**
-```typescript
-// Antes de deletar, desvincula filhos
-await supabase
-  .from('categories')
-  .update({ parent_id: null })
-  .eq('parent_id', id);
-```
+Match por nome: `categories.find(c => !c.parent_id && c.name.toLowerCase().trim() === sectionName.toLowerCase().trim())`
+
+Cálculo das linhas intermediárias (acumulativo, usando os totais previsto/realizado de cada seção macro processada).
+
+Colunas `% Previsto` e `% Realizado`: calculadas como `valor / receitaLíquida * 100`.
+
+**2. `DRE.tsx` — Renderização**
+
+- **Painel Resumo** (topo): Cards com Receita Líquida, Custo c/ Pessoal, Despesas Operacionais, Receitas/Despesas não Operacionais, Lucro/Prejuízo Líquido + Fluxo de Caixa
+- **Cabeçalho**: Mês/Ano dinâmico + Lucro/Prejuízo Médio Anual
+- Linhas de **macro**: fundo verde claro, bold, expansíveis (accordion)
+- Linhas de **sub-evento**: indentadas com ↳, ordenadas alfabeticamente
+- Linhas **calculadas**: fundo escuro, bold, sem accordion
+- **Colunas**: Evento Contábil | Previsto | Realizado | RXP | % Previsto | % Realizado
+- Linha **Total Despesas %** após Receita Líquida
+
+### Sem migration necessária
+
+Nenhuma tabela ou coluna precisa ser alterada. O match é feito por nome do Evento Macro.
+
+### Nenhuma alteração no Cadastro de Eventos
+
+O `CategoryFormDialog.tsx` e `useCategories.ts` permanecem intactos. Os macros são cadastrados normalmente pelo usuário e a DRE os puxa automaticamente pela correspondência de nome.
 
 ### Resumo
-- 3 arquivos editados
 - 0 migrations
-- Corrige divergências nos KPIs do Dashboard que usam `amount` ao invés de `paid_amount`
-- Garante invalidação de cache DRE na importação em massa
-- Protege integridade hierárquica ao excluir Eventos Macro
+- 0 alterações no cadastro de eventos
+- 2 arquivos reescritos (`useDREData.ts`, `DRE.tsx`)
+- Estrutura fixa com 15 macros + 7 linhas calculadas
+- 2 colunas novas (% Previsto, % Realizado)
+- Painel resumo no topo com KPIs
 
