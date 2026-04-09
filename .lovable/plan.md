@@ -1,101 +1,73 @@
 
 
-## Plano: Corrigir Importação de Planilha — 679 Transações Devem Ser Importadas
+## Plano: Reskin Visual Premium — Estética Apple-Inspired
 
-### Problemas Identificados
+### Interpretação da Referência
 
-**1. Linhas ignoradas silenciosamente (679 → 316)**
+A referência (Grounddesk) apresenta: sidebar escura com ícones-only, cards com tipografia grande e limpa, gráfico de linha suave com gradiente, fundo muito escuro (dark) ou branco puro (light), espaçamento generoso, cantos arredondados grandes, sombras mínimas e superfícies com separação sutil. O objetivo é trazer essa sensação de "produto nativo premium" sem copiar literalmente.
 
-A linha 304 do `ImportSpreadsheetDialog.tsx` faz `if (amount == null) continue;` — qualquer linha onde `parseAmount` retorna `null` é descartada sem aviso. Isso acontece quando:
+### Elementos Visuais que Serão Alterados
 
-- A coluna "Valor" contém valores formatados como texto (ex: `"R$ 1.234,56"` com espaços non-breaking, ou `(1.234,56)` para negativos)
-- A coluna "Valor" está vazia em algumas linhas
-- O `sheet_to_json` do XLSX pode interpretar valores numéricos como strings dependendo da formatação do Excel
+| Elemento | Estado Atual | Direção Premium |
+|----------|-------------|-----------------|
+| Fonte | Sora | SF Pro Display (system -apple-system fallback) |
+| Paleta Light | bg `0 0% 98%`, card white, primary blue forte | bg `0 0% 99%`, card white puro, primary indigo suave `228 76% 52%` |
+| Paleta Dark | bg `0 0% 14%` (#232323) | bg `228 15% 10%` (azul-escuro sutil, não cinza puro) |
+| Cards | `shadow-sm`, `border-border/50`, `rounded-lg` | `shadow-none` (light) / `shadow-none` (dark), `border-border/30`, `rounded-2xl` |
+| Bordas | `border-border` visíveis | Mais sutis, `border/20-30` opacity |
+| Spacing | `p-5` nos cards, `gap-4` | `p-6` nos cards, `gap-5` — mais respiro |
+| Tipografia KPIs | `text-4xl font-extrabold` | `text-3xl font-semibold tracking-tight` — mais elegante |
+| Header | `h-16`, `border-b`, `backdrop-blur` | `h-14`, sem borda, apenas sombra sutil `shadow-[0_1px_0_0_hsl(var(--border)/0.5)]` |
+| Sidebar | `border-r`, ícones Lucide padrão | Sem borda visível, separação por sombra sutil, ícones com `strokeWidth={1.5}` |
+| Botões | `rounded-md` | `rounded-xl` |
+| Radius global | `0.75rem` | `1rem` |
+| Gráficos | Cores saturadas | Mesmas cores com 80% opacity, stroke mais fino |
 
-A função `parseAmount` (linha 68-77) faz `.replace(/[R$\s]/g, '')` mas **não trata**:
-- Caracteres Unicode de espaço não-quebrável (`\u00A0`, `\xA0`)
-- Formato de números negativos com parênteses `(1.234,56)`
-- Traços ou hifens como zero `—`, `–`
-- Valores com prefixo de moeda como `R$-1.234,56`
+### Partes que Permanecem 100% Intactas
 
-**2. Diferença nos valores (R$479.889,86 vs R$430.789,07)**
+- Toda lógica de negócio, hooks, queries, mutations
+- Todos os dados, valores, métricas, cálculos
+- Quantidade, ordem e estrutura dos cards
+- Tabelas, colunas, filtros, ordenação, paginação
+- Rotas, navegação, autenticação, permissões
+- Textos, labels, nomenclaturas
+- Componentes de diálogo/modal (apenas herdarão a nova paleta via CSS vars)
 
-A diferença de ~R$49.100 pode ser causada por:
-- Linhas ignoradas que tinham `Valor Pago/Recebido` preenchido
-- `Math.abs()` alterando o sinal de valores que deveriam ser negativos na soma
-- O banco mostra `SUM(paid_amount)` = 430.789,07, mas as 363 linhas ignoradas continham parte do valor total
-
-### Mudanças
+### Arquivos Editados (somente visual)
 
 | # | Arquivo | Mudança |
 |---|---------|---------|
-| 1 | `ImportSpreadsheetDialog.tsx` | Corrigir `parseAmount` para tratar mais formatos; adicionar contagem de linhas ignoradas com feedback ao usuário |
+| 1 | `src/index.css` | Nova paleta CSS vars (light + dark), fonte SF Pro, radius global `1rem`, refinamento de scrollbar |
+| 2 | `tailwind.config.ts` | `fontFamily` atualizado para SF Pro stack, sem mudança de lógica |
+| 3 | `src/components/layout/AppHeader.tsx` | Classes visuais: remover `border-b`, adicionar `shadow-sm`, ajustar `h-14` |
+| 4 | `src/components/layout/AppSidebar.tsx` | Classes visuais: suavizar bordas, espaçamento mais generoso, ícones `w-[18px]`, opacidades |
+| 5 | `src/components/ui/button.tsx` | `rounded-md` → `rounded-xl`, transição mais suave |
+| 6 | `src/components/ui/card.tsx` | `rounded-lg` → `rounded-2xl`, `shadow-sm` → sombra condicional mais sutil |
+| 7 | `src/pages/Dashboard.tsx` | Apenas classes CSS: tipografia dos KPIs (`text-3xl font-semibold`), espaçamento (`gap-5`, `p-6`), bordas mais suaves nos cards de pendentes |
+| 8 | `src/components/layout/AppLayout.tsx` | `p-6` → `p-8` no main (mais respiro) |
 
-### Detalhes Técnicos
+### Paleta Proposta
 
-**1. Corrigir `parseAmount` (mais robusto)**
+**Light Mode** (inspirada na referência Light):
+- Background: `220 20% 97%` (off-white com toque azulado)
+- Card: `0 0% 100%` (branco puro)
+- Primary: `228 76% 52%` (indigo sofisticado)
+- Muted: `220 14% 94%`
+- Border: `220 14% 90%` (quase invisível)
 
-```typescript
-function parseAmount(value: unknown): number | null {
-  if (value == null || value === '') return null;
-  if (typeof value === 'number') return value;
-  if (typeof value === 'string') {
-    let s = value.trim();
-    if (s === '' || s === '—' || s === '–' || s === '-') return null;
-    // Detect parentheses as negative
-    const isNeg = s.startsWith('(') && s.endsWith(')');
-    if (isNeg) s = s.slice(1, -1);
-    // Remove currency symbols, ALL whitespace variants (including non-breaking)
-    s = s.replace(/[R$\u00A0\s]/gi, '');
-    // Handle Brazilian format: 1.234,56 → 1234.56
-    s = s.replace(/\./g, '').replace(',', '.');
-    // Remove any remaining non-numeric except minus and dot
-    s = s.replace(/[^\d.\-]/g, '');
-    const num = parseFloat(s);
-    if (isNaN(num)) return null;
-    return isNeg ? -num : num;
-  }
-  return null;
-}
-```
+**Dark Mode** (inspirada na referência Dark):
+- Background: `228 20% 10%` (azul-escuro profundo, não cinza)
+- Card: `228 18% 14%` (elevação sutil)
+- Primary: `228 76% 58%` (indigo mais brilhante)
+- Border: `228 14% 20%` (muito sutil)
 
-**2. Adicionar feedback de linhas ignoradas**
+### Fonte SF Pro
 
-Após o loop de processamento, se houver linhas ignoradas, mostrar um toast informando quantas linhas foram descartadas e o motivo (valor ausente/inválido):
-
-```typescript
-const skippedRows = rows.length - transactions.length;
-if (skippedRows > 0) {
-  toast({ 
-    title: `${skippedRows} linha(s) ignorada(s)`,
-    description: `Motivo: coluna "Valor" vazia ou com formato não reconhecido.`,
-    variant: 'destructive'
-  });
-}
-```
-
-**3. Forçar leitura raw do XLSX**
-
-Adicionar `raw: true` ao `XLSX.read` para evitar que o XLSX.js tente formatar valores automaticamente, o que pode converter números em strings:
-
-```typescript
-const workbook = XLSX.read(data, { type: 'array', raw: true });
-```
-
-E no `sheet_to_json`, usar `{ raw: false, defval: null }` para garantir que células vazias apareçam como `null` em vez de serem omitidas da row.
-
-**4. Tratar `defval` para evitar perda de colunas**
-
-```typescript
-const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: null });
-```
-
-Isso garante que mesmo colunas vazias apareçam no objeto da linha, evitando que `get('Valor')` retorne `undefined` quando a célula existe mas está vazia.
+Será carregada via `-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Segoe UI', Roboto, sans-serif` — stack nativa que usa SF Pro em dispositivos Apple e fallbacks premium em outros.
 
 ### Resumo
-- 1 arquivo editado (`ImportSpreadsheetDialog.tsx`)
 - 0 migrations
-- Corrige `parseAmount` para aceitar mais formatos brasileiros
-- Adiciona `defval: null` no parser XLSX para não perder colunas vazias
-- Adiciona feedback visual de linhas ignoradas
+- 0 alterações de lógica
+- 8 arquivos editados (somente classes CSS e variáveis visuais)
+- Resultado: interface premium, minimalista e sofisticada
 
