@@ -19,6 +19,7 @@ import {
   UserCircle,
   BarChart3,
   FileCheck,
+  type LucideIcon,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
@@ -67,13 +68,13 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 interface MenuItem {
   title: string;
   url: string;
-  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  icon: LucideIcon;
   iconName: string;
 }
 
 interface MenuModule {
   title: string;
-  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  icon: LucideIcon;
   defaultOpen?: boolean;
   moduleKey?: string;
   items: MenuItem[];
