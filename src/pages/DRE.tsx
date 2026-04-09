@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ChevronRight, ChevronDown, CalendarDays, X, TrendingUp, TrendingDown, DollarSign, Wallet, Building2 } from 'lucide-react';
+import { CalendarDays, X, TrendingUp, TrendingDown, DollarSign, Wallet, Building2 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useDREData, DRESectionRow, DRECalculatedRow, DRERowResult } from '@/hooks/useDREData';
@@ -54,28 +54,12 @@ function SummaryCard({ title, previsto, realizado, icon: Icon, color }: {
   );
 }
 
-function SectionRow({ row, expanded, onToggle }: {
-  row: DRESectionRow;
-  expanded: boolean;
-  onToggle: () => void;
-}) {
-  const hasChildren = row.children.length > 0;
-
+function SectionRow({ row }: { row: DRESectionRow }) {
   return (
     <>
-      <TableRow
-        className={cn(
-          'cursor-pointer hover:bg-emerald-500/10 bg-emerald-500/5 font-semibold',
-        )}
-        onClick={hasChildren ? onToggle : undefined}
-      >
+      <TableRow className="hover:bg-emerald-500/10 bg-emerald-500/5 font-semibold">
         <TableCell className="pl-4">
           <div className="flex items-center gap-2">
-            {hasChildren ? (
-              expanded ? <ChevronDown className="h-4 w-4 text-emerald-600" /> : <ChevronRight className="h-4 w-4 text-emerald-600" />
-            ) : (
-              <span className="w-4" />
-            )}
             <span className="text-emerald-700 dark:text-emerald-400">{row.macroName}</span>
             {!row.macroId && (
               <span className="text-[10px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded dark:bg-amber-900/30 dark:text-amber-400">
@@ -91,7 +75,7 @@ function SectionRow({ row, expanded, onToggle }: {
         <TableCell className="text-right text-muted-foreground">{formatPerc(row.percRealizado)}</TableCell>
       </TableRow>
 
-      {expanded && row.children.map(child => (
+      {row.children.map(child => (
         <TableRow key={child.id} className="hover:bg-muted/20">
           <TableCell className="pl-12">
             <span className="text-muted-foreground">↳</span> {child.name}
@@ -139,11 +123,7 @@ export default function DRE() {
   const now = new Date();
   const [startDate, setStartDate] = useState(() => format(startOfMonth(now), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(() => format(endOfMonth(now), 'yyyy-MM-dd'));
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-
   const { dreRows, summary } = useDREData(startDate, endDate);
-
-  const toggle = (name: string) => setExpanded(prev => ({ ...prev, [name]: !prev[name] }));
 
   const handleClear = () => {
     const today = new Date();
@@ -237,8 +217,6 @@ export default function DRE() {
                     <SectionRow
                       key={row.macroName + idx}
                       row={row}
-                      expanded={!!expanded[row.macroName]}
-                      onToggle={() => toggle(row.macroName)}
                     />
                   );
                 }
