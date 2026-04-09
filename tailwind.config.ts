@@ -14,7 +14,7 @@ export default {
     },
     extend: {
       fontFamily: {
-        sora: ['Sora', 'sans-serif'],
+        sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"SF Pro Text"', '"Segoe UI"', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
       },
       colors: {
         success: {

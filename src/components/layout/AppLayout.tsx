@@ -40,7 +40,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         <AppSidebar />
         <SidebarInset className="flex-1">
           <AppHeader />
-          <main className="flex-1 p-6">
+          <main className="flex-1 p-8">
             {children}
           </main>
         </SidebarInset>
