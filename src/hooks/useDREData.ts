@@ -26,6 +26,7 @@ export const DRE_STRUCTURE: DREStructureItem[] = [
   { type: 'section', name: 'Empréstimos Recebidos PF/PJ' },
   { type: 'section', name: 'Despesas Empréstimos' },
   { type: 'calculated', key: 'lucro_liquido', label: 'Lucro/Prejuízo Líquido' },
+  { type: 'calculated', key: 'fluxo_caixa', label: 'Fluxo de Caixa' },
 ];
 
 export type DREStructureItem =
@@ -267,6 +268,11 @@ export function useDREData(startDate: string, endDate: string) {
       previsto: calculatedTotals['lucro_operacional_2'].previsto + calculatedTotals['despesas_receitas_nao_op'].previsto,
       realizado: calculatedTotals['lucro_operacional_2'].realizado + calculatedTotals['despesas_receitas_nao_op'].realizado,
     };
+
+    const fluxoCaixaTotal = banks
+      .filter(b => !b.is_invisible)
+      .reduce((s, b) => s + Number(b.current_balance), 0);
+    calculatedTotals['fluxo_caixa'] = { previsto: fluxoCaixaTotal, realizado: fluxoCaixaTotal };
 
     // Receita Líquida for % calculations
     const rlPrevisto = calculatedTotals['receita_liquida'].previsto;

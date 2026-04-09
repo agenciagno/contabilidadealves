@@ -48,6 +48,10 @@ function SummaryCard({ title, previsto, realizado, icon: Icon, color }: {
             <span className="text-muted-foreground">Realizado</span>
             <span className={cn('font-semibold', valueColor(realizado))}>{formatCurrency(realizado)}</span>
           </div>
+          <div className="flex justify-between text-sm border-t border-border/50 pt-1 mt-1">
+            <span className="text-muted-foreground">RXP</span>
+            <span className={cn('font-semibold', valueColor(realizado - previsto))}>{formatCurrency(realizado - previsto)}</span>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -93,7 +97,7 @@ function SectionRow({ row }: { row: DRESectionRow }) {
 
 function CalculatedRow({ row }: { row: DRECalculatedRow }) {
   const isLucro = row.key.startsWith('lucro');
-  const isFinal = row.key === 'lucro_liquido';
+  const isFinal = row.key === 'lucro_liquido' || row.key === 'fluxo_caixa';
 
   return (
     <TableRow className={cn(
