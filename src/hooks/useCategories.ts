@@ -16,7 +16,7 @@ export interface Category {
   updated_at: string;
 }
 
-export type CategoryInsert = Omit<Category, 'id' | 'created_at' | 'updated_at' | 'parent_id'> & { parent_id?: string | null };
+export type CategoryInsert = Omit<Category, 'id' | 'created_at' | 'updated_at' | 'parent_id' | 'display_order' | 'dre_section'> & { parent_id?: string | null; display_order?: number; dre_section?: string };
 export type CategoryUpdate = Partial<Omit<Category, 'id' | 'company_id' | 'created_at' | 'updated_at'>>;
 
 export function useCategories() {
