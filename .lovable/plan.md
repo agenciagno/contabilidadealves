@@ -1,44 +1,52 @@
 
 
-## Plano: Adicionar flag `show_in_dre` aos Eventos Contábeis
+## Plano: Refatorar Motor de Cálculo e Renderização da DRE
 
-### 1. Migration — Nova coluna `show_in_dre`
+### Problemas Identificados no Código Atual
 
-```sql
-ALTER TABLE categories ADD COLUMN show_in_dre boolean NOT NULL DEFAULT true;
+1. **Ordem errada no `DRE_STRUCTURE`**: O breakpoint `despesas_receitas_nao_op` aparece **antes** das seções `Empréstimos Recebidos PF/PJ` e `Despesas Empréstimos` que ele depende
+2. **Fluxo de Caixa usa saldo bancário** em vez da variação real (entradas - saídas) no período
+3. **Sem ocultação de linhas zeradas** — seções com R$ 0,00 em previsto e realizado ainda aparecem
+
+### Mudanças (2 arquivos)
+
+#### 1. `src/hooks/useDREData.ts`
+
+**A. Corrigir ordem do `DRE_STRUCTURE`:**
+```
+Empréstimos Recebidos PF/PJ  ← mover para ANTES de despesas_receitas_nao_op
+Despesas Empréstimos          ← mover para ANTES de despesas_receitas_nao_op
+DESPESAS/RECEITAS NÃO OP.    ← agora vem depois
+LUCRO/PREJUÍZO LÍQUIDO
+FLUXO DE CAIXA
 ```
 
-### 2. `src/hooks/useCategories.ts` — Expor `show_in_dre`
+**B. Fluxo de Caixa — nova fórmula:**
+Substituir o cálculo atual (soma de `current_balance` dos bancos) por:
+- **Entradas** = soma de `paid_amount` de todas transações `is_paid=true` + `type='receita'` no período
+- **Saídas** = soma de `paid_amount` de todas transações `is_paid=true` + `type='despesa'` no período
+- **Fluxo de Caixa** = Entradas - Saídas (variação real de caixa, incluindo não-operacionais)
 
-- Adicionar `show_in_dre: boolean` à interface `Category`
+Essa query já existe (`realizadoTxns`), mas inclui apenas categorias com `show_in_dre`. Será necessária uma query adicional ou usar os dados brutos sem filtro de `show_in_dre` para o fluxo de caixa.
 
-### 3. `src/components/categories/CategoryFormDialog.tsx` — Toggle na UI
+**C. Summary `fluxoCaixa`**: atualizar para usar a nova fórmula ao invés de saldo bancário.
 
-- Adicionar estado `showInDre` (default `true`, inicializado do `category.show_in_dre` na edição)
-- Adicionar um `Switch` com label "Exibir na DRE?" e texto de ajuda abaixo
-- Incluir `show_in_dre` no payload do `onSubmit`
+#### 2. `src/pages/DRE.tsx`
 
-### 4. `src/hooks/useDREData.ts` — Filtrar categorias com `show_in_dre = false`
+**Ocultação inteligente**: No loop de renderização, ao encontrar uma `SectionRow` com `previsto === 0` E `realizado === 0`, não renderizar. BreakPoints sempre renderizados.
 
-Na lógica de `buildSection`, ao buscar macros e sub-eventos, ignorar categorias onde `show_in_dre === false`. Isso filtra automaticamente tanto Previsto quanto Realizado, pois ambos usam `sumPrevisto(catId)` e `sumRealizado(catId)` que dependem do `category_id`.
+### Matemática — Confirmação
 
-**Abordagem**: no `findMacro` e `getSubEvents`, filtrar apenas categorias com `show_in_dre !== false`. Nenhuma mudança nas queries SQL do Supabase (o filtro é client-side via categorias já carregadas).
-
-### Proteção Global
-
-- **Dashboard e Saldos Bancários**: não são alterados — usam `transactions` diretamente sem passar por categorias/DRE
-- **Trigger `update_bank_balance`**: não é alterada — continua somando todas as transações liquidadas
+As fórmulas dos breakpoints no código atual já estão corretas conforme solicitado. Apenas a ordem de renderização e o fluxo de caixa precisam de correção.
 
 ### Resumo
 
-| # | Arquivo | Tipo |
-|---|---------|------|
-| 1 | Migration SQL | Nova coluna |
-| 2 | `src/hooks/useCategories.ts` | Interface |
-| 3 | `src/components/categories/CategoryFormDialog.tsx` | Toggle UI |
-| 4 | `src/hooks/useDREData.ts` | Filtro client-side |
+| # | Arquivo | Mudança |
+|---|---------|---------|
+| 1 | `src/hooks/useDREData.ts` | Reordenar estrutura, nova query fluxo de caixa |
+| 2 | `src/pages/DRE.tsx` | Ocultar seções zeradas |
 
-- 1 migration
-- 3 arquivos editados
-- 0 impacto em saldos/dashboard
+- 0 migrations
+- 2 arquivos editados
+- Fórmulas contábeis preservadas
 
