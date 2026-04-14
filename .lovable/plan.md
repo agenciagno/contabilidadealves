@@ -1,72 +1,119 @@
 
 
-## Plano: Refatorar Regras de Negócio — Modais de Transação, DRE e Importação
+## Plano: Reestruturar Sidebar, Módulos e RBAC
 
-### Análise do Estado Atual vs. Regras Solicitadas
+### 1. Migration — Atualizar `allowed_modules` e `plan_modules`
 
-| Regra | Estado Atual | Mudança Necessária |
-|-------|-------------|-------------------|
-| À Vista salva como Liquidado | Salva como pendente se paid_amount=0 | Tornar Valor Recebido, Conta/Banco e Pagamento **obrigatórios**; salvar com `is_paid: true` |
-| À Prazo salva como Pendente | Já funciona assim | Nenhuma — apenas confirmar que campos de liquidação ficam ocultos |
-| Liquidar exige 3 campos | Já valida paid_amount + bank_id + date | Nenhuma — regra já implementada na linha 348 |
-| DRE Realizado usa paid_amount | Já usa `paid_amount ?? amount` (linha 159) | Nenhuma — já correto |
-| Dashboard usa paid_amount | `isEffectivelyPaid` + `getEffectiveAmount` já fazem isso | Nenhuma — já correto |
-| Import auto-classifica Liquidado | Usa coluna "Status" da planilha | Adicionar regra: se `Data Pagamento` preenchida → `is_paid: true` |
+Uma migration para atualizar os valores default e existentes:
 
-### Arquivos a Editar
+```sql
+-- Atualizar default de profiles.allowed_modules
+ALTER TABLE profiles ALTER COLUMN allowed_modules SET DEFAULT ARRAY['home','legalizacao','fiscal','pessoal_rh','financeiro','clientes','configuracoes'];
 
-| # | Arquivo | Mudança |
-|---|---------|---------|
-| 1 | `src/components/transactions/TransactionFormDialog.tsx` | **À Vista**: tornar `paidAmount`, `bankId` e `date` obrigatórios (required + validação); ajustar labels com asterisco; salvar com `is_paid: true`. **Valor (R$)** passa a ser opcional (remover asterisco). Ajustar `isFormValid` para refletir as novas regras por condição de pagamento. |
-| 2 | `src/components/transactions/ImportSpreadsheetDialog.tsx` | Na lógica de parsing (linha ~317): se `paymentDateStr` estiver preenchido, forçar `is_paid = true` e garantir `paid_amount` (fallback para `amount`). |
+-- Atualizar default de companies.plan_modules  
+ALTER TABLE companies ALTER COLUMN plan_modules SET DEFAULT ARRAY['home','legalizacao','fiscal','pessoal_rh','financeiro','clientes','configuracoes'];
 
-### Detalhes Técnicos
+-- Migrar dados existentes: 'crm' → 'clientes'
+UPDATE profiles SET allowed_modules = array_replace(allowed_modules, 'crm', 'clientes');
+UPDATE companies SET plan_modules = array_replace(plan_modules, 'crm', 'clientes');
 
-**1. TransactionFormDialog — À Vista (novo)**
-
-Validação `isFormValid` para "À Vista" (nova transação):
-```typescript
-// À Vista: exige valor recebido, banco e data pagamento
-const isAVistaValid = parseCurrencyInput(paidAmount) > 0 && !!bankId && !!date 
-  && !!categoryId && !!contactId && !!issueDate;
-
-// À Prazo: exige valor original e datas de projeção  
-const isAPrazoValid = parseCurrencyInput(amount) > 0 && !!categoryId && !!contactId 
-  && !!issueDate && !!dueDate && !!expectedDate;
+-- Adicionar novos módulos aos registros existentes que não os têm
+UPDATE profiles SET allowed_modules = allowed_modules || ARRAY['home','legalizacao','pessoal_rh'] 
+  WHERE NOT (allowed_modules @> ARRAY['home']);
+UPDATE companies SET plan_modules = plan_modules || ARRAY['home','legalizacao','pessoal_rh']
+  WHERE NOT (plan_modules @> ARRAY['home']);
 ```
 
-No `handleSubmit` para "À Vista" (nova transação):
-- `is_paid: true` (sempre)
-- `paid_amount`: valor do campo Valor Recebido/Pago
-- `amount`: se vazio, herda o valor do `paid_amount`
-- `date`: obrigatório (data de pagamento)
-- `bank_id`: obrigatório
+### 2. Novas Páginas Placeholder
 
-Labels com asterisco: Valor Recebido/Pago *, Conta/Banco *, Pagamento *
-Labels sem asterisco: Valor (R$) (opcional), Vencimento, Prevista
+| Arquivo | Conteúdo |
+|---------|----------|
+| `src/pages/Legalizacao.tsx` | Tela "EM BREVE" centralizada |
+| `src/pages/PessoalRH.tsx` | Tela "EM BREVE" centralizada |
 
-**2. ImportSpreadsheetDialog — Auto-classificação**
+### 3. `src/App.tsx` — Novas rotas
 
-Linha ~317, após determinar `isPaid`:
-```typescript
-const hasPaymentDate = !!paymentDateStr;
-const finalIsPaid = isPaid || hasPaymentDate;
+Adicionar:
+- `/legalizacao` → `Legalizacao`
+- `/pessoal-rh` → `PessoalRH`
+
+### 4. `src/components/layout/AppSidebar.tsx` — Reestrutura completa
+
+**Nova estrutura da sidebar (ordem fixa, sem collapsibles):**
+
+```
+[Logo Empresa] Nome / CNPJ
+─────────────────────────
+Home
+Legalização          (módulo: legalizacao)
+Fiscal ▼             (módulo: fiscal, collapsible)
+  └ Tarefas
+Pessoal / RH         (módulo: pessoal_rh)
+Financeiro ▼         (módulo: financeiro, collapsible)
+  └ Dashboard
+  └ Lançamentos
+  └ Pagar/Receber
+  └ Boletos
+  └ Conta Corrente
+  └ Eventos Contábeis
+  └ DRE
+Clientes ▼           (módulo: clientes)
+  └ Cliente/Fornecedor
+  └ Disparos
+Configurações        (módulo: configuracoes)
+─── (sem divisor) ───
+[Avatar] Perfil      (sempre visível)
+[Sair]
 ```
 
-Usar `finalIsPaid` no resto da lógica. Se `finalIsPaid` e `paid_amount` é null, fazer fallback para `amount`.
+**Mudanças-chave:**
+- `moduleKey: 'crm'` → `moduleKey: 'clientes'`, título `'Clientes'`
+- Home deixa de ser fixo — agora é filtrado por `allowedModules` (Colaborador pode não vê-lo)
+- Legalização e Pessoal/RH como itens simples (sem sub-itens, link direto)
+- Remover `<Separator>` abaixo de Home e entre Configurações/Perfil
+- Header: usar `company.logo_url` como imagem (fallback para ícone Building2)
+- Configurações: visível para Admin e Super Admin (já está), agora também filtrado por `moduleKey: 'configuracoes'`
 
-### Partes que NÃO serão alteradas
+### 5. `src/pages/SettingsPage.tsx` — Ajustar tabs por role
 
-- `isEffectivelyPaid` e `getEffectiveAmount` — já corretos
-- `useDREData` — Previsto já usa `amount` + `expected_date`, Realizado já usa `paid_amount` + `date`
-- Dashboard — já usa `isEffectivelyPaid` para totais
-- Saldos bancários — trigger `update_bank_balance` já usa `paid_amount` para transações pagas
-- Modal de Liquidar — validação dos 3 campos já existe
-- Modal de Edição — preserva estado original de pagamento
+**Admin** vê: Dados da Empresa, Minha Equipe, Empresas Clientes, Lixeira
+**Super Admin** vê: tudo (incluindo Logs e Backup)
+
+Mudança: mover `Empresas Clientes` de `isSuperAdmin` para `!isColaborador` (Admin + Super Admin).
+
+### 6. `src/components/users/UserFormDialog.tsx` — Atualizar `ALL_MODULES`
+
+```typescript
+const ALL_MODULES = [
+  { key: 'home', label: 'Home', soon: false },
+  { key: 'legalizacao', label: 'Legalização', soon: false },
+  { key: 'fiscal', label: 'Fiscal', soon: false },
+  { key: 'pessoal_rh', label: 'Pessoal / RH', soon: false },
+  { key: 'financeiro', label: 'Financeiro', soon: false },
+  { key: 'clientes', label: 'Clientes', soon: false },
+  { key: 'configuracoes', label: 'Configurações', soon: false },
+];
+```
+
+### 7. `src/hooks/useUserRole.ts` — Atualizar default
+
+`allowedModules` default de `['financeiro', 'crm']` para `['home', 'financeiro', 'clientes']`.
 
 ### Resumo
-- 2 arquivos editados
-- 0 migrations
-- 0 alterações de schema
-- Regras 3 e 4 já estão implementadas corretamente
+
+| # | Arquivo | Tipo |
+|---|---------|------|
+| 1 | Migration SQL | Schema + dados |
+| 2 | `src/pages/Legalizacao.tsx` | Novo |
+| 3 | `src/pages/PessoalRH.tsx` | Novo |
+| 4 | `src/App.tsx` | Rotas |
+| 5 | `src/components/layout/AppSidebar.tsx` | Sidebar |
+| 6 | `src/pages/SettingsPage.tsx` | RBAC tabs |
+| 7 | `src/components/users/UserFormDialog.tsx` | Módulos |
+| 8 | `src/hooks/useUserRole.ts` | Default |
+
+- 1 migration
+- 2 páginas novas
+- 5 arquivos editados
+- 0 lógica de negócio alterada (apenas navegação e RBAC)
 
