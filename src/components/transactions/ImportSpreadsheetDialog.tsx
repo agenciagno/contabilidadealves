@@ -314,7 +314,8 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
         const type: 'receita' | 'despesa' = tipoRaw.includes('receita') ? 'receita' : 'despesa';
 
         const statusRaw = String(get('Status (Pendente ou Pago)') ?? '').trim().toLowerCase();
-        const isPaid = statusRaw.includes('pago');
+        const hasPaymentDate = !!paymentDateStr;
+        const isPaid = statusRaw.includes('pago') || hasPaymentDate;
 
         // Valor Pago/Recebido — dados da planilha são soberanos
         const rawPaidAmount = parseAmount(get('Valor Pago/Recebido'));
