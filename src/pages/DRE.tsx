@@ -79,7 +79,7 @@ function SectionRow({ row }: { row: DRESectionRow }) {
         <TableCell className="text-right text-muted-foreground">{formatPerc(row.percRealizado)}</TableCell>
       </TableRow>
 
-      {row.children.map(child => (
+      {row.children.filter(child => child.previsto !== 0 || child.realizado !== 0).map(child => (
         <TableRow key={child.id} className="hover:bg-muted/20">
           <TableCell className="pl-12">
             <span className="text-muted-foreground">↳</span> {child.name}
@@ -218,7 +218,7 @@ export default function DRE() {
               {dreRows.map((row, idx) => {
                 if (row.type === 'section') {
                   // Hide sections where both previsto and realizado are zero
-                  if (row.previsto === 0 && row.realizado === 0) return null;
+                  
                   return (
                     <SectionRow
                       key={row.macroName + idx}
