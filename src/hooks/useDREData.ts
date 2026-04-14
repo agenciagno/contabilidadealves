@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useCategories, Category } from '@/hooks/useCategories';
-import { useBanks } from '@/hooks/useBanks';
+
 
 // Fixed DRE structure matching the PDF layout
 export const DRE_STRUCTURE: DREStructureItem[] = [
@@ -22,9 +22,9 @@ export const DRE_STRUCTURE: DREStructureItem[] = [
   { type: 'calculated', key: 'lucro_operacional', label: 'Lucro/Prejuízo Operacional' },
   { type: 'section', name: 'Despesas c/ Sócios' },
   { type: 'calculated', key: 'lucro_operacional_2', label: 'Lucro/Prejuízo Operacional (2)' },
-  { type: 'calculated', key: 'despesas_receitas_nao_op', label: 'Despesas/Receitas não Operacionais' },
   { type: 'section', name: 'Empréstimos Recebidos PF/PJ' },
   { type: 'section', name: 'Despesas Empréstimos' },
+  { type: 'calculated', key: 'despesas_receitas_nao_op', label: 'Despesas/Receitas não Operacionais' },
   { type: 'calculated', key: 'lucro_liquido', label: 'Lucro/Prejuízo Líquido' },
   { type: 'calculated', key: 'fluxo_caixa', label: 'Fluxo de Caixa' },
 ];
@@ -79,24 +79,29 @@ export interface DRESummary {
 
 export function useDREData(startDate: string, endDate: string) {
   const { categories } = useCategories();
-  const { banks } = useBanks();
 
-  const invisibleBankIds = banks
-    .filter(b => b.is_invisible)
-    .map(b => b.id);
-
-  const buildInvisibleFilter = (query: any) => {
-    if (invisibleBankIds.length > 0) {
-      const notInFilter = invisibleBankIds.map(id => `bank_id.neq.${id}`).join(',');
-      return query.or(`bank_id.is.null,and(${notInFilter})`);
-    }
-    return query;
-  };
+  // Query for ALL paid transactions in period (for Fluxo de Caixa - no show_in_dre filter)
+  const { data: allPaidTxns = [] } = useQuery({
+    queryKey: ['dre-fluxo-caixa', startDate, endDate],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('paid_amount, amount, type')
+        .is('deleted_at', null)
+        .eq('is_paid', true)
+        .not('date', 'is', null)
+        .gte('date', startDate)
+        .lte('date', endDate);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!startDate && !!endDate,
+  });
 
   const { data: previstoTxns = [] } = useQuery({
-    queryKey: ['dre-previsto', startDate, endDate, invisibleBankIds],
+    queryKey: ['dre-previsto', startDate, endDate],
     queryFn: async () => {
-      let query = supabase
+      const { data, error } = await supabase
         .from('transactions')
         .select('category_id, amount, type')
         .is('deleted_at', null)
@@ -104,8 +109,6 @@ export function useDREData(startDate: string, endDate: string) {
         .not('expected_date', 'is', null)
         .gte('expected_date', startDate)
         .lte('expected_date', endDate);
-      query = buildInvisibleFilter(query);
-      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -113,9 +116,9 @@ export function useDREData(startDate: string, endDate: string) {
   });
 
   const { data: realizadoTxns = [] } = useQuery({
-    queryKey: ['dre-realizado', startDate, endDate, invisibleBankIds],
+    queryKey: ['dre-realizado', startDate, endDate],
     queryFn: async () => {
-      let query = supabase
+      const { data, error } = await supabase
         .from('transactions')
         .select('category_id, paid_amount, amount, type')
         .is('deleted_at', null)
@@ -123,8 +126,6 @@ export function useDREData(startDate: string, endDate: string) {
         .not('date', 'is', null)
         .gte('date', startDate)
         .lte('date', endDate);
-      query = buildInvisibleFilter(query);
-      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -272,9 +273,14 @@ export function useDREData(startDate: string, endDate: string) {
       realizado: calculatedTotals['lucro_operacional_2'].realizado + calculatedTotals['despesas_receitas_nao_op'].realizado,
     };
 
-    const fluxoCaixaTotal = banks
-      .filter(b => !b.is_invisible)
-      .reduce((s, b) => s + Number(b.current_balance), 0);
+    // Fluxo de Caixa = ALL inflows - ALL outflows in period (including non-DRE categories)
+    const entradas = allPaidTxns
+      .filter(t => t.type === 'receita')
+      .reduce((s, t) => s + Math.abs(Number(t.paid_amount ?? t.amount)), 0);
+    const saidas = allPaidTxns
+      .filter(t => t.type === 'despesa')
+      .reduce((s, t) => s + Math.abs(Number(t.paid_amount ?? t.amount)), 0);
+    const fluxoCaixaTotal = entradas - saidas;
     calculatedTotals['fluxo_caixa'] = { previsto: fluxoCaixaTotal, realizado: fluxoCaixaTotal };
 
     // Receita Líquida for % calculations
@@ -332,9 +338,7 @@ export function useDREData(startDate: string, endDate: string) {
       despesasOperacionais: totalOpExpenses,
       despesasReceitasNaoOp: calculatedTotals['despesas_receitas_nao_op'] || { previsto: 0, realizado: 0 },
       lucroPrejuizoLiquido: calculatedTotals['lucro_liquido'] || { previsto: 0, realizado: 0 },
-      fluxoCaixa: banks
-        .filter(b => !b.is_invisible)
-        .reduce((s, b) => s + Number(b.current_balance), 0),
+      fluxoCaixa: fluxoCaixaTotal,
     };
 
     return { rows, summary };
