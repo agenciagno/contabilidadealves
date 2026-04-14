@@ -75,6 +75,7 @@ export function TransactionFormDialog({
   const [pendingPayload, setPendingPayload] = useState<{ data: TransactionInsert; files: File[]; shouldClose: boolean } | null>(null);
 
   const isAPrazo = paymentCondition === 'a_prazo' && !isEditing && !isSettleMode;
+  const isAVista = paymentCondition === 'a_vista' && !isEditing && !isSettleMode;
 
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [bankDialogOpen, setBankDialogOpen] = useState(false);
