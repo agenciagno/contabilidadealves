@@ -114,6 +114,7 @@ export type Database = {
           id: string
           name: string
           parent_id: string | null
+          show_in_dre: boolean
           type: string
           updated_at: string
         }
@@ -127,6 +128,7 @@ export type Database = {
           id?: string
           name: string
           parent_id?: string | null
+          show_in_dre?: boolean
           type: string
           updated_at?: string
         }
@@ -140,6 +142,7 @@ export type Database = {
           id?: string
           name?: string
           parent_id?: string | null
+          show_in_dre?: boolean
           type?: string
           updated_at?: string
         }
