@@ -217,6 +217,8 @@ export default function DRE() {
             <TableBody>
               {dreRows.map((row, idx) => {
                 if (row.type === 'section') {
+                  // Hide sections where both previsto and realizado are zero
+                  if (row.previsto === 0 && row.realizado === 0) return null;
                   return (
                     <SectionRow
                       key={row.macroName + idx}
