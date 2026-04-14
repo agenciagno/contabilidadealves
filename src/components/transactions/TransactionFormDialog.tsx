@@ -251,7 +251,7 @@ export function TransactionFormDialog({
       return;
     }
 
-    // Edit / Create mode
+    // À Prazo: save as pending
     if (isAPrazo) {
       const shouldClose = saveActionRef.current === 'close';
       const payload = {
@@ -274,7 +274,7 @@ export function TransactionFormDialog({
       return;
     }
 
-    // Edit mode (not settle): preserve original payment state, skip liquidation validation
+    // Edit mode (not settle): preserve original payment state
     if (isEditing && !isSettleMode) {
       const shouldClose = saveActionRef.current === 'close';
       const payload = {
@@ -297,24 +297,16 @@ export function TransactionFormDialog({
       return;
     }
 
-    // New transaction (À Vista): derive payment status from paid amount
-    const derivedIsPaid = paidAmountValue > 0;
-
-    if (derivedIsPaid && !date) {
-      toast({
-        title: 'Para liquidar a transação, a Data de Pagamento e o Valor Recebido são obrigatórios.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
+    // New transaction À Vista: always save as paid (liquidado)
     const shouldClose = saveActionRef.current === 'close';
+    const amountValue = parseCurrencyInput(amount);
+    const finalAmount = amountValue > 0 ? amountValue : paidAmountValue;
 
     const payload = {
       type,
       description: autoDescription,
-      amount: parseCurrencyInput(amount),
-      paid_amount: paidAmountValue > 0 ? paidAmountValue : null,
+      amount: finalAmount,
+      paid_amount: paidAmountValue,
       date: date || undefined,
       issue_date: issueDate || null,
       due_date: dueDate || null,
@@ -322,7 +314,7 @@ export function TransactionFormDialog({
       category_id: categoryId || null,
       bank_id: bankId || null,
       contact_id: contactId || null,
-      is_paid: derivedIsPaid,
+      is_paid: true,
       notes: notes || null,
     } as TransactionInsert;
 
@@ -347,7 +339,9 @@ export function TransactionFormDialog({
   // Validation rules per mode
   const isFormValid = isSettleMode
     ? parseCurrencyInput(paidAmount) > 0 && !!bankId && !!date
-    : parseCurrencyInput(amount) > 0 && !!categoryId && !!contactId && !!issueDate && !!dueDate && !!expectedDate;
+    : isAVista
+      ? parseCurrencyInput(paidAmount) > 0 && !!bankId && !!date && !!categoryId && !!contactId && !!issueDate
+      : parseCurrencyInput(amount) > 0 && !!categoryId && !!contactId && !!issueDate && !!dueDate && !!expectedDate;
 
   // Disabled states
   const structuralDisabled = isSettleMode;
@@ -409,14 +403,14 @@ export function TransactionFormDialog({
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Valor (R$) <span className="text-destructive">*</span></Label>
-                <Input value={amount} onChange={handleAmountChange} placeholder="0,00" required className="h-8 text-sm font-semibold" disabled={isSettleMode} />
+                <Label className="text-xs">Valor (R$) {!isAVista && <span className="text-destructive">*</span>}</Label>
+                <Input value={amount} onChange={handleAmountChange} placeholder="0,00" className="h-8 text-sm font-semibold" disabled={isSettleMode} />
               </div>
               {!isAPrazo && (
                 <div className="space-y-1">
                   <Label className="text-xs">
                     {type === 'receita' ? 'Valor Recebido' : 'Valor Pago'}
-                    {isSettleMode && <span className="text-destructive"> *</span>}
+                    {(isSettleMode || isAVista) && <span className="text-destructive"> *</span>}
                   </Label>
                   <Input value={paidAmount} onChange={handlePaidAmountChange} placeholder="0,00" className="h-8 text-sm" disabled={isEditing && !isSettleMode} />
                 </div>
@@ -444,7 +438,7 @@ export function TransactionFormDialog({
               <div className="space-y-1">
                 <Label className="text-xs">
                   Conta/Banco
-                  {isSettleMode && <span className="text-destructive"> *</span>}
+                  {(isSettleMode || isAVista) && <span className="text-destructive"> *</span>}
                 </Label>
                 <Select value={bankId} onValueChange={handleBankChange}>
                   <SelectTrigger className={`h-8 text-xs ${!bankId ? 'border-muted-foreground/30' : ''}`}>
@@ -474,18 +468,18 @@ export function TransactionFormDialog({
                 <Input type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} className="h-8 text-xs" disabled={isSettleMode} min="1900-01-01" max="9999-12-31" />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Vencimento <span className="text-destructive">*</span></Label>
+                <Label className="text-xs">Vencimento {!isAVista && <span className="text-destructive">*</span>}</Label>
                 <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="h-8 text-xs" disabled={isSettleMode} min="1900-01-01" max="9999-12-31" />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Prevista <span className="text-destructive">*</span></Label>
+                <Label className="text-xs">Prevista {!isAVista && <span className="text-destructive">*</span>}</Label>
                 <Input type="date" value={expectedDate} onChange={e => setExpectedDate(e.target.value)} className="h-8 text-xs" disabled={isSettleMode} min="1900-01-01" max="9999-12-31" />
               </div>
               {!isAPrazo && (
                 <div className="space-y-1">
                   <Label className="text-xs">
                     Pagamento
-                    {isSettleMode && <span className="text-destructive"> *</span>}
+                    {(isSettleMode || isAVista) && <span className="text-destructive"> *</span>}
                   </Label>
                   <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-8 text-xs" disabled={isEditing && !isSettleMode} min="1900-01-01" max="9999-12-31" />
                 </div>
