@@ -136,8 +136,10 @@ export default function DRE() {
   };
 
   // Dynamic month/year label
-  const start = new Date(startDate + 'T12:00:00');
-  const monthLabel = format(start, "MMMM'-'yy", { locale: ptBR });
+  const parsedStart = new Date(startDate + 'T12:00:00');
+  const monthLabel = !isNaN(parsedStart.getTime())
+    ? format(parsedStart, "MMMM'-'yy", { locale: ptBR })
+    : '';
 
   return (
     <div className="space-y-6">
