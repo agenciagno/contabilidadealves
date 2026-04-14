@@ -105,6 +105,16 @@ export function CategoryFormDialog({ open, onOpenChange, category, categories = 
             </p>
           </div>
 
+          <div className="flex items-center justify-between py-2">
+            <div className="space-y-0.5">
+              <Label htmlFor="show-in-dre">Exibir na DRE?</Label>
+              <p className="text-xs text-muted-foreground">
+                Desmarque para movimentações que afetam o saldo do banco, mas não são receitas/despesas operacionais (ex: Transferências, Aportes de Sócios).
+              </p>
+            </div>
+            <Switch id="show-in-dre" checked={showInDre} onCheckedChange={setShowInDre} />
+          </div>
+
           <div className="flex gap-2 pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
               Cancelar
