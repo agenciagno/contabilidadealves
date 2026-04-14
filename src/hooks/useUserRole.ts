@@ -28,7 +28,7 @@ export function useUserRole() {
     isSuperAdmin: role === 'super_admin' || (data?.is_super_admin ?? false),
     isAdmin: role === 'admin',
     isColaborador: role === 'colaborador',
-    allowedModules: (data?.allowed_modules as string[]) ?? ['financeiro', 'crm'],
+    allowedModules: (data?.allowed_modules as string[]) ?? ['home', 'financeiro', 'clientes'],
     forcePasswordChange: data?.force_password_change ?? false,
     avatarUrl: data?.avatar_url ?? null,
     statusActive: data?.status_active ?? true,
