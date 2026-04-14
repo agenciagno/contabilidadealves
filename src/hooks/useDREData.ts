@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useCategories, Category } from '@/hooks/useCategories';
-import { useBanks } from '@/hooks/useBanks';
+
 
 // Fixed DRE structure matching the PDF layout
 export const DRE_STRUCTURE: DREStructureItem[] = [
