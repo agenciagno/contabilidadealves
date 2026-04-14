@@ -1,37 +1,72 @@
 
 
-## Plano: Refinar Sidebar — Ícones Finos + Modo Colapsado Corrigido
+## Plano: Refatorar Regras de Negócio — Modais de Transação, DRE e Importação
 
-### Problemas Identificados
+### Análise do Estado Atual vs. Regras Solicitadas
 
-1. **Modo colapsado sem respiro**: `SIDEBAR_WIDTH_ICON = "3rem"` (48px) é muito estreito para o ícone do header (`w-10` = 40px) + `p-4` (16px cada lado). O ícone fica espremido/distorcido.
-2. **Ícones com traço padrão**: Todos os ícones Lucide usam `strokeWidth` padrão (2), devem usar 1.5 para a estética premium.
+| Regra | Estado Atual | Mudança Necessária |
+|-------|-------------|-------------------|
+| À Vista salva como Liquidado | Salva como pendente se paid_amount=0 | Tornar Valor Recebido, Conta/Banco e Pagamento **obrigatórios**; salvar com `is_paid: true` |
+| À Prazo salva como Pendente | Já funciona assim | Nenhuma — apenas confirmar que campos de liquidação ficam ocultos |
+| Liquidar exige 3 campos | Já valida paid_amount + bank_id + date | Nenhuma — regra já implementada na linha 348 |
+| DRE Realizado usa paid_amount | Já usa `paid_amount ?? amount` (linha 159) | Nenhuma — já correto |
+| Dashboard usa paid_amount | `isEffectivelyPaid` + `getEffectiveAmount` já fazem isso | Nenhuma — já correto |
+| Import auto-classifica Liquidado | Usa coluna "Status" da planilha | Adicionar regra: se `Data Pagamento` preenchida → `is_paid: true` |
 
-### Mudanças
+### Arquivos a Editar
 
 | # | Arquivo | Mudança |
 |---|---------|---------|
-| 1 | `src/components/ui/sidebar.tsx` | `SIDEBAR_WIDTH_ICON` de `"3rem"` para `"4rem"` (64px) — mais respiro no modo colapsado |
-| 2 | `src/components/layout/AppSidebar.tsx` | Ícones com `strokeWidth={1.5}`, header redimensionado para caber no modo colapsado (`w-8 h-8`), padding ajustado, centralização dos ícones |
+| 1 | `src/components/transactions/TransactionFormDialog.tsx` | **À Vista**: tornar `paidAmount`, `bankId` e `date` obrigatórios (required + validação); ajustar labels com asterisco; salvar com `is_paid: true`. **Valor (R$)** passa a ser opcional (remover asterisco). Ajustar `isFormValid` para refletir as novas regras por condição de pagamento. |
+| 2 | `src/components/transactions/ImportSpreadsheetDialog.tsx` | Na lógica de parsing (linha ~317): se `paymentDateStr` estiver preenchido, forçar `is_paid = true` e garantir `paid_amount` (fallback para `amount`). |
 
-### Detalhes
+### Detalhes Técnicos
 
-**sidebar.tsx** — Apenas a constante na linha 19:
+**1. TransactionFormDialog — À Vista (novo)**
+
+Validação `isFormValid` para "À Vista" (nova transação):
 ```typescript
-const SIDEBAR_WIDTH_ICON = "4rem"; // era "3rem"
+// À Vista: exige valor recebido, banco e data pagamento
+const isAVistaValid = parseCurrencyInput(paidAmount) > 0 && !!bankId && !!date 
+  && !!categoryId && !!contactId && !!issueDate;
+
+// À Prazo: exige valor original e datas de projeção  
+const isAPrazoValid = parseCurrencyInput(amount) > 0 && !!categoryId && !!contactId 
+  && !!issueDate && !!dueDate && !!expectedDate;
 ```
 
-**AppSidebar.tsx** — Alterações visuais:
-- Ícone do header: `w-10 h-10` → `w-8 h-8` (cabe no colapsado sem distorção)
-- Todos os ícones de menu: adicionar `strokeWidth={1.5}` e manter `w-[18px] h-[18px]`
-- Ícones de sub-itens: `w-3.5 h-3.5` → `w-4 h-4` com `strokeWidth={1.5}`
-- Header padding: `p-4` → `p-3` (mais proporcionado no colapsado)
-- Centralizar ícones no modo colapsado com `justify-center`
-- Ícones do footer (Settings, LogOut, Avatar): mesma consistência `strokeWidth={1.5}`
+No `handleSubmit` para "À Vista" (nova transação):
+- `is_paid: true` (sempre)
+- `paid_amount`: valor do campo Valor Recebido/Pago
+- `amount`: se vazio, herda o valor do `paid_amount`
+- `date`: obrigatório (data de pagamento)
+- `bank_id`: obrigatório
 
-### Resultado
-- Modo colapsado com respiro lateral adequado
-- Ícone do topo sem distorção
-- Traço fino em todos os ícones (1.5)
-- 2 arquivos editados, 0 lógica alterada
+Labels com asterisco: Valor Recebido/Pago *, Conta/Banco *, Pagamento *
+Labels sem asterisco: Valor (R$) (opcional), Vencimento, Prevista
+
+**2. ImportSpreadsheetDialog — Auto-classificação**
+
+Linha ~317, após determinar `isPaid`:
+```typescript
+const hasPaymentDate = !!paymentDateStr;
+const finalIsPaid = isPaid || hasPaymentDate;
+```
+
+Usar `finalIsPaid` no resto da lógica. Se `finalIsPaid` e `paid_amount` é null, fazer fallback para `amount`.
+
+### Partes que NÃO serão alteradas
+
+- `isEffectivelyPaid` e `getEffectiveAmount` — já corretos
+- `useDREData` — Previsto já usa `amount` + `expected_date`, Realizado já usa `paid_amount` + `date`
+- Dashboard — já usa `isEffectivelyPaid` para totais
+- Saldos bancários — trigger `update_bank_balance` já usa `paid_amount` para transações pagas
+- Modal de Liquidar — validação dos 3 campos já existe
+- Modal de Edição — preserva estado original de pagamento
+
+### Resumo
+- 2 arquivos editados
+- 0 migrations
+- 0 alterações de schema
+- Regras 3 e 4 já estão implementadas corretamente
 
