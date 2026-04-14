@@ -7,7 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Download, Upload, FileSpreadsheet, Loader2, CheckCircle2, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Download, Upload, FileSpreadsheet, Loader2, CheckCircle2, ArrowRight, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import type { TransactionInsert } from '@/hooks/useTransactions';
 
 interface Bank { id: string; name: string; }
@@ -107,6 +108,7 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
   const [createdCategories, setCreatedCategories] = useState<Map<string, string>>(new Map());
   const [createdContacts, setCreatedContacts] = useState<Map<string, string>>(new Map());
   const [createdBanks, setCreatedBanks] = useState<Map<string, string>>(new Map());
+  const [skippedRows, setSkippedRows] = useState<{ rowNumber: number; reason: string }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -140,6 +142,7 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
     setIsProcessing(false);
     setIsDragging(false);
     setParsedData([]);
+    setSkippedRows([]);
     setCreatedCategories(new Map());
     setCreatedContacts(new Map());
     setCreatedBanks(new Map());
@@ -297,7 +300,10 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
         return newBanksMap.get(lower) ?? null;
       };
 
-      for (const row of rows) {
+      const skipped: { rowNumber: number; reason: string }[] = [];
+
+      for (let idx = 0; idx < rows.length; idx++) {
+        const row = rows[idx];
         const get = (header: string) => {
           const key = Object.keys(row).find((k) => k.trim().toLowerCase() === header.toLowerCase());
           return key ? row[key] : undefined;
@@ -308,24 +314,34 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
         const expectedDateStr = excelDateToString(get('Data Prevista'));
         const paymentDateStr = excelDateToString(get('Data Pagamento'));
         const amount = parseAmount(get('Valor'));
-        if (amount == null) continue;
+        const rawPaidAmount = parseAmount(get('Valor Pago/Recebido'));
 
         const tipoRaw = String(get('Tipo (Receita ou Despesa)') ?? '').trim().toLowerCase();
         const type: 'receita' | 'despesa' = tipoRaw.includes('receita') ? 'receita' : 'despesa';
 
         const statusRaw = String(get('Status (Pendente ou Pago)') ?? '').trim().toLowerCase();
         const hasPaymentDate = !!paymentDateStr;
-        const isPaid = statusRaw.includes('pago') || hasPaymentDate;
+        const isPaid = statusRaw.includes('pago') || statusRaw.includes('recebido') || hasPaymentDate;
+
+        // Validação: se não é pago, Valor é obrigatório
+        if (amount == null && !isPaid && rawPaidAmount == null) {
+          skipped.push({ rowNumber: idx + 2, reason: 'Valor vazio — transação Pendente' });
+          continue;
+        }
+        // Se pago mas ambos vazios
+        if (amount == null && rawPaidAmount == null) {
+          skipped.push({ rowNumber: idx + 2, reason: 'Valor e Valor Pago/Recebido ambos vazios' });
+          continue;
+        }
+
+        const finalAmount = amount != null ? Math.abs(amount) : Math.abs(rawPaidAmount!);
 
         // Valor Pago/Recebido — dados da planilha são soberanos
-        const rawPaidAmount = parseAmount(get('Valor Pago/Recebido'));
         let paid_amount: number | null;
         if (rawPaidAmount != null) {
-          // Coluna preenchida na planilha → soberano
           paid_amount = Math.abs(rawPaidAmount);
         } else if (isPaid) {
-          // Vazia + status Pago → default para valor original
-          paid_amount = Math.abs(amount);
+          paid_amount = finalAmount;
         } else {
           paid_amount = null;
         }
@@ -338,7 +354,7 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
           date: paymentDateStr || null,
           issue_date: issueDateStr || null,
           expected_date: expectedDateStr || null,
-          amount: Math.abs(amount),
+          amount: finalAmount,
           type,
           is_paid: isPaid,
           paid_amount,
@@ -351,9 +367,9 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
         });
       }
 
-      const skippedRows = rows.length - transactions.length;
-      if (skippedRows > 0) {
-        toast({ title: `${skippedRows} linha(s) ignorada(s)`, description: 'Motivo: coluna "Valor" vazia ou com formato não reconhecido.', variant: 'destructive' });
+      setSkippedRows(skipped);
+      if (skipped.length > 0) {
+        toast({ title: `${skipped.length} linha(s) ignorada(s)`, description: 'Veja o detalhamento na tela de revisão.', variant: 'destructive' });
       }
 
       if (!transactions.length) {
@@ -507,7 +523,33 @@ export function ImportSpreadsheetDialog({ open, onOpenChange, banks, categories,
               <>
                 <p className="text-sm text-muted-foreground">
                   <strong className="text-foreground">{parsedData.length}</strong> lançamento(s) encontrado(s)
+                  {skippedRows.length > 0 && (
+                    <span className="ml-2 text-destructive">
+                      • {skippedRows.length} linha(s) ignorada(s)
+                    </span>
+                  )}
                 </p>
+
+                {skippedRows.length > 0 && (
+                  <Collapsible>
+                    <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-destructive hover:underline cursor-pointer">
+                      <AlertTriangle className="w-4 h-4" />
+                      ⚠ {skippedRows.length} linha(s) ignorada(s) — clique para ver detalhes
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <ScrollArea className="h-[120px] border border-destructive/30 rounded-md mt-2 p-3 bg-destructive/5">
+                        <ul className="space-y-1 text-xs text-muted-foreground">
+                          {skippedRows.map((s, i) => (
+                            <li key={i}>
+                              <span className="font-medium text-foreground">Linha {s.rowNumber}:</span> {s.reason}
+                            </li>
+                          ))}
+                        </ul>
+                      </ScrollArea>
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
+
                 <ScrollArea className="h-[400px] border rounded-lg">
                   <Table>
                     <TableHeader>
