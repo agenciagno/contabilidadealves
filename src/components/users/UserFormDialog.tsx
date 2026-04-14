@@ -13,11 +13,12 @@ import { useNotifications } from '@/contexts/NotificationContext';
 import { z } from 'zod';
 
 const ALL_MODULES = [
+  { key: 'home', label: 'Home', soon: false },
+  { key: 'legalizacao', label: 'Legalização', soon: false },
+  { key: 'fiscal', label: 'Fiscal', soon: false },
+  { key: 'pessoal_rh', label: 'Pessoal / RH', soon: false },
   { key: 'financeiro', label: 'Financeiro', soon: false },
-  { key: 'crm', label: 'CRM / Clientes', soon: false },
-  { key: 'comercial', label: 'Comercial', soon: true },
-  { key: 'fiscal', label: 'Fiscal', soon: true },
-  { key: 'pessoal_rh', label: 'Pessoal / RH', soon: true },
+  { key: 'clientes', label: 'Clientes', soon: false },
   { key: 'configuracoes', label: 'Configurações', soon: false },
 ];
 

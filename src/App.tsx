@@ -25,6 +25,8 @@ import ClientReport from "@/pages/ClientReport";
 import Boletos from "@/pages/Boletos";
 import PagarReceber from "@/pages/PagarReceber";
 import FiscalTasks from "@/pages/FiscalTasks";
+import Legalizacao from "@/pages/Legalizacao";
+import PessoalRH from "@/pages/PessoalRH";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -56,6 +58,8 @@ const App = () => (
               <Route path="/relatorio-clientes" element={<AppLayout><ClientReport /></AppLayout>} />
               <Route path="/boletos" element={<AppLayout><Boletos /></AppLayout>} />
               <Route path="/fiscal/tarefas" element={<AppLayout><FiscalTasks /></AppLayout>} />
+              <Route path="/legalizacao" element={<AppLayout><Legalizacao /></AppLayout>} />
+              <Route path="/pessoal-rh" element={<AppLayout><PessoalRH /></AppLayout>} />
               <Route path="*" element={<NotFound />} />
               </Routes>
             </NotificationProvider>

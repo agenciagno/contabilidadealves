@@ -197,7 +197,7 @@ export default function SettingsPage() {
     tabs.push({ value: 'empresa', label: 'Dados da Empresa', icon: Building2 });
     tabs.push({ value: 'equipe', label: 'Minha Equipe', icon: Users });
   }
-  if (isSuperAdmin) {
+  if (!isColaborador) {
     tabs.push({ value: 'empresas', label: 'Empresas Clientes', icon: Building });
   }
   if (isSuperAdmin) {
@@ -314,7 +314,7 @@ export default function SettingsPage() {
         </TabsContent>
 
         {/* Empresas Clientes */}
-        {isSuperAdmin && (
+        {!isColaborador && (
           <TabsContent value="empresas" className="mt-0">
             <ClientCompaniesTab />
           </TabsContent>
