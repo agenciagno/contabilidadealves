@@ -14,7 +14,7 @@ interface CategoryFormDialogProps {
   onOpenChange: (open: boolean) => void;
   category?: Category | null;
   categories?: Category[];
-  onSubmit: (data: { name: string; type: 'receita' | 'despesa'; color: string; icon: string; parent_id?: string | null }) => void;
+  onSubmit: (data: { name: string; type: 'receita' | 'despesa'; color: string; icon: string; parent_id?: string | null; show_in_dre?: boolean }) => void;
   isLoading?: boolean;
   defaultType?: 'receita' | 'despesa';
 }
