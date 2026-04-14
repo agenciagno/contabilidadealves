@@ -132,15 +132,18 @@ export function useDREData(startDate: string, endDate: string) {
   });
 
   // Helper: find macro category by name (case-insensitive)
+  // Only categories visible in DRE
+  const dreCategories = categories.filter(c => c.show_in_dre !== false);
+
   const findMacro = (name: string): Category | undefined => {
-    return categories.find(
+    return dreCategories.find(
       c => !c.parent_id && c.name.toLowerCase().trim() === name.toLowerCase().trim()
     );
   };
 
   // Helper: get sub-events for a macro, sorted alphabetically
   const getSubEvents = (macroId: string): Category[] => {
-    return categories
+    return dreCategories
       .filter(c => c.parent_id === macroId)
       .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
   };
