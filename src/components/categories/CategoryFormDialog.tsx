@@ -23,16 +23,19 @@ export function CategoryFormDialog({ open, onOpenChange, category, categories = 
   const [name, setName] = useState('');
   const [type, setType] = useState<'receita' | 'despesa'>(defaultType);
   const [parentId, setParentId] = useState<string | null>(null);
+  const [showInDre, setShowInDre] = useState(true);
 
   useEffect(() => {
     if (category) {
       setName(category.name);
       setType((category.type as 'receita' | 'despesa') || defaultType);
       setParentId(category.parent_id || null);
+      setShowInDre(category.show_in_dre !== false);
     } else {
       setName('');
       setType(defaultType);
       setParentId(null);
+      setShowInDre(true);
     }
   }, [category, open, defaultType]);
 
