@@ -10,11 +10,12 @@ export interface Category {
   color: string;
   icon: string;
   parent_id: string | null;
+  show_in_dre: boolean;
   created_at: string;
   updated_at: string;
 }
 
-export type CategoryInsert = Omit<Category, 'id' | 'created_at' | 'updated_at' | 'parent_id'> & { parent_id?: string | null };
+export type CategoryInsert = Omit<Category, 'id' | 'created_at' | 'updated_at' | 'parent_id' | 'show_in_dre'> & { parent_id?: string | null; show_in_dre?: boolean };
 export type CategoryUpdate = Partial<Omit<Category, 'id' | 'company_id' | 'created_at' | 'updated_at'>>;
 
 export function useCategories() {

@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { Category } from '@/hooks/useCategories';
 
@@ -13,7 +14,7 @@ interface CategoryFormDialogProps {
   onOpenChange: (open: boolean) => void;
   category?: Category | null;
   categories?: Category[];
-  onSubmit: (data: { name: string; type: 'receita' | 'despesa'; color: string; icon: string; parent_id?: string | null }) => void;
+  onSubmit: (data: { name: string; type: 'receita' | 'despesa'; color: string; icon: string; parent_id?: string | null; show_in_dre?: boolean }) => void;
   isLoading?: boolean;
   defaultType?: 'receita' | 'despesa';
 }
@@ -22,16 +23,19 @@ export function CategoryFormDialog({ open, onOpenChange, category, categories = 
   const [name, setName] = useState('');
   const [type, setType] = useState<'receita' | 'despesa'>(defaultType);
   const [parentId, setParentId] = useState<string | null>(null);
+  const [showInDre, setShowInDre] = useState(true);
 
   useEffect(() => {
     if (category) {
       setName(category.name);
       setType((category.type as 'receita' | 'despesa') || defaultType);
       setParentId(category.parent_id || null);
+      setShowInDre(category.show_in_dre !== false);
     } else {
       setName('');
       setType(defaultType);
       setParentId(null);
+      setShowInDre(true);
     }
   }, [category, open, defaultType]);
 
@@ -42,7 +46,7 @@ export function CategoryFormDialog({ open, onOpenChange, category, categories = 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({ name, type, color: '#3B82F6', icon: 'tag', parent_id: parentId });
+    onSubmit({ name, type, color: '#3B82F6', icon: 'tag', parent_id: parentId, show_in_dre: showInDre });
   };
 
   return (
@@ -99,6 +103,16 @@ export function CategoryFormDialog({ open, onOpenChange, category, categories = 
             <p className="text-xs text-muted-foreground">
               Se não selecionar, este evento será um Macro. Se selecionar, será um sub evento.
             </p>
+          </div>
+
+          <div className="flex items-center justify-between py-2">
+            <div className="space-y-0.5">
+              <Label htmlFor="show-in-dre">Exibir na DRE?</Label>
+              <p className="text-xs text-muted-foreground">
+                Desmarque para movimentações que afetam o saldo do banco, mas não são receitas/despesas operacionais (ex: Transferências, Aportes de Sócios).
+              </p>
+            </div>
+            <Switch id="show-in-dre" checked={showInDre} onCheckedChange={setShowInDre} />
           </div>
 
           <div className="flex gap-2 pt-4">
