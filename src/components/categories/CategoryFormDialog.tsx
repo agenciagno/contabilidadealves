@@ -46,7 +46,7 @@ export function CategoryFormDialog({ open, onOpenChange, category, categories = 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({ name, type, color: '#3B82F6', icon: 'tag', parent_id: parentId });
+    onSubmit({ name, type, color: '#3B82F6', icon: 'tag', parent_id: parentId, show_in_dre: showInDre });
   };
 
   return (
