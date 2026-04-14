@@ -1,57 +1,44 @@
 
 
-## Plano: Corrigir Importação — Tolerância a "Valor" Vazio + Relatório de Linhas com Falha
+## Plano: Adicionar flag `show_in_dre` aos Eventos Contábeis
 
-### Problema
+### 1. Migration — Nova coluna `show_in_dre`
 
-Linha 311: `if (amount == null) continue;` descarta toda linha sem "Valor", **mesmo que seja PAGO/RECEBIDO** (onde "Valor" não é obrigatório, pois o "Valor Pago/Recebido" é o campo relevante).
-
-### Correção (1 arquivo)
-
-**`src/components/transactions/ImportSpreadsheetDialog.tsx`**
-
-**A. Lógica de parsing (linhas ~300-356):**
-- Ler `statusRaw` e `paymentDateStr` **antes** de verificar `amount`
-- Nova regra de skip: pular a linha **apenas** se `amount == null` **E** a transação **não** for PAGO/RECEBIDO (ou seja, não tem status pago nem data de pagamento nem valor pago/recebido)
-- Quando `amount` for null mas for PAGO, usar `paid_amount` como fallback para `amount` (o banco exige `amount NOT NULL`)
-
-**B. Coletar linhas com falha:**
-- Criar estado `skippedRows: { rowNumber: number; reason: string }[]`
-- No loop, ao pular uma linha, registrar o número da linha (idx + 2, pois header = linha 1) e o motivo
-- Motivos possíveis: "Valor vazio/inválido em transação Pendente", "Valor e Valor Pago ambos vazios"
-
-**C. UI — Step 3 com aba de erros:**
-- Antes da tabela de preview, se `skippedRows.length > 0`, mostrar um bloco colapsável (ou alerta) com:
-  - Título: `"⚠ {N} linha(s) ignorada(s)"`
-  - Lista: `Linha X: motivo`
-- Manter o toast existente também
-
-### Lógica refatorada (pseudocódigo)
-
-```typescript
-const amount = parseAmount(get('Valor'));
-const rawPaidAmount = parseAmount(get('Valor Pago/Recebido'));
-const statusRaw = String(get('Status (Pendente ou Pago)') ?? '').trim().toLowerCase();
-const hasPaymentDate = !!paymentDateStr;
-const isPaid = statusRaw.includes('pago') || hasPaymentDate;
-
-// Nova validação: se não é pago, Valor é obrigatório
-if (amount == null && !isPaid && rawPaidAmount == null) {
-  skipped.push({ row: idx + 2, reason: 'Valor vazio — transação Pendente' });
-  continue;
-}
-// Se pago mas ambos vazios
-if (amount == null && rawPaidAmount == null) {
-  skipped.push({ row: idx + 2, reason: 'Valor e Valor Pago/Recebido ambos vazios' });
-  continue;
-}
-
-const finalAmount = amount != null ? Math.abs(amount) : Math.abs(rawPaidAmount!);
+```sql
+ALTER TABLE categories ADD COLUMN show_in_dre boolean NOT NULL DEFAULT true;
 ```
 
+### 2. `src/hooks/useCategories.ts` — Expor `show_in_dre`
+
+- Adicionar `show_in_dre: boolean` à interface `Category`
+
+### 3. `src/components/categories/CategoryFormDialog.tsx` — Toggle na UI
+
+- Adicionar estado `showInDre` (default `true`, inicializado do `category.show_in_dre` na edição)
+- Adicionar um `Switch` com label "Exibir na DRE?" e texto de ajuda abaixo
+- Incluir `show_in_dre` no payload do `onSubmit`
+
+### 4. `src/hooks/useDREData.ts` — Filtrar categorias com `show_in_dre = false`
+
+Na lógica de `buildSection`, ao buscar macros e sub-eventos, ignorar categorias onde `show_in_dre === false`. Isso filtra automaticamente tanto Previsto quanto Realizado, pois ambos usam `sumPrevisto(catId)` e `sumRealizado(catId)` que dependem do `category_id`.
+
+**Abordagem**: no `findMacro` e `getSubEvents`, filtrar apenas categorias com `show_in_dre !== false`. Nenhuma mudança nas queries SQL do Supabase (o filtro é client-side via categorias já carregadas).
+
+### Proteção Global
+
+- **Dashboard e Saldos Bancários**: não são alterados — usam `transactions` diretamente sem passar por categorias/DRE
+- **Trigger `update_bank_balance`**: não é alterada — continua somando todas as transações liquidadas
+
 ### Resumo
-- 1 arquivo editado
-- 0 migrations
-- Corrige a rejeição indevida de 203 linhas PAGO/RECEBIDO sem "Valor"
-- Adiciona relatório visual das linhas que realmente falharam
+
+| # | Arquivo | Tipo |
+|---|---------|------|
+| 1 | Migration SQL | Nova coluna |
+| 2 | `src/hooks/useCategories.ts` | Interface |
+| 3 | `src/components/categories/CategoryFormDialog.tsx` | Toggle UI |
+| 4 | `src/hooks/useDREData.ts` | Filtro client-side |
+
+- 1 migration
+- 3 arquivos editados
+- 0 impacto em saldos/dashboard
 
