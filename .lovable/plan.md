@@ -1,21 +1,31 @@
 
 
-## Plano: Ocultar apenas subeventos zerados (não Eventos Macros)
+## Plano: Previsto sempre puxa valor original (independente do status)
 
 ### Problema
-A lógica atual em `DRE.tsx` (linha 221) oculta o **Evento Macro inteiro** quando previsto e realizado são zero. O correto é: Macros sempre visíveis, apenas **subeventos** (children) zerados devem ser ocultados.
+A query `previstoTxns` em `useDREData.ts` (linha 108) filtra `.eq('is_paid', false)`, excluindo transações já liquidadas. O campo "Previsto" deveria somar o `amount` original de **todas** as transações com `expected_date` no período, independentemente de estarem pagas ou não.
 
-### Mudanças (2 arquivos)
+### Mudança (1 arquivo)
 
-#### 1. `src/pages/DRE.tsx` — Remover ocultação de seções
-- **Linha 221**: Remover o `if (row.previsto === 0 && row.realizado === 0) return null;`
-- Macros passam a ser sempre renderizados
+**`src/hooks/useDREData.ts`** — Remover o filtro `.eq('is_paid', false)` da query `previstoTxns` (linha 108).
 
-#### 2. `src/pages/DRE.tsx` — Filtrar children zerados no `SectionRow`
-- **Linha 82**: No `.map(child => ...)`, adicionar filtro para ocultar subeventos onde `child.previsto === 0 && child.realizado === 0`
+A query passará de:
+```
+.eq('is_paid', false)
+.not('expected_date', 'is', null)
+.gte('expected_date', startDate)
+.lte('expected_date', endDate)
+```
+Para:
+```
+.not('expected_date', 'is', null)
+.gte('expected_date', startDate)
+.lte('expected_date', endDate)
+```
 
-### Resumo
-- 1 arquivo editado (`DRE.tsx`), 2 pontos de mudança
-- 0 lógica de negócio alterada
-- Apenas comportamento de ocultação visual corrigido
+### Impacto
+- Previsto passa a refletir o valor original planejado de todas as transações no período
+- Realizado permanece inalterado (somente transações liquidadas)
+- RxP (Realizado - Previsto) refletirá a variação real entre planejado e executado
+- 0 migrations, 1 arquivo editado, 1 linha removida
 
