@@ -105,7 +105,6 @@ export function useDREData(startDate: string, endDate: string) {
         .from('transactions')
         .select('category_id, amount, type')
         .is('deleted_at', null)
-        .eq('is_paid', false)
         .not('expected_date', 'is', null)
         .gte('expected_date', startDate)
         .lte('expected_date', endDate);
