@@ -237,6 +237,54 @@ export function BankReportModal({ open, onOpenChange, banks }: BankReportModalPr
       },
     });
 
+    // ─── Resumo por Evento Contábil ───────────────────────────────
+    if (eventSummary.length > 0) {
+      const startY = (doc as any).lastAutoTable.finalY + 8;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(40, 40, 40);
+      doc.text('Resumo por Evento Contábil', 14, startY);
+
+      autoTable(doc, {
+        startY: startY + 3,
+        head: [['Evento', 'Qtd', 'Entradas', 'Saídas', 'Saldo']],
+        body: eventSummary.map(g => [
+          g.name,
+          String(g.qty),
+          formatCurrency(g.entradas),
+          formatCurrency(g.saidas),
+          formatCurrency(g.saldo),
+        ]),
+        foot: [[
+          'TOTAL',
+          String(eventTotals.qty),
+          formatCurrency(eventTotals.entradas),
+          formatCurrency(eventTotals.saidas),
+          formatCurrency(eventTotals.saldo),
+        ]],
+        theme: 'striped',
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold' },
+        footStyles: { fillColor: [230, 230, 230], textColor: 0, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [248, 248, 248] },
+        columnStyles: {
+          1: { halign: 'center' },
+          2: { halign: 'right', textColor: [22, 163, 74] },
+          3: { halign: 'right', textColor: [239, 68, 68] },
+          4: { halign: 'right', fontStyle: 'bold' },
+        },
+        didDrawPage: (data) => {
+          const pageCount = (doc as any).internal.getNumberOfPages();
+          const pageHeight = doc.internal.pageSize.height;
+          doc.setFontSize(7);
+          doc.setTextColor(150);
+          doc.text(emittedAt, 14, pageHeight - 8);
+          doc.text(`Página ${data.pageNumber} de ${pageCount}`, doc.internal.pageSize.width - 14, pageHeight - 8, { align: 'right' });
+          doc.setTextColor(0);
+        },
+      });
+    }
+
     doc.save(`extrato-bancario-${startDate}-${endDate}.pdf`);
   };
 
