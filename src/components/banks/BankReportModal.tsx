@@ -368,7 +368,30 @@ export function BankReportModal({ open, onOpenChange, banks }: BankReportModalPr
       r.running_balance.toFixed(2).replace('.', ','),
     ].join(';'));
 
-    const csv = [...metaLines, headers.join(';'), ...dataLines].join('\r\n');
+    const eventCsvLines: string[] = [];
+    if (eventSummary.length > 0) {
+      eventCsvLines.push('');
+      eventCsvLines.push('Resumo por Evento Contábil');
+      eventCsvLines.push(['Evento', 'Qtd', 'Entradas', 'Saídas', 'Saldo'].join(';'));
+      for (const g of eventSummary) {
+        eventCsvLines.push([
+          `"${g.name.replace(/"/g, '""')}"`,
+          String(g.qty),
+          g.entradas.toFixed(2).replace('.', ','),
+          g.saidas.toFixed(2).replace('.', ','),
+          g.saldo.toFixed(2).replace('.', ','),
+        ].join(';'));
+      }
+      eventCsvLines.push([
+        'TOTAL',
+        String(eventTotals.qty),
+        eventTotals.entradas.toFixed(2).replace('.', ','),
+        eventTotals.saidas.toFixed(2).replace('.', ','),
+        eventTotals.saldo.toFixed(2).replace('.', ','),
+      ].join(';'));
+    }
+
+    const csv = [...metaLines, headers.join(';'), ...dataLines, ...eventCsvLines].join('\r\n');
     const bom = '\uFEFF';
     const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
