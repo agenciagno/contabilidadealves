@@ -310,7 +310,31 @@ export function BankReportModal({ open, onOpenChange, banks }: BankReportModalPr
       <tr><td colspan="8"></td></tr>
     `;
 
-    const table = `<table>${headerRows}<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>${tableRows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')}</table>`;
+    const eventHeaders = ['Evento', 'Qtd', 'Entradas', 'Saídas', 'Saldo'];
+    const eventRows = eventSummary.map(g => [
+      g.name,
+      String(g.qty),
+      g.entradas.toFixed(2).replace('.', ','),
+      g.saidas.toFixed(2).replace('.', ','),
+      g.saldo.toFixed(2).replace('.', ','),
+    ]);
+    const eventTotalRow = [
+      '<b>TOTAL</b>',
+      `<b>${eventTotals.qty}</b>`,
+      `<b>${eventTotals.entradas.toFixed(2).replace('.', ',')}</b>`,
+      `<b>${eventTotals.saidas.toFixed(2).replace('.', ',')}</b>`,
+      `<b>${eventTotals.saldo.toFixed(2).replace('.', ',')}</b>`,
+    ];
+
+    const eventBlock = eventSummary.length > 0
+      ? `<tr><td colspan="8"></td></tr>
+         <tr><td colspan="8"><b>Resumo por Evento Contábil</b></td></tr>
+         <tr>${eventHeaders.map(h => `<th>${h}</th>`).join('')}</tr>
+         ${eventRows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')}
+         <tr>${eventTotalRow.map(cell => `<td>${cell}</td>`).join('')}</tr>`
+      : '';
+
+    const table = `<table>${headerRows}<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>${tableRows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')}${eventBlock}</table>`;
     const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body>${table}</body></html>`;
 
     const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
