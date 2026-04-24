@@ -68,7 +68,7 @@ export function DREReportModal({ open, onOpenChange, startDate, endDate }: DRERe
         flatRows.push({
           isCalc: false,
           isMacro: false,
-          label: `↳ ${child.name}`,
+          label: `    • ${child.name}`,
           previsto: child.previsto,
           realizado: child.realizado,
           rxp: child.rxp,
@@ -172,16 +172,16 @@ export function DREReportModal({ open, onOpenChange, startDate, endDate }: DRERe
         formatPerc(r.percRealizado),
       ]),
       theme: 'striped',
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold' },
+      styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak', valign: 'middle' },
+      headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold', halign: 'center', valign: 'middle' },
       alternateRowStyles: { fillColor: [248, 248, 248] },
       columnStyles: {
-        0: { cellWidth: 70 },
-        1: { halign: 'right' },
-        2: { halign: 'right' },
-        3: { halign: 'right' },
-        4: { halign: 'right' },
-        5: { halign: 'right' },
+        0: { cellWidth: 60, halign: 'left' },
+        1: { cellWidth: 26, halign: 'right' },
+        2: { cellWidth: 26, halign: 'right' },
+        3: { cellWidth: 26, halign: 'right' },
+        4: { cellWidth: 19, halign: 'right' },
+        5: { cellWidth: 19, halign: 'right' },
       },
       didParseCell: (data) => {
         if (data.section === 'body') {
@@ -190,11 +190,16 @@ export function DREReportModal({ open, onOpenChange, startDate, endDate }: DRERe
           if (row.isMacro) {
             data.cell.styles.fillColor = [220, 252, 231];
             data.cell.styles.textColor = [21, 128, 61];
-            data.cell.styles.fontStyle = 'bold';
+            // Bold only on the label column to avoid kerning issues on long currency strings
+            if (data.column.index === 0) {
+              data.cell.styles.fontStyle = 'bold';
+            }
           } else if (row.isCalc) {
             data.cell.styles.fillColor = [229, 231, 235];
             data.cell.styles.textColor = [17, 24, 39];
-            data.cell.styles.fontStyle = 'bold';
+            if (data.column.index === 0) {
+              data.cell.styles.fontStyle = 'bold';
+            }
           } else {
             // Color RXP column for sub-events
             if (data.column.index === 3) {
