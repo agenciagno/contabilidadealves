@@ -240,6 +240,13 @@ export default function DRE() {
           </Table>
         </CardContent>
       </Card>
+
+      <DREReportModal
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        startDate={startDate}
+        endDate={endDate}
+      />
     </div>
   );
 }
