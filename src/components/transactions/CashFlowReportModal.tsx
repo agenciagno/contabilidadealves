@@ -94,6 +94,23 @@ export function CashFlowReportModal({
 
   const clearDates = () => { setStartDate(''); setEndDate(''); };
 
+  // ─── Resumo por Evento Contábil ──────────────────────────────────
+  const buildEventSummary = (rows: typeof transactions) => {
+    const map = new Map<string, { name: string; qty: number; receber: number; pagar: number }>();
+    for (const r of rows) {
+      const name = r.category?.name || 'Sem evento';
+      const cur = map.get(name) || { name, qty: 0, receber: 0, pagar: 0 };
+      cur.qty += 1;
+      const amt = Number(r.amount);
+      if (r.type === 'receita') cur.receber += amt;
+      else cur.pagar += amt;
+      map.set(name, cur);
+    }
+    return Array.from(map.values())
+      .map(g => ({ ...g, saldo: g.receber - g.pagar }))
+      .sort((a, b) => (Math.abs(b.receber) + Math.abs(b.pagar)) - (Math.abs(a.receber) + Math.abs(a.pagar)));
+  };
+
   const activeBanks = useMemo(() => banks.filter(b => b.is_active), [banks]);
   const totalBankBalance = useMemo(() => activeBanks.reduce((s, b) => s + Number(b.current_balance), 0), [activeBanks]);
 
@@ -263,6 +280,64 @@ export function CashFlowReportModal({
       },
     });
 
+    // ─── Resumo por Evento Contábil ───────────────────────────────
+    const eventSummary = buildEventSummary(filteredRows);
+    const eventTotals = eventSummary.reduce(
+      (acc, g) => ({
+        qty: acc.qty + g.qty,
+        receber: acc.receber + g.receber,
+        pagar: acc.pagar + g.pagar,
+        saldo: acc.saldo + g.saldo,
+      }),
+      { qty: 0, receber: 0, pagar: 0, saldo: 0 }
+    );
+
+    if (eventSummary.length > 0) {
+      const startY = (doc as any).lastAutoTable.finalY + 8;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(40, 40, 40);
+      doc.text('Resumo por Evento Contábil', 14, startY);
+
+      autoTable(doc, {
+        startY: startY + 3,
+        head: [['Evento', 'Qtd', 'A Receber', 'A Pagar', 'Saldo']],
+        body: eventSummary.map(g => [
+          g.name,
+          String(g.qty),
+          formatCurrency(g.receber),
+          formatCurrency(g.pagar),
+          formatCurrency(g.saldo),
+        ]),
+        foot: [[
+          'TOTAL',
+          String(eventTotals.qty),
+          formatCurrency(eventTotals.receber),
+          formatCurrency(eventTotals.pagar),
+          formatCurrency(eventTotals.saldo),
+        ]],
+        theme: 'striped',
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold' },
+        footStyles: { fillColor: [230, 230, 230], textColor: 0, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [248, 248, 248] },
+        columnStyles: {
+          1: { halign: 'center' },
+          2: { halign: 'right', textColor: [22, 163, 74] },
+          3: { halign: 'right', textColor: [239, 68, 68] },
+          4: { halign: 'right', fontStyle: 'bold' },
+        },
+        didDrawPage: (data) => {
+          const pageCount = (doc as any).internal.getNumberOfPages();
+          const pageHeight = doc.internal.pageSize.height;
+          doc.setFontSize(7); doc.setTextColor(150);
+          doc.text(emittedAt, 14, pageHeight - 8);
+          doc.text(`Página ${data.pageNumber} de ${pageCount}`, doc.internal.pageSize.width - 14, pageHeight - 8, { align: 'right' });
+          doc.setTextColor(0);
+        },
+      });
+    }
+
     doc.save(`contas-pagar-receber-${startDate || 'geral'}-${endDate || 'geral'}.pdf`);
   };
 
@@ -289,7 +364,26 @@ export function CashFlowReportModal({
       <tr><td colspan="9"></td></tr>
     `;
 
-    const table = `<table>${headerRows}<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>${tableRows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')}</table>`;
+    const eventSummary = buildEventSummary(filteredRows);
+    const eventTotals = eventSummary.reduce(
+      (acc, g) => ({
+        qty: acc.qty + g.qty,
+        receber: acc.receber + g.receber,
+        pagar: acc.pagar + g.pagar,
+        saldo: acc.saldo + g.saldo,
+      }),
+      { qty: 0, receber: 0, pagar: 0, saldo: 0 }
+    );
+
+    const eventBlock = eventSummary.length > 0
+      ? `<tr><td colspan="9"></td></tr>
+         <tr><td colspan="9"><b>Resumo por Evento Contábil</b></td></tr>
+         <tr>${['Evento','Qtd','A Receber','A Pagar','Saldo'].map(h => `<th>${h}</th>`).join('')}</tr>
+         ${eventSummary.map(g => `<tr><td>${g.name}</td><td>${g.qty}</td><td>${g.receber.toFixed(2).replace('.', ',')}</td><td>${g.pagar.toFixed(2).replace('.', ',')}</td><td>${g.saldo.toFixed(2).replace('.', ',')}</td></tr>`).join('')}
+         <tr><td><b>TOTAL</b></td><td><b>${eventTotals.qty}</b></td><td><b>${eventTotals.receber.toFixed(2).replace('.', ',')}</b></td><td><b>${eventTotals.pagar.toFixed(2).replace('.', ',')}</b></td><td><b>${eventTotals.saldo.toFixed(2).replace('.', ',')}</b></td></tr>`
+      : '';
+
+    const table = `<table>${headerRows}<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>${tableRows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')}${eventBlock}</table>`;
     const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body>${table}</body></html>`;
 
     const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
@@ -324,7 +418,41 @@ export function CashFlowReportModal({
       getStatus(r.is_paid, r.due_date),
     ].join(';'));
 
-    const csv = [...metaLines, headers.join(';'), ...dataLines].join('\r\n');
+    const eventSummary = buildEventSummary(filteredRows);
+    const eventTotals = eventSummary.reduce(
+      (acc, g) => ({
+        qty: acc.qty + g.qty,
+        receber: acc.receber + g.receber,
+        pagar: acc.pagar + g.pagar,
+        saldo: acc.saldo + g.saldo,
+      }),
+      { qty: 0, receber: 0, pagar: 0, saldo: 0 }
+    );
+
+    const eventCsvLines: string[] = [];
+    if (eventSummary.length > 0) {
+      eventCsvLines.push('');
+      eventCsvLines.push('Resumo por Evento Contábil');
+      eventCsvLines.push(['Evento', 'Qtd', 'A Receber', 'A Pagar', 'Saldo'].join(';'));
+      for (const g of eventSummary) {
+        eventCsvLines.push([
+          `"${g.name.replace(/"/g, '""')}"`,
+          String(g.qty),
+          g.receber.toFixed(2).replace('.', ','),
+          g.pagar.toFixed(2).replace('.', ','),
+          g.saldo.toFixed(2).replace('.', ','),
+        ].join(';'));
+      }
+      eventCsvLines.push([
+        'TOTAL',
+        String(eventTotals.qty),
+        eventTotals.receber.toFixed(2).replace('.', ','),
+        eventTotals.pagar.toFixed(2).replace('.', ','),
+        eventTotals.saldo.toFixed(2).replace('.', ','),
+      ].join(';'));
+    }
+
+    const csv = [...metaLines, headers.join(';'), ...dataLines, ...eventCsvLines].join('\r\n');
     const bom = '\uFEFF';
     const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);

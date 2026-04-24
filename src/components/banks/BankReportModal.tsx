@@ -74,6 +74,33 @@ export function BankReportModal({ open, onOpenChange, banks }: BankReportModalPr
 
   const periodLabel = `${formatDateBR(startDate)} a ${formatDateBR(endDate)}`;
 
+  // ─── Resumo por Evento Contábil ──────────────────────────────────
+  const eventSummary = (() => {
+    const map = new Map<string, { name: string; qty: number; entradas: number; saidas: number }>();
+    for (const r of filteredRows) {
+      const name = r.category_name || 'Sem evento';
+      const key = name;
+      const cur = map.get(key) || { name, qty: 0, entradas: 0, saidas: 0 };
+      cur.qty += 1;
+      if (r.type === 'receita') cur.entradas += r.amount;
+      else cur.saidas += r.amount;
+      map.set(key, cur);
+    }
+    return Array.from(map.values())
+      .map(g => ({ ...g, saldo: g.entradas - g.saidas }))
+      .sort((a, b) => (Math.abs(b.entradas) + Math.abs(b.saidas)) - (Math.abs(a.entradas) + Math.abs(a.saidas)));
+  })();
+
+  const eventTotals = eventSummary.reduce(
+    (acc, g) => ({
+      qty: acc.qty + g.qty,
+      entradas: acc.entradas + g.entradas,
+      saidas: acc.saidas + g.saidas,
+      saldo: acc.saldo + g.saldo,
+    }),
+    { qty: 0, entradas: 0, saidas: 0, saldo: 0 }
+  );
+
   const accountsLabel = selectedBankIds.length > 0
     ? banks.filter(b => selectedBankIds.includes(b.id)).map(b => b.name).join(', ')
     : 'Todas';
@@ -210,6 +237,54 @@ export function BankReportModal({ open, onOpenChange, banks }: BankReportModalPr
       },
     });
 
+    // ─── Resumo por Evento Contábil ───────────────────────────────
+    if (eventSummary.length > 0) {
+      const startY = (doc as any).lastAutoTable.finalY + 8;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(40, 40, 40);
+      doc.text('Resumo por Evento Contábil', 14, startY);
+
+      autoTable(doc, {
+        startY: startY + 3,
+        head: [['Evento', 'Qtd', 'Entradas', 'Saídas', 'Saldo']],
+        body: eventSummary.map(g => [
+          g.name,
+          String(g.qty),
+          formatCurrency(g.entradas),
+          formatCurrency(g.saidas),
+          formatCurrency(g.saldo),
+        ]),
+        foot: [[
+          'TOTAL',
+          String(eventTotals.qty),
+          formatCurrency(eventTotals.entradas),
+          formatCurrency(eventTotals.saidas),
+          formatCurrency(eventTotals.saldo),
+        ]],
+        theme: 'striped',
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold' },
+        footStyles: { fillColor: [230, 230, 230], textColor: 0, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [248, 248, 248] },
+        columnStyles: {
+          1: { halign: 'center' },
+          2: { halign: 'right', textColor: [22, 163, 74] },
+          3: { halign: 'right', textColor: [239, 68, 68] },
+          4: { halign: 'right', fontStyle: 'bold' },
+        },
+        didDrawPage: (data) => {
+          const pageCount = (doc as any).internal.getNumberOfPages();
+          const pageHeight = doc.internal.pageSize.height;
+          doc.setFontSize(7);
+          doc.setTextColor(150);
+          doc.text(emittedAt, 14, pageHeight - 8);
+          doc.text(`Página ${data.pageNumber} de ${pageCount}`, doc.internal.pageSize.width - 14, pageHeight - 8, { align: 'right' });
+          doc.setTextColor(0);
+        },
+      });
+    }
+
     doc.save(`extrato-bancario-${startDate}-${endDate}.pdf`);
   };
 
@@ -235,7 +310,31 @@ export function BankReportModal({ open, onOpenChange, banks }: BankReportModalPr
       <tr><td colspan="8"></td></tr>
     `;
 
-    const table = `<table>${headerRows}<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>${tableRows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')}</table>`;
+    const eventHeaders = ['Evento', 'Qtd', 'Entradas', 'Saídas', 'Saldo'];
+    const eventRows = eventSummary.map(g => [
+      g.name,
+      String(g.qty),
+      g.entradas.toFixed(2).replace('.', ','),
+      g.saidas.toFixed(2).replace('.', ','),
+      g.saldo.toFixed(2).replace('.', ','),
+    ]);
+    const eventTotalRow = [
+      '<b>TOTAL</b>',
+      `<b>${eventTotals.qty}</b>`,
+      `<b>${eventTotals.entradas.toFixed(2).replace('.', ',')}</b>`,
+      `<b>${eventTotals.saidas.toFixed(2).replace('.', ',')}</b>`,
+      `<b>${eventTotals.saldo.toFixed(2).replace('.', ',')}</b>`,
+    ];
+
+    const eventBlock = eventSummary.length > 0
+      ? `<tr><td colspan="8"></td></tr>
+         <tr><td colspan="8"><b>Resumo por Evento Contábil</b></td></tr>
+         <tr>${eventHeaders.map(h => `<th>${h}</th>`).join('')}</tr>
+         ${eventRows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')}
+         <tr>${eventTotalRow.map(cell => `<td>${cell}</td>`).join('')}</tr>`
+      : '';
+
+    const table = `<table>${headerRows}<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>${tableRows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')}${eventBlock}</table>`;
     const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body>${table}</body></html>`;
 
     const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
@@ -269,7 +368,30 @@ export function BankReportModal({ open, onOpenChange, banks }: BankReportModalPr
       r.running_balance.toFixed(2).replace('.', ','),
     ].join(';'));
 
-    const csv = [...metaLines, headers.join(';'), ...dataLines].join('\r\n');
+    const eventCsvLines: string[] = [];
+    if (eventSummary.length > 0) {
+      eventCsvLines.push('');
+      eventCsvLines.push('Resumo por Evento Contábil');
+      eventCsvLines.push(['Evento', 'Qtd', 'Entradas', 'Saídas', 'Saldo'].join(';'));
+      for (const g of eventSummary) {
+        eventCsvLines.push([
+          `"${g.name.replace(/"/g, '""')}"`,
+          String(g.qty),
+          g.entradas.toFixed(2).replace('.', ','),
+          g.saidas.toFixed(2).replace('.', ','),
+          g.saldo.toFixed(2).replace('.', ','),
+        ].join(';'));
+      }
+      eventCsvLines.push([
+        'TOTAL',
+        String(eventTotals.qty),
+        eventTotals.entradas.toFixed(2).replace('.', ','),
+        eventTotals.saidas.toFixed(2).replace('.', ','),
+        eventTotals.saldo.toFixed(2).replace('.', ','),
+      ].join(';'));
+    }
+
+    const csv = [...metaLines, headers.join(';'), ...dataLines, ...eventCsvLines].join('\r\n');
     const bom = '\uFEFF';
     const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);

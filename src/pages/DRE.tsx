@@ -3,10 +3,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { CalendarDays, X, TrendingUp, TrendingDown, DollarSign, Wallet, Building2 } from 'lucide-react';
+import { CalendarDays, X, TrendingUp, TrendingDown, DollarSign, Wallet, Building2, FileText } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useDREData, DRESectionRow, DRECalculatedRow, DRERowResult } from '@/hooks/useDREData';
+import { DREReportModal } from '@/components/reports/DREReportModal';
 import { cn } from '@/lib/utils';
 
 function formatCurrency(value: number) {
@@ -127,6 +128,7 @@ export default function DRE() {
   const now = new Date();
   const [startDate, setStartDate] = useState(() => format(startOfMonth(now), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(() => format(endOfMonth(now), 'yyyy-MM-dd'));
+  const [reportOpen, setReportOpen] = useState(false);
   const { dreRows, summary } = useDREData(startDate, endDate);
 
   const handleClear = () => {
@@ -159,6 +161,10 @@ export default function DRE() {
           <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="h-9 w-[150px] text-sm" />
           <Button variant="ghost" size="icon" className="h-9 w-9" onClick={handleClear} title="Limpar filtro">
             <X className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="sm" className="h-9 gap-1.5" onClick={() => setReportOpen(true)}>
+            <FileText className="h-4 w-4" />
+            Gerar Relatório
           </Button>
         </div>
       </div>
@@ -234,6 +240,13 @@ export default function DRE() {
           </Table>
         </CardContent>
       </Card>
+
+      <DREReportModal
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        startDate={startDate}
+        endDate={endDate}
+      />
     </div>
   );
 }
