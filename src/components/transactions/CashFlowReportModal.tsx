@@ -364,7 +364,26 @@ export function CashFlowReportModal({
       <tr><td colspan="9"></td></tr>
     `;
 
-    const table = `<table>${headerRows}<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>${tableRows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')}</table>`;
+    const eventSummary = buildEventSummary(filteredRows);
+    const eventTotals = eventSummary.reduce(
+      (acc, g) => ({
+        qty: acc.qty + g.qty,
+        receber: acc.receber + g.receber,
+        pagar: acc.pagar + g.pagar,
+        saldo: acc.saldo + g.saldo,
+      }),
+      { qty: 0, receber: 0, pagar: 0, saldo: 0 }
+    );
+
+    const eventBlock = eventSummary.length > 0
+      ? `<tr><td colspan="9"></td></tr>
+         <tr><td colspan="9"><b>Resumo por Evento Contábil</b></td></tr>
+         <tr>${['Evento','Qtd','A Receber','A Pagar','Saldo'].map(h => `<th>${h}</th>`).join('')}</tr>
+         ${eventSummary.map(g => `<tr><td>${g.name}</td><td>${g.qty}</td><td>${g.receber.toFixed(2).replace('.', ',')}</td><td>${g.pagar.toFixed(2).replace('.', ',')}</td><td>${g.saldo.toFixed(2).replace('.', ',')}</td></tr>`).join('')}
+         <tr><td><b>TOTAL</b></td><td><b>${eventTotals.qty}</b></td><td><b>${eventTotals.receber.toFixed(2).replace('.', ',')}</b></td><td><b>${eventTotals.pagar.toFixed(2).replace('.', ',')}</b></td><td><b>${eventTotals.saldo.toFixed(2).replace('.', ',')}</b></td></tr>`
+      : '';
+
+    const table = `<table>${headerRows}<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>${tableRows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')}${eventBlock}</table>`;
     const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body>${table}</body></html>`;
 
     const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
