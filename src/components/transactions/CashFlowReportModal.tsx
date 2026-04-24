@@ -1012,7 +1012,16 @@ export function CashFlowReportModal({
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                    <div className="p-2 border-b">
+                    <div className="p-2 border-b space-y-2">
+                      <div className="relative">
+                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                        <Input
+                          value={monthlyCategorySearch}
+                          onChange={(e) => setMonthlyCategorySearch(e.target.value)}
+                          placeholder="Pesquisar evento..."
+                          className="h-8 pl-7 text-sm"
+                        />
+                      </div>
                       <button
                         type="button"
                         onClick={() => setMonthlySelectedCategories(new Set())}
@@ -1024,27 +1033,35 @@ export function CashFlowReportModal({
                     </div>
                     <ScrollArea className="h-64">
                       <div className="p-2 space-y-0.5">
-                        {categories.map(cat => {
-                          const checked = monthlySelectedCategories.has(cat.id);
-                          return (
-                            <button
-                              key={cat.id}
-                              type="button"
-                              onClick={() => {
-                                setMonthlySelectedCategories(prev => {
-                                  const next = new Set(prev);
-                                  if (next.has(cat.id)) next.delete(cat.id); else next.add(cat.id);
-                                  return next;
-                                });
-                              }}
-                              className="flex items-center gap-2 w-full px-2 py-1.5 text-sm rounded hover:bg-accent text-left"
-                            >
-                              <Checkbox checked={checked} />
-                              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color || '#3B82F6' }} />
-                              <span className="truncate">{cat.name}</span>
-                            </button>
-                          );
-                        })}
+                        {(() => {
+                          const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                          const q = norm(monthlyCategorySearch.trim());
+                          const filtered = q ? categories.filter(c => norm(c.name).includes(q)) : categories;
+                          if (filtered.length === 0) {
+                            return <div className="px-2 py-4 text-sm text-muted-foreground text-center">Nenhum evento encontrado</div>;
+                          }
+                          return filtered.map(cat => {
+                            const checked = monthlySelectedCategories.has(cat.id);
+                            return (
+                              <button
+                                key={cat.id}
+                                type="button"
+                                onClick={() => {
+                                  setMonthlySelectedCategories(prev => {
+                                    const next = new Set(prev);
+                                    if (next.has(cat.id)) next.delete(cat.id); else next.add(cat.id);
+                                    return next;
+                                  });
+                                }}
+                                className="flex items-center gap-2 w-full px-2 py-1.5 text-sm rounded hover:bg-accent text-left"
+                              >
+                                <Checkbox checked={checked} />
+                                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color || '#3B82F6' }} />
+                                <span className="truncate">{cat.name}</span>
+                              </button>
+                            );
+                          });
+                        })()}
                       </div>
                     </ScrollArea>
                   </PopoverContent>
