@@ -5,6 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { cn } from '@/lib/utils';
 import { FileText, Table2, Image, TrendingUp, TrendingDown, Building2, Wallet, X, Printer } from 'lucide-react';
 import { useCompany } from '@/hooks/useCompany';
 import { format, parseISO, isWithinInterval } from 'date-fns';
@@ -63,20 +65,58 @@ export function CashFlowReportModal({
   const { company } = useCompany();
   const summaryRef = useRef<HTMLDivElement>(null);
 
+  const [mode, setMode] = useState<'report' | 'monthly'>('report');
+
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [categoryId, setCategoryId] = useState('all');
   const [contactId, setContactId] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
 
+  // Monthly query state
+  const nowDate = new Date();
+  const currentYear = nowDate.getFullYear();
+  const currentMonth = nowDate.getMonth(); // 0..11
+  const [monthlyYear, setMonthlyYear] = useState<number>(currentYear);
+  const [monthlyStatus, setMonthlyStatus] = useState<'paid' | 'pending'>('pending');
+  const [monthlyCategoryId, setMonthlyCategoryId] = useState<string>('all');
+  const [monthlyMonths, setMonthlyMonths] = useState<Set<number>>(() => {
+    const s = new Set<number>();
+    for (let m = currentMonth; m <= 11; m++) s.add(m);
+    return s;
+  });
+
+  // Auto-fill months when status or year changes
+  const autoFillMonths = (status: 'paid' | 'pending', year: number) => {
+    const s = new Set<number>();
+    if (year < currentYear) {
+      for (let m = 0; m <= 11; m++) s.add(m);
+    } else if (year > currentYear) {
+      for (let m = 0; m <= 11; m++) s.add(m);
+    } else {
+      if (status === 'paid') {
+        for (let m = 0; m <= currentMonth; m++) s.add(m);
+      } else {
+        for (let m = currentMonth; m <= 11; m++) s.add(m);
+      }
+    }
+    return s;
+  };
+
   useEffect(() => {
     if (open) {
+      setMode('report');
       setStartDate(initialStartDate);
       setEndDate(initialEndDate);
       setCategoryId(initialCategoryIds.length === 1 ? initialCategoryIds[0] : 'all');
       setContactId(initialContactIds.length === 1 ? initialContactIds[0] : 'all');
       setTypeFilter('all');
+      setMonthlyYear(currentYear);
+      setMonthlyStatus('pending');
+      setMonthlyCategoryId('all');
+      setMonthlyMonths(autoFillMonths('pending', currentYear));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialStartDate, initialEndDate, initialCategoryIds, initialContactIds]);
 
   const today = new Date();
@@ -160,6 +200,86 @@ export function CashFlowReportModal({
     const capitalDeGiro = rowsWithBalance.length > 0 ? rowsWithBalance[rowsWithBalance.length - 1].saldoAtual : totalBankBalance;
     return { entradas, saidas, capitalDeGiro, totalBankBalance };
   }, [filteredRows, rowsWithBalance, totalBankBalance]);
+
+  // ─── Monthly matrix data ──────────────────────────────────────────
+  const MONTHS_PT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+  const availableYears = useMemo(() => {
+    const years = new Set<number>([currentYear]);
+    for (const t of transactions) {
+      const ref = t.is_paid ? t.date : t.expected_date;
+      if (ref) {
+        const y = parseInt(ref.slice(0, 4), 10);
+        if (!Number.isNaN(y)) years.add(y);
+      }
+    }
+    return Array.from(years).sort((a, b) => b - a);
+  }, [transactions, currentYear]);
+
+  const sortedSelectedMonths = useMemo(
+    () => Array.from(monthlyMonths).sort((a, b) => a - b),
+    [monthlyMonths],
+  );
+
+  const monthlyMatrix = useMemo(() => {
+    // Filter rows by year + status + category
+    const isPaid = monthlyStatus === 'paid';
+    const rows = transactions.filter(t => {
+      if (t.is_paid !== isPaid) return false;
+      const ref = isPaid ? t.date : t.expected_date;
+      if (!ref) return false;
+      if (parseInt(ref.slice(0, 4), 10) !== monthlyYear) return false;
+      if (monthlyCategoryId !== 'all' && t.category_id !== monthlyCategoryId) return false;
+      return true;
+    });
+
+    // Aggregate by event/category name
+    const map = new Map<string, { name: string; color: string | null; monthly: number[]; total: number }>();
+    for (const t of rows) {
+      const ref = isPaid ? t.date : t.expected_date;
+      if (!ref) continue;
+      const month = parseInt(ref.slice(5, 7), 10) - 1;
+      if (!sortedSelectedMonths.includes(month)) continue;
+      const name = t.category?.name || 'Sem evento';
+      const color = (t.category as any)?.color ?? null;
+      const cur = map.get(name) || { name, color, monthly: Array(12).fill(0), total: 0 };
+      const amt = Number(isPaid ? (t.paid_amount ?? t.amount) : t.amount);
+      const signed = t.type === 'receita' ? amt : -amt;
+      cur.monthly[month] += signed;
+      cur.total += signed;
+      map.set(name, cur);
+    }
+
+    // Hide events with total === 0
+    const events = Array.from(map.values())
+      .filter(e => Math.abs(e.total) > 0.0001)
+      .sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
+
+    // Column totals + grand total (only for selected months)
+    const colTotals: number[] = Array(12).fill(0);
+    let grand = 0;
+    for (const e of events) {
+      for (const m of sortedSelectedMonths) {
+        colTotals[m] += e.monthly[m];
+      }
+      grand += e.total;
+    }
+    return { events, colTotals, grand };
+  }, [transactions, monthlyYear, monthlyStatus, monthlyCategoryId, sortedSelectedMonths]);
+
+  const monthlyCategoryLabel = monthlyCategoryId === 'all'
+    ? 'Todos'
+    : categories.find(c => c.id === monthlyCategoryId)?.name || 'Todos';
+  const monthlyStatusLabel = monthlyStatus === 'paid' ? 'Pago/Recebido' : 'Pagar/Receber';
+  const monthlyMonthsLabel = sortedSelectedMonths.map(m => MONTHS_PT[m]).join(', ') || '—';
+
+  const toggleMonth = (m: number) => {
+    setMonthlyMonths(prev => {
+      const next = new Set(prev);
+      if (next.has(m)) next.delete(m); else next.add(m);
+      return next;
+    });
+  };
 
   // ─── PDF Export ───────────────────────────────────────────────────
   const exportPDF = () => {
@@ -482,11 +602,128 @@ export function CashFlowReportModal({
     }
   };
 
+  // ─── Monthly Exports ──────────────────────────────────────────────
+  const exportMonthlyPDF = () => {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const emittedAt = `Emitido em ${pad2(today.getDate())}/${pad2(today.getMonth() + 1)}/${today.getFullYear()} às ${pad2(today.getHours())}:${pad2(today.getMinutes())}`;
+
+    doc.setFontSize(14); doc.setFont('helvetica', 'bold');
+    doc.text(company?.name || 'Empresa', 14, 18);
+    if (company?.cnpj) {
+      doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+      doc.text(`CNPJ: ${company.cnpj}`, 14, 24);
+    }
+    doc.setFontSize(11); doc.setFont('helvetica', 'bold');
+    doc.text('Consulta Mensal — Pagar/Receber', 14, 34);
+    doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+    doc.text(`Ano: ${monthlyYear}`, 14, 40);
+    doc.text(`Status: ${monthlyStatusLabel}`, 14, 45);
+    doc.text(`Evento Contábil: ${monthlyCategoryLabel}`, 14, 50);
+    doc.text(`Meses: ${monthlyMonthsLabel}`, 14, 55);
+
+    const head = [['Evento', ...sortedSelectedMonths.map(m => MONTHS_PT[m]), 'TOTAL']];
+    const body = monthlyMatrix.events.map(e => [
+      e.name,
+      ...sortedSelectedMonths.map(m => formatCurrency(e.monthly[m])),
+      formatCurrency(e.total),
+    ]);
+    const foot = [[
+      'TOTAL',
+      ...sortedSelectedMonths.map(m => formatCurrency(monthlyMatrix.colTotals[m])),
+      formatCurrency(monthlyMatrix.grand),
+    ]];
+
+    const monthsCount = sortedSelectedMonths.length || 1;
+    const pageW = 297 - 28;
+    const eventW = Math.max(50, Math.min(80, pageW * 0.32));
+    const totalW = 28;
+    const monthW = Math.max(14, (pageW - eventW - totalW) / monthsCount);
+    const colStyles: Record<number, any> = { 0: { cellWidth: eventW, halign: 'left' } };
+    for (let i = 1; i <= monthsCount; i++) colStyles[i] = { cellWidth: monthW, halign: 'right' };
+    colStyles[monthsCount + 1] = { cellWidth: totalW, halign: 'right', fontStyle: 'bold' };
+
+    autoTable(doc, {
+      startY: 62,
+      head, body, foot,
+      theme: 'striped',
+      styles: { fontSize: 7.5, cellPadding: 1.8, overflow: 'linebreak' },
+      headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold', halign: 'center', valign: 'middle' },
+      footStyles: { fillColor: [230, 230, 230], textColor: 0, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [248, 248, 248] },
+      columnStyles: colStyles,
+      didDrawPage: (data) => {
+        const pageCount = (doc as any).internal.getNumberOfPages();
+        const pageHeight = doc.internal.pageSize.height;
+        doc.setFontSize(7); doc.setTextColor(150);
+        doc.text(emittedAt, 14, pageHeight - 8);
+        doc.text(`Página ${data.pageNumber} de ${pageCount}`, doc.internal.pageSize.width - 14, pageHeight - 8, { align: 'right' });
+        doc.setTextColor(0);
+      },
+    });
+
+    doc.save(`consulta-mensal-${monthlyYear}-${monthlyStatus}.pdf`);
+  };
+
+  const exportMonthlyXLS = () => {
+    const monthHeaders = sortedSelectedMonths.map(m => MONTHS_PT[m]);
+    const headers = ['Evento', ...monthHeaders, 'TOTAL'];
+    const meta = `
+      <tr><td colspan="${headers.length}"><b>${company?.name || 'Empresa'}</b></td></tr>
+      <tr><td colspan="${headers.length}">Consulta Mensal — Pagar/Receber</td></tr>
+      <tr><td colspan="${headers.length}">Ano: ${monthlyYear} • Status: ${monthlyStatusLabel} • Evento: ${monthlyCategoryLabel}</td></tr>
+      <tr><td colspan="${headers.length}"></td></tr>
+    `;
+    const rows = monthlyMatrix.events.map(e =>
+      `<tr><td>${e.name}</td>${sortedSelectedMonths.map(m => `<td>${e.monthly[m].toFixed(2).replace('.', ',')}</td>`).join('')}<td>${e.total.toFixed(2).replace('.', ',')}</td></tr>`
+    ).join('');
+    const totalRow = `<tr><td><b>TOTAL</b></td>${sortedSelectedMonths.map(m => `<td><b>${monthlyMatrix.colTotals[m].toFixed(2).replace('.', ',')}</b></td>`).join('')}<td><b>${monthlyMatrix.grand.toFixed(2).replace('.', ',')}</b></td></tr>`;
+    const table = `<table>${meta}<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>${rows}${totalRow}</table>`;
+    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body>${table}</body></html>`;
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `consulta-mensal-${monthlyYear}-${monthlyStatus}.xls`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportMonthlyCSV = () => {
+    const monthHeaders = sortedSelectedMonths.map(m => MONTHS_PT[m]);
+    const headers = ['Evento', ...monthHeaders, 'TOTAL'];
+    const meta = [
+      company?.name || 'Empresa',
+      'Consulta Mensal — Pagar/Receber',
+      `Ano: ${monthlyYear}`,
+      `Status: ${monthlyStatusLabel}`,
+      `Evento Contábil: ${monthlyCategoryLabel}`,
+      '',
+    ];
+    const rows = monthlyMatrix.events.map(e => [
+      `"${e.name.replace(/"/g, '""')}"`,
+      ...sortedSelectedMonths.map(m => e.monthly[m].toFixed(2).replace('.', ',')),
+      e.total.toFixed(2).replace('.', ','),
+    ].join(';'));
+    const totalRow = [
+      'TOTAL',
+      ...sortedSelectedMonths.map(m => monthlyMatrix.colTotals[m].toFixed(2).replace('.', ',')),
+      monthlyMatrix.grand.toFixed(2).replace('.', ','),
+    ].join(';');
+    const csv = [...meta, headers.join(';'), ...rows, totalRow].join('\r\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `consulta-mensal-${monthlyYear}-${monthlyStatus}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportPDF = () => mode === 'monthly' ? exportMonthlyPDF() : exportPDF();
+  const handleExportXLS = () => mode === 'monthly' ? exportMonthlyXLS() : exportXLS();
+  const handleExportCSV = () => mode === 'monthly' ? exportMonthlyCSV() : exportCSV();
+
   const handlePrint = () => window.print();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl print-visible">
+      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto print-visible">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-primary" />
@@ -495,6 +732,25 @@ export function CashFlowReportModal({
         </DialogHeader>
 
         <div className="space-y-3">
+          {/* Mode toggle */}
+          <div className="flex justify-center">
+            <ToggleGroup
+              type="single"
+              value={mode}
+              onValueChange={(v) => v && setMode(v as 'report' | 'monthly')}
+              className="bg-muted/50 rounded-md p-1"
+            >
+              <ToggleGroupItem value="report" className="px-4 data-[state=on]:bg-background data-[state=on]:shadow-sm">
+                Relatório
+              </ToggleGroupItem>
+              <ToggleGroupItem value="monthly" className="px-4 data-[state=on]:bg-background data-[state=on]:shadow-sm">
+                Consulta Mensal
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+
+          {mode === 'report' && (<>
+
           {/* Period with clear button */}
           <div>
             <Label className="text-sm font-semibold mb-1 block">Período</Label>
@@ -595,28 +851,142 @@ export function CashFlowReportModal({
               </div>
             </div>
           </div>
+          </>)}
+
+          {mode === 'monthly' && (
+            <div className="space-y-4">
+              {/* Year pills */}
+              <div>
+                <Label className="text-sm font-semibold mb-2 block">Ano</Label>
+                <div className="flex flex-wrap gap-2">
+                  {availableYears.map(y => (
+                    <Button
+                      key={y}
+                      type="button"
+                      variant={monthlyYear === y ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => {
+                        setMonthlyYear(y);
+                        setMonthlyMonths(autoFillMonths(monthlyStatus, y));
+                      }}
+                      className="h-8 px-3"
+                    >
+                      {y}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Status pills */}
+              <div>
+                <Label className="text-sm font-semibold mb-2 block">Status</Label>
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    { v: 'paid', l: 'Pago/Recebido' },
+                    { v: 'pending', l: 'Pagar/Receber' },
+                  ] as const).map(opt => (
+                    <Button
+                      key={opt.v}
+                      type="button"
+                      variant={monthlyStatus === opt.v ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => {
+                        setMonthlyStatus(opt.v);
+                        setMonthlyMonths(autoFillMonths(opt.v, monthlyYear));
+                      }}
+                      className="h-8 px-3"
+                    >
+                      {opt.l}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Months pills */}
+              <div>
+                <Label className="text-sm font-semibold mb-2 block">Meses</Label>
+                <div className="flex flex-wrap gap-2">
+                  {MONTHS_PT.map((label, idx) => (
+                    <Button
+                      key={idx}
+                      type="button"
+                      variant={monthlyMonths.has(idx) ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => toggleMonth(idx)}
+                      className="h-8 w-14 px-0"
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Event Category dropdown (same structure as Lançamentos) */}
+              <div>
+                <Label className="text-sm font-semibold mb-2 block">Evento Contábil</Label>
+                <Select value={monthlyCategoryId} onValueChange={setMonthlyCategoryId}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Todas as categorias" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as categorias</SelectItem>
+                    {categories.map(cat => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color || '#3B82F6' }} />
+                          {cat.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Preview summary */}
+              <div className="rounded-lg border bg-muted/30 p-3 text-xs space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Eventos com valor:</span>
+                  <span className="font-semibold">{monthlyMatrix.events.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Meses selecionados:</span>
+                  <span className="font-semibold">{sortedSelectedMonths.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total geral:</span>
+                  <span className={cn('font-semibold', monthlyMatrix.grand >= 0 ? 'text-green-600' : 'text-red-600')}>
+                    {formatCurrency(monthlyMatrix.grand)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
 
           <Separator className="my-2" />
 
           {/* Export buttons */}
           <div>
             <Label className="text-xs font-semibold mb-1.5 block">Exportar</Label>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs no-print" onClick={exportPDF}>
+            <div className={cn('grid gap-2', mode === 'monthly' ? 'grid-cols-3' : 'grid-cols-2 sm:grid-cols-5')}>
+              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs no-print" onClick={handleExportPDF}>
                 <FileText className="w-3.5 h-3.5 text-red-500" /> PDF
               </Button>
-              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs no-print" onClick={exportXLS}>
+              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs no-print" onClick={handleExportXLS}>
                 <Table2 className="w-3.5 h-3.5 text-green-600" /> XLS
               </Button>
-              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs no-print" onClick={exportCSV}>
+              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs no-print" onClick={handleExportCSV}>
                 <Table2 className="w-3.5 h-3.5 text-green-600" /> CSV
               </Button>
-              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs no-print" onClick={exportImage}>
-                <Image className="w-3.5 h-3.5 text-purple-500" /> Imagem
-              </Button>
-              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs no-print" onClick={handlePrint}>
-                <Printer className="w-3.5 h-3.5 text-muted-foreground" /> Imprimir
-              </Button>
+              {mode === 'report' && (
+                <>
+                  <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs no-print" onClick={exportImage}>
+                    <Image className="w-3.5 h-3.5 text-purple-500" /> Imagem
+                  </Button>
+                  <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs no-print" onClick={handlePrint}>
+                    <Printer className="w-3.5 h-3.5 text-muted-foreground" /> Imprimir
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
