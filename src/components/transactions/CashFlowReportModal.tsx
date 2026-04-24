@@ -927,25 +927,60 @@ export function CashFlowReportModal({
                 </div>
               </div>
 
-              {/* Event Category dropdown (same structure as Lançamentos) */}
+              {/* Event Category multi-select dropdown */}
               <div>
                 <Label className="text-sm font-semibold mb-2 block">Evento Contábil</Label>
-                <Select value={monthlyCategoryId} onValueChange={setMonthlyCategoryId}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Todas as categorias" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas as categorias</SelectItem>
-                    {categories.map(cat => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color || '#3B82F6' }} />
-                          {cat.name}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between font-normal">
+                      <span className="truncate text-left">
+                        {monthlySelectedCategories.size === 0
+                          ? 'Todas as categorias'
+                          : monthlySelectedCategories.size === 1
+                          ? categories.find(c => monthlySelectedCategories.has(c.id))?.name || '1 selecionado'
+                          : `${monthlySelectedCategories.size} eventos selecionados`}
+                      </span>
+                      <ChevronDown className="h-4 w-4 opacity-50 shrink-0 ml-2" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <div className="p-2 border-b">
+                      <button
+                        type="button"
+                        onClick={() => setMonthlySelectedCategories(new Set())}
+                        className="flex items-center gap-2 w-full px-2 py-1.5 text-sm rounded hover:bg-accent text-left"
+                      >
+                        <Checkbox checked={monthlySelectedCategories.size === 0} />
+                        <span>Todas as categorias</span>
+                      </button>
+                    </div>
+                    <ScrollArea className="h-64">
+                      <div className="p-2 space-y-0.5">
+                        {categories.map(cat => {
+                          const checked = monthlySelectedCategories.has(cat.id);
+                          return (
+                            <button
+                              key={cat.id}
+                              type="button"
+                              onClick={() => {
+                                setMonthlySelectedCategories(prev => {
+                                  const next = new Set(prev);
+                                  if (next.has(cat.id)) next.delete(cat.id); else next.add(cat.id);
+                                  return next;
+                                });
+                              }}
+                              className="flex items-center gap-2 w-full px-2 py-1.5 text-sm rounded hover:bg-accent text-left"
+                            >
+                              <Checkbox checked={checked} />
+                              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color || '#3B82F6' }} />
+                              <span className="truncate">{cat.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </ScrollArea>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               {/* Preview summary */}
