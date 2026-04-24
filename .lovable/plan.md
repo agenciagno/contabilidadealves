@@ -1,51 +1,67 @@
-## Plano: Corrigir layout dos relatórios PDF
+## Plano: Aba "Pagar / Receber" com modos "Todas as transações" e "Consulta Mensal"
 
-### Diagnóstico
+### 1. Toggle no topo da página
+Em `src/pages/PagarReceber.tsx`, adicionar um `ToggleGroup` (shadcn) com duas opções:
+- **Todas as transações** (default) — renderiza o `<CashFlowTab />` atual, sem alterações.
+- **Consulta Mensal** — renderiza um novo componente `<MonthlyConsultTab />`.
 
-**1. Resumo por Evento Contábil (Conta Corrente + Pagar/Receber)** — imagem 1
-- O cabeçalho da tabela (`Evento | Qtd | A Receber | A Pagar | Saldo`) não tem `halign` definido em `headStyles`, então fica alinhado à esquerda por padrão. Mas o corpo usa `halign: 'right'` para valores. Isso causa o "descasamento" entre o título da coluna e os valores.
-- Faltam larguras explícitas de coluna, então o autoTable distribui de forma desigual e o "Evento" ocupa metade da página enquanto os valores ficam todos comprimidos no canto direito.
+Estado controlado via `useState<'all' | 'monthly'>('all')`. Nada na lógica do `CashFlowTab` é alterado.
 
-**2. PDF da DRE** — imagem 2
-- Os textos aparecem com letras espaçadas ("S e r v i ç o s   d e   t e r c e i r o s"). Causa raiz: a coluna 0 está fixada em `cellWidth: 70` mm, mas o autoTable está aplicando justify ao quebrar texto longo. Combinado com o caractere `↳` (seta), o jsPDF entra em modo de posicionamento per-caractere.
-- A coluna "Evento Contábil" precisa caber labels longos sem distorção. Colunas de valor à direita estão estreitas demais para "R$ 43.075,06".
-- Cabeçalho com `halign: 'left'` (padrão) enquanto o corpo usa `halign: 'right'` — mesmo descasamento da Conta Corrente.
+### 2. Novo componente `MonthlyConsultTab`
+Arquivo: `src/components/transactions/MonthlyConsultTab.tsx`.
 
----
+**Filtros (linha superior):**
+- Botões de **Ano**: derivados dinamicamente a partir das transações existentes (anos com `expected_date` ou `date`), ordenados desc. Ano atual selecionado por padrão.
+- Botões de **Mês**: 12 botões (Jan–Dez). Mês atual selecionado por padrão. Botão extra "Ano todo" para visão consolidada.
+- Dropdown de **Evento Contábil** (mesmo padrão `EventoMultiFilter` ou `Select` simples já usado): filtra por macro/sub evento. Default = "Todos".
 
-### Mudanças (apenas visual, sem alterar lógica/cálculos)
+Clique em qualquer botão recalcula instantaneamente (estado local + `useMemo`).
 
-**`src/components/banks/BankReportModal.tsx`** (bloco "Resumo por Evento Contábil" no PDF, ~linhas 248-285):
-- Adicionar em `headStyles`: `halign: 'center'` (para títulos centralizados) e `valign: 'middle'`.
-- Adicionar `columnStyles` com larguras explícitas:
-  - Evento: `cellWidth: 70` (esquerda)
-  - Qtd: `cellWidth: 18` (centro)
-  - Entradas, Saídas, Saldo: `cellWidth: 32` cada (direita)
-- Adicionar `halign: 'left'` no `columnStyles[0]` (Evento) para alinhar texto longo à esquerda.
-- Aplicar mesmas larguras no `foot` (TOTAL).
+### 3. Lógica de dados
+**Fonte:** as `transactions` já carregadas pelo hook `useTransactions` (passadas via prop, idêntico ao `CashFlowTab`). Sem novas queries no Supabase.
 
-**`src/components/transactions/CashFlowReportModal.tsx`** (bloco "Resumo por Evento Contábil" no PDF, ~linhas 295-339):
-- Mesmas correções acima:
-  - `headStyles.halign = 'center'`, `valign: 'middle'`
-  - `columnStyles[0]`: `cellWidth: 80, halign: 'left'`
-  - `columnStyles[1]`: `cellWidth: 18, halign: 'center'` (Qtd)
-  - `columnStyles[2-4]`: `cellWidth: 38, halign: 'right'` (A Receber, A Pagar, Saldo) — landscape comporta mais largura.
+**Regra de período (Histórico Realizado):**
+- Para meses **anteriores ao mês atual** do ano atual (e qualquer mês de anos passados): usar **Valor Realizado** = soma de `paid_amount ?? amount` apenas de transações com `isEffectivelyPaid` = true (usando `src/lib/financial-utils.ts`), filtradas por `date` (data de pagamento) dentro do mês.
+- Para o **mês atual** e **meses futuros**: usar **Valor Previsto** = soma de `amount` de todas transações (independente de status) com `expected_date` dentro do mês.
 
-**`src/components/reports/DREReportModal.tsx`** (PDF da DRE, ~linhas 163-214):
-- Ajustar `columnStyles` para caber valores em R$ sem espaçamento forçado:
-  - 0 (Evento Contábil): `cellWidth: 60, halign: 'left', overflow: 'linebreak'`
-  - 1 (Previsto): `cellWidth: 26, halign: 'right'`
-  - 2 (Realizado): `cellWidth: 26, halign: 'right'`
-  - 3 (RXP): `cellWidth: 26, halign: 'right'`
-  - 4 (% Prev.): `cellWidth: 19, halign: 'right'`
-  - 5 (% Real.): `cellWidth: 19, halign: 'right'`
-  - Total ≈ 176 mm (cabe em A4 retrato com margem 14 mm em cada lado).
-- Adicionar em `headStyles`: `halign: 'center'`, `valign: 'middle'`.
-- Adicionar em `styles`: `overflow: 'linebreak'`, `cellWidth: 'wrap'` removido — usar apenas valores explícitos por coluna para evitar o "stretch" que causa o letter-spacing.
-- Substituir o caractere `↳` (que dispara fallback de fonte no jsPDF Helvetica) por `"  • "` (espaço + bullet) no `flatRows` (linha 71). O bullet está no encoding padrão da Helvetica e não causa per-char positioning.
-- Remover `fontStyle: 'bold'` global das linhas Macro nas colunas de valor — manter bold apenas no rótulo (coluna 0). Isso evita que números longos como "R$ 43.075,06" sejam renderizados em bold + cell estreita, o que é outra causa visual de espaçamento.
+**Agrupamento:** por Evento Contábil (categoria). Sub-eventos agrupados sob seu macro (parent), seguindo a hierarquia já existente.
 
-### Impacto
-- Apenas visual: cabeçalhos e colunas alinham corretamente, texto da DRE volta a renderizar normalmente sem espaçamento entre letras.
-- Nenhuma alteração em cálculos, queries, hooks, ordem de cards, ou conteúdo dos dados.
-- 3 arquivos editados, 0 migrations.
+**Estrutura da tabela:**
+
+```text
+| Evento Contábil          | A Receber  | A Pagar    | Status     |
+|--------------------------|-----------:|-----------:|------------|
+| ▸ Receitas Operacionais  |  R$ 12.000 |          – | Realizado  |
+|   ↳ Honorários           |  R$ 10.000 |          – | Realizado  |
+|   ↳ Outros               |   R$ 2.000 |          – | Realizado  |
+| ▸ Despesas Fixas         |          – |  R$ 4.500  | Previsto   |
+| ...                      |            |            |            |
+| TOTAL                    |  R$ 12.000 |  R$ 4.500  |            |
+```
+
+- Coluna **Status** indica se a linha veio de "Realizado" (pago/recebido) ou "Previsto".
+- **Total do Ano** por evento: rodapé extra ou coluna adicional "Total Ano" calculando o somatório de todos os 12 meses (aplicando a mesma regra histórico/previsto mês a mês).
+
+### 4. Estilo visual
+- Layout limpo, mesma estética dos cards/tabelas atuais (`Card`, `Table` shadcn, fonte Inter, cantos `rounded-xl`).
+- Botões de Ano/Mês: `ToggleGroup` ou `Button` com variantes `default` (selecionado) e `outline` (não selecionado). Wrap responsivo.
+- **Cores dos valores:**
+  - Linhas **Previstas** (mês atual/futuro): cor neutra (`text-foreground` / `text-muted-foreground`).
+  - Linhas **Realizadas** (meses passados):
+    - Receitas confirmadas: verde (`text-emerald-600` — token de receita já usado no projeto).
+    - Despesas pagas: vermelho (`text-rose-600` — token de despesa).
+- Badge sutil "Realizado" / "Previsto" ao lado do valor para reforçar a leitura.
+
+### 5. Performance
+- Toda agregação em `useMemo` indexada por `[transactions, year, month, eventFilter]`.
+- Sem refetch ao trocar mês/ano — dados já estão em memória.
+- Pré-computar `Map<categoryId, Category>` e `Map<categoryId, totalsPorMes>` uma vez por ano selecionado para o cálculo do "Total do Ano".
+
+### Arquivos afetados
+- **Editado:** `src/pages/PagarReceber.tsx` — adicionar Toggle e renderização condicional.
+- **Novo:** `src/components/transactions/MonthlyConsultTab.tsx` — toda a UI/lógica da Consulta Mensal.
+
+### Garantias
+- **Nenhuma** alteração em `CashFlowTab`, hooks, queries, schema ou regras de negócio existentes.
+- **Nenhuma** migration. Reutiliza dados já carregados.
+- Filtro de bancos invisíveis preservado (já filtrados em `PagarReceber.tsx` antes de passar `transactions`).
