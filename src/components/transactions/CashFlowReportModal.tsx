@@ -418,7 +418,41 @@ export function CashFlowReportModal({
       getStatus(r.is_paid, r.due_date),
     ].join(';'));
 
-    const csv = [...metaLines, headers.join(';'), ...dataLines].join('\r\n');
+    const eventSummary = buildEventSummary(filteredRows);
+    const eventTotals = eventSummary.reduce(
+      (acc, g) => ({
+        qty: acc.qty + g.qty,
+        receber: acc.receber + g.receber,
+        pagar: acc.pagar + g.pagar,
+        saldo: acc.saldo + g.saldo,
+      }),
+      { qty: 0, receber: 0, pagar: 0, saldo: 0 }
+    );
+
+    const eventCsvLines: string[] = [];
+    if (eventSummary.length > 0) {
+      eventCsvLines.push('');
+      eventCsvLines.push('Resumo por Evento Contábil');
+      eventCsvLines.push(['Evento', 'Qtd', 'A Receber', 'A Pagar', 'Saldo'].join(';'));
+      for (const g of eventSummary) {
+        eventCsvLines.push([
+          `"${g.name.replace(/"/g, '""')}"`,
+          String(g.qty),
+          g.receber.toFixed(2).replace('.', ','),
+          g.pagar.toFixed(2).replace('.', ','),
+          g.saldo.toFixed(2).replace('.', ','),
+        ].join(';'));
+      }
+      eventCsvLines.push([
+        'TOTAL',
+        String(eventTotals.qty),
+        eventTotals.receber.toFixed(2).replace('.', ','),
+        eventTotals.pagar.toFixed(2).replace('.', ','),
+        eventTotals.saldo.toFixed(2).replace('.', ','),
+      ].join(';'));
+    }
+
+    const csv = [...metaLines, headers.join(';'), ...dataLines, ...eventCsvLines].join('\r\n');
     const bom = '\uFEFF';
     const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
