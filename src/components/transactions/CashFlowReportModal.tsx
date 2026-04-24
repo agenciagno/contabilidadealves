@@ -201,6 +201,86 @@ export function CashFlowReportModal({
     return { entradas, saidas, capitalDeGiro, totalBankBalance };
   }, [filteredRows, rowsWithBalance, totalBankBalance]);
 
+  // ─── Monthly matrix data ──────────────────────────────────────────
+  const MONTHS_PT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+  const availableYears = useMemo(() => {
+    const years = new Set<number>([currentYear]);
+    for (const t of transactions) {
+      const ref = t.is_paid ? t.date : t.expected_date;
+      if (ref) {
+        const y = parseInt(ref.slice(0, 4), 10);
+        if (!Number.isNaN(y)) years.add(y);
+      }
+    }
+    return Array.from(years).sort((a, b) => b - a);
+  }, [transactions, currentYear]);
+
+  const sortedSelectedMonths = useMemo(
+    () => Array.from(monthlyMonths).sort((a, b) => a - b),
+    [monthlyMonths],
+  );
+
+  const monthlyMatrix = useMemo(() => {
+    // Filter rows by year + status + category
+    const isPaid = monthlyStatus === 'paid';
+    const rows = transactions.filter(t => {
+      if (t.is_paid !== isPaid) return false;
+      const ref = isPaid ? t.date : t.expected_date;
+      if (!ref) return false;
+      if (parseInt(ref.slice(0, 4), 10) !== monthlyYear) return false;
+      if (monthlyCategoryId !== 'all' && t.category_id !== monthlyCategoryId) return false;
+      return true;
+    });
+
+    // Aggregate by event/category name
+    const map = new Map<string, { name: string; color: string | null; monthly: number[]; total: number }>();
+    for (const t of rows) {
+      const ref = isPaid ? t.date : t.expected_date;
+      if (!ref) continue;
+      const month = parseInt(ref.slice(5, 7), 10) - 1;
+      if (!sortedSelectedMonths.includes(month)) continue;
+      const name = t.category?.name || 'Sem evento';
+      const color = (t.category as any)?.color ?? null;
+      const cur = map.get(name) || { name, color, monthly: Array(12).fill(0), total: 0 };
+      const amt = Number(isPaid ? (t.paid_amount ?? t.amount) : t.amount);
+      const signed = t.type === 'receita' ? amt : -amt;
+      cur.monthly[month] += signed;
+      cur.total += signed;
+      map.set(name, cur);
+    }
+
+    // Hide events with total === 0
+    const events = Array.from(map.values())
+      .filter(e => Math.abs(e.total) > 0.0001)
+      .sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
+
+    // Column totals + grand total (only for selected months)
+    const colTotals: number[] = Array(12).fill(0);
+    let grand = 0;
+    for (const e of events) {
+      for (const m of sortedSelectedMonths) {
+        colTotals[m] += e.monthly[m];
+      }
+      grand += e.total;
+    }
+    return { events, colTotals, grand };
+  }, [transactions, monthlyYear, monthlyStatus, monthlyCategoryId, sortedSelectedMonths]);
+
+  const monthlyCategoryLabel = monthlyCategoryId === 'all'
+    ? 'Todos'
+    : categories.find(c => c.id === monthlyCategoryId)?.name || 'Todos';
+  const monthlyStatusLabel = monthlyStatus === 'paid' ? 'Pago/Recebido' : 'Pagar/Receber';
+  const monthlyMonthsLabel = sortedSelectedMonths.map(m => MONTHS_PT[m]).join(', ') || '—';
+
+  const toggleMonth = (m: number) => {
+    setMonthlyMonths(prev => {
+      const next = new Set(prev);
+      if (next.has(m)) next.delete(m); else next.add(m);
+      return next;
+    });
+  };
+
   // ─── PDF Export ───────────────────────────────────────────────────
   const exportPDF = () => {
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
