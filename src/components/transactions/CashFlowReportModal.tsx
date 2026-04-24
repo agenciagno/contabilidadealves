@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { FileText, Table2, Image, TrendingUp, TrendingDown, Building2, Wallet, X, Printer, ChevronDown } from 'lucide-react';
+import { FileText, Table2, Image, TrendingUp, TrendingDown, Building2, Wallet, X, Printer, ChevronDown, Search } from 'lucide-react';
 import { useCompany } from '@/hooks/useCompany';
 import { format, parseISO, isWithinInterval } from 'date-fns';
 import jsPDF from 'jspdf';
