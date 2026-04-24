@@ -850,6 +850,7 @@ export function CashFlowReportModal({
                 </p>
               </div>
             </div>
+          </div>
           </>)}
 
           {mode === 'monthly' && (
