@@ -268,11 +268,14 @@ export function CashFlowReportModal({
       grand += e.total;
     }
     return { events, colTotals, grand };
-  }, [transactions, monthlyYear, monthlyStatus, monthlyCategoryId, sortedSelectedMonths]);
+  }, [transactions, monthlyYear, monthlyStatus, monthlySelectedCategories, sortedSelectedMonths]);
 
-  const monthlyCategoryLabel = monthlyCategoryId === 'all'
-    ? 'Todos'
-    : categories.find(c => c.id === monthlyCategoryId)?.name || 'Todos';
+  const monthlyCategoryLabel = useMemo(() => {
+    if (monthlySelectedCategories.size === 0) return 'Todas';
+    const names = categories.filter(c => monthlySelectedCategories.has(c.id)).map(c => c.name);
+    if (names.length === 1) return names[0];
+    return `${names.length} eventos: ${names.join(', ')}`;
+  }, [monthlySelectedCategories, categories]);
   const monthlyStatusLabel = monthlyStatus === 'paid' ? 'Pago/Recebido' : 'Pagar/Receber';
   const monthlyMonthsLabel = sortedSelectedMonths.map(m => MONTHS_PT[m]).join(', ') || '—';
 
