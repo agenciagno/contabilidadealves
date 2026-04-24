@@ -74,6 +74,33 @@ export function BankReportModal({ open, onOpenChange, banks }: BankReportModalPr
 
   const periodLabel = `${formatDateBR(startDate)} a ${formatDateBR(endDate)}`;
 
+  // ─── Resumo por Evento Contábil ──────────────────────────────────
+  const eventSummary = (() => {
+    const map = new Map<string, { name: string; qty: number; entradas: number; saidas: number }>();
+    for (const r of filteredRows) {
+      const name = r.category_name || 'Sem evento';
+      const key = name;
+      const cur = map.get(key) || { name, qty: 0, entradas: 0, saidas: 0 };
+      cur.qty += 1;
+      if (r.type === 'receita') cur.entradas += r.amount;
+      else cur.saidas += r.amount;
+      map.set(key, cur);
+    }
+    return Array.from(map.values())
+      .map(g => ({ ...g, saldo: g.entradas - g.saidas }))
+      .sort((a, b) => (Math.abs(b.entradas) + Math.abs(b.saidas)) - (Math.abs(a.entradas) + Math.abs(a.saidas)));
+  })();
+
+  const eventTotals = eventSummary.reduce(
+    (acc, g) => ({
+      qty: acc.qty + g.qty,
+      entradas: acc.entradas + g.entradas,
+      saidas: acc.saidas + g.saidas,
+      saldo: acc.saldo + g.saldo,
+    }),
+    { qty: 0, entradas: 0, saidas: 0, saldo: 0 }
+  );
+
   const accountsLabel = selectedBankIds.length > 0
     ? banks.filter(b => selectedBankIds.includes(b.id)).map(b => b.name).join(', ')
     : 'Todas';
