@@ -850,29 +850,142 @@ export function CashFlowReportModal({
                 </p>
               </div>
             </div>
-          </div>
+          </>)}
+
+          {mode === 'monthly' && (
+            <div className="space-y-4">
+              {/* Year pills */}
+              <div>
+                <Label className="text-sm font-semibold mb-2 block">Ano</Label>
+                <div className="flex flex-wrap gap-2">
+                  {availableYears.map(y => (
+                    <Button
+                      key={y}
+                      type="button"
+                      variant={monthlyYear === y ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => {
+                        setMonthlyYear(y);
+                        setMonthlyMonths(autoFillMonths(monthlyStatus, y));
+                      }}
+                      className="h-8 px-3"
+                    >
+                      {y}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Status pills */}
+              <div>
+                <Label className="text-sm font-semibold mb-2 block">Status</Label>
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    { v: 'paid', l: 'Pago/Recebido' },
+                    { v: 'pending', l: 'Pagar/Receber' },
+                  ] as const).map(opt => (
+                    <Button
+                      key={opt.v}
+                      type="button"
+                      variant={monthlyStatus === opt.v ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => {
+                        setMonthlyStatus(opt.v);
+                        setMonthlyMonths(autoFillMonths(opt.v, monthlyYear));
+                      }}
+                      className="h-8 px-3"
+                    >
+                      {opt.l}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Months pills */}
+              <div>
+                <Label className="text-sm font-semibold mb-2 block">Meses</Label>
+                <div className="flex flex-wrap gap-2">
+                  {MONTHS_PT.map((label, idx) => (
+                    <Button
+                      key={idx}
+                      type="button"
+                      variant={monthlyMonths.has(idx) ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => toggleMonth(idx)}
+                      className="h-8 w-14 px-0"
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Event Category dropdown (same structure as Lançamentos) */}
+              <div>
+                <Label className="text-sm font-semibold mb-2 block">Evento Contábil</Label>
+                <Select value={monthlyCategoryId} onValueChange={setMonthlyCategoryId}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Todas as categorias" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as categorias</SelectItem>
+                    {categories.map(cat => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color || '#3B82F6' }} />
+                          {cat.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Preview summary */}
+              <div className="rounded-lg border bg-muted/30 p-3 text-xs space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Eventos com valor:</span>
+                  <span className="font-semibold">{monthlyMatrix.events.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Meses selecionados:</span>
+                  <span className="font-semibold">{sortedSelectedMonths.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total geral:</span>
+                  <span className={cn('font-semibold', monthlyMatrix.grand >= 0 ? 'text-green-600' : 'text-red-600')}>
+                    {formatCurrency(monthlyMatrix.grand)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
 
           <Separator className="my-2" />
 
           {/* Export buttons */}
           <div>
             <Label className="text-xs font-semibold mb-1.5 block">Exportar</Label>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs no-print" onClick={exportPDF}>
+            <div className={cn('grid gap-2', mode === 'monthly' ? 'grid-cols-3' : 'grid-cols-2 sm:grid-cols-5')}>
+              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs no-print" onClick={handleExportPDF}>
                 <FileText className="w-3.5 h-3.5 text-red-500" /> PDF
               </Button>
-              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs no-print" onClick={exportXLS}>
+              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs no-print" onClick={handleExportXLS}>
                 <Table2 className="w-3.5 h-3.5 text-green-600" /> XLS
               </Button>
-              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs no-print" onClick={exportCSV}>
+              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs no-print" onClick={handleExportCSV}>
                 <Table2 className="w-3.5 h-3.5 text-green-600" /> CSV
               </Button>
-              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs no-print" onClick={exportImage}>
-                <Image className="w-3.5 h-3.5 text-purple-500" /> Imagem
-              </Button>
-              <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs no-print" onClick={handlePrint}>
-                <Printer className="w-3.5 h-3.5 text-muted-foreground" /> Imprimir
-              </Button>
+              {mode === 'report' && (
+                <>
+                  <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs no-print" onClick={exportImage}>
+                    <Image className="w-3.5 h-3.5 text-purple-500" /> Imagem
+                  </Button>
+                  <Button variant="outline" className="flex items-center gap-1.5 h-8 text-xs no-print" onClick={handlePrint}>
+                    <Printer className="w-3.5 h-3.5 text-muted-foreground" /> Imprimir
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
