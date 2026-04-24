@@ -1,51 +1,66 @@
-## Plano: Corrigir layout dos relatórios PDF
+## Plano: Toggle Relatório | Consulta Mensal no modal de "Gerar Relatório" (Pagar/Receber)
 
-### Diagnóstico
+### Objetivo
+Adicionar um segundo modo de geração de relatório no `CashFlowReportModal.tsx` chamado **Consulta Mensal**, que produz uma matriz onde cada coluna é um mês selecionado e cada linha é um Evento Contábil, com valores agregados.
 
-**1. Resumo por Evento Contábil (Conta Corrente + Pagar/Receber)** — imagem 1
-- O cabeçalho da tabela (`Evento | Qtd | A Receber | A Pagar | Saldo`) não tem `halign` definido em `headStyles`, então fica alinhado à esquerda por padrão. Mas o corpo usa `halign: 'right'` para valores. Isso causa o "descasamento" entre o título da coluna e os valores.
-- Faltam larguras explícitas de coluna, então o autoTable distribui de forma desigual e o "Evento" ocupa metade da página enquanto os valores ficam todos comprimidos no canto direito.
+### Arquivo afetado
+- `src/components/transactions/CashFlowReportModal.tsx` (único arquivo editado)
 
-**2. PDF da DRE** — imagem 2
-- Os textos aparecem com letras espaçadas ("S e r v i ç o s   d e   t e r c e i r o s"). Causa raiz: a coluna 0 está fixada em `cellWidth: 70` mm, mas o autoTable está aplicando justify ao quebrar texto longo. Combinado com o caractere `↳` (seta), o jsPDF entra em modo de posicionamento per-caractere.
-- A coluna "Evento Contábil" precisa caber labels longos sem distorção. Colunas de valor à direita estão estreitas demais para "R$ 43.075,06".
-- Cabeçalho com `halign: 'left'` (padrão) enquanto o corpo usa `halign: 'right'` — mesmo descasamento da Conta Corrente.
+### Mudanças visuais/UI no modal
 
----
+1. **Toggle no topo do modal** (logo abaixo do título), usando `ToggleGroup` (já disponível em `src/components/ui/toggle-group.tsx`):
+   - **Relatório** (default — mantém 100% do comportamento atual: filtros de período, KPIs, exportações PDF/XLS/CSV/Imagem inalteradas).
+   - **Consulta Mensal** (novo modo — substitui o painel de filtros e gera relatório matricial).
 
-### Mudanças (apenas visual, sem alterar lógica/cálculos)
+2. **Painel de filtros do modo Consulta Mensal** (aparece somente quando o toggle está em "Consulta Mensal"):
+   - **Ano** — botões pill (estilo botão, igual ao toggle), listando os anos disponíveis (anos com transações + ano atual). Seleção única. Default: ano corrente.
+   - **Status** — 2 botões pill (seleção única, obrigatória):
+     - `Pago/Recebido` (transações com `is_paid = true`)
+     - `Pagar/Receber` (transações com `is_paid = false`)
+   - **Meses** — 12 botões pill (Jan…Dez) com multi-seleção manual. Comportamento automático ao trocar Status:
+     - `Pago/Recebido` → seleciona Jan até o mês atual (inclusive).
+     - `Pagar/Receber` → seleciona o mês atual + meses sucessores até Dez.
+     - O usuário pode adicionar/remover meses manualmente após o auto-preenchimento.
+     - Se o ano selecionado for diferente do ano atual: `Pago/Recebido` seleciona todos os 12 meses; `Pagar/Receber` também seleciona todos os 12 (apenas se ano > atual). Para ano < atual: ambos selecionam todos os 12.
+   - **Evento Contábil** — dropdown `Select` idêntico ao usado em `TransactionFilters.tsx` (lista todas as categorias com bolinha colorida + opção "Todas as categorias"). Seleção única.
 
-**`src/components/banks/BankReportModal.tsx`** (bloco "Resumo por Evento Contábil" no PDF, ~linhas 248-285):
-- Adicionar em `headStyles`: `halign: 'center'` (para títulos centralizados) e `valign: 'middle'`.
-- Adicionar `columnStyles` com larguras explícitas:
-  - Evento: `cellWidth: 70` (esquerda)
-  - Qtd: `cellWidth: 18` (centro)
-  - Entradas, Saídas, Saldo: `cellWidth: 32` cada (direita)
-- Adicionar `halign: 'left'` no `columnStyles[0]` (Evento) para alinhar texto longo à esquerda.
-- Aplicar mesmas larguras no `foot` (TOTAL).
+3. **Botões de exportação** (mesmos do modo Relatório): PDF, XLS, CSV, Imagem.
 
-**`src/components/transactions/CashFlowReportModal.tsx`** (bloco "Resumo por Evento Contábil" no PDF, ~linhas 295-339):
-- Mesmas correções acima:
-  - `headStyles.halign = 'center'`, `valign: 'middle'`
-  - `columnStyles[0]`: `cellWidth: 80, halign: 'left'`
-  - `columnStyles[1]`: `cellWidth: 18, halign: 'center'` (Qtd)
-  - `columnStyles[2-4]`: `cellWidth: 38, halign: 'right'` (A Receber, A Pagar, Saldo) — landscape comporta mais largura.
+### Lógica do relatório matricial (modo Consulta Mensal)
 
-**`src/components/reports/DREReportModal.tsx`** (PDF da DRE, ~linhas 163-214):
-- Ajustar `columnStyles` para caber valores em R$ sem espaçamento forçado:
-  - 0 (Evento Contábil): `cellWidth: 60, halign: 'left', overflow: 'linebreak'`
-  - 1 (Previsto): `cellWidth: 26, halign: 'right'`
-  - 2 (Realizado): `cellWidth: 26, halign: 'right'`
-  - 3 (RXP): `cellWidth: 26, halign: 'right'`
-  - 4 (% Prev.): `cellWidth: 19, halign: 'right'`
-  - 5 (% Real.): `cellWidth: 19, halign: 'right'`
-  - Total ≈ 176 mm (cabe em A4 retrato com margem 14 mm em cada lado).
-- Adicionar em `headStyles`: `halign: 'center'`, `valign: 'middle'`.
-- Adicionar em `styles`: `overflow: 'linebreak'`, `cellWidth: 'wrap'` removido — usar apenas valores explícitos por coluna para evitar o "stretch" que causa o letter-spacing.
-- Substituir o caractere `↳` (que dispara fallback de fonte no jsPDF Helvetica) por `"  • "` (espaço + bullet) no `flatRows` (linha 71). O bullet está no encoding padrão da Helvetica e não causa per-char positioning.
-- Remover `fontStyle: 'bold'` global das linhas Macro nas colunas de valor — manter bold apenas no rótulo (coluna 0). Isso evita que números longos como "R$ 43.075,06" sejam renderizados em bold + cell estreita, o que é outra causa visual de espaçamento.
+**Filtragem das transações:**
+- Filtra `transactions` do ano selecionado, com `is_paid` correspondente ao Status escolhido.
+- Data de referência: `date` (data de pagamento) quando `is_paid = true`; `expected_date` quando `is_paid = false`.
+- Se Evento Contábil ≠ "Todas", filtra `category_id`.
 
-### Impacto
-- Apenas visual: cabeçalhos e colunas alinham corretamente, texto da DRE volta a renderizar normalmente sem espaçamento entre letras.
-- Nenhuma alteração em cálculos, queries, hooks, ordem de cards, ou conteúdo dos dados.
-- 3 arquivos editados, 0 migrations.
+**Agregação:**
+- Linhas: cada Evento Contábil distinto encontrado nas transações filtradas.
+- Colunas: um mês para cada mês selecionado (na ordem cronológica).
+- Célula = soma dos `amount` (ou `paid_amount` quando pago e disponível — mantendo a regra de `effective-value-calculation` já memorizada) das transações daquele evento naquele mês. Receitas como positivo, despesas como negativo (ou exibir em colunas separadas? — seguiremos uma única coluna por mês com sinal, igual ao saldo do Resumo por Evento atual).
+- **Linha TOTAL** ao final somando todos os eventos por mês.
+- **Coluna TOTAL** ao final somando os meses selecionados por evento.
+
+**Ocultação de zerados:**
+- Eventos cuja soma total (linha) seja 0 são ocultados do relatório (PDF/XLS/CSV/Imagem).
+
+### Exportações (Consulta Mensal)
+
+- **PDF** (landscape, jspdf + autoTable): cabeçalho com nome da empresa, CNPJ, título "Consulta Mensal — Pagar/Receber", linha com Ano, Status, Evento Contábil e Meses selecionados. Tabela com cabeçalho `Evento | Jan | Fev | … | TOTAL`. Largura de coluna proporcional. Rodapé com `Emitido em` e paginação.
+- **XLS / CSV**: mesma matriz, separadores e formato monetário pt-BR já usados no arquivo.
+- **Imagem (JPEG)**: snapshot do `summaryRef` (mesma técnica já existente).
+
+### Defaults ao abrir o modal
+- Toggle em **Relatório** (preserva fluxo atual; nada muda para quem já usa).
+- Ao alternar para **Consulta Mensal** pela primeira vez na sessão: Ano = atual, Status = `Pagar/Receber`, Meses = mês atual → Dez, Evento = "Todas".
+
+### Garantias
+- Modo "Relatório" permanece 100% igual (mesmos filtros, KPIs, layout PDF/XLS/CSV/Imagem com `Resumo por Evento Contábil`).
+- Nenhuma alteração de lógica em `useTransactions`, `useCategories`, banco de dados, RLS ou rotas.
+- Nenhuma alteração visual fora do modal.
+
+### Detalhes técnicos
+- Estado novo no componente: `mode: 'report' | 'monthly'`, `selectedYear: number`, `selectedMonths: Set<number>` (0–11), `monthlyStatus: 'paid' | 'pending'`, `monthlyCategoryId: string`.
+- Helper `getAvailableYears(transactions)` — extrai anos únicos de `date` e `expected_date`.
+- Helper `buildMonthlyMatrix(rows, months, categoryId)` — retorna `{ events: Array<{name, color, monthly: number[], total: number}>, totals: number[], grandTotal: number }`, já com filtro de zerados aplicado.
+- Reutiliza `formatCurrency`, `pad2`, `formatDateBR` existentes.
+- Reusa imports já presentes (`jsPDF`, `autoTable`, `ToggleGroup` precisa ser importado).
