@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -370,8 +370,8 @@ export function MonthlyConsultTab({ transactions }: MonthlyConsultTabProps) {
                 const hasChildren = row.children.length > 0;
                 const isOpen = !!expanded[row.macroId];
                 return (
-                  <>
-                    <TableRow key={row.macroId} className="bg-muted/20 hover:bg-muted/40">
+                  <Fragment key={row.macroId}>
+                    <TableRow className="bg-muted/20 hover:bg-muted/40">
                       <TableCell className="font-semibold">
                         <button
                           className="flex items-center gap-1.5 text-left"
@@ -424,7 +424,7 @@ export function MonthlyConsultTab({ transactions }: MonthlyConsultTabProps) {
                         </TableCell>
                       </TableRow>
                     ))}
-                  </>
+                  </Fragment>
                 );
               })}
             </TableBody>
