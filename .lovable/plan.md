@@ -1,66 +1,61 @@
-## Plano: Toggle Relatório | Consulta Mensal no modal de "Gerar Relatório" (Pagar/Receber)
+## Objetivo
 
-### Objetivo
-Adicionar um segundo modo de geração de relatório no `CashFlowReportModal.tsx` chamado **Consulta Mensal**, que produz uma matriz onde cada coluna é um mês selecionado e cada linha é um Evento Contábil, com valores agregados.
+No modal de "Gerar Relatório" do **Pagar/Receber**, modo **Consulta Mensal**:
 
-### Arquivo afetado
-- `src/components/transactions/CashFlowReportModal.tsx` (único arquivo editado)
+1. Permitir **selecionar vários Eventos Contábeis** ao mesmo tempo (em vez de apenas um ou "Todas").
+2. Corrigir o PDF da Consulta Mensal para que **valores monetários (centavos) não quebrem para a linha de baixo**.
 
-### Mudanças visuais/UI no modal
+Arquivo único afetado: `src/components/transactions/CashFlowReportModal.tsx`.
 
-1. **Toggle no topo do modal** (logo abaixo do título), usando `ToggleGroup` (já disponível em `src/components/ui/toggle-group.tsx`):
-   - **Relatório** (default — mantém 100% do comportamento atual: filtros de período, KPIs, exportações PDF/XLS/CSV/Imagem inalteradas).
-   - **Consulta Mensal** (novo modo — substitui o painel de filtros e gera relatório matricial).
+---
 
-2. **Painel de filtros do modo Consulta Mensal** (aparece somente quando o toggle está em "Consulta Mensal"):
-   - **Ano** — botões pill (estilo botão, igual ao toggle), listando os anos disponíveis (anos com transações + ano atual). Seleção única. Default: ano corrente.
-   - **Status** — 2 botões pill (seleção única, obrigatória):
-     - `Pago/Recebido` (transações com `is_paid = true`)
-     - `Pagar/Receber` (transações com `is_paid = false`)
-   - **Meses** — 12 botões pill (Jan…Dez) com multi-seleção manual. Comportamento automático ao trocar Status:
-     - `Pago/Recebido` → seleciona Jan até o mês atual (inclusive).
-     - `Pagar/Receber` → seleciona o mês atual + meses sucessores até Dez.
-     - O usuário pode adicionar/remover meses manualmente após o auto-preenchimento.
-     - Se o ano selecionado for diferente do ano atual: `Pago/Recebido` seleciona todos os 12 meses; `Pagar/Receber` também seleciona todos os 12 (apenas se ano > atual). Para ano < atual: ambos selecionam todos os 12.
-   - **Evento Contábil** — dropdown `Select` idêntico ao usado em `TransactionFilters.tsx` (lista todas as categorias com bolinha colorida + opção "Todas as categorias"). Seleção única.
+## 1. Multi-seleção de Eventos Contábeis
 
-3. **Botões de exportação** (mesmos do modo Relatório): PDF, XLS, CSV, Imagem.
+### UI
+- Substituir o `Select` simples (linha ~927) por um **dropdown com checkboxes** (Popover + Command/Checkbox, padrão já usado no projeto), exibindo:
+  - Item "Todas as categorias" (atalho: marca/desmarca todas).
+  - Lista de categorias com bolinha colorida + nome (mantém o visual atual).
+- Trigger mostra: "Todas as categorias" quando vazio/todas, nome único quando 1, ou "N eventos selecionados" quando vários.
+- Multi-seleção mantém o estado entre interações; mês/ano/status continuam funcionando igual.
 
-### Lógica do relatório matricial (modo Consulta Mensal)
+### Estado
+- Trocar `monthlyCategoryId: string` por `monthlySelectedCategories: Set<string>` (vazio = todas).
 
-**Filtragem das transações:**
-- Filtra `transactions` do ano selecionado, com `is_paid` correspondente ao Status escolhido.
-- Data de referência: `date` (data de pagamento) quando `is_paid = true`; `expected_date` quando `is_paid = false`.
-- Se Evento Contábil ≠ "Todas", filtra `category_id`.
+### Lógica de filtragem (linha 232)
+- `if (monthlySelectedCategories.size > 0 && !monthlySelectedCategories.has(t.category_id)) return false;`
 
-**Agregação:**
-- Linhas: cada Evento Contábil distinto encontrado nas transações filtradas.
-- Colunas: um mês para cada mês selecionado (na ordem cronológica).
-- Célula = soma dos `amount` (ou `paid_amount` quando pago e disponível — mantendo a regra de `effective-value-calculation` já memorizada) das transações daquele evento naquele mês. Receitas como positivo, despesas como negativo (ou exibir em colunas separadas? — seguiremos uma única coluna por mês com sinal, igual ao saldo do Resumo por Evento atual).
-- **Linha TOTAL** ao final somando todos os eventos por mês.
-- **Coluna TOTAL** ao final somando os meses selecionados por evento.
+### Label exibida no PDF/XLS/CSV (`monthlyCategoryLabel`)
+- Vazio/todas → "Todas"
+- 1 selecionada → nome
+- 2+ → "N eventos: Nome1, Nome2, …" (truncar se muito longo na linha do cabeçalho do PDF, com `splitTextToSize`).
 
-**Ocultação de zerados:**
-- Eventos cuja soma total (linha) seja 0 são ocultados do relatório (PDF/XLS/CSV/Imagem).
+Nada muda no modo "Relatório" padrão.
 
-### Exportações (Consulta Mensal)
+---
 
-- **PDF** (landscape, jspdf + autoTable): cabeçalho com nome da empresa, CNPJ, título "Consulta Mensal — Pagar/Receber", linha com Ano, Status, Evento Contábil e Meses selecionados. Tabela com cabeçalho `Evento | Jan | Fev | … | TOTAL`. Largura de coluna proporcional. Rodapé com `Emitido em` e paginação.
-- **XLS / CSV**: mesma matriz, separadores e formato monetário pt-BR já usados no arquivo.
-- **Imagem (JPEG)**: snapshot do `summaryRef` (mesma técnica já existente).
+## 2. Correção dos centavos quebrando no PDF
 
-### Defaults ao abrir o modal
-- Toggle em **Relatório** (preserva fluxo atual; nada muda para quem já usa).
-- Ao alternar para **Consulta Mensal** pela primeira vez na sessão: Ano = atual, Status = `Pagar/Receber`, Meses = mês atual → Dez, Evento = "Todas".
+Causa: no `exportMonthlyPDF` (linhas 636–643), quando há muitos meses selecionados, `monthW` fica pequeno (mín. 14mm) e `formatCurrency` (ex.: "R$ 1.234,56") não cabe em uma linha — `overflow: 'linebreak'` então quebra os centavos para a próxima linha.
 
-### Garantias
-- Modo "Relatório" permanece 100% igual (mesmos filtros, KPIs, layout PDF/XLS/CSV/Imagem com `Resumo por Evento Contábil`).
-- Nenhuma alteração de lógica em `useTransactions`, `useCategories`, banco de dados, RLS ou rotas.
-- Nenhuma alteração visual fora do modal.
+### Ajustes (somente visuais no PDF, sem mudar valores nem lógica)
+- **Largura mínima de coluna** subir de `14mm` para um valor calculado a partir do maior valor formatado da coluna, garantindo caber em 1 linha:
+  - Calcular `requiredMonthW = max(textWidth(formatCurrency(v)) for v in coluna) + padding` usando `doc.getTextWidth` na fonte 7.5.
+  - `monthW = max(requiredMonthW, basePerMonth)`.
+- **Reduzir fonte automaticamente** quando muitos meses: se a soma das larguras requeridas exceder a largura útil (`pageW - eventW - totalW`), diminuir `fontSize` em passos (7.5 → 7 → 6.5 → 6, mínimo 5.5) e recalcular, até caber.
+- **Coluna TOTAL** também recalculada com a mesma regra (substitui o fixo `28mm`).
+- **Coluna Evento** ganha um teto menor (ex.: 60mm) liberando espaço quando há muitos meses; texto longo continua com `overflow: 'linebreak'` (apenas o nome do evento pode quebrar — valores nunca).
+- **Por coluna numérica**: adicionar `noWrap: true` (via `cellWidth` suficiente) e `overflow: 'visible'` apenas nas células de valores, mantendo `'linebreak'` na coluna 0 (Evento).
+- Se mesmo no menor `fontSize` não couber tudo, aplicar formato compacto **somente no PDF da Consulta Mensal** (ex.: "1.234,56" sem prefixo "R$ " nas colunas de mês — o cabeçalho indica que são valores em R$). Coluna TOTAL mantém "R$".
 
-### Detalhes técnicos
-- Estado novo no componente: `mode: 'report' | 'monthly'`, `selectedYear: number`, `selectedMonths: Set<number>` (0–11), `monthlyStatus: 'paid' | 'pending'`, `monthlyCategoryId: string`.
-- Helper `getAvailableYears(transactions)` — extrai anos únicos de `date` e `expected_date`.
-- Helper `buildMonthlyMatrix(rows, months, categoryId)` — retorna `{ events: Array<{name, color, monthly: number[], total: number}>, totals: number[], grandTotal: number }`, já com filtro de zerados aplicado.
-- Reutiliza `formatCurrency`, `pad2`, `formatDateBR` existentes.
-- Reusa imports já presentes (`jsPDF`, `autoTable`, `ToggleGroup` precisa ser importado).
+### Resultado esperado
+- Valores monetários sempre em **uma única linha** no PDF.
+- Layout continua legível mesmo com 12 meses selecionados.
+
+XLS, CSV e Imagem: **não mudam** (já não quebram centavos).
+
+---
+
+## Garantias (reskin/lógica)
+- Nenhuma alteração em hooks, queries, banco, RLS, rotas ou no modo "Relatório" padrão.
+- Nenhuma alteração em valores, totais, fórmulas ou critérios de filtragem além da troca de "1 categoria" para "N categorias".
+- Nenhum componente fora deste modal é tocado.

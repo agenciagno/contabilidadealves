@@ -6,8 +6,11 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { FileText, Table2, Image, TrendingUp, TrendingDown, Building2, Wallet, X, Printer } from 'lucide-react';
+import { FileText, Table2, Image, TrendingUp, TrendingDown, Building2, Wallet, X, Printer, ChevronDown } from 'lucide-react';
 import { useCompany } from '@/hooks/useCompany';
 import { format, parseISO, isWithinInterval } from 'date-fns';
 import jsPDF from 'jspdf';
@@ -79,7 +82,7 @@ export function CashFlowReportModal({
   const currentMonth = nowDate.getMonth(); // 0..11
   const [monthlyYear, setMonthlyYear] = useState<number>(currentYear);
   const [monthlyStatus, setMonthlyStatus] = useState<'paid' | 'pending'>('pending');
-  const [monthlyCategoryId, setMonthlyCategoryId] = useState<string>('all');
+  const [monthlySelectedCategories, setMonthlySelectedCategories] = useState<Set<string>>(new Set());
   const [monthlyMonths, setMonthlyMonths] = useState<Set<number>>(() => {
     const s = new Set<number>();
     for (let m = currentMonth; m <= 11; m++) s.add(m);
@@ -113,7 +116,7 @@ export function CashFlowReportModal({
       setTypeFilter('all');
       setMonthlyYear(currentYear);
       setMonthlyStatus('pending');
-      setMonthlyCategoryId('all');
+      setMonthlySelectedCategories(new Set());
       setMonthlyMonths(autoFillMonths('pending', currentYear));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -229,7 +232,7 @@ export function CashFlowReportModal({
       const ref = isPaid ? t.date : t.expected_date;
       if (!ref) return false;
       if (parseInt(ref.slice(0, 4), 10) !== monthlyYear) return false;
-      if (monthlyCategoryId !== 'all' && t.category_id !== monthlyCategoryId) return false;
+      if (monthlySelectedCategories.size > 0 && !monthlySelectedCategories.has(t.category_id)) return false;
       return true;
     });
 
@@ -265,11 +268,14 @@ export function CashFlowReportModal({
       grand += e.total;
     }
     return { events, colTotals, grand };
-  }, [transactions, monthlyYear, monthlyStatus, monthlyCategoryId, sortedSelectedMonths]);
+  }, [transactions, monthlyYear, monthlyStatus, monthlySelectedCategories, sortedSelectedMonths]);
 
-  const monthlyCategoryLabel = monthlyCategoryId === 'all'
-    ? 'Todos'
-    : categories.find(c => c.id === monthlyCategoryId)?.name || 'Todos';
+  const monthlyCategoryLabel = useMemo(() => {
+    if (monthlySelectedCategories.size === 0) return 'Todas';
+    const names = categories.filter(c => monthlySelectedCategories.has(c.id)).map(c => c.name);
+    if (names.length === 1) return names[0];
+    return `${names.length} eventos: ${names.join(', ')}`;
+  }, [monthlySelectedCategories, categories]);
   const monthlyStatusLabel = monthlyStatus === 'paid' ? 'Pago/Recebido' : 'Pagar/Receber';
   const monthlyMonthsLabel = sortedSelectedMonths.map(m => MONTHS_PT[m]).join(', ') || '—';
 
@@ -618,37 +624,104 @@ export function CashFlowReportModal({
     doc.setFontSize(9); doc.setFont('helvetica', 'normal');
     doc.text(`Ano: ${monthlyYear}`, 14, 40);
     doc.text(`Status: ${monthlyStatusLabel}`, 14, 45);
-    doc.text(`Evento Contábil: ${monthlyCategoryLabel}`, 14, 50);
-    doc.text(`Meses: ${monthlyMonthsLabel}`, 14, 55);
-
-    const head = [['Evento', ...sortedSelectedMonths.map(m => MONTHS_PT[m]), 'TOTAL']];
-    const body = monthlyMatrix.events.map(e => [
-      e.name,
-      ...sortedSelectedMonths.map(m => formatCurrency(e.monthly[m])),
-      formatCurrency(e.total),
-    ]);
-    const foot = [[
-      'TOTAL',
-      ...sortedSelectedMonths.map(m => formatCurrency(monthlyMatrix.colTotals[m])),
-      formatCurrency(monthlyMatrix.grand),
-    ]];
+    const catLines = doc.splitTextToSize(`Evento Contábil: ${monthlyCategoryLabel}`, 297 - 28);
+    doc.text(catLines, 14, 50);
+    const afterCatY = 50 + (catLines.length - 1) * 4;
+    doc.text(`Meses: ${monthlyMonthsLabel}`, 14, afterCatY + 5);
+    const tableStartY = afterCatY + 12;
 
     const monthsCount = sortedSelectedMonths.length || 1;
     const pageW = 297 - 28;
-    const eventW = Math.max(50, Math.min(80, pageW * 0.32));
-    const totalW = 28;
-    const monthW = Math.max(14, (pageW - eventW - totalW) / monthsCount);
-    const colStyles: Record<number, any> = { 0: { cellWidth: eventW, halign: 'left' } };
-    for (let i = 1; i <= monthsCount; i++) colStyles[i] = { cellWidth: monthW, halign: 'right' };
-    colStyles[monthsCount + 1] = { cellWidth: totalW, halign: 'right', fontStyle: 'bold' };
+
+    // Format values: try with R$ prefix; fall back to compact (no "R$ ") if too tight
+    const fmtFull = (v: number) => formatCurrency(v);
+    const fmtCompact = (v: number) =>
+      new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
+
+    // Try font sizes from largest to smallest until everything fits in one line
+    const fontSteps = [7.5, 7, 6.5, 6, 5.5];
+    let chosenFont = fontSteps[fontSteps.length - 1];
+    let useCompact = false;
+    let monthW = 14;
+    let totalW = 28;
+    let eventW = Math.max(40, Math.min(60, pageW * 0.26));
+    const cellPadX = 1.8 * 2;
+
+    const measureMax = (fmt: (v: number) => string, font: number) => {
+      doc.setFontSize(font);
+      let maxMonth = 0;
+      for (const m of sortedSelectedMonths) {
+        for (const e of monthlyMatrix.events) {
+          const w = doc.getTextWidth(fmt(e.monthly[m]));
+          if (w > maxMonth) maxMonth = w;
+        }
+        const w = doc.getTextWidth(fmt(monthlyMatrix.colTotals[m]));
+        if (w > maxMonth) maxMonth = w;
+      }
+      let maxTotal = 0;
+      for (const e of monthlyMatrix.events) {
+        const w = doc.getTextWidth(fmt(e.total));
+        if (w > maxTotal) maxTotal = w;
+      }
+      maxTotal = Math.max(maxTotal, doc.getTextWidth(fmt(monthlyMatrix.grand)));
+      return { maxMonth, maxTotal };
+    };
+
+    let resolved = false;
+    for (const font of fontSteps) {
+      for (const compact of [false, true]) {
+        const fmt = compact ? fmtCompact : fmtFull;
+        const { maxMonth, maxTotal } = measureMax(fmt, font);
+        const reqMonth = maxMonth + cellPadX + 0.5;
+        const reqTotal = maxTotal + cellPadX + 0.5;
+        if (eventW + reqMonth * monthsCount + reqTotal <= pageW) {
+          chosenFont = font;
+          useCompact = compact;
+          monthW = reqMonth;
+          totalW = reqTotal;
+          resolved = true;
+          break;
+        }
+      }
+      if (resolved) break;
+    }
+    if (!resolved) {
+      // Fallback: smallest font + compact, distribute remaining width
+      chosenFont = fontSteps[fontSteps.length - 1];
+      useCompact = true;
+      const { maxTotal } = measureMax(fmtCompact, chosenFont);
+      totalW = maxTotal + cellPadX + 0.5;
+      monthW = Math.max(10, (pageW - eventW - totalW) / monthsCount);
+    }
+
+    const fmt = useCompact ? fmtCompact : fmtFull;
+    const head = [['Evento', ...sortedSelectedMonths.map(m => MONTHS_PT[m]), 'TOTAL']];
+    const body = monthlyMatrix.events.map(e => [
+      e.name,
+      ...sortedSelectedMonths.map(m => fmt(e.monthly[m])),
+      fmt(e.total),
+    ]);
+    const foot = [[
+      'TOTAL',
+      ...sortedSelectedMonths.map(m => fmt(monthlyMatrix.colTotals[m])),
+      fmt(monthlyMatrix.grand),
+    ]];
+
+    const colStyles: Record<number, any> = {
+      0: { cellWidth: eventW, halign: 'left', overflow: 'linebreak' },
+    };
+    for (let i = 1; i <= monthsCount; i++) {
+      colStyles[i] = { cellWidth: monthW, halign: 'right', overflow: 'visible' };
+    }
+    colStyles[monthsCount + 1] = { cellWidth: totalW, halign: 'right', fontStyle: 'bold', overflow: 'visible' };
 
     autoTable(doc, {
-      startY: 62,
+      startY: tableStartY,
       head, body, foot,
       theme: 'striped',
-      styles: { fontSize: 7.5, cellPadding: 1.8, overflow: 'linebreak' },
-      headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold', halign: 'center', valign: 'middle' },
-      footStyles: { fillColor: [230, 230, 230], textColor: 0, fontStyle: 'bold' },
+      styles: { fontSize: chosenFont, cellPadding: 1.8, overflow: 'visible', valign: 'middle' },
+      headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold', halign: 'center', valign: 'middle', overflow: 'visible' },
+      footStyles: { fillColor: [230, 230, 230], textColor: 0, fontStyle: 'bold', overflow: 'visible' },
       alternateRowStyles: { fillColor: [248, 248, 248] },
       columnStyles: colStyles,
       didDrawPage: (data) => {
@@ -921,25 +994,60 @@ export function CashFlowReportModal({
                 </div>
               </div>
 
-              {/* Event Category dropdown (same structure as Lançamentos) */}
+              {/* Event Category multi-select dropdown */}
               <div>
                 <Label className="text-sm font-semibold mb-2 block">Evento Contábil</Label>
-                <Select value={monthlyCategoryId} onValueChange={setMonthlyCategoryId}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Todas as categorias" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas as categorias</SelectItem>
-                    {categories.map(cat => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color || '#3B82F6' }} />
-                          {cat.name}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between font-normal">
+                      <span className="truncate text-left">
+                        {monthlySelectedCategories.size === 0
+                          ? 'Todas as categorias'
+                          : monthlySelectedCategories.size === 1
+                          ? categories.find(c => monthlySelectedCategories.has(c.id))?.name || '1 selecionado'
+                          : `${monthlySelectedCategories.size} eventos selecionados`}
+                      </span>
+                      <ChevronDown className="h-4 w-4 opacity-50 shrink-0 ml-2" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <div className="p-2 border-b">
+                      <button
+                        type="button"
+                        onClick={() => setMonthlySelectedCategories(new Set())}
+                        className="flex items-center gap-2 w-full px-2 py-1.5 text-sm rounded hover:bg-accent text-left"
+                      >
+                        <Checkbox checked={monthlySelectedCategories.size === 0} />
+                        <span>Todas as categorias</span>
+                      </button>
+                    </div>
+                    <ScrollArea className="h-64">
+                      <div className="p-2 space-y-0.5">
+                        {categories.map(cat => {
+                          const checked = monthlySelectedCategories.has(cat.id);
+                          return (
+                            <button
+                              key={cat.id}
+                              type="button"
+                              onClick={() => {
+                                setMonthlySelectedCategories(prev => {
+                                  const next = new Set(prev);
+                                  if (next.has(cat.id)) next.delete(cat.id); else next.add(cat.id);
+                                  return next;
+                                });
+                              }}
+                              className="flex items-center gap-2 w-full px-2 py-1.5 text-sm rounded hover:bg-accent text-left"
+                            >
+                              <Checkbox checked={checked} />
+                              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color || '#3B82F6' }} />
+                              <span className="truncate">{cat.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </ScrollArea>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               {/* Preview summary */}
