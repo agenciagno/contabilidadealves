@@ -83,6 +83,7 @@ export function CashFlowReportModal({
   const [monthlyYear, setMonthlyYear] = useState<number>(currentYear);
   const [monthlyStatus, setMonthlyStatus] = useState<'paid' | 'pending'>('pending');
   const [monthlySelectedCategories, setMonthlySelectedCategories] = useState<Set<string>>(new Set());
+  const [monthlyCategorySearch, setMonthlyCategorySearch] = useState('');
   const [monthlyMonths, setMonthlyMonths] = useState<Set<number>>(() => {
     const s = new Set<number>();
     for (let m = currentMonth; m <= 11; m++) s.add(m);
