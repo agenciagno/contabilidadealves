@@ -5,6 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { cn } from '@/lib/utils';
 import { FileText, Table2, Image, TrendingUp, TrendingDown, Building2, Wallet, X, Printer } from 'lucide-react';
 import { useCompany } from '@/hooks/useCompany';
 import { format, parseISO, isWithinInterval } from 'date-fns';
