@@ -94,6 +94,23 @@ export function CashFlowReportModal({
 
   const clearDates = () => { setStartDate(''); setEndDate(''); };
 
+  // ─── Resumo por Evento Contábil ──────────────────────────────────
+  const buildEventSummary = (rows: typeof transactions) => {
+    const map = new Map<string, { name: string; qty: number; receber: number; pagar: number }>();
+    for (const r of rows) {
+      const name = r.category?.name || 'Sem evento';
+      const cur = map.get(name) || { name, qty: 0, receber: 0, pagar: 0 };
+      cur.qty += 1;
+      const amt = Number(r.amount);
+      if (r.type === 'receita') cur.receber += amt;
+      else cur.pagar += amt;
+      map.set(name, cur);
+    }
+    return Array.from(map.values())
+      .map(g => ({ ...g, saldo: g.receber - g.pagar }))
+      .sort((a, b) => (Math.abs(b.receber) + Math.abs(b.pagar)) - (Math.abs(a.receber) + Math.abs(a.pagar)));
+  };
+
   const activeBanks = useMemo(() => banks.filter(b => b.is_active), [banks]);
   const totalBankBalance = useMemo(() => activeBanks.reduce((s, b) => s + Number(b.current_balance), 0), [activeBanks]);
 
