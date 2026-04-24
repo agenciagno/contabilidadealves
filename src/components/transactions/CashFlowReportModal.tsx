@@ -624,37 +624,104 @@ export function CashFlowReportModal({
     doc.setFontSize(9); doc.setFont('helvetica', 'normal');
     doc.text(`Ano: ${monthlyYear}`, 14, 40);
     doc.text(`Status: ${monthlyStatusLabel}`, 14, 45);
-    doc.text(`Evento Contábil: ${monthlyCategoryLabel}`, 14, 50);
-    doc.text(`Meses: ${monthlyMonthsLabel}`, 14, 55);
-
-    const head = [['Evento', ...sortedSelectedMonths.map(m => MONTHS_PT[m]), 'TOTAL']];
-    const body = monthlyMatrix.events.map(e => [
-      e.name,
-      ...sortedSelectedMonths.map(m => formatCurrency(e.monthly[m])),
-      formatCurrency(e.total),
-    ]);
-    const foot = [[
-      'TOTAL',
-      ...sortedSelectedMonths.map(m => formatCurrency(monthlyMatrix.colTotals[m])),
-      formatCurrency(monthlyMatrix.grand),
-    ]];
+    const catLines = doc.splitTextToSize(`Evento Contábil: ${monthlyCategoryLabel}`, 297 - 28);
+    doc.text(catLines, 14, 50);
+    const afterCatY = 50 + (catLines.length - 1) * 4;
+    doc.text(`Meses: ${monthlyMonthsLabel}`, 14, afterCatY + 5);
+    const tableStartY = afterCatY + 12;
 
     const monthsCount = sortedSelectedMonths.length || 1;
     const pageW = 297 - 28;
-    const eventW = Math.max(50, Math.min(80, pageW * 0.32));
-    const totalW = 28;
-    const monthW = Math.max(14, (pageW - eventW - totalW) / monthsCount);
-    const colStyles: Record<number, any> = { 0: { cellWidth: eventW, halign: 'left' } };
-    for (let i = 1; i <= monthsCount; i++) colStyles[i] = { cellWidth: monthW, halign: 'right' };
-    colStyles[monthsCount + 1] = { cellWidth: totalW, halign: 'right', fontStyle: 'bold' };
+
+    // Format values: try with R$ prefix; fall back to compact (no "R$ ") if too tight
+    const fmtFull = (v: number) => formatCurrency(v);
+    const fmtCompact = (v: number) =>
+      new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
+
+    // Try font sizes from largest to smallest until everything fits in one line
+    const fontSteps = [7.5, 7, 6.5, 6, 5.5];
+    let chosenFont = fontSteps[fontSteps.length - 1];
+    let useCompact = false;
+    let monthW = 14;
+    let totalW = 28;
+    let eventW = Math.max(40, Math.min(60, pageW * 0.26));
+    const cellPadX = 1.8 * 2;
+
+    const measureMax = (fmt: (v: number) => string, font: number) => {
+      doc.setFontSize(font);
+      let maxMonth = 0;
+      for (const m of sortedSelectedMonths) {
+        for (const e of monthlyMatrix.events) {
+          const w = doc.getTextWidth(fmt(e.monthly[m]));
+          if (w > maxMonth) maxMonth = w;
+        }
+        const w = doc.getTextWidth(fmt(monthlyMatrix.colTotals[m]));
+        if (w > maxMonth) maxMonth = w;
+      }
+      let maxTotal = 0;
+      for (const e of monthlyMatrix.events) {
+        const w = doc.getTextWidth(fmt(e.total));
+        if (w > maxTotal) maxTotal = w;
+      }
+      maxTotal = Math.max(maxTotal, doc.getTextWidth(fmt(monthlyMatrix.grand)));
+      return { maxMonth, maxTotal };
+    };
+
+    let resolved = false;
+    for (const font of fontSteps) {
+      for (const compact of [false, true]) {
+        const fmt = compact ? fmtCompact : fmtFull;
+        const { maxMonth, maxTotal } = measureMax(fmt, font);
+        const reqMonth = maxMonth + cellPadX + 0.5;
+        const reqTotal = maxTotal + cellPadX + 0.5;
+        if (eventW + reqMonth * monthsCount + reqTotal <= pageW) {
+          chosenFont = font;
+          useCompact = compact;
+          monthW = reqMonth;
+          totalW = reqTotal;
+          resolved = true;
+          break;
+        }
+      }
+      if (resolved) break;
+    }
+    if (!resolved) {
+      // Fallback: smallest font + compact, distribute remaining width
+      chosenFont = fontSteps[fontSteps.length - 1];
+      useCompact = true;
+      const { maxTotal } = measureMax(fmtCompact, chosenFont);
+      totalW = maxTotal + cellPadX + 0.5;
+      monthW = Math.max(10, (pageW - eventW - totalW) / monthsCount);
+    }
+
+    const fmt = useCompact ? fmtCompact : fmtFull;
+    const head = [['Evento', ...sortedSelectedMonths.map(m => MONTHS_PT[m]), 'TOTAL']];
+    const body = monthlyMatrix.events.map(e => [
+      e.name,
+      ...sortedSelectedMonths.map(m => fmt(e.monthly[m])),
+      fmt(e.total),
+    ]);
+    const foot = [[
+      'TOTAL',
+      ...sortedSelectedMonths.map(m => fmt(monthlyMatrix.colTotals[m])),
+      fmt(monthlyMatrix.grand),
+    ]];
+
+    const colStyles: Record<number, any> = {
+      0: { cellWidth: eventW, halign: 'left', overflow: 'linebreak' },
+    };
+    for (let i = 1; i <= monthsCount; i++) {
+      colStyles[i] = { cellWidth: monthW, halign: 'right', overflow: 'visible' };
+    }
+    colStyles[monthsCount + 1] = { cellWidth: totalW, halign: 'right', fontStyle: 'bold', overflow: 'visible' };
 
     autoTable(doc, {
-      startY: 62,
+      startY: tableStartY,
       head, body, foot,
       theme: 'striped',
-      styles: { fontSize: 7.5, cellPadding: 1.8, overflow: 'linebreak' },
-      headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold', halign: 'center', valign: 'middle' },
-      footStyles: { fillColor: [230, 230, 230], textColor: 0, fontStyle: 'bold' },
+      styles: { fontSize: chosenFont, cellPadding: 1.8, overflow: 'visible', valign: 'middle' },
+      headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold', halign: 'center', valign: 'middle', overflow: 'visible' },
+      footStyles: { fillColor: [230, 230, 230], textColor: 0, fontStyle: 'bold', overflow: 'visible' },
       alternateRowStyles: { fillColor: [248, 248, 248] },
       columnStyles: colStyles,
       didDrawPage: (data) => {
