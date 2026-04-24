@@ -65,20 +65,58 @@ export function CashFlowReportModal({
   const { company } = useCompany();
   const summaryRef = useRef<HTMLDivElement>(null);
 
+  const [mode, setMode] = useState<'report' | 'monthly'>('report');
+
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [categoryId, setCategoryId] = useState('all');
   const [contactId, setContactId] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
 
+  // Monthly query state
+  const nowDate = new Date();
+  const currentYear = nowDate.getFullYear();
+  const currentMonth = nowDate.getMonth(); // 0..11
+  const [monthlyYear, setMonthlyYear] = useState<number>(currentYear);
+  const [monthlyStatus, setMonthlyStatus] = useState<'paid' | 'pending'>('pending');
+  const [monthlyCategoryId, setMonthlyCategoryId] = useState<string>('all');
+  const [monthlyMonths, setMonthlyMonths] = useState<Set<number>>(() => {
+    const s = new Set<number>();
+    for (let m = currentMonth; m <= 11; m++) s.add(m);
+    return s;
+  });
+
+  // Auto-fill months when status or year changes
+  const autoFillMonths = (status: 'paid' | 'pending', year: number) => {
+    const s = new Set<number>();
+    if (year < currentYear) {
+      for (let m = 0; m <= 11; m++) s.add(m);
+    } else if (year > currentYear) {
+      for (let m = 0; m <= 11; m++) s.add(m);
+    } else {
+      if (status === 'paid') {
+        for (let m = 0; m <= currentMonth; m++) s.add(m);
+      } else {
+        for (let m = currentMonth; m <= 11; m++) s.add(m);
+      }
+    }
+    return s;
+  };
+
   useEffect(() => {
     if (open) {
+      setMode('report');
       setStartDate(initialStartDate);
       setEndDate(initialEndDate);
       setCategoryId(initialCategoryIds.length === 1 ? initialCategoryIds[0] : 'all');
       setContactId(initialContactIds.length === 1 ? initialContactIds[0] : 'all');
       setTypeFilter('all');
+      setMonthlyYear(currentYear);
+      setMonthlyStatus('pending');
+      setMonthlyCategoryId('all');
+      setMonthlyMonths(autoFillMonths('pending', currentYear));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialStartDate, initialEndDate, initialCategoryIds, initialContactIds]);
 
   const today = new Date();
