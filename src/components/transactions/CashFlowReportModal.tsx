@@ -723,7 +723,7 @@ export function CashFlowReportModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl print-visible">
+      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto print-visible">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-primary" />
@@ -732,6 +732,25 @@ export function CashFlowReportModal({
         </DialogHeader>
 
         <div className="space-y-3">
+          {/* Mode toggle */}
+          <div className="flex justify-center">
+            <ToggleGroup
+              type="single"
+              value={mode}
+              onValueChange={(v) => v && setMode(v as 'report' | 'monthly')}
+              className="bg-muted/50 rounded-md p-1"
+            >
+              <ToggleGroupItem value="report" className="px-4 data-[state=on]:bg-background data-[state=on]:shadow-sm">
+                Relatório
+              </ToggleGroupItem>
+              <ToggleGroupItem value="monthly" className="px-4 data-[state=on]:bg-background data-[state=on]:shadow-sm">
+                Consulta Mensal
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+
+          {mode === 'report' && (<>
+
           {/* Period with clear button */}
           <div>
             <Label className="text-sm font-semibold mb-1 block">Período</Label>
