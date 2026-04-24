@@ -116,7 +116,7 @@ export function CashFlowReportModal({
       setTypeFilter('all');
       setMonthlyYear(currentYear);
       setMonthlyStatus('pending');
-      setMonthlyCategoryId('all');
+      setMonthlySelectedCategories(new Set());
       setMonthlyMonths(autoFillMonths('pending', currentYear));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
