@@ -263,15 +263,16 @@ export function BankReportModal({ open, onOpenChange, banks }: BankReportModalPr
           formatCurrency(eventTotals.saldo),
         ]],
         theme: 'striped',
-        styles: { fontSize: 8, cellPadding: 2 },
-        headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold' },
+        styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+        headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold', halign: 'center', valign: 'middle' },
         footStyles: { fillColor: [230, 230, 230], textColor: 0, fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [248, 248, 248] },
         columnStyles: {
-          1: { halign: 'center' },
-          2: { halign: 'right', textColor: [22, 163, 74] },
-          3: { halign: 'right', textColor: [239, 68, 68] },
-          4: { halign: 'right', fontStyle: 'bold' },
+          0: { cellWidth: 78, halign: 'left' },
+          1: { cellWidth: 18, halign: 'center' },
+          2: { cellWidth: 28, halign: 'right', textColor: [22, 163, 74] },
+          3: { cellWidth: 28, halign: 'right', textColor: [239, 68, 68] },
+          4: { cellWidth: 30, halign: 'right', fontStyle: 'bold' },
         },
         didDrawPage: (data) => {
           const pageCount = (doc as any).internal.getNumberOfPages();
