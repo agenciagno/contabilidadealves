@@ -1,15 +1,18 @@
-## Adicionar busca por texto no dropdown de Eventos Contábeis (Consulta Mensal)
+## Objetivo
 
-Arquivo único: `src/components/transactions/CashFlowReportModal.tsx`.
+Garantir que o backup exporta e restaura **todas** as tabelas do sistema. Atualmente faltam 4 tabelas.
 
-### Mudanças
-- Adicionar estado local `monthlyCategorySearch: string` no componente.
-- Dentro do `PopoverContent` do Evento Contábil (modo Consulta Mensal), adicionar acima da lista um `Input` com ícone de lupa (`Search` do lucide-react) e placeholder "Pesquisar evento…".
-- Filtrar a lista renderizada de `categories` por `name` (case-insensitive, sem acento) conforme o texto digitado.
-- Resetar `monthlyCategorySearch` ao fechar o popover (ou ao abrir o modal).
-- Manter checkbox "Todas as categorias" no topo (não filtrado pela busca).
-- Manter a multi-seleção, cores, scroll e largura atuais.
+## Tabelas faltantes
 
-### Garantias
-- Nenhuma alteração de lógica/dados.
-- Nada muda fora deste dropdown.
+1. **`contact_logs`** — Logs de auditoria dos clientes
+2. **`global_logs`** — Logs globais do sistema
+3. **`dre_budgets`** — Orçamentos do DRE por categoria/mês
+4. **`fiscal_tasks`** — Tarefas fiscais (kanban)
+
+## Alterações em `src/components/settings/BackupTab.tsx`
+
+1. Adicionar as 4 tabelas ao array `BACKUP_TABLES`
+2. Adicionar ao `RESTORE_ORDER` respeitando dependências (logs e budgets depois de categories/contacts, fiscal_tasks depois de contacts)
+3. Atualizar o texto descritivo do card de exportação para incluir as novas tabelas
+
+Nenhuma alteração de lógica, banco ou schema necessária — apenas inclusão das tabelas nos arrays existentes.

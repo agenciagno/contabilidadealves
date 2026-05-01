@@ -24,8 +24,12 @@ const BACKUP_TABLES = [
   'contact_notes',
   'contact_documents',
   'contact_messages',
+  'contact_logs',
   'boleto_controls',
   'transaction_attachments',
+  'global_logs',
+  'dre_budgets',
+  'fiscal_tasks',
 ] as const;
 
 type TableName = typeof BACKUP_TABLES[number];
@@ -41,8 +45,12 @@ const RESTORE_ORDER: TableName[] = [
   'contact_notes',
   'contact_documents',
   'contact_messages',
+  'contact_logs',
   'boleto_controls',
   'transaction_attachments',
+  'global_logs',
+  'dre_budgets',
+  'fiscal_tasks',
 ];
 
 async function fetchAllRows(table: string, extraFilter?: (q: any) => any) {
@@ -341,7 +349,7 @@ export default function BackupTab() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-4">
-            O backup inclui: transações, clientes, categorias, bancos, recorrências, sócios, anotações, documentos, mensagens, boletos e anexos.
+            O backup inclui: transações, clientes, categorias, bancos, recorrências, sócios, anotações, documentos, mensagens, logs de clientes, boletos, anexos, logs globais, orçamentos DRE e tarefas fiscais.
           </p>
           <Button onClick={handleExport} disabled={exporting}>
             {exporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
