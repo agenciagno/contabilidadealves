@@ -572,7 +572,7 @@ export default function Dashboard() {
       </Collapsible>
 
       {/* KPI Cards - 3 columns matching Transactions page style */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
         <Card className="border-border/30">
           <CardContent className="p-6">
             <div className="flex items-start justify-between">
@@ -640,7 +640,7 @@ export default function Dashboard() {
       </div>
 
       {/* Annual Ticker Cards - 4 columns */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
         <Card className="border-border/30 border-l-2 border-l-emerald-500">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">

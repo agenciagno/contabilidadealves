@@ -37,7 +37,7 @@ function DroppableColumn({ id, label, color, children, count }: { id: string; la
   const { setNodeRef, isOver } = useDroppable({ id });
 
   return (
-    <div className="flex-1 min-w-[260px] flex flex-col">
+    <div className="flex-1 min-w-[260px] flex-shrink-0 flex flex-col">
       <div className="flex items-center gap-2 mb-3 px-1">
         <div className={`w-2.5 h-2.5 rounded-full ${color}`} />
         <span className="text-sm font-semibold text-foreground">{label}</span>
@@ -135,7 +135,8 @@ export function KanbanBoard({ tasks, contactsMap, profilesMap, onStatusChange, o
 
   return (
     <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div className="flex gap-4 overflow-x-auto pb-4">
+      <div className="kanban-scroll-container has-scroll">
+        <div className="flex gap-4 overflow-x-auto pb-4">
         {COLUMNS.map(col => (
           <DroppableColumn key={col.id} id={col.id} label={col.label} color={col.color} count={tasksByStatus[col.id].length}>
             <SortableContext items={tasksByStatus[col.id].map(t => t.id)} strategy={verticalListSortingStrategy}>
@@ -151,6 +152,7 @@ export function KanbanBoard({ tasks, contactsMap, profilesMap, onStatusChange, o
             </SortableContext>
           </DroppableColumn>
         ))}
+        </div>
       </div>
       <DragOverlay>
         {activeTask && (

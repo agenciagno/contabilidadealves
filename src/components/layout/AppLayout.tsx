@@ -36,7 +36,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   return (
     <SidebarProvider>
       <InadimplentToast />
-      <div className="min-h-screen flex w-full overflow-x-hidden">
+      <div className="min-h-screen flex w-full max-w-[100vw] overflow-x-hidden">
         <AppSidebar />
         <SidebarInset className="flex-1">
           <AppHeader />
