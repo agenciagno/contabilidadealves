@@ -62,10 +62,10 @@ function SummaryCard({ title, previsto, realizado, icon: Icon, color }: {
 function SectionRow({ row }: { row: DRESectionRow }) {
   return (
     <>
-      <TableRow className="hover:bg-emerald-500/10 bg-emerald-500/5 font-semibold">
+      <TableRow className="hover:bg-emerald-500/10 bg-emerald-500/5 font-semibold dre-section-row">
         <TableCell className="pl-4">
           <div className="flex items-center gap-2">
-            <span className="text-emerald-700 dark:text-emerald-400">{row.macroName}</span>
+            <span style={{ color: 'var(--dre-section-color)' }}>{row.macroName}</span>
             {!row.macroId && (
               <span className="text-[10px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded dark:bg-amber-900/30 dark:text-amber-400">
                 Não cadastrado
