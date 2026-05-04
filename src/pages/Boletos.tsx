@@ -72,7 +72,7 @@ export default function Boletos() {
   return (
     <div className="flex flex-col h-full">
       {/* Cabeçalho */}
-      <div className="flex items-center justify-between p-6 pb-4 print-hidden">
+      <div className="flex items-center justify-between py-4 flex-wrap gap-4 print-hidden">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <FileCheck className="w-6 h-6 text-primary" />

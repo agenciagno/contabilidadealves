@@ -4,11 +4,13 @@ import { Users } from 'lucide-react';
 const ClientReport = () => {
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Relatório de Clientes</h1>
-        <p className="text-muted-foreground">
-          Análises e métricas sobre sua base de clientes
-        </p>
+      <div className="flex items-center justify-between py-4 flex-wrap gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Relatório de Clientes</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Análises e métricas sobre sua base de clientes
+          </p>
+        </div>
       </div>
 
       <Card className="border-dashed">

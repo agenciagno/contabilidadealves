@@ -104,22 +104,22 @@ function CalculatedRow({ row }: { row: DRECalculatedRow }) {
     <TableRow className={cn(
       'font-bold',
       isFinal
-        ? 'bg-primary/10 text-primary dark:bg-primary/20'
+        ? 'bg-primary text-white'
         : 'bg-muted/50 dark:bg-muted/30',
     )}>
       <TableCell className="pl-4">
         <span className={cn(
-          isFinal ? 'text-primary' : isLucro ? 'text-foreground' : 'text-foreground',
+          isFinal ? 'text-white' : 'text-foreground',
           'uppercase text-sm tracking-wide'
         )}>
           {row.label}
         </span>
       </TableCell>
-      <TableCell className="text-right">{formatCurrency(row.previsto)}</TableCell>
-      <TableCell className="text-right">{formatCurrency(row.realizado)}</TableCell>
-      <TableCell className={cn('text-right', valueColor(row.rxp))}>{formatCurrency(row.rxp)}</TableCell>
-      <TableCell className="text-right">{formatPerc(row.percPrevisto)}</TableCell>
-      <TableCell className="text-right">{formatPerc(row.percRealizado)}</TableCell>
+      <TableCell className={cn('text-right', isFinal && 'text-white')}>{formatCurrency(row.previsto)}</TableCell>
+      <TableCell className={cn('text-right', isFinal && 'text-white')}>{formatCurrency(row.realizado)}</TableCell>
+      <TableCell className={cn('text-right', isFinal ? 'text-white' : valueColor(row.rxp))}>{formatCurrency(row.rxp)}</TableCell>
+      <TableCell className={cn('text-right', isFinal && 'text-white')}>{formatPerc(row.percPrevisto)}</TableCell>
+      <TableCell className={cn('text-right', isFinal && 'text-white')}>{formatPerc(row.percRealizado)}</TableCell>
     </TableRow>
   );
 }
@@ -146,7 +146,7 @@ export default function DRE() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
+      <div className="flex items-center justify-between py-4 flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">DRE - Demonstração do Resultado do Exercício</h1>
           <p className="text-muted-foreground text-sm mt-1">

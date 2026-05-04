@@ -811,7 +811,7 @@ export default function Transactions() {
   return (
     <div className="space-y-4">
       {/* ── Header ── */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between py-4 flex-wrap gap-4">
         <h1 className="text-2xl font-bold text-foreground">Movimentações</h1>
         <div className="flex items-center gap-2">
           <DropdownMenu>

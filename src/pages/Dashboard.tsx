@@ -452,7 +452,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-7">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between py-4 flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Dashboard</h1>
           <p className="text-muted-foreground">

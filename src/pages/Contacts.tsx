@@ -309,7 +309,7 @@ export default function Contacts() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between py-4 flex-wrap gap-4">
         <h1 className="text-2xl font-bold text-foreground">Cliente/Fornecedor</h1>
       </div>
 
