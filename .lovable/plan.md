@@ -1,59 +1,41 @@
 
-## Objetivo
+## Plan: Apple-Inspired Design System Variables
 
-Adicionar um toggle "Recorrente / Parcelado" ao modal de Nova Transação em `/movimentacoes`. Quando ativado, permite configurar parcelas mensais e gera automaticamente N transações no banco de dados.
+### What changes
 
-## Alterações
+**Single file edit: `src/index.css`**
 
-### 1. Novo hook: `src/hooks/useInstallments.ts`
+1. **Add new Apple design tokens** inside the existing `@layer base` block:
+   - Custom CSS variables for backgrounds, text, borders, system colors, badges, nav, and modal overlay -- all with light/dark variants
+   - `--font-system` and `--spring` transition variables
+   - Radius tokens (`--r-sm`, `--r-md`, `--r-lg`, `--r-xl`, `--r-pill`)
 
-Hook utilitário que encapsula a lógica de geração de parcelas:
+2. **Bridge shadcn variables** to the new Apple tokens at the end of each `:root` / `.dark` block:
+   - Map `--background` to the HSL equivalent of `--apple-bg-base`
+   - Map `--card` to match `--apple-bg-surface`
+   - Map `--border` to match `--apple-border-hair`
+   - Map `--sidebar-background` to match `--apple-mat-sidebar`
+   - Existing shadcn variables like `--primary`, `--destructive`, `--success`, etc. remain untouched
 
-- Função `generateInstallments(basePayload, count)`: recebe o payload base da transação e o número de parcelas, retorna array de `TransactionInsert[]` com datas incrementadas mês a mês.
-- Lógica de incremento: preserva o dia do mês base; se o dia não existir no mês destino (ex: 31 em fevereiro), usa o último dia do mês.
-- Parcela 1 = datas originais. Parcelas 2..N = +1, +2... meses sobre `due_date`, `expected_date` e `date` (se preenchido).
-- Função `calculateSummary(dueDate, mode, value)`: retorna `{ count, firstDate, lastDate }` para o resumo dinâmico.
+3. **Add global utility styles** outside `@layer base` (after the utilities layer):
+   - Sidebar glass effect (`backdrop-filter: blur(20px) saturate(180%)`)
+   - Navigation item states using the new `--nav-*` variables
+   - Card styling with `--apple-mat-card` and `--apple-border-hair`
+   - Badge utility classes (`.badge-success`, `.badge-danger`, `.badge-warning`)
+   - Monetary value classes (`.value-positive`, `.value-negative`)
+   - Global transition on interactive elements
 
-### 2. Editar: `src/components/transactions/TransactionFormDialog.tsx`
+### What stays the same
 
-**Novos estados:**
-- `isRecurring` (boolean, default false)
-- `endMode` ('parcelas' | 'data_final')
-- `installmentCount` (number)
-- `endDate` (string)
+- All existing shadcn/ui component variables (`--primary`, `--destructive`, `--muted`, etc.) keep their current HSL values
+- All existing `@layer utilities` (scrollbar) and `@media print` blocks unchanged
+- No logic, data, routes, or component files modified
+- The existing `font-family` on `body` stays as-is (already Apple system fonts)
 
-**UI — Toggle (após linha de datas, antes de Anexo/Histórico):**
-- Switch com label "Recorrente / Parcelado", visível apenas para novas transações (não em edição/liquidação).
-- Quando OFF: nenhum campo extra.
-- Quando ON: seção com borda sutil (`border rounded-md p-4 bg-muted/30`) contendo:
-  - RadioGroup: "Quantidade de Parcelas" / "Data Final"
-  - Input numérico (min=2) ou DatePicker conforme seleção
-  - Resumo dinâmico: "X parcelas · Primeira em DD/MM/AAAA · Última em DD/MM/AAAA"
-- Animação suave de entrada (transição de altura + opacidade).
-- Ao desativar: limpa todos os campos de recorrência.
+### Verification after implementation
 
-**Validação:**
-- Vencimento obrigatório quando toggle ativo.
-- Nº de parcelas >= 2.
-- Data final posterior ao mês do Vencimento base.
-- Botões "Salvar" / "Salvar e Fechar" bloqueados se campos de recorrência inválidos.
-
-**Lógica de salvamento:**
-- Quando toggle ativo: gera array de parcelas via `generateInstallments`.
-- Usa a mutation `bulkCreateTransactions` já existente no hook `useTransactions` (linha 310) para batch insert.
-- Toast de sucesso: "X transações criadas com sucesso."
-- Toast de erro em caso de falha.
-- Loading: desabilita botões durante o insert.
-
-### 3. Editar: `src/pages/Transactions.tsx`
-
-- Expor `bulkCreateTransactions` do hook `useTransactions` no componente.
-- Passar como prop ou usar callback no `handleSubmit` para suportar o batch insert quando recorrência estiver ativa.
-- Alternativa: o `TransactionFormDialog` pode importar `useTransactions` diretamente para o bulk insert, mantendo a interface `onSubmit` existente para transações individuais.
-
-## Detalhes Técnicos
-
-- O incremento de meses usará a API nativa de `Date` com tratamento de overflow de dias (ex: `new Date(2026, month, 0).getDate()` para último dia do mês).
-- A seção de recorrência será envolta em um `div` com `overflow-hidden` e transição CSS para animação suave.
-- O toggle só aparece em modo criação (não em edição ou liquidação).
-- Nenhum campo existente será alterado.
+I will use browser tools to check:
+1. Light mode: white/light-gray backgrounds, dark text, legible badges
+2. Dark mode: black/dark backgrounds, light text, vibrant badges  
+3. Sidebar glass blur effect in both modes
+4. Pages `/painel-financeiro`, `/movimentacoes`, `/dre` render correctly
