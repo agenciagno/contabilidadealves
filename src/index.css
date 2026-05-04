@@ -391,6 +391,22 @@ h1, h2 {
   font-size: 12px !important;
 }
 
+/* ─── Table scroll fade gradient ─── */
+.table-scroll-container {
+  position: relative;
+}
+.table-scroll-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 32px;
+  background: linear-gradient(to right, transparent, hsl(var(--background)));
+  pointer-events: none;
+  z-index: 5;
+}
+
 /* ─── DRE section row contrast ─── */
 :root {
   --dre-section-color: #1a7a38;

@@ -811,9 +811,9 @@ export default function Transactions() {
   return (
     <div className="space-y-4">
       {/* ── Header ── */}
-      <div className="flex items-center justify-between py-4 flex-wrap gap-4">
+      <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between py-4 gap-4">
         <h1 className="text-2xl font-bold text-foreground">Movimentações</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap w-full xl:w-auto">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="gap-1.5">
@@ -839,73 +839,73 @@ export default function Transactions() {
       </div>
 
       {/* ── KPI Cards ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
         <Card className="bg-card border-border/50 border-l-2 border-l-emerald-500">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
+          <CardContent className="px-3 py-[10px]">
+            <div className="flex items-center gap-2 mb-0.5">
               <TrendingUp className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-              <p className="text-xs text-muted-foreground">A Receber</p>
+              <p className="text-[11px] font-semibold text-muted-foreground">A Receber</p>
             </div>
-            <p className="text-base font-bold text-emerald-500">{formatCurrency(kpis.receitasPendentes)}</p>
+            <p className="text-lg font-bold text-emerald-500">{formatCurrency(kpis.receitasPendentes)}</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">Recebido: {formatCurrency(kpis.receitasPagas)}</p>
           </CardContent>
         </Card>
         <Card className="bg-card border-border/50 border-l-2 border-l-red-500">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
+          <CardContent className="px-3 py-[10px]">
+            <div className="flex items-center gap-2 mb-0.5">
               <TrendingDown className="w-3.5 h-3.5 text-red-500 shrink-0" />
-              <p className="text-xs text-muted-foreground">A Pagar</p>
+              <p className="text-[11px] font-semibold text-muted-foreground">A Pagar</p>
             </div>
-            <p className="text-base font-bold text-red-500">{formatCurrency(kpis.despesasPendentes)}</p>
+            <p className="text-lg font-bold text-red-500">{formatCurrency(kpis.despesasPendentes)}</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">Pago: {formatCurrency(kpis.despesasPagas)}</p>
           </CardContent>
         </Card>
         <Card className="bg-card border-border/50 border-l-2 border-l-primary">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
+          <CardContent className="px-3 py-[10px]">
+            <div className="flex items-center gap-2 mb-0.5">
               <Landmark className="w-3.5 h-3.5 text-primary shrink-0" />
-              <p className="text-xs text-muted-foreground">Saldo Bancário</p>
+              <p className="text-[11px] font-semibold text-muted-foreground">Saldo Bancário</p>
             </div>
-            <p className={`text-base font-bold ${bankTotals.totalBalance >= 0 ? 'text-primary' : 'text-red-500'}`}>{formatCurrency(bankTotals.totalBalance)}</p>
+            <p className={`text-lg font-bold ${bankTotals.totalBalance >= 0 ? 'text-primary' : 'text-red-500'}`}>{formatCurrency(bankTotals.totalBalance)}</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">Total bancos visíveis</p>
           </CardContent>
         </Card>
         <Card className="bg-card border-border/50 border-l-2 border-l-red-500">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
+          <CardContent className="px-3 py-[10px]">
+            <div className="flex items-center gap-2 mb-0.5">
               <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />
-              <p className="text-xs text-muted-foreground">Em Atraso</p>
+              <p className="text-[11px] font-semibold text-muted-foreground">Em Atraso</p>
             </div>
             <p className="text-sm font-bold text-orange-400">⬇ {formatCurrency(biMetrics.receitasEmAtraso)}</p>
             <p className="text-sm font-bold text-red-500">⬆ {formatCurrency(biMetrics.contasEmAtraso)}</p>
           </CardContent>
         </Card>
         <Card className="bg-card border-border/50 border-l-2 border-l-blue-500">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
+          <CardContent className="px-3 py-[10px]">
+            <div className="flex items-center gap-2 mb-0.5">
               <Building2 className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-              <p className="text-xs text-muted-foreground">Capital de Giro</p>
+              <p className="text-[11px] font-semibold text-muted-foreground">Capital de Giro</p>
             </div>
-            <p className={`text-base font-bold ${biMetrics.capitalDeGiroMes >= 0 ? 'text-blue-400' : 'text-red-500'}`}>{formatCurrency(biMetrics.capitalDeGiroMes)}</p>
+            <p className={`text-lg font-bold ${biMetrics.capitalDeGiroMes >= 0 ? 'text-blue-400' : 'text-red-500'}`}>{formatCurrency(biMetrics.capitalDeGiroMes)}</p>
           </CardContent>
         </Card>
         <Card className="bg-card border-border/50 border-l-2 border-l-emerald-500">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
+          <CardContent className="px-3 py-[10px]">
+            <div className="flex items-center gap-2 mb-0.5">
               <BarChart3 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-              <p className="text-xs text-muted-foreground">Lucro Previsto</p>
+              <p className="text-[11px] font-semibold text-muted-foreground">Lucro Previsto</p>
             </div>
-            <p className={`text-base font-bold ${biMetrics.lucroPrevisto >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{formatCurrency(biMetrics.lucroPrevisto)}</p>
+            <p className={`text-lg font-bold ${biMetrics.lucroPrevisto >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{formatCurrency(biMetrics.lucroPrevisto)}</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">{format(new Date(), 'MMMM', { locale: ptBR }).replace(/^\w/, c => c.toUpperCase())}</p>
           </CardContent>
         </Card>
         <Card className="bg-card border-border/50 border-l-2 border-l-amber-500">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
+          <CardContent className="px-3 py-[10px]">
+            <div className="flex items-center gap-2 mb-0.5">
               <CalendarCheck className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-              <p className="text-xs text-muted-foreground">Realizado</p>
+              <p className="text-[11px] font-semibold text-muted-foreground">Realizado</p>
             </div>
-            <p className={`text-base font-bold ${biMetrics.acumuladoReceitas - biMetrics.acumuladoDespesas >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{formatCurrency(biMetrics.acumuladoReceitas - biMetrics.acumuladoDespesas)}</p>
+            <p className={`text-lg font-bold ${biMetrics.acumuladoReceitas - biMetrics.acumuladoDespesas >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{formatCurrency(biMetrics.acumuladoReceitas - biMetrics.acumuladoDespesas)}</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">{format(new Date(), 'MMMM', { locale: ptBR }).replace(/^\w/, c => c.toUpperCase())}</p>
           </CardContent>
         </Card>
@@ -1029,9 +1029,10 @@ export default function Transactions() {
       ) : (
         <Card className="bg-card border-border/50 overflow-hidden">
           <CardContent className="p-0">
-            <div className="max-h-[70vh] overflow-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div className="table-scroll-container max-h-[70vh] overflow-auto w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
+              <div className="min-w-[720px]">
               {/* Table Header */}
-              <div className="grid grid-cols-[40px_1fr_1fr_110px_110px_110px_90px_110px_110px_90px] gap-3 px-4 py-2 bg-card border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 z-10">
+              <div className="grid grid-cols-[40px_1fr_1fr_88px_88px_88px_90px_110px_110px_90px] gap-3 px-4 py-2 bg-card border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 z-10">
                 <div className="flex items-center justify-center">
                   <Checkbox checked={selectedIds.size === transactions.length && transactions.length > 0} onCheckedChange={toggleSelectAll} />
                 </div>
@@ -1103,21 +1104,14 @@ export default function Transactions() {
                   {transactions.map(transaction => {
                     const isOverdue = !isEffectivelyPaid(transaction) && transaction.due_date && transaction.due_date < new Date().toISOString().split('T')[0];
                     return (
-                      <div key={transaction.id} className={`grid grid-cols-[40px_1fr_1fr_110px_110px_110px_90px_110px_110px_90px] gap-3 px-4 py-3 hover:bg-muted/30 transition-colors items-center ${selectedIds.has(transaction.id) ? 'bg-primary/10 border-l-2 border-l-primary' : ''}`}>
+                      <div key={transaction.id} className={`grid grid-cols-[40px_1fr_1fr_88px_88px_88px_90px_110px_110px_90px] gap-3 px-4 py-[10px] hover:bg-muted/30 transition-colors items-center ${selectedIds.has(transaction.id) ? 'bg-primary/10 border-l-2 border-l-primary' : ''}`}>
                         <div className="flex items-center justify-center">
-                          <Checkbox checked={selectedIds.has(transaction.id)} onCheckedChange={() => toggleSelect(transaction.id)} />
+                          <Checkbox checked={selectedIds.has(transaction.id)} onCheckedChange={() => toggleSelect(transaction.id)} className="h-[18px] w-[18px]" />
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <Tooltip><TooltipTrigger asChild><span className="truncate text-sm font-semibold text-foreground">{transaction.contact?.name ?? transaction.description}</span></TooltipTrigger><TooltipContent side="top" className="apple-tooltip"><p>{transaction.contact?.name ?? transaction.description}</p></TooltipContent></Tooltip>
                             {isOverdue && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-500 border border-red-500/40 whitespace-nowrap shrink-0">Vencido</span>}
-                          </div>
-                          <div className="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground">
-                            {transaction.bank && <span>{transaction.bank.name}</span>}
-                            {transaction.bank && <span className="text-muted-foreground/40">•</span>}
-                            <span className={transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'}>
-                              {transaction.type === 'receita' ? 'Receita' : 'Despesa'}
-                            </span>
                           </div>
                         </div>
                         <div className="min-w-0 flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -1130,16 +1124,16 @@ export default function Transactions() {
                             <span>—</span>
                           )}
                         </div>
-                        <div className="text-center text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.due_date)}</div>
-                        <div className="text-center text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.expected_date)}</div>
-                        <div className="text-center text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.date)}</div>
+                        <div className="text-center text-[12px] font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.due_date)}</div>
+                        <div className="text-center text-[12px] font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.expected_date)}</div>
+                        <div className="text-center text-[12px] font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.date)}</div>
                         <div className="flex justify-center">
                           {(() => {
                             const effectivelyPaid = isEffectivelyPaid(transaction);
                             return (
                               <button
                                 onClick={() => togglePaid.mutate({ id: transaction.id, is_paid: !effectivelyPaid })}
-                                className={`text-[10px] font-semibold px-2 py-1 rounded-full border transition-all cursor-pointer whitespace-nowrap ${
+                                className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border transition-all cursor-pointer whitespace-nowrap ${
                                   effectivelyPaid ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-amber-500 text-amber-500 bg-transparent hover:bg-amber-500/10'
                                 }`}>
                                 {effectivelyPaid ? 'Pago' : 'Pendente'}
@@ -1147,24 +1141,25 @@ export default function Transactions() {
                             );
                           })()}
                         </div>
-                        <div className={`text-right font-bold text-sm tabular-nums ${transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'}`}>
+                        <div className={`text-right font-bold text-[13px] tabular-nums min-w-[110px] ${transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'}`}>
                           {transaction.type === 'receita' ? '+' : '-'}{formatCurrency(Number(transaction.amount))}
                         </div>
-                        <div className={`text-right text-sm tabular-nums ${isEffectivelyPaid(transaction) && transaction.paid_amount != null ? (transaction.type === 'receita' ? 'text-emerald-500 font-bold' : 'text-red-500 font-bold') : 'text-muted-foreground'}`}>
+                        <div className={`text-right text-[13px] tabular-nums min-w-[110px] ${isEffectivelyPaid(transaction) && transaction.paid_amount != null ? (transaction.type === 'receita' ? 'text-emerald-500 font-bold' : 'text-red-500 font-bold') : 'text-muted-foreground'}`}>
                           {isEffectivelyPaid(transaction) && transaction.paid_amount != null
                             ? `${transaction.type === 'receita' ? '+' : '-'}${formatCurrency(Number(transaction.paid_amount))}`
                             : '—'}
                         </div>
-                        <div className="flex gap-0.5 justify-center">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted" onClick={() => handleEdit(transaction)}><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-emerald-500/10" onClick={() => handleSettle(transaction)}><CircleDollarSign className="w-3.5 h-3.5 text-emerald-500" /></Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteId(transaction.id)}><Trash2 className="w-3.5 h-3.5 text-destructive" /></Button>
+                        <div className="flex gap-1.5 justify-center">
+                          <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-muted" onClick={() => handleEdit(transaction)}><Pencil className="w-4 h-4 text-muted-foreground" /></Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-emerald-500/10" onClick={() => handleSettle(transaction)}><CircleDollarSign className="w-4 h-4 text-emerald-500" /></Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-destructive/10" onClick={() => setDeleteId(transaction.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
                         </div>
                       </div>
                     );
                   })}
                 </div>
               )}
+              </div>
             </div>
 
             {/* Pagination */}
