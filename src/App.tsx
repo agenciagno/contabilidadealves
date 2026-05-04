@@ -40,6 +40,8 @@ const App = () => (
         <TooltipProvider>
           <Toaster />
           <Sonner />
+          <PwaUpdateBanner />
+          <PwaInstallBanner />
           <BrowserRouter>
             <NotificationProvider>
               <Routes>
