@@ -24,6 +24,7 @@ interface Category {
   name: string;
   color: string | null;
   type: string;
+  parent_id?: string | null;
 }
 
 interface CashFlowReportModalProps {
@@ -82,6 +83,7 @@ export function CashFlowReportModal({
   const currentMonth = nowDate.getMonth(); // 0..11
   const [monthlyYear, setMonthlyYear] = useState<number>(currentYear);
   const [monthlyStatus, setMonthlyStatus] = useState<'paid' | 'pending'>('pending');
+  const [monthlyVersion, setMonthlyVersion] = useState<'resumida' | 'completa'>('resumida');
   const [monthlySelectedCategories, setMonthlySelectedCategories] = useState<Set<string>>(new Set());
   const [monthlyCategorySearch, setMonthlyCategorySearch] = useState('');
   const [monthlyMonths, setMonthlyMonths] = useState<Set<number>>(() => {
@@ -118,6 +120,7 @@ export function CashFlowReportModal({
       setMonthlyYear(currentYear);
       setMonthlyStatus('pending');
       setMonthlySelectedCategories(new Set());
+      setMonthlyVersion('resumida');
       setMonthlyMonths(autoFillMonths('pending', currentYear));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -270,6 +273,129 @@ export function CashFlowReportModal({
     }
     return { events, colTotals, grand };
   }, [transactions, monthlyYear, monthlyStatus, monthlySelectedCategories, sortedSelectedMonths]);
+
+  // ─── Hierarchical matrix for "Versão Completa" ────────────────────
+  type HierarchicalEvent = {
+    macroName: string;
+    macroColor: string | null;
+    monthly: number[];
+    total: number;
+    children: { name: string; color: string | null; monthly: number[]; total: number }[];
+  };
+
+  const monthlyHierarchicalMatrix = useMemo(() => {
+    if (monthlyVersion !== 'completa') return { groups: [] as HierarchicalEvent[], colTotals: Array(12).fill(0) as number[], grand: 0 };
+
+    const isPaid = monthlyStatus === 'paid';
+    const rows = transactions.filter(t => {
+      if (t.is_paid !== isPaid) return false;
+      const ref = isPaid ? t.date : t.expected_date;
+      if (!ref) return false;
+      if (parseInt(ref.slice(0, 4), 10) !== monthlyYear) return false;
+      if (monthlySelectedCategories.size > 0 && !monthlySelectedCategories.has(t.category_id)) return false;
+      return true;
+    });
+
+    // Build category lookup
+    const catMap = new Map(categories.map(c => [c.id, c]));
+    // Build parent set (categories that are parents of other categories)
+    const parentIds = new Set(categories.filter(c => c.parent_id).map(c => c.parent_id!));
+
+    // Aggregate by category_id
+    const byCatId = new Map<string, { monthly: number[]; total: number }>();
+    for (const t of rows) {
+      const ref = isPaid ? t.date : t.expected_date;
+      if (!ref) continue;
+      const month = parseInt(ref.slice(5, 7), 10) - 1;
+      if (!sortedSelectedMonths.includes(month)) continue;
+      const catId = t.category_id || '__none__';
+      const cur = byCatId.get(catId) || { monthly: Array(12).fill(0), total: 0 };
+      const amt = Number(isPaid ? (t.paid_amount ?? t.amount) : t.amount);
+      const signed = t.type === 'receita' ? amt : -amt;
+      cur.monthly[month] += signed;
+      cur.total += signed;
+      byCatId.set(catId, cur);
+    }
+
+    // Group into macro → children
+    const macroMap = new Map<string, HierarchicalEvent>();
+
+    for (const [catId, data] of byCatId) {
+      if (Math.abs(data.total) < 0.0001 && data.monthly.every(v => Math.abs(v) < 0.0001)) continue;
+
+      const cat = catId !== '__none__' ? catMap.get(catId) : null;
+      const catName = cat?.name || 'Sem evento';
+      const catColor = cat?.color ?? null;
+
+      if (!cat) {
+        // No category — standalone macro
+        const key = '__none__';
+        const existing = macroMap.get(key) || { macroName: 'Sem evento', macroColor: null, monthly: Array(12).fill(0), total: 0, children: [] };
+        for (let i = 0; i < 12; i++) existing.monthly[i] += data.monthly[i];
+        existing.total += data.total;
+        macroMap.set(key, existing);
+      } else if (cat.parent_id) {
+        // Child category → group under parent
+        const parent = catMap.get(cat.parent_id);
+        const macroKey = cat.parent_id;
+        const existing = macroMap.get(macroKey) || {
+          macroName: parent?.name || 'Macro desconhecido',
+          macroColor: parent?.color ?? null,
+          monthly: Array(12).fill(0),
+          total: 0,
+          children: [],
+        };
+        for (let i = 0; i < 12; i++) existing.monthly[i] += data.monthly[i];
+        existing.total += data.total;
+        existing.children.push({ name: catName, color: catColor, monthly: [...data.monthly], total: data.total });
+        macroMap.set(macroKey, existing);
+      } else if (parentIds.has(catId)) {
+        // This is a parent category — could have transactions directly on it
+        const existing = macroMap.get(catId) || {
+          macroName: catName,
+          macroColor: catColor,
+          monthly: Array(12).fill(0),
+          total: 0,
+          children: [],
+        };
+        for (let i = 0; i < 12; i++) existing.monthly[i] += data.monthly[i];
+        existing.total += data.total;
+        // Add as a "(Direto)" child
+        existing.children.push({ name: `${catName} (Direto)`, color: catColor, monthly: [...data.monthly], total: data.total });
+        macroMap.set(catId, existing);
+      } else {
+        // Standalone category (no parent, not a parent) — treat as its own macro
+        const existing = macroMap.get(catId) || {
+          macroName: catName,
+          macroColor: catColor,
+          monthly: Array(12).fill(0),
+          total: 0,
+          children: [],
+        };
+        for (let i = 0; i < 12; i++) existing.monthly[i] += data.monthly[i];
+        existing.total += data.total;
+        macroMap.set(catId, existing);
+      }
+    }
+
+    const groups = Array.from(macroMap.values())
+      .filter(g => Math.abs(g.total) > 0.0001)
+      .sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
+
+    // Sort children within each group
+    for (const g of groups) {
+      g.children.sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
+    }
+
+    const colTotals: number[] = Array(12).fill(0);
+    let grand = 0;
+    for (const g of groups) {
+      for (const m of sortedSelectedMonths) colTotals[m] += g.monthly[m];
+      grand += g.total;
+    }
+
+    return { groups, colTotals, grand };
+  }, [monthlyVersion, transactions, monthlyYear, monthlyStatus, monthlySelectedCategories, sortedSelectedMonths, categories]);
 
   const monthlyCategoryLabel = useMemo(() => {
     if (monthlySelectedCategories.size === 0) return 'Todas';
@@ -697,16 +823,37 @@ export function CashFlowReportModal({
 
     const fmt = useCompact ? fmtCompact : fmtFull;
     const head = [['Evento', ...sortedSelectedMonths.map(m => MONTHS_PT[m]), 'TOTAL']];
-    const body = monthlyMatrix.events.map(e => [
-      e.name,
-      ...sortedSelectedMonths.map(m => fmt(e.monthly[m])),
-      fmt(e.total),
-    ]);
-    const foot = [[
-      'TOTAL',
-      ...sortedSelectedMonths.map(m => fmt(monthlyMatrix.colTotals[m])),
-      fmt(monthlyMatrix.grand),
-    ]];
+
+    // Build body rows based on version
+    let body: string[][];
+    let foot: string[][];
+    const rowMeta: { isMacro?: boolean }[] = [];
+
+    if (monthlyVersion === 'completa') {
+      body = [];
+      for (const g of monthlyHierarchicalMatrix.groups) {
+        // Macro row
+        body.push([g.macroName, ...sortedSelectedMonths.map(m => fmt(g.monthly[m])), fmt(g.total)]);
+        rowMeta.push({ isMacro: true });
+        // Children
+        for (const c of g.children) {
+          body.push([`  ↳ ${c.name}`, ...sortedSelectedMonths.map(m => fmt(c.monthly[m])), fmt(c.total)]);
+          rowMeta.push({});
+        }
+      }
+      foot = [['TOTAL', ...sortedSelectedMonths.map(m => fmt(monthlyHierarchicalMatrix.colTotals[m])), fmt(monthlyHierarchicalMatrix.grand)]];
+    } else {
+      body = monthlyMatrix.events.map(e => [
+        e.name,
+        ...sortedSelectedMonths.map(m => fmt(e.monthly[m])),
+        fmt(e.total),
+      ]);
+      foot = [[
+        'TOTAL',
+        ...sortedSelectedMonths.map(m => fmt(monthlyMatrix.colTotals[m])),
+        fmt(monthlyMatrix.grand),
+      ]];
+    }
 
     const colStyles: Record<number, any> = {
       0: { cellWidth: eventW, halign: 'left', overflow: 'linebreak' },
@@ -725,6 +872,19 @@ export function CashFlowReportModal({
       footStyles: { fillColor: [230, 230, 230], textColor: 0, fontStyle: 'bold', overflow: 'visible' },
       alternateRowStyles: { fillColor: [248, 248, 248] },
       columnStyles: colStyles,
+      didDrawCell: monthlyVersion === 'completa' ? (data) => {
+        if (data.section === 'body' && rowMeta[data.row.index]?.isMacro) {
+          doc.setFillColor(235, 235, 240);
+          doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(40, 40, 40);
+          doc.setFontSize(chosenFont);
+          const text = String(data.cell.raw || '');
+          const textX = data.column.index === 0 ? data.cell.x + 2 : data.cell.x + data.cell.width - 2;
+          const textAlign = data.column.index === 0 ? 'left' : 'right';
+          doc.text(text, textX, data.cell.y + data.cell.height / 2 + 1, { align: textAlign as any });
+        }
+      } : undefined,
       didDrawPage: (data) => {
         const pageCount = (doc as any).internal.getNumberOfPages();
         const pageHeight = doc.internal.pageSize.height;
@@ -747,10 +907,24 @@ export function CashFlowReportModal({
       <tr><td colspan="${headers.length}">Ano: ${monthlyYear} • Status: ${monthlyStatusLabel} • Evento: ${monthlyCategoryLabel}</td></tr>
       <tr><td colspan="${headers.length}"></td></tr>
     `;
-    const rows = monthlyMatrix.events.map(e =>
-      `<tr><td>${e.name}</td>${sortedSelectedMonths.map(m => `<td>${e.monthly[m].toFixed(2).replace('.', ',')}</td>`).join('')}<td>${e.total.toFixed(2).replace('.', ',')}</td></tr>`
-    ).join('');
-    const totalRow = `<tr><td><b>TOTAL</b></td>${sortedSelectedMonths.map(m => `<td><b>${monthlyMatrix.colTotals[m].toFixed(2).replace('.', ',')}</b></td>`).join('')}<td><b>${monthlyMatrix.grand.toFixed(2).replace('.', ',')}</b></td></tr>`;
+    let rows: string;
+    let totalRow: string;
+    if (monthlyVersion === 'completa') {
+      const rowParts: string[] = [];
+      for (const g of monthlyHierarchicalMatrix.groups) {
+        rowParts.push(`<tr style="background:#EBEBF0;font-weight:bold"><td>${g.macroName}</td>${sortedSelectedMonths.map(m => `<td>${g.monthly[m].toFixed(2).replace('.', ',')}</td>`).join('')}<td>${g.total.toFixed(2).replace('.', ',')}</td></tr>`);
+        for (const c of g.children) {
+          rowParts.push(`<tr><td>  ↳ ${c.name}</td>${sortedSelectedMonths.map(m => `<td>${c.monthly[m].toFixed(2).replace('.', ',')}</td>`).join('')}<td>${c.total.toFixed(2).replace('.', ',')}</td></tr>`);
+        }
+      }
+      rows = rowParts.join('');
+      totalRow = `<tr><td><b>TOTAL</b></td>${sortedSelectedMonths.map(m => `<td><b>${monthlyHierarchicalMatrix.colTotals[m].toFixed(2).replace('.', ',')}</b></td>`).join('')}<td><b>${monthlyHierarchicalMatrix.grand.toFixed(2).replace('.', ',')}</b></td></tr>`;
+    } else {
+      rows = monthlyMatrix.events.map(e =>
+        `<tr><td>${e.name}</td>${sortedSelectedMonths.map(m => `<td>${e.monthly[m].toFixed(2).replace('.', ',')}</td>`).join('')}<td>${e.total.toFixed(2).replace('.', ',')}</td></tr>`
+      ).join('');
+      totalRow = `<tr><td><b>TOTAL</b></td>${sortedSelectedMonths.map(m => `<td><b>${monthlyMatrix.colTotals[m].toFixed(2).replace('.', ',')}</b></td>`).join('')}<td><b>${monthlyMatrix.grand.toFixed(2).replace('.', ',')}</b></td></tr>`;
+    }
     const table = `<table>${meta}<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>${rows}${totalRow}</table>`;
     const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body>${table}</body></html>`;
     const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
@@ -771,16 +945,41 @@ export function CashFlowReportModal({
       `Evento Contábil: ${monthlyCategoryLabel}`,
       '',
     ];
-    const rows = monthlyMatrix.events.map(e => [
-      `"${e.name.replace(/"/g, '""')}"`,
-      ...sortedSelectedMonths.map(m => e.monthly[m].toFixed(2).replace('.', ',')),
-      e.total.toFixed(2).replace('.', ','),
-    ].join(';'));
-    const totalRow = [
-      'TOTAL',
-      ...sortedSelectedMonths.map(m => monthlyMatrix.colTotals[m].toFixed(2).replace('.', ',')),
-      monthlyMatrix.grand.toFixed(2).replace('.', ','),
-    ].join(';');
+    let rows: string[];
+    let totalRow: string;
+    if (monthlyVersion === 'completa') {
+      rows = [];
+      for (const g of monthlyHierarchicalMatrix.groups) {
+        rows.push([
+          `"${g.macroName.replace(/"/g, '""')}"`,
+          ...sortedSelectedMonths.map(m => g.monthly[m].toFixed(2).replace('.', ',')),
+          g.total.toFixed(2).replace('.', ','),
+        ].join(';'));
+        for (const c of g.children) {
+          rows.push([
+            `"  ↳ ${c.name.replace(/"/g, '""')}"`,
+            ...sortedSelectedMonths.map(m => c.monthly[m].toFixed(2).replace('.', ',')),
+            c.total.toFixed(2).replace('.', ','),
+          ].join(';'));
+        }
+      }
+      totalRow = [
+        'TOTAL',
+        ...sortedSelectedMonths.map(m => monthlyHierarchicalMatrix.colTotals[m].toFixed(2).replace('.', ',')),
+        monthlyHierarchicalMatrix.grand.toFixed(2).replace('.', ','),
+      ].join(';');
+    } else {
+      rows = monthlyMatrix.events.map(e => [
+        `"${e.name.replace(/"/g, '""')}"`,
+        ...sortedSelectedMonths.map(m => e.monthly[m].toFixed(2).replace('.', ',')),
+        e.total.toFixed(2).replace('.', ','),
+      ].join(';'));
+      totalRow = [
+        'TOTAL',
+        ...sortedSelectedMonths.map(m => monthlyMatrix.colTotals[m].toFixed(2).replace('.', ',')),
+        monthlyMatrix.grand.toFixed(2).replace('.', ','),
+      ].join(';');
+    }
     const csv = [...meta, headers.join(';'), ...rows, totalRow].join('\r\n');
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -1068,11 +1267,33 @@ export function CashFlowReportModal({
                 </Popover>
               </div>
 
+              {/* Version toggle */}
+              <div>
+                <Label className="text-sm font-semibold mb-2 block">Versão do Relatório</Label>
+                <ToggleGroup
+                  type="single"
+                  value={monthlyVersion}
+                  onValueChange={(v) => v && setMonthlyVersion(v as 'resumida' | 'completa')}
+                  className="bg-muted/50 rounded-md p-1 w-full"
+                >
+                  <ToggleGroupItem value="resumida" className="flex-1 px-4 data-[state=on]:bg-background data-[state=on]:shadow-sm text-xs">
+                    Versão Resumida
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="completa" className="flex-1 px-4 data-[state=on]:bg-background data-[state=on]:shadow-sm text-xs">
+                    Versão Completa
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              </div>
+
               {/* Preview summary */}
               <div className="rounded-lg border bg-muted/30 p-3 text-xs space-y-1">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Eventos com valor:</span>
-                  <span className="font-semibold">{monthlyMatrix.events.length}</span>
+                  <span className="font-semibold">
+                    {monthlyVersion === 'completa'
+                      ? `${monthlyHierarchicalMatrix.groups.length} macros`
+                      : monthlyMatrix.events.length}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Meses selecionados:</span>
@@ -1080,8 +1301,11 @@ export function CashFlowReportModal({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Total geral:</span>
-                  <span className={cn('font-semibold', monthlyMatrix.grand >= 0 ? 'text-green-600' : 'text-red-600')}>
-                    {formatCurrency(monthlyMatrix.grand)}
+                  <span className={cn('font-semibold',
+                    (monthlyVersion === 'completa' ? monthlyHierarchicalMatrix.grand : monthlyMatrix.grand) >= 0
+                      ? 'text-green-600' : 'text-red-600'
+                  )}>
+                    {formatCurrency(monthlyVersion === 'completa' ? monthlyHierarchicalMatrix.grand : monthlyMatrix.grand)}
                   </span>
                 </div>
               </div>

@@ -1,76 +1,55 @@
 
-# Plano: PWA Update Banner + Install Banner
+## Objetivo
 
-## Aviso importante
-O PWA com Service Worker **só funcionará na versão publicada** (contabilidadealves.lovable.app). No preview do editor Lovable, o Service Worker será desativado para evitar cache stale.
+Adicionar um toggle "Versão Resumida | Versão Completa" dentro da aba **Consulta Mensal** do modal `CashFlowReportModal`. A versão resumida mantém o comportamento atual (flat por categoria). A versão completa agrupa as categorias por hierarquia macro→filho, similar à visualização da DRE.
 
-## Etapas
+## Arquivo alterado
 
-### 1. Instalar dependência
-- `bun add vite-plugin-pwa`
+**`src/components/transactions/CashFlowReportModal.tsx`**
 
-### 2. Configurar VitePWA no `vite.config.ts`
-- Adicionar plugin `VitePWA` com:
-  - `registerType: "autoUpdate"`
-  - `devOptions: { enabled: false }` (desativado no dev/preview)
-  - `workbox.skipWaiting: true`, `clientsClaim: true`
-  - `workbox.navigateFallbackDenylist: [/^\/~oauth/]`
-  - `workbox.runtimeCaching` com `NetworkFirst` para navegações HTML
-  - `manifest: false` (usar o manifest.json existente em public/)
+## Mudanças
 
-### 3. Adicionar guard no `src/main.tsx`
-- Desregistrar Service Workers quando em iframe ou host de preview Lovable, evitando problemas no editor.
+### 1. Novo estado `monthlyVersion`
 
-### 4. Criar `src/components/PwaUpdateBanner.tsx`
-- Usa `useRegisterSW` de `virtual:pwa-register/react`
-- Quando `needRefresh` for true, exibe banner fixo na parte inferior
-- Botão "Atualizar" chama `updateServiceWorker(true)`
-- Botão X fecha o banner
-- Estilo conforme especificado (dark glass, blur, #0A84FF accent)
+Adicionar estado `monthlyVersion: 'resumida' | 'completa'` (default: `'resumida'`). Reset ao abrir o modal.
 
-### 5. Criar `src/components/PwaInstallBanner.tsx`
-- Captura o evento `beforeinstallprompt` (Android/Chrome)
-- Exibe banner convidando a instalar o app
-- Botão "Instalar" chama `prompt()` do evento capturado
-- Para iOS/Safari (onde `beforeinstallprompt` não existe), detecta via `navigator.standalone === false` em iOS e exibe instruções: "Toque em Compartilhar > Adicionar à Tela Inicial"
-- Botão X fecha o banner; salva flag no localStorage para não reexibir na mesma sessão
+### 2. Toggle na UI (dentro da seção `mode === 'monthly'`)
 
-### 6. Registrar no `src/App.tsx`
-- Importar e adicionar `<PwaUpdateBanner />` e `<PwaInstallBanner />` fora do Router, visíveis em todas as páginas.
+Adicionar um `ToggleGroup` com as opções "Versão Resumida" e "Versão Completa", posicionado logo abaixo do seletor de Evento Contábil.
 
-## Detalhes técnicos
+### 3. Dados hierárquicos (`monthlyMatrix`)
 
-### vite.config.ts (adições)
-```ts
-import { VitePWA } from "vite-plugin-pwa";
+Quando `monthlyVersion === 'completa'`, o `monthlyMatrix` será recalculado para agrupar por macro-evento (categorias com `parent_id === null`) e sub-eventos (categorias com `parent_id`). Cada entrada terá:
+- `name`: nome do macro-evento
+- `children`: array de sub-eventos com seus valores mensais
+- `monthly[]` e `total`: soma dos filhos
 
-// Dentro do array plugins:
-VitePWA({
-  registerType: "autoUpdate",
-  devOptions: { enabled: false },
-  manifest: false,
-  workbox: {
-    skipWaiting: true,
-    clientsClaim: true,
-    navigateFallbackDenylist: [/^\/~oauth/],
-    runtimeCaching: [
-      {
-        urlPattern: ({ request }) => request.mode === "navigate",
-        handler: "NetworkFirst",
-        options: { cacheName: "html", networkTimeoutSeconds: 3 },
-      },
-    ],
-  },
-})
-```
+Categorias filtradas: se o usuário selecionou eventos específicos, mostrar apenas os macros que contêm esses sub-eventos selecionados (e apenas os sub-eventos filtrados dentro deles).
 
-### Arquivos criados/editados
-| Arquivo | Ação |
-|---|---|
-| `vite.config.ts` | Editado — adiciona VitePWA plugin |
-| `src/main.tsx` | Editado — guard contra SW em iframe/preview |
-| `src/components/PwaUpdateBanner.tsx` | Criado |
-| `src/components/PwaInstallBanner.tsx` | Criado |
-| `src/App.tsx` | Editado — adiciona os dois banners |
+A prop `categories` já está disponível no componente e contém `parent_id` para montar a hierarquia.
 
-Nenhuma tela, rota ou funcionalidade existente será alterada.
+### 4. Preview summary na UI
+
+Na versão completa, o bloco de preview mostrará a contagem de macro-eventos e sub-eventos, em vez da contagem flat.
+
+### 5. Exportação PDF (`exportMonthlyPDF`)
+
+Na versão completa:
+- Linhas de macro-evento em negrito com fundo cinza claro
+- Sub-eventos indentados com prefixo "↳" (similar à DRE)
+- Totais por macro antes do próximo grupo
+- Linha final TOTAL GERAL
+
+### 6. Exportação XLS e CSV (`exportMonthlyXLS`, `exportMonthlyCSV`)
+
+Na versão completa:
+- Linhas de macro-evento em negrito
+- Sub-eventos com indentação textual ("  ↳ Nome")
+- Mesma estrutura hierárquica
+
+### Detalhes técnicos
+
+- A hierarquia é derivada de `categories[].parent_id`. Categorias sem `parent_id` são macros; as com `parent_id` são filhas.
+- Categorias que não têm pai e não são pais de ninguém aparecem como macros standalone.
+- Nenhuma rota, hook, query, tabela ou lógica de negócio será alterada.
+- Nenhuma tela existente será modificada fora deste modal.
