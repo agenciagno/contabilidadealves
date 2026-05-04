@@ -907,10 +907,24 @@ export function CashFlowReportModal({
       <tr><td colspan="${headers.length}">Ano: ${monthlyYear} • Status: ${monthlyStatusLabel} • Evento: ${monthlyCategoryLabel}</td></tr>
       <tr><td colspan="${headers.length}"></td></tr>
     `;
-    const rows = monthlyMatrix.events.map(e =>
-      `<tr><td>${e.name}</td>${sortedSelectedMonths.map(m => `<td>${e.monthly[m].toFixed(2).replace('.', ',')}</td>`).join('')}<td>${e.total.toFixed(2).replace('.', ',')}</td></tr>`
-    ).join('');
-    const totalRow = `<tr><td><b>TOTAL</b></td>${sortedSelectedMonths.map(m => `<td><b>${monthlyMatrix.colTotals[m].toFixed(2).replace('.', ',')}</b></td>`).join('')}<td><b>${monthlyMatrix.grand.toFixed(2).replace('.', ',')}</b></td></tr>`;
+    let rows: string;
+    let totalRow: string;
+    if (monthlyVersion === 'completa') {
+      const rowParts: string[] = [];
+      for (const g of monthlyHierarchicalMatrix.groups) {
+        rowParts.push(`<tr style="background:#EBEBF0;font-weight:bold"><td>${g.macroName}</td>${sortedSelectedMonths.map(m => `<td>${g.monthly[m].toFixed(2).replace('.', ',')}</td>`).join('')}<td>${g.total.toFixed(2).replace('.', ',')}</td></tr>`);
+        for (const c of g.children) {
+          rowParts.push(`<tr><td>  ↳ ${c.name}</td>${sortedSelectedMonths.map(m => `<td>${c.monthly[m].toFixed(2).replace('.', ',')}</td>`).join('')}<td>${c.total.toFixed(2).replace('.', ',')}</td></tr>`);
+        }
+      }
+      rows = rowParts.join('');
+      totalRow = `<tr><td><b>TOTAL</b></td>${sortedSelectedMonths.map(m => `<td><b>${monthlyHierarchicalMatrix.colTotals[m].toFixed(2).replace('.', ',')}</b></td>`).join('')}<td><b>${monthlyHierarchicalMatrix.grand.toFixed(2).replace('.', ',')}</b></td></tr>`;
+    } else {
+      rows = monthlyMatrix.events.map(e =>
+        `<tr><td>${e.name}</td>${sortedSelectedMonths.map(m => `<td>${e.monthly[m].toFixed(2).replace('.', ',')}</td>`).join('')}<td>${e.total.toFixed(2).replace('.', ',')}</td></tr>`
+      ).join('');
+      totalRow = `<tr><td><b>TOTAL</b></td>${sortedSelectedMonths.map(m => `<td><b>${monthlyMatrix.colTotals[m].toFixed(2).replace('.', ',')}</b></td>`).join('')}<td><b>${monthlyMatrix.grand.toFixed(2).replace('.', ',')}</b></td></tr>`;
+    }
     const table = `<table>${meta}<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>${rows}${totalRow}</table>`;
     const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body>${table}</body></html>`;
     const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
