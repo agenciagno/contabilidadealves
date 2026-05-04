@@ -1,22 +1,9 @@
-## Atualização Visual da Tela de Login
+## Alterações no index.html
 
-Alterações exclusivamente visuais em `src/pages/Auth.tsx`:
+Duas mudanças simples no `index.html`:
 
-### 1. Logo
-- Remover o ícone `Building2` e o texto genérico do topo
-- Substituir por `<img src="/Contabilidade_Alves_Branco.svg" />` com width 220px e margin-bottom 32px
+1. **Título da aba**: Alterar `<title>Lovable App</title>` para `<title>Contabilidade Alves</title>`. Também atualizar o `og:title` para consistência.
 
-### 2. Toggle Ver/Ocultar Senha
-- Adicionar `useState` para `showPassword`
-- Alternar `type` do input entre `password` e `text`
-- Botão com ícones `Eye`/`EyeOff` do lucide-react, posicionado à direita dentro do campo (absolute)
-- Sem borda/background, opacity 0.5 padrão e 1 no hover
+2. **Favicon**: Adicionar `<link rel="icon" type="image/png" href="/favicon.png" />` no `<head>`. Remover o `public/favicon.ico` existente (já removido). O `public/favicon.png` já foi gerado a partir da imagem de perfil enviada (64x64).
 
-### 3. Tokens do Design System no Card
-- Card: `background: var(--apple-mat-card)`, `backdrop-filter: blur(20px)`, `border: 1px solid var(--apple-border-hair)`, `border-radius: var(--r-xl)`
-- Inputs: `background: var(--apple-bg-base)`, `border: var(--apple-border-hair)`, `color: var(--apple-text-primary)`
-- Botão primário: `background: var(--apple-blue)`, `border-radius: var(--r-pill)`
-- Labels e texto secundário: `color: var(--apple-text-secondary)`
-- Fundo da página: `var(--apple-bg-base)`
-
-Nenhuma lógica de autenticação, validação ou rota será alterada.
+Nenhuma outra alteração no arquivo.
