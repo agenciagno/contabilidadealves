@@ -1032,24 +1032,21 @@ export default function Transactions() {
           <CardContent className="p-0">
             <div className="max-h-[70vh] overflow-auto">
               {/* Table Header */}
-              <div className="grid grid-cols-[40px_100px_1fr_110px_110px_110px_90px_110px_110px_90px] gap-3 px-4 py-2 bg-card border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 z-10">
+              <div className="grid grid-cols-[40px_1fr_1fr_110px_110px_110px_90px_110px_110px_90px] gap-3 px-4 py-2 bg-card border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 z-10">
                 <div className="flex items-center justify-center">
                   <Checkbox checked={selectedIds.size === transactions.length && transactions.length > 0} onCheckedChange={toggleSelectAll} />
                 </div>
 
-                <div className="flex items-center gap-0.5">
-                  <span>Emissão</span>
-                  <Popover>
-                    <PopoverTrigger asChild><button className="p-1 rounded hover:bg-muted/60 transition-colors"><ColumnFilterIcon active={!!columnFilters.issue_date || !!columnFilters.issue_date_empty || sortField === 'issue_date'} /></button></PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.issue_date} onChange={v => updateColumnFilter('issue_date', v)} sortField="issue_date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} includeEmpty={!!columnFilters.issue_date_empty} onIncludeEmptyChange={v => updateColumnFilter('issue_date_empty', v || undefined)} /></PopoverContent>
-                  </Popover>
-                </div>
-
-                <ContactEventMultiFilter
+                <ContactColumnFilter
                   columnFilters={columnFilters}
                   setColumnFilters={setColumnFilters}
                   uniqueContactOptions={uniqueContactOptions}
-                  uniqueEventOptions={uniqueEventOptions}
+                />
+
+                <EventoContabilColumnFilter
+                  selected={categoryFilters}
+                  onChange={setCategoryFilters}
+                  categories={categoryOptions}
                 />
 
                 <div className="flex items-center justify-center gap-0.5">
