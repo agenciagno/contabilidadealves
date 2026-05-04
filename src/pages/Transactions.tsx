@@ -1045,7 +1045,7 @@ export default function Transactions() {
             <div ref={tableScrollRef} className="table-scroll-container max-h-[70vh] overflow-auto scrollbar-thin" style={{ WebkitOverflowScrolling: 'touch' }}>
               <div className="min-w-[1100px]">
               {/* Table Header */}
-              <div className="grid grid-cols-[40px_1fr_1fr_88px_88px_88px_90px_110px_110px_90px] gap-3 px-4 py-2 bg-card border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 z-10">
+              <div className="grid grid-cols-[40px_minmax(120px,1fr)_minmax(120px,1fr)_88px_88px_88px_80px_100px_100px_90px] gap-2 px-4 py-2 bg-card border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 z-10">
                 <div className="flex items-center justify-center">
                   <Checkbox checked={selectedIds.size === transactions.length && transactions.length > 0} onCheckedChange={toggleSelectAll} />
                 </div>
@@ -1117,7 +1117,7 @@ export default function Transactions() {
                   {transactions.map(transaction => {
                     const isOverdue = !isEffectivelyPaid(transaction) && transaction.due_date && transaction.due_date < new Date().toISOString().split('T')[0];
                     return (
-                      <div key={transaction.id} className={`grid grid-cols-[40px_1fr_1fr_88px_88px_88px_90px_110px_110px_90px] gap-3 px-4 py-[10px] hover:bg-muted/30 transition-colors items-center ${selectedIds.has(transaction.id) ? 'bg-primary/10 border-l-2 border-l-primary' : ''}`}>
+                      <div key={transaction.id} className={`grid grid-cols-[40px_minmax(120px,1fr)_minmax(120px,1fr)_88px_88px_88px_80px_100px_100px_90px] gap-2 px-4 py-[10px] hover:bg-muted/30 transition-colors items-center ${selectedIds.has(transaction.id) ? 'bg-primary/10 border-l-2 border-l-primary' : ''}`}>
                         <div className="flex items-center justify-center">
                           <Checkbox checked={selectedIds.has(transaction.id)} onCheckedChange={() => toggleSelect(transaction.id)} className="h-[18px] w-[18px]" />
                         </div>
