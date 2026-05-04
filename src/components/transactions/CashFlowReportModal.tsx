@@ -228,6 +228,21 @@ export function CashFlowReportModal({
     [monthlyMonths],
   );
 
+  // Expand selected categories to include children of any selected macro
+  const expandedSelectedCategories = useMemo(() => {
+    if (monthlySelectedCategories.size === 0) return monthlySelectedCategories;
+    const expanded = new Set(monthlySelectedCategories);
+    for (const selId of monthlySelectedCategories) {
+      // If selId is a macro (parent of other categories), add all its children
+      for (const cat of categories) {
+        if (cat.parent_id === selId) {
+          expanded.add(cat.id);
+        }
+      }
+    }
+    return expanded;
+  }, [monthlySelectedCategories, categories]);
+
   const monthlyMatrix = useMemo(() => {
     // Filter rows by year + status + category
     const isPaid = monthlyStatus === 'paid';
@@ -236,7 +251,7 @@ export function CashFlowReportModal({
       const ref = isPaid ? t.date : t.expected_date;
       if (!ref) return false;
       if (parseInt(ref.slice(0, 4), 10) !== monthlyYear) return false;
-      if (monthlySelectedCategories.size > 0 && !monthlySelectedCategories.has(t.category_id)) return false;
+      if (expandedSelectedCategories.size > 0 && !expandedSelectedCategories.has(t.category_id)) return false;
       return true;
     });
 
