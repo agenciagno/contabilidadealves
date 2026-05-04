@@ -504,7 +504,7 @@ export function TransactionFormDialog({
             </div>
 
             {/* Row 2: Evento Contábil | Conta/Banco */}
-            <div className="grid grid-cols-2 gap-3">
+<div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5">
                 <Label className="text-xs">Evento Contábil <span className="text-destructive">*</span></Label>
                 <Select value={categoryId} onValueChange={handleCategoryChange} disabled={structuralDisabled}>
@@ -548,7 +548,7 @@ export function TransactionFormDialog({
             </div>
 
             {/* Row 3: Datas — Linha 1: Emissão | Vencimento */}
-            <div className="grid grid-cols-2 gap-3">
+<div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5">
                 <Label className="text-xs">Emissão <span className="text-destructive">*</span></Label>
                 <Input type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} className="h-8 text-xs" disabled={isSettleMode} min="1900-01-01" max="9999-12-31" />
@@ -560,7 +560,7 @@ export function TransactionFormDialog({
             </div>
 
             {/* Row 4: Datas — Linha 2: Prevista | Pagamento */}
-            <div className="grid grid-cols-2 gap-3">
+<div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5">
                 <Label className="text-xs">Prevista {!isAVista && <span className="text-destructive">*</span>}</Label>
                 <Input type="date" value={expectedDate} onChange={e => setExpectedDate(e.target.value)} className="h-8 text-xs" disabled={isSettleMode} min="1900-01-01" max="9999-12-31" />
@@ -676,7 +676,7 @@ export function TransactionFormDialog({
             )}
 
             {/* Row 4: Anexo | Histórico side by side */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
                 <Label className="text-xs">Anexo</Label>
                 <div className={isSettleMode ? 'opacity-60 pointer-events-none' : ''}>
