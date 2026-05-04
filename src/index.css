@@ -356,9 +356,11 @@ h1, h2 {
   max-width: 100%;
 }
 
-/* Modals: constrain width on mobile */
-[role="dialog"]:not([data-mobile="true"]):not([data-sidebar]) {
-  max-width: min(480px, calc(100vw - 32px)) !important;
+/* Modals: constrain width on mobile only */
+@media (max-width: 639px) {
+  [role="dialog"]:not([data-mobile="true"]):not([data-sidebar]) {
+    max-width: calc(100vw - 32px) !important;
+  }
 }
 
 /* Kanban fade gradient indicator */
