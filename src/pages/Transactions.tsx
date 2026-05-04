@@ -573,7 +573,7 @@ function PaginationControls({ currentPage, totalPages, totalCount, onPageChange,
   };
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-t border-border/40">
+    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 py-3 border-t border-border/40 gap-2">
       <span className="text-xs text-muted-foreground">
         {totalCount} transação(ões) • Página {currentPage} de {totalPages}
       </span>
