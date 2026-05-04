@@ -1187,6 +1187,7 @@ export default function Transactions() {
         banks={banks}
         contacts={contacts}
         onSubmit={handleSubmit}
+        onBulkSubmit={async (items) => { await bulkCreateTransactions.mutateAsync(items); }}
         isLoading={createTransaction.isPending || updateTransaction.isPending}
         defaultType={defaultType}
         mode={dialogMode}
