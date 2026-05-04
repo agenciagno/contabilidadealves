@@ -1194,11 +1194,33 @@ export function CashFlowReportModal({
                 </Popover>
               </div>
 
+              {/* Version toggle */}
+              <div>
+                <Label className="text-sm font-semibold mb-2 block">Versão do Relatório</Label>
+                <ToggleGroup
+                  type="single"
+                  value={monthlyVersion}
+                  onValueChange={(v) => v && setMonthlyVersion(v as 'resumida' | 'completa')}
+                  className="bg-muted/50 rounded-md p-1 w-full"
+                >
+                  <ToggleGroupItem value="resumida" className="flex-1 px-4 data-[state=on]:bg-background data-[state=on]:shadow-sm text-xs">
+                    Versão Resumida
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="completa" className="flex-1 px-4 data-[state=on]:bg-background data-[state=on]:shadow-sm text-xs">
+                    Versão Completa
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              </div>
+
               {/* Preview summary */}
               <div className="rounded-lg border bg-muted/30 p-3 text-xs space-y-1">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Eventos com valor:</span>
-                  <span className="font-semibold">{monthlyMatrix.events.length}</span>
+                  <span className="font-semibold">
+                    {monthlyVersion === 'completa'
+                      ? `${monthlyHierarchicalMatrix.groups.length} macros`
+                      : monthlyMatrix.events.length}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Meses selecionados:</span>
@@ -1206,8 +1228,11 @@ export function CashFlowReportModal({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Total geral:</span>
-                  <span className={cn('font-semibold', monthlyMatrix.grand >= 0 ? 'text-green-600' : 'text-red-600')}>
-                    {formatCurrency(monthlyMatrix.grand)}
+                  <span className={cn('font-semibold',
+                    (monthlyVersion === 'completa' ? monthlyHierarchicalMatrix.grand : monthlyMatrix.grand) >= 0
+                      ? 'text-green-600' : 'text-red-600'
+                  )}>
+                    {formatCurrency(monthlyVersion === 'completa' ? monthlyHierarchicalMatrix.grand : monthlyMatrix.grand)}
                   </span>
                 </div>
               </div>
