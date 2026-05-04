@@ -208,7 +208,7 @@ export function AppSidebar() {
     return (
       <SidebarMenuItem key={shortcut.url}>
         <SidebarMenuButton asChild tooltip={shortcut.title}>
-          <NavLink 
+          <NavLink onClick={handleMobileNav}
             to={shortcut.url}
             className="flex items-center gap-2 pl-8 pr-3 py-1.5 rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors group text-sm"
             activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
@@ -237,7 +237,7 @@ export function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild tooltip={entry.title}>
-              <NavLink 
+              <NavLink onClick={handleMobileNav}
                 to={entry.url}
                 end={entry.url === '/'}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
@@ -273,7 +273,7 @@ export function AppSidebar() {
               {entry.items.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild tooltip={item.title}>
-                    <NavLink 
+                    <NavLink onClick={handleMobileNav}
                       to={item.url}
                       className="flex items-center gap-2 pl-8 pr-3 py-1.5 rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors group text-sm"
                       activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
@@ -348,7 +348,7 @@ export function AppSidebar() {
             {showSettings && (
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Configurações">
-                  <NavLink 
+                  <NavLink onClick={handleMobileNav}
                     to="/configuracoes"
                     className="flex items-center gap-3 px-3 py-2 rounded-lg text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
                     activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
