@@ -1,57 +1,59 @@
 
 ## Objetivo
 
-Alterar a tabela de Movimentações para a nova ordem de colunas:
+Adicionar um toggle "Recorrente / Parcelado" ao modal de Nova Transação em `/movimentacoes`. Quando ativado, permite configurar parcelas mensais e gera automaticamente N transações no banco de dados.
 
-**CLIENTE/FORNECEDOR | EVENTO CONTÁBIL | VENCIMENTO | PREVISTA | PAGAMENTO | STATUS | VALOR | RECEBIDO | AÇÕES**
+## Alterações
 
----
+### 1. Novo hook: `src/hooks/useInstallments.ts`
 
-## Alterações em `src/pages/Transactions.tsx`
+Hook utilitário que encapsula a lógica de geração de parcelas:
 
-### 1. Remover coluna "Emissão"
+- Função `generateInstallments(basePayload, count)`: recebe o payload base da transação e o número de parcelas, retorna array de `TransactionInsert[]` com datas incrementadas mês a mês.
+- Lógica de incremento: preserva o dia do mês base; se o dia não existir no mês destino (ex: 31 em fevereiro), usa o último dia do mês.
+- Parcela 1 = datas originais. Parcelas 2..N = +1, +2... meses sobre `due_date`, `expected_date` e `date` (se preenchido).
+- Função `calculateSummary(dueDate, mode, value)`: retorna `{ count, firstDate, lastDate }` para o resumo dinâmico.
 
-- Remover o cabeçalho "Emissão" com seu `DateColumnFilter` (linhas ~997-1003).
-- Remover a célula `issue_date` nas linhas de dados (linha ~1071).
-- Manter os filtros de `issue_date` no `ColumnFilters` interface (podem ser usados internamente), mas a coluna visual desaparece.
+### 2. Editar: `src/components/transactions/TransactionFormDialog.tsx`
 
-### 2. Renomear "Cliente / Evento" para "Cliente"
+**Novos estados:**
+- `isRecurring` (boolean, default false)
+- `endMode` ('parcelas' | 'data_final')
+- `installmentCount` (number)
+- `endDate` (string)
 
-- No componente `ContactEventMultiFilter`, alterar o label de `"Cliente / Evento"` para `"Cliente"`.
-- Remover a seção "Eventos (sem contato)" do filtro, mantendo apenas a listagem de Clientes/Fornecedores.
-- Remover `uniqueEventOptions`, `tempEvents`, `selectedEvents` e a lógica de `eventNames` desse componente.
+**UI — Toggle (após linha de datas, antes de Anexo/Histórico):**
+- Switch com label "Recorrente / Parcelado", visível apenas para novas transações (não em edição/liquidação).
+- Quando OFF: nenhum campo extra.
+- Quando ON: seção com borda sutil (`border rounded-md p-4 bg-muted/30`) contendo:
+  - RadioGroup: "Quantidade de Parcelas" / "Data Final"
+  - Input numérico (min=2) ou DatePicker conforme seleção
+  - Resumo dinâmico: "X parcelas · Primeira em DD/MM/AAAA · Última em DD/MM/AAAA"
+- Animação suave de entrada (transição de altura + opacidade).
+- Ao desativar: limpa todos os campos de recorrência.
 
-### 3. Remover informação de Evento Contábil da célula "Cliente"
+**Validação:**
+- Vencimento obrigatório quando toggle ativo.
+- Nº de parcelas >= 2.
+- Data final posterior ao mês do Vencimento base.
+- Botões "Salvar" / "Salvar e Fechar" bloqueados se campos de recorrência inválidos.
 
-- Na célula da coluna Cliente (linhas ~1072-1086), remover a exibição de `transaction.category.name` (o Evento Contábil que aparece abaixo do nome do cliente).
-- Manter apenas: nome do contato/descrição, badge "Vencido", banco e tipo (Receita/Despesa).
+**Lógica de salvamento:**
+- Quando toggle ativo: gera array de parcelas via `generateInstallments`.
+- Usa a mutation `bulkCreateTransactions` já existente no hook `useTransactions` (linha 310) para batch insert.
+- Toast de sucesso: "X transações criadas com sucesso."
+- Toast de erro em caso de falha.
+- Loading: desabilita botões durante o insert.
 
-### 4. Adicionar nova coluna "Evento Contábil"
+### 3. Editar: `src/pages/Transactions.tsx`
 
-- Inserir uma nova coluna entre "Cliente" e "Vencimento".
-- **Cabeçalho**: Criar um filtro multi-select idêntico ao filtro de "Cliente" (mesmo visual, com busca por texto, checkboxes, badge de contagem). Esse filtro usará a lista de `categories` e filtrará por `category_id`.
-- **Célula**: Exibir `transaction.category?.name` com a bolinha colorida (`transaction.category?.color`), ou "—" se vazio.
+- Expor `bulkCreateTransactions` do hook `useTransactions` no componente.
+- Passar como prop ou usar callback no `handleSubmit` para suportar o batch insert quando recorrência estiver ativa.
+- Alternativa: o `TransactionFormDialog` pode importar `useTransactions` diretamente para o bulk insert, mantendo a interface `onSubmit` existente para transações individuais.
 
-### 5. Atualizar grid template
+## Detalhes Técnicos
 
-- Alterar de `grid-cols-[40px_100px_1fr_110px_110px_110px_90px_110px_110px_90px]` (10 colunas) para `grid-cols-[40px_1fr_1fr_110px_110px_110px_90px_110px_110px_90px]` (10 colunas, mesma quantidade, substituindo Emissão por Evento Contábil).
-- Atualizar o grid no `TableSkeleton` da mesma forma.
-
-### 6. Filtro da coluna "Evento Contábil"
-
-- Reutilizar a mesma estrutura do filtro de Cliente (Popover com search input, checkboxes multi-select, badge de contagem, botão limpar).
-- O filtro já existe como `CategoryMultiFilter` na toolbar — a lógica será replicada inline no cabeçalho da coluna, usando `categoryIds` no `columnFilters`.
-- Alternativamente, criar um componente `EventoContabilColumnFilter` seguindo exatamente o padrão visual do `ContactEventMultiFilter` (agora apenas "Cliente"), mas listando categorias em vez de contatos.
-
----
-
-## Componentes afetados
-
-- **`src/pages/Transactions.tsx`** — único arquivo modificado
-
-## O que NÃO muda
-
-- Nenhuma lógica de dados, queries, mutations, KPIs ou hooks
-- Nenhum outro filtro (banco, tipo, status, datas, valores)
-- Nenhuma outra página ou componente
-- Dark theme e padrão visual mantidos
+- O incremento de meses usará a API nativa de `Date` com tratamento de overflow de dias (ex: `new Date(2026, month, 0).getDate()` para último dia do mês).
+- A seção de recorrência será envolta em um `div` com `overflow-hidden` e transição CSS para animação suave.
+- O toggle só aparece em modo criação (não em edição ou liquidação).
+- Nenhum campo existente será alterado.
