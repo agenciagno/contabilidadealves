@@ -1,24 +1,18 @@
-## Problema
-
-Quando o usuário seleciona um **Evento Macro** (ex: "Receitas Operacionais") no filtro de categorias, a Versão Completa não mostra nenhum dado porque:
-
-1. As transações estão vinculadas ao **category_id do evento filho** (ex: "Honorários Contábeis")
-2. O filtro na linha 295 verifica `monthlySelectedCategories.has(t.category_id)` — compara diretamente com o ID do macro selecionado
-3. Como `t.category_id` aponta para o filho, a comparação falha e todas as transações são excluídas
-
-A Versão Resumida tem o mesmo filtro (linha 239) mas funciona porque agrupa por nome da categoria — mesmo que tecnicamente o filtro deveria ter o mesmo problema, o comportamento observado sugere que as transações estão diretamente no macro ou o usuário selecionou o filho.
-
-## Correção
-
-No `monthlyHierarchicalMatrix` (e também no `monthlyMatrix` para consistência), expandir o filtro de categorias selecionadas para incluir os filhos de qualquer macro selecionado:
+## Correção da tipografia dos Eventos Filho no PDF
 
 ### Arquivo: `src/components/transactions/CashFlowReportModal.tsx`
 
-1. **Criar um Set expandido de IDs** — antes do filtro de transações em ambos os `useMemo` (`monthlyMatrix` e `monthlyHierarchicalMatrix`):
-   - Para cada ID em `monthlySelectedCategories`, verificar se é um macro (tem filhos em `categories`)
-   - Se for macro, adicionar todos os IDs dos filhos ao Set expandido
-   - Usar esse Set expandido no lugar de `monthlySelectedCategories` no filtro
+### Mudanças
 
-2. **Atualizar o filtro na linha 239** (resumida) e **linha 295** (completa) para usar o Set expandido
+1. **Remover espaços antes do `↳` no texto das células filhas** (linha ~855): trocar `"  ↳ ${c.name}"` por `"↳ ${c.name}"` — os espaços causam letter-spacing excessivo no jsPDF.
 
-Isso garante que ao selecionar "Receitas Operacionais", transações de "Honorários Contábeis" (filho) também são incluídas, e na Versão Completa aparecem agrupadas corretamente sob o macro.
+2. **Adicionar flag `isChild` no `rowMeta`** para identificar linhas filhas (linha ~856): `rowMeta.push({ isChild: true })`.
+
+3. **Expandir `didDrawCell`** (linhas ~890-902) para também tratar linhas filhas:
+   - Quando `isChild === true` e `column.index === 0`: renderizar o texto com `cellPadding` esquerdo aumentado (ex: `x + 6`) para criar a indentação visual sem usar espaços no texto.
+   - Usar `doc.setFont('helvetica', 'normal')` e `doc.setTextColor(100, 100, 100)` para diferenciar visualmente dos macros (texto cinza, peso normal).
+   - Manter os valores numéricos (colunas > 0) sem alteração de estilo.
+
+4. **Aplicar mesma correção no XLS** (linha ~932): trocar `"  ↳ "` por `"&nbsp;&nbsp;&nbsp;↳ "` ou usar `padding-left` inline no `<td>` para manter indentação visual no Excel sem espaços extras.
+
+Nenhuma lógica de dados, filtro ou cálculo será alterada — apenas a tipografia/layout das linhas filhas nos exports.
