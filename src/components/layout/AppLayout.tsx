@@ -38,9 +38,9 @@ export function AppLayout({ children }: AppLayoutProps) {
       <InadimplentToast />
       <div className="min-h-screen flex w-full max-w-[100vw] overflow-x-hidden">
         <AppSidebar />
-        <SidebarInset className="flex-1">
+        <SidebarInset className="flex-1 min-w-0">
           <AppHeader />
-          <main className="flex-1 p-4 md:p-8 overflow-x-hidden">
+          <main className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 min-w-0 max-w-full">
             {children}
           </main>
         </SidebarInset>

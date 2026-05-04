@@ -527,7 +527,7 @@ function TableSkeleton() {
   return (
     <div className="divide-y divide-border/30">
       {Array.from({ length: 10 }).map((_, i) => (
-        <div key={i} className="grid grid-cols-[40px_1fr_1fr_110px_110px_110px_90px_110px_110px_90px] gap-3 px-4 py-3 items-center">
+        <div key={i} className="grid grid-cols-[40px_minmax(120px,1fr)_minmax(120px,1fr)_88px_88px_88px_80px_100px_100px_90px] gap-2 px-4 py-3 items-center">
           <Skeleton className="h-4 w-4 rounded" />
           <div className="space-y-1.5">
             <Skeleton className="h-4 w-40" />
@@ -573,7 +573,7 @@ function PaginationControls({ currentPage, totalPages, totalCount, onPageChange,
   };
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-t border-border/40">
+    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 py-3 border-t border-border/40 gap-2">
       <span className="text-xs text-muted-foreground">
         {totalCount} transação(ões) • Página {currentPage} de {totalPages}
       </span>
@@ -822,11 +822,11 @@ export default function Transactions() {
 
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 min-w-0 max-w-full">
       {/* ── Header ── */}
-      <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between py-4 gap-4">
-        <h1 className="text-2xl font-bold text-foreground">Movimentações</h1>
-        <div className="flex items-center gap-2 flex-wrap w-full xl:w-auto">
+      <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between py-4 gap-3 min-w-0">
+        <h1 className="text-2xl font-bold text-foreground shrink-0">Movimentações</h1>
+        <div className="flex items-center gap-2 flex-wrap w-full xl:w-auto min-w-0">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="gap-1.5">
@@ -852,39 +852,39 @@ export default function Transactions() {
       </div>
 
       {/* ── KPI Cards ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2 sm:gap-3">
+      <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2 sm:gap-3">
         <Card className="bg-card border-border/50 border-l-2 border-l-emerald-500">
-          <CardContent className="px-3 py-[10px]">
+          <CardContent className="px-3 py-[10px] min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
               <TrendingUp className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
               <p className="text-[11px] font-semibold text-muted-foreground">A Receber</p>
             </div>
-            <p className="text-lg font-bold text-emerald-500">{formatCurrency(kpis.receitasPendentes)}</p>
+            <p className="text-base sm:text-lg font-bold text-emerald-500 truncate">{formatCurrency(kpis.receitasPendentes)}</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">Recebido: {formatCurrency(kpis.receitasPagas)}</p>
           </CardContent>
         </Card>
         <Card className="bg-card border-border/50 border-l-2 border-l-red-500">
-          <CardContent className="px-3 py-[10px]">
+          <CardContent className="px-3 py-[10px] min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
               <TrendingDown className="w-3.5 h-3.5 text-red-500 shrink-0" />
               <p className="text-[11px] font-semibold text-muted-foreground">A Pagar</p>
             </div>
-            <p className="text-lg font-bold text-red-500">{formatCurrency(kpis.despesasPendentes)}</p>
+            <p className="text-base sm:text-lg font-bold text-red-500 truncate">{formatCurrency(kpis.despesasPendentes)}</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">Pago: {formatCurrency(kpis.despesasPagas)}</p>
           </CardContent>
         </Card>
         <Card className="bg-card border-border/50 border-l-2 border-l-primary">
-          <CardContent className="px-3 py-[10px]">
+          <CardContent className="px-3 py-[10px] min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
               <Landmark className="w-3.5 h-3.5 text-primary shrink-0" />
               <p className="text-[11px] font-semibold text-muted-foreground">Saldo Bancário</p>
             </div>
-            <p className={`text-lg font-bold ${bankTotals.totalBalance >= 0 ? 'text-primary' : 'text-red-500'}`}>{formatCurrency(bankTotals.totalBalance)}</p>
+            <p className={`text-base sm:text-lg font-bold truncate ${bankTotals.totalBalance >= 0 ? 'text-primary' : 'text-red-500'}`}>{formatCurrency(bankTotals.totalBalance)}</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">Total bancos visíveis</p>
           </CardContent>
         </Card>
         <Card className="bg-card border-border/50 border-l-2 border-l-red-500">
-          <CardContent className="px-3 py-[10px]">
+          <CardContent className="px-3 py-[10px] min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
               <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />
               <p className="text-[11px] font-semibold text-muted-foreground">Em Atraso</p>
@@ -894,31 +894,31 @@ export default function Transactions() {
           </CardContent>
         </Card>
         <Card className="bg-card border-border/50 border-l-2 border-l-blue-500">
-          <CardContent className="px-3 py-[10px]">
+          <CardContent className="px-3 py-[10px] min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
               <Building2 className="w-3.5 h-3.5 text-blue-500 shrink-0" />
               <p className="text-[11px] font-semibold text-muted-foreground">Capital de Giro</p>
             </div>
-            <p className={`text-lg font-bold ${biMetrics.capitalDeGiroMes >= 0 ? 'text-blue-400' : 'text-red-500'}`}>{formatCurrency(biMetrics.capitalDeGiroMes)}</p>
+            <p className={`text-base sm:text-lg font-bold truncate ${biMetrics.capitalDeGiroMes >= 0 ? 'text-blue-400' : 'text-red-500'}`}>{formatCurrency(biMetrics.capitalDeGiroMes)}</p>
           </CardContent>
         </Card>
         <Card className="bg-card border-border/50 border-l-2 border-l-emerald-500">
-          <CardContent className="px-3 py-[10px]">
+          <CardContent className="px-3 py-[10px] min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
               <BarChart3 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
               <p className="text-[11px] font-semibold text-muted-foreground">Lucro Previsto</p>
             </div>
-            <p className={`text-lg font-bold ${biMetrics.lucroPrevisto >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{formatCurrency(biMetrics.lucroPrevisto)}</p>
+            <p className={`text-base sm:text-lg font-bold truncate ${biMetrics.lucroPrevisto >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{formatCurrency(biMetrics.lucroPrevisto)}</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">{format(new Date(), 'MMMM', { locale: ptBR }).replace(/^\w/, c => c.toUpperCase())}</p>
           </CardContent>
         </Card>
         <Card className="bg-card border-border/50 border-l-2 border-l-amber-500">
-          <CardContent className="px-3 py-[10px]">
+          <CardContent className="px-3 py-[10px] min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
               <CalendarCheck className="w-3.5 h-3.5 text-amber-500 shrink-0" />
               <p className="text-[11px] font-semibold text-muted-foreground">Realizado</p>
             </div>
-            <p className={`text-lg font-bold ${biMetrics.acumuladoReceitas - biMetrics.acumuladoDespesas >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{formatCurrency(biMetrics.acumuladoReceitas - biMetrics.acumuladoDespesas)}</p>
+            <p className={`text-base sm:text-lg font-bold truncate ${biMetrics.acumuladoReceitas - biMetrics.acumuladoDespesas >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{formatCurrency(biMetrics.acumuladoReceitas - biMetrics.acumuladoDespesas)}</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">{format(new Date(), 'MMMM', { locale: ptBR }).replace(/^\w/, c => c.toUpperCase())}</p>
           </CardContent>
         </Card>
@@ -926,7 +926,7 @@ export default function Transactions() {
 
       {/* ── Toolbar ── */}
       <TooltipProvider delayDuration={200}>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-wrap min-w-0">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant={searchOpen ? 'secondary' : 'ghost'} size="icon" className="h-8 w-8" onClick={() => { setSearchOpen(!searchOpen); if (searchOpen) setSearchTerm(''); }}>
@@ -941,7 +941,7 @@ export default function Transactions() {
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               placeholder="Pesquisar..."
-              className="h-8 w-48 text-xs"
+              className="h-8 w-32 sm:w-48 text-xs"
             />
           )}
 
@@ -1011,7 +1011,7 @@ export default function Transactions() {
             </Button>
           )}
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-2 flex-wrap">
             {selectedIds.size > 0 && (
               <>
                 <Button size="sm" className="h-7 gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs" onClick={handleBulkPay}>
@@ -1040,12 +1040,12 @@ export default function Transactions() {
           </CardContent>
         </Card>
       ) : (
-        <Card className="bg-card border-border/50 overflow-hidden">
-          <CardContent className="p-0">
-            <div ref={tableScrollRef} className="table-scroll-container max-h-[70vh] overflow-auto w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
-              <div className="min-w-[720px]">
+        <Card className="bg-card border-border/50 overflow-hidden min-w-0">
+          <CardContent className="p-0 min-w-0">
+            <div ref={tableScrollRef} className="table-scroll-container max-h-[70vh] overflow-auto scrollbar-thin" style={{ WebkitOverflowScrolling: 'touch' }}>
+              <div className="min-w-[1100px]">
               {/* Table Header */}
-              <div className="grid grid-cols-[40px_1fr_1fr_88px_88px_88px_90px_110px_110px_90px] gap-3 px-4 py-2 bg-card border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 z-10">
+              <div className="grid grid-cols-[40px_minmax(120px,1fr)_minmax(120px,1fr)_88px_88px_88px_80px_100px_100px_90px] gap-2 px-4 py-2 bg-card border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 z-10">
                 <div className="flex items-center justify-center">
                   <Checkbox checked={selectedIds.size === transactions.length && transactions.length > 0} onCheckedChange={toggleSelectAll} />
                 </div>
@@ -1117,7 +1117,7 @@ export default function Transactions() {
                   {transactions.map(transaction => {
                     const isOverdue = !isEffectivelyPaid(transaction) && transaction.due_date && transaction.due_date < new Date().toISOString().split('T')[0];
                     return (
-                      <div key={transaction.id} className={`grid grid-cols-[40px_1fr_1fr_88px_88px_88px_90px_110px_110px_90px] gap-3 px-4 py-[10px] hover:bg-muted/30 transition-colors items-center ${selectedIds.has(transaction.id) ? 'bg-primary/10 border-l-2 border-l-primary' : ''}`}>
+                      <div key={transaction.id} className={`grid grid-cols-[40px_minmax(120px,1fr)_minmax(120px,1fr)_88px_88px_88px_80px_100px_100px_90px] gap-2 px-4 py-[10px] hover:bg-muted/30 transition-colors items-center ${selectedIds.has(transaction.id) ? 'bg-primary/10 border-l-2 border-l-primary' : ''}`}>
                         <div className="flex items-center justify-center">
                           <Checkbox checked={selectedIds.has(transaction.id)} onCheckedChange={() => toggleSelect(transaction.id)} className="h-[18px] w-[18px]" />
                         </div>
@@ -1154,10 +1154,10 @@ export default function Transactions() {
                             );
                           })()}
                         </div>
-                        <div className={`text-right font-bold text-[13px] tabular-nums min-w-[110px] ${transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'}`}>
+                        <div className={`text-right font-bold text-[13px] tabular-nums truncate ${transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'}`}>
                           {transaction.type === 'receita' ? '+' : '-'}{formatCurrency(Number(transaction.amount))}
                         </div>
-                        <div className={`text-right text-[13px] tabular-nums min-w-[110px] ${isEffectivelyPaid(transaction) && transaction.paid_amount != null ? (transaction.type === 'receita' ? 'text-emerald-500 font-bold' : 'text-red-500 font-bold') : 'text-muted-foreground'}`}>
+                        <div className={`text-right text-[13px] tabular-nums truncate ${isEffectivelyPaid(transaction) && transaction.paid_amount != null ? (transaction.type === 'receita' ? 'text-emerald-500 font-bold' : 'text-red-500 font-bold') : 'text-muted-foreground'}`}>
                           {isEffectivelyPaid(transaction) && transaction.paid_amount != null
                             ? `${transaction.type === 'receita' ? '+' : '-'}${formatCurrency(Number(transaction.paid_amount))}`
                             : '—'}
