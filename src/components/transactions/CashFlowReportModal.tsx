@@ -855,7 +855,6 @@ export function CashFlowReportModal({
           body.push([c.name, ...sortedSelectedMonths.map(m => fmt(c.monthly[m])), fmt(c.total)]);
           rowMeta.push({ isChild: true });
         }
-        }
       }
       foot = [['TOTAL', ...sortedSelectedMonths.map(m => fmt(monthlyHierarchicalMatrix.colTotals[m])), fmt(monthlyHierarchicalMatrix.grand)]];
     } else {
