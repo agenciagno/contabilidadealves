@@ -1154,10 +1154,10 @@ export default function Transactions() {
                             );
                           })()}
                         </div>
-                        <div className={`text-right font-bold text-[13px] tabular-nums min-w-[110px] ${transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'}`}>
+                        <div className={`text-right font-bold text-[13px] tabular-nums truncate ${transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'}`}>
                           {transaction.type === 'receita' ? '+' : '-'}{formatCurrency(Number(transaction.amount))}
                         </div>
-                        <div className={`text-right text-[13px] tabular-nums min-w-[110px] ${isEffectivelyPaid(transaction) && transaction.paid_amount != null ? (transaction.type === 'receita' ? 'text-emerald-500 font-bold' : 'text-red-500 font-bold') : 'text-muted-foreground'}`}>
+                        <div className={`text-right text-[13px] tabular-nums truncate ${isEffectivelyPaid(transaction) && transaction.paid_amount != null ? (transaction.type === 'receita' ? 'text-emerald-500 font-bold' : 'text-red-500 font-bold') : 'text-muted-foreground'}`}>
                           {isEffectivelyPaid(transaction) && transaction.paid_amount != null
                             ? `${transaction.type === 'receita' ? '+' : '-'}${formatCurrency(Number(transaction.paid_amount))}`
                             : '—'}
