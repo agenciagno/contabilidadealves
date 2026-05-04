@@ -410,7 +410,7 @@ export function CashFlowReportModal({
     }
 
     return { groups, colTotals, grand };
-  }, [monthlyVersion, transactions, monthlyYear, monthlyStatus, monthlySelectedCategories, sortedSelectedMonths, categories]);
+  }, [monthlyVersion, transactions, monthlyYear, monthlyStatus, expandedSelectedCategories, sortedSelectedMonths, categories]);
 
   const monthlyCategoryLabel = useMemo(() => {
     if (monthlySelectedCategories.size === 0) return 'Todas';
