@@ -441,7 +441,7 @@ export function TransactionFormDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-         <DialogContent className="sm:max-w-[580px] max-h-[90vh] overflow-y-auto bg-[rgba(22,22,26,0.85)] backdrop-blur-[24px] border-white/[0.08] rounded-2xl p-6">
+         <DialogContent className="sm:max-w-[720px] max-h-[90vh] overflow-y-auto bg-[rgba(22,22,26,0.85)] backdrop-blur-[24px] border-white/[0.08] rounded-2xl p-6">
           <DialogHeader className="pb-2">
             <DialogTitle className="text-base">{dialogTitle}</DialogTitle>
           </DialogHeader>
