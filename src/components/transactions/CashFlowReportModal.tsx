@@ -842,7 +842,7 @@ export function CashFlowReportModal({
     // Build body rows based on version
     let body: string[][];
     let foot: string[][];
-    const rowMeta: { isMacro?: boolean }[] = [];
+    const rowMeta: { isMacro?: boolean; isChild?: boolean }[] = [];
 
     if (monthlyVersion === 'completa') {
       body = [];
@@ -852,8 +852,8 @@ export function CashFlowReportModal({
         rowMeta.push({ isMacro: true });
         // Children
         for (const c of g.children) {
-          body.push([`  ↳ ${c.name}`, ...sortedSelectedMonths.map(m => fmt(c.monthly[m])), fmt(c.total)]);
-          rowMeta.push({});
+          body.push([c.name, ...sortedSelectedMonths.map(m => fmt(c.monthly[m])), fmt(c.total)]);
+          rowMeta.push({ isChild: true });
         }
       }
       foot = [['TOTAL', ...sortedSelectedMonths.map(m => fmt(monthlyHierarchicalMatrix.colTotals[m])), fmt(monthlyHierarchicalMatrix.grand)]];
@@ -888,7 +888,9 @@ export function CashFlowReportModal({
       alternateRowStyles: { fillColor: [248, 248, 248] },
       columnStyles: colStyles,
       didDrawCell: monthlyVersion === 'completa' ? (data) => {
-        if (data.section === 'body' && rowMeta[data.row.index]?.isMacro) {
+        if (data.section !== 'body') return;
+        const meta = rowMeta[data.row.index];
+        if (meta?.isMacro) {
           doc.setFillColor(235, 235, 240);
           doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
           doc.setFont('helvetica', 'bold');
@@ -898,6 +900,20 @@ export function CashFlowReportModal({
           const textX = data.column.index === 0 ? data.cell.x + 2 : data.cell.x + data.cell.width - 2;
           const textAlign = data.column.index === 0 ? 'left' : 'right';
           doc.text(text, textX, data.cell.y + data.cell.height / 2 + 1, { align: textAlign as any });
+        } else if (meta?.isChild) {
+          doc.setFillColor(255, 255, 255);
+          doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(chosenFont);
+          const text = String(data.cell.raw || '');
+          if (data.column.index === 0) {
+            doc.setTextColor(100, 100, 100);
+            doc.text(`↳ ${text}`, data.cell.x + 6, data.cell.y + data.cell.height / 2 + 1);
+          } else {
+            doc.setTextColor(80, 80, 80);
+            const textX = data.cell.x + data.cell.width - 2;
+            doc.text(text, textX, data.cell.y + data.cell.height / 2 + 1, { align: 'right' });
+          }
         }
       } : undefined,
       didDrawPage: (data) => {
@@ -929,7 +945,7 @@ export function CashFlowReportModal({
       for (const g of monthlyHierarchicalMatrix.groups) {
         rowParts.push(`<tr style="background:#EBEBF0;font-weight:bold"><td>${g.macroName}</td>${sortedSelectedMonths.map(m => `<td>${g.monthly[m].toFixed(2).replace('.', ',')}</td>`).join('')}<td>${g.total.toFixed(2).replace('.', ',')}</td></tr>`);
         for (const c of g.children) {
-          rowParts.push(`<tr><td>  ↳ ${c.name}</td>${sortedSelectedMonths.map(m => `<td>${c.monthly[m].toFixed(2).replace('.', ',')}</td>`).join('')}<td>${c.total.toFixed(2).replace('.', ',')}</td></tr>`);
+          rowParts.push(`<tr><td style="padding-left:16px;color:#666">↳ ${c.name}</td>${sortedSelectedMonths.map(m => `<td>${c.monthly[m].toFixed(2).replace('.', ',')}</td>`).join('')}<td>${c.total.toFixed(2).replace('.', ',')}</td></tr>`);
         }
       }
       rows = rowParts.join('');
