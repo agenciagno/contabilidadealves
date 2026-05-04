@@ -110,10 +110,10 @@
     /* ─── Apple Design System — MODO ESCURO ─── */
 
     /* Apple Backgrounds */
-    --apple-bg-base: #0D0D12;
+    --apple-bg-base: #0f0f0f;
     --apple-bg-surface: #1C1C1E;
     --apple-bg-elevated: #2C2C2E;
-    --apple-mat-sidebar: rgba(9,9,14,0.94);
+    --apple-mat-sidebar: rgba(28,28,28,0.94);
     --apple-mat-card: rgba(28,28,30,0.88);
     --apple-mat-modal: rgba(38,38,40,0.96);
 
@@ -154,7 +154,7 @@
     --modal-overlay: rgba(0,0,0,0.65);
 
     /* ─── shadcn/ui variables — Dark ─── */
-    --background: 0 0% 0%;
+    --background: 0 0% 5.9%;
     --foreground: 240 6% 93%;
 
     --card: 240 4% 11%;
@@ -330,13 +330,56 @@ button, a, [role="button"] {
 }
 
 /* ─── Mobile overflow prevention ─── */
-html, body {
+html, body, #root {
   overflow-x: hidden;
+  max-width: 100vw;
 }
 
 /* Touch-friendly table scroll */
 .relative.w-full.overflow-auto {
   -webkit-overflow-scrolling: touch;
+}
+
+.relative.w-full.overflow-auto table {
+  min-width: max-content;
+}
+
+/* ─── Responsive global rules ─── */
+img, svg {
+  max-width: 100%;
+  height: auto;
+}
+
+h1, h2 {
+  overflow-wrap: break-word;
+  word-break: break-word;
+  max-width: 100%;
+}
+
+/* Modals: constrain width on mobile */
+[role="dialog"]:not([data-mobile="true"]):not([data-sidebar]) {
+  max-width: min(480px, calc(100vw - 32px)) !important;
+}
+
+/* Kanban fade gradient indicator */
+.kanban-scroll-container {
+  position: relative;
+}
+.kanban-scroll-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 32px;
+  background: linear-gradient(to right, transparent, hsl(var(--background)));
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 200ms;
+}
+.kanban-scroll-container.has-scroll::after {
+  opacity: 1;
 }
 
 /* ─── Apple-styled tooltip ─── */
