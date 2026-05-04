@@ -1,35 +1,24 @@
+## Ajustes visuais na página de Movimentações e Modal
 
-## Ajustes Visuais Finais - Transactions Page
+### 1. Checkboxes de seleção menores (tabela)
+**Arquivo:** `src/pages/Transactions.tsx`
+- Reduzir coluna de checkbox de `24px` para `18px` no grid-cols do header e rows.
+- Reduzir o checkbox do header (linha 1040) para `h-3.5 w-3.5`.
+- Reduzir o checkbox das rows (linha 1112) de `h-[18px] w-[18px]` para `h-3.5 w-3.5`.
 
-### 1. Reduzir largura da coluna de checkbox (seleção)
-Reduzir a coluna de checkbox de `40px` para `24px` nas 3 definições de grid-cols em `Transactions.tsx` (header, skeleton, rows).
+### 2. Ícones de filtro em "Vencimento" e "Pagamento" cortados
+**Arquivo:** `src/pages/Transactions.tsx`
+- As colunas de data (Vencimento, Prevista, Pagamento) estão com `88px` -- o texto + ícone de filtro não cabem. Aumentar para `96px` cada uma.
+- Alternativamente, reduzir o texto com `text-[10px]` e manter layout. A abordagem será aumentar as 3 colunas de data de `88px` para `96px`.
 
-### 2. Remover gradiente lateral do scroll da tabela
-O `::after` pseudo-element com `linear-gradient` em `.table-scroll-container` fica fixo e atrapalha a leitura. Remover completamente o bloco `::after` e `.has-scroll::after` em `src/index.css`. Remover também o JS de detecção (`checkTableScroll`, `useRef`, `useCallback`, `useEffect`) em `Transactions.tsx`.
+### 3. Badge "Pago" com largura mínima igual a "Pendente"
+**Arquivo:** `src/pages/Transactions.tsx` (linha ~1139)
+- Adicionar `min-w-[68px] text-center` ao botão de status para que "Pago" e "Pendente" fiquem com o mesmo tamanho visual.
 
-### 3. Sidebar no mobile com textos visíveis
-O sidebar mobile (Sheet) está mostrando apenas ícones. O problema é que o `collapsed` state está sendo usado dentro do Sheet. Na sidebar mobile, o conteúdo renderiza dentro de um Sheet e deve sempre mostrar textos. O `AppSidebar` usa `const collapsed = state === 'collapsed'` para esconder textos. Quando `isMobile=true`, o sidebar é renderizado via Sheet, mas `collapsed` pode estar `true`. Corrigir criando uma variável `const showLabels = isMobile || !collapsed` e usar essa variável no lugar de `!collapsed` nas condições de exibição de texto.
-
-### 4. Sidebar overlay no tablet
-Atualmente o breakpoint de mobile é 768px. Tablets (768-1024px) renderizam o sidebar fixo como desktop. Alterar `MOBILE_BREAKPOINT` em `use-mobile.tsx` de `768` para `1024` para que tablets também usem o Sheet overlay. Ajustar o sidebar desktop de `md:block`/`md:flex` para `lg:block`/`lg:flex` em `sidebar.tsx`.
-
-### 5. Modal mais largo em desktop/tablet
-Alterar `sm:max-w-[580px]` no `TransactionFormDialog.tsx` para `sm:max-w-[720px]` para reduzir necessidade de scroll interno.
-
-### 6. Layout mobile do formulário
-No `TransactionFormDialog.tsx`, aplicar classes responsivas nos grids:
-- Cliente/Fornecedor: ocupar linha completa no mobile (`grid-cols-1 sm:grid-cols-2` ou `sm:grid-cols-3`)
-- Demais campos: sempre 2 colunas (`grid-cols-2`) em todas as telas
-
----
-
-### Arquivos alterados
-
-| Arquivo | Mudança |
-|---|---|
-| `src/pages/Transactions.tsx` | Checkbox 24px, remover scroll fade JS |
-| `src/index.css` | Remover `.table-scroll-container::after` e `.has-scroll::after` |
-| `src/components/layout/AppSidebar.tsx` | `showLabels` = `isMobile \|\| !collapsed` |
-| `src/hooks/use-mobile.tsx` | Breakpoint 768 -> 1024 |
-| `src/components/ui/sidebar.tsx` | `md:` -> `lg:` para sidebar desktop |
-| `src/components/transactions/TransactionFormDialog.tsx` | max-w-[720px], grid responsivo mobile |
+### 4. Reduzir gaps do modal para evitar scroll
+**Arquivo:** `src/components/transactions/TransactionFormDialog.tsx`
+- Reduzir `space-y-5` do form (linha 448) para `space-y-3`.
+- Reduzir `p-6` do DialogContent (linha 444) para `p-5`.
+- Reduzir `pb-2` do DialogHeader para `pb-1`.
+- Reduzir `gap-3` dos grids internos para `gap-2`.
+- Estas mesmas mudanças se aplicam automaticamente ao tablet, pois o modal já é responsivo.

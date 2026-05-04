@@ -441,11 +441,11 @@ export function TransactionFormDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-         <DialogContent className="sm:max-w-[720px] max-h-[90vh] overflow-y-auto bg-[rgba(22,22,26,0.85)] backdrop-blur-[24px] border-white/[0.08] rounded-2xl p-6">
-          <DialogHeader className="pb-2">
+         <DialogContent className="sm:max-w-[720px] max-h-[90vh] overflow-y-auto bg-[rgba(22,22,26,0.85)] backdrop-blur-[24px] border-white/[0.08] rounded-2xl p-5">
+          <DialogHeader className="pb-1">
             <DialogTitle className="text-base">{dialogTitle}</DialogTitle>
           </DialogHeader>
-          <form ref={formRef} onSubmit={handleSubmit} className="space-y-5">
+          <form ref={formRef} onSubmit={handleSubmit} className="space-y-3">
             {/* Type Toggle */}
             <Tabs value={type} onValueChange={(v) => !structuralDisabled && setType(v as 'receita' | 'despesa')}>
               <TabsList className={`w-full h-9 ${structuralDisabled ? 'opacity-60 pointer-events-none' : ''}`}>
@@ -469,7 +469,7 @@ export function TransactionFormDialog({
             )}
 
             {/* Row 1: Cliente | Valor | Valor Recebido/Pago */}
-            <div className={`grid grid-cols-1 ${isAPrazo ? 'sm:grid-cols-2' : 'sm:grid-cols-3'} gap-3`}>
+            <div className={`grid grid-cols-1 ${isAPrazo ? 'sm:grid-cols-2' : 'sm:grid-cols-3'} gap-2`}>
               <div className="space-y-1.5">
                 <Label className="text-xs">Cliente/Fornecedor <span className="text-destructive">*</span></Label>
                 <Select value={contactId} onValueChange={handleContactChange} disabled={structuralDisabled}>
