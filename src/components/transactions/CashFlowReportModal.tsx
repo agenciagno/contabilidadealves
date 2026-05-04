@@ -275,13 +275,13 @@ export function CashFlowReportModal({
   }, [transactions, monthlyYear, monthlyStatus, monthlySelectedCategories, sortedSelectedMonths]);
 
   // ─── Hierarchical matrix for "Versão Completa" ────────────────────
-  interface HierarchicalEvent {
+  type HierarchicalEvent = {
     macroName: string;
     macroColor: string | null;
     monthly: number[];
     total: number;
     children: { name: string; color: string | null; monthly: number[]; total: number }[];
-  }
+  };
 
   const monthlyHierarchicalMatrix = useMemo(() => {
     if (monthlyVersion !== 'completa') return { groups: [] as HierarchicalEvent[], colTotals: Array(12).fill(0) as number[], grand: 0 };
