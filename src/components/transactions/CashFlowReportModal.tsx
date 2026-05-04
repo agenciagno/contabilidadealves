@@ -24,6 +24,7 @@ interface Category {
   name: string;
   color: string | null;
   type: string;
+  parent_id?: string | null;
 }
 
 interface CashFlowReportModalProps {
