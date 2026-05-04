@@ -158,8 +158,13 @@ const menuEntries: MenuEntry[] = [
 
 export function AppSidebar() {
   const { signOut } = useAuth();
-  const { state } = useSidebar();
+  const { state, isMobile, setOpenMobile } = useSidebar();
   const collapsed = state === 'collapsed';
+
+  // Close sidebar sheet on mobile when navigating
+  const handleMobileNav = () => {
+    if (isMobile) setOpenMobile(false);
+  };
   const { companyName, companyCnpj, company } = useCompany();
   const { pinnedShortcuts, isPinned, togglePin } = usePinnedShortcuts();
   const { isSuperAdmin, isColaborador, allowedModules, fullName, avatarUrl } = useUserRole();
