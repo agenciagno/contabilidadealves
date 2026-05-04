@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -808,6 +808,18 @@ export default function Transactions() {
     contact: t.contact ? { id: t.contact.id, name: t.contact.name, type: t.contact.type } : null,
   })) as ReportTransaction[];
 
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const checkTableScroll = useCallback(() => {
+    const el = tableScrollRef.current;
+    if (!el) return;
+    el.classList.toggle('has-scroll', el.scrollWidth > el.clientWidth);
+  }, []);
+  useEffect(() => {
+    checkTableScroll();
+    window.addEventListener('resize', checkTableScroll);
+    return () => window.removeEventListener('resize', checkTableScroll);
+  }, [checkTableScroll, transactions.length]);
+
   return (
     <div className="space-y-4">
       {/* ── Header ── */}
@@ -839,7 +851,7 @@ export default function Transactions() {
       </div>
 
       {/* ── KPI Cards ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2 sm:gap-3">
         <Card className="bg-card border-border/50 border-l-2 border-l-emerald-500">
           <CardContent className="px-3 py-[10px]">
             <div className="flex items-center gap-2 mb-0.5">
@@ -1029,7 +1041,7 @@ export default function Transactions() {
       ) : (
         <Card className="bg-card border-border/50 overflow-hidden">
           <CardContent className="p-0">
-            <div className="table-scroll-container max-h-[70vh] overflow-auto w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div ref={tableScrollRef} className="table-scroll-container max-h-[70vh] overflow-auto w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
               <div className="min-w-[720px]">
               {/* Table Header */}
               <div className="grid grid-cols-[40px_1fr_1fr_88px_88px_88px_90px_110px_110px_90px] gap-3 px-4 py-2 bg-card border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 z-10">
