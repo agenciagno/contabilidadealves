@@ -303,7 +303,7 @@ const Home = () => {
   return (
     <div className="space-y-6">
       {/* Header de Boas-Vindas */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between py-4 gap-4">
         <div>
           {isLoading ? (
             <Skeleton className="h-8 w-64 mb-2" />
