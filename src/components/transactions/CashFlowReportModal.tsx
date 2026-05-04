@@ -954,7 +954,7 @@ export function CashFlowReportModal({
         ].join(';'));
         for (const c of g.children) {
           rows.push([
-            `"  ↳ ${c.name.replace(/"/g, '""')}"`,
+            `"  ${c.name.replace(/"/g, '""')}"`,
             ...sortedSelectedMonths.map(m => c.monthly[m].toFixed(2).replace('.', ',')),
             c.total.toFixed(2).replace('.', ','),
           ].join(';'));
