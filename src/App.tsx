@@ -7,6 +7,8 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PwaUpdateBanner } from "@/components/PwaUpdateBanner";
+import { PwaInstallBanner } from "@/components/PwaInstallBanner";
 
 // Pages
 import Auth from "@/pages/Auth";
