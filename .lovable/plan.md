@@ -1,47 +1,76 @@
-## PWA - Progressive Web App (Manifest-only, sem Service Worker)
 
-Abordagem simples e segura: manifest.json + meta tags + ícones. Sem service worker (evita problemas de cache no preview). O app será instalável via "Adicionar à Tela Inicial" no Chrome e Safari.
+# Plano: PWA Update Banner + Install Banner
 
-### 1. Gerar ícones PWA a partir da logo enviada
-- `public/pwa-icon-192.png` (192x192)
-- `public/pwa-icon-512.png` (512x512)
-- `public/pwa-icon-512-maskable.png` (512x512, com padding para safe zone)
-- `public/apple-touch-icon.png` (180x180)
+## Aviso importante
+O PWA com Service Worker **só funcionará na versão publicada** (contabilidadealves.lovable.app). No preview do editor Lovable, o Service Worker será desativado para evitar cache stale.
 
-Os ícones de 192 e 512 já foram gerados no `/dev-server/public/` durante a exploração. Basta confirmar que estão lá e criar os arquivos restantes.
+## Etapas
 
-### 2. Criar `public/manifest.json`
-```json
-{
-  "name": "Contabilidade Alves",
-  "short_name": "Alves",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#0f1729",
-  "theme_color": "#0f1729",
-  "orientation": "any",
-  "icons": [192, 512, 512-maskable]
-}
+### 1. Instalar dependência
+- `bun add vite-plugin-pwa`
+
+### 2. Configurar VitePWA no `vite.config.ts`
+- Adicionar plugin `VitePWA` com:
+  - `registerType: "autoUpdate"`
+  - `devOptions: { enabled: false }` (desativado no dev/preview)
+  - `workbox.skipWaiting: true`, `clientsClaim: true`
+  - `workbox.navigateFallbackDenylist: [/^\/~oauth/]`
+  - `workbox.runtimeCaching` com `NetworkFirst` para navegações HTML
+  - `manifest: false` (usar o manifest.json existente em public/)
+
+### 3. Adicionar guard no `src/main.tsx`
+- Desregistrar Service Workers quando em iframe ou host de preview Lovable, evitando problemas no editor.
+
+### 4. Criar `src/components/PwaUpdateBanner.tsx`
+- Usa `useRegisterSW` de `virtual:pwa-register/react`
+- Quando `needRefresh` for true, exibe banner fixo na parte inferior
+- Botão "Atualizar" chama `updateServiceWorker(true)`
+- Botão X fecha o banner
+- Estilo conforme especificado (dark glass, blur, #0A84FF accent)
+
+### 5. Criar `src/components/PwaInstallBanner.tsx`
+- Captura o evento `beforeinstallprompt` (Android/Chrome)
+- Exibe banner convidando a instalar o app
+- Botão "Instalar" chama `prompt()` do evento capturado
+- Para iOS/Safari (onde `beforeinstallprompt` não existe), detecta via `navigator.standalone === false` em iOS e exibe instruções: "Toque em Compartilhar > Adicionar à Tela Inicial"
+- Botão X fecha o banner; salva flag no localStorage para não reexibir na mesma sessão
+
+### 6. Registrar no `src/App.tsx`
+- Importar e adicionar `<PwaUpdateBanner />` e `<PwaInstallBanner />` fora do Router, visíveis em todas as páginas.
+
+## Detalhes técnicos
+
+### vite.config.ts (adições)
+```ts
+import { VitePWA } from "vite-plugin-pwa";
+
+// Dentro do array plugins:
+VitePWA({
+  registerType: "autoUpdate",
+  devOptions: { enabled: false },
+  manifest: false,
+  workbox: {
+    skipWaiting: true,
+    clientsClaim: true,
+    navigateFallbackDenylist: [/^\/~oauth/],
+    runtimeCaching: [
+      {
+        urlPattern: ({ request }) => request.mode === "navigate",
+        handler: "NetworkFirst",
+        options: { cacheName: "html", networkTimeoutSeconds: 3 },
+      },
+    ],
+  },
+})
 ```
 
-### 3. Atualizar `index.html`
-- `lang="pt-BR"`
-- `<meta name="viewport" ...>` com `viewport-fit=cover` e `maximum-scale=1`
-- `<link rel="manifest" href="/manifest.json">`
-- `<link rel="apple-touch-icon" href="/apple-touch-icon.png">`
-- `<meta name="theme-color" content="#0f1729">`
-- `<meta name="apple-mobile-web-app-capable" content="yes">`
-- `<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">`
-- `<meta name="apple-mobile-web-app-title" content="Alves">`
-- `<meta name="mobile-web-app-capable" content="yes">`
+### Arquivos criados/editados
+| Arquivo | Ação |
+|---|---|
+| `vite.config.ts` | Editado — adiciona VitePWA plugin |
+| `src/main.tsx` | Editado — guard contra SW em iframe/preview |
+| `src/components/PwaUpdateBanner.tsx` | Criado |
+| `src/components/PwaInstallBanner.tsx` | Criado |
+| `src/App.tsx` | Editado — adiciona os dois banners |
 
-### Arquivos modificados
-- `public/manifest.json` (novo)
-- `public/pwa-icon-192.png` (novo)
-- `public/pwa-icon-512.png` (novo)
-- `public/pwa-icon-512-maskable.png` (novo)
-- `public/apple-touch-icon.png` (novo)
-- `index.html` (editado)
-
-### Resultado
-O app poderá ser instalado na tela inicial em Android (Chrome) e iOS (Safari) com o ícone personalizado da logo Alves.
+Nenhuma tela, rota ou funcionalidade existente será alterada.
