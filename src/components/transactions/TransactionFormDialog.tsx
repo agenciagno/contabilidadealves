@@ -470,7 +470,7 @@ export function TransactionFormDialog({
 
             {/* Row 1: Cliente | Valor | Valor Recebido/Pago */}
             <div className={`grid ${isAPrazo ? 'grid-cols-2' : 'grid-cols-3'} gap-3`}>
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <Label className="text-xs">Cliente/Fornecedor <span className="text-destructive">*</span></Label>
                 <Select value={contactId} onValueChange={handleContactChange} disabled={structuralDisabled}>
                   <SelectTrigger className={`h-8 text-xs ${structuralDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}>
@@ -488,12 +488,12 @@ export function TransactionFormDialog({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <Label className="text-xs">Valor (R$) {!isAVista && <span className="text-destructive">*</span>}</Label>
                 <Input value={amount} onChange={handleAmountChange} placeholder="0,00" className="h-8 text-sm font-semibold" disabled={isSettleMode} />
               </div>
               {!isAPrazo && (
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <Label className="text-xs">
                     {type === 'receita' ? 'Valor Recebido' : 'Valor Pago'}
                     {(isSettleMode || isAVista) && <span className="text-destructive"> *</span>}
@@ -505,7 +505,7 @@ export function TransactionFormDialog({
 
             {/* Row 2: Evento Contábil | Conta/Banco */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <Label className="text-xs">Evento Contábil <span className="text-destructive">*</span></Label>
                 <Select value={categoryId} onValueChange={handleCategoryChange} disabled={structuralDisabled}>
                   <SelectTrigger className={`h-8 text-xs ${structuralDisabled ? 'opacity-60 cursor-not-allowed' : !categoryId ? 'border-muted-foreground/30' : ''}`}>
@@ -521,7 +521,7 @@ export function TransactionFormDialog({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <Label className="text-xs">
                   Conta/Banco
                   {(isSettleMode || isAVista) && <span className="text-destructive"> *</span>}
@@ -547,22 +547,26 @@ export function TransactionFormDialog({
               </div>
             </div>
 
-            {/* Row 3: Datas */}
-            <div className={`grid ${isAPrazo ? 'grid-cols-3' : 'grid-cols-4'} gap-3`}>
-              <div className="space-y-1">
+            {/* Row 3: Datas — Linha 1: Emissão | Vencimento */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
                 <Label className="text-xs">Emissão <span className="text-destructive">*</span></Label>
                 <Input type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} className="h-8 text-xs" disabled={isSettleMode} min="1900-01-01" max="9999-12-31" />
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <Label className="text-xs">Vencimento {(!isAVista || isRecurring) && <span className="text-destructive">*</span>}</Label>
                 <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="h-8 text-xs" disabled={isSettleMode} min="1900-01-01" max="9999-12-31" />
               </div>
-              <div className="space-y-1">
+            </div>
+
+            {/* Row 4: Datas — Linha 2: Prevista | Pagamento */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
                 <Label className="text-xs">Prevista {!isAVista && <span className="text-destructive">*</span>}</Label>
                 <Input type="date" value={expectedDate} onChange={e => setExpectedDate(e.target.value)} className="h-8 text-xs" disabled={isSettleMode} min="1900-01-01" max="9999-12-31" />
               </div>
               {!isAPrazo && (
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <Label className="text-xs">
                     Pagamento
                     {(isSettleMode || isAVista) && <span className="text-destructive"> *</span>}
