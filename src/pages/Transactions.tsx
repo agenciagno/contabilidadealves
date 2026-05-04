@@ -716,15 +716,10 @@ export default function Transactions() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [contacts]);
 
-  // Event options — we use a lightweight approach from current page data
-  // This is acceptable since events without contact are rarer
-  const uniqueEventOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const t of transactions) {
-      if (!t.contact_id) set.add(t.description);
-    }
-    return Array.from(set).sort();
-  }, [transactions]);
+  // Category options for the Evento Contábil column filter
+  const categoryOptions = useMemo(() => {
+    return categories.map(c => ({ id: c.id, name: c.name, color: c.color || '#3B82F6' }));
+  }, [categories]);
 
   // Unique amounts for NumericMultiFilter
   const uniqueAmounts = useMemo(() => transactions.map(t => Number(t.amount)), [transactions]);
