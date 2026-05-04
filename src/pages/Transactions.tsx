@@ -1104,21 +1104,14 @@ export default function Transactions() {
                   {transactions.map(transaction => {
                     const isOverdue = !isEffectivelyPaid(transaction) && transaction.due_date && transaction.due_date < new Date().toISOString().split('T')[0];
                     return (
-                      <div key={transaction.id} className={`grid grid-cols-[40px_1fr_1fr_110px_110px_110px_90px_110px_110px_90px] gap-3 px-4 py-3 hover:bg-muted/30 transition-colors items-center ${selectedIds.has(transaction.id) ? 'bg-primary/10 border-l-2 border-l-primary' : ''}`}>
+                      <div key={transaction.id} className={`grid grid-cols-[40px_1fr_1fr_88px_88px_88px_90px_110px_110px_90px] gap-3 px-4 py-[10px] hover:bg-muted/30 transition-colors items-center ${selectedIds.has(transaction.id) ? 'bg-primary/10 border-l-2 border-l-primary' : ''}`}>
                         <div className="flex items-center justify-center">
-                          <Checkbox checked={selectedIds.has(transaction.id)} onCheckedChange={() => toggleSelect(transaction.id)} />
+                          <Checkbox checked={selectedIds.has(transaction.id)} onCheckedChange={() => toggleSelect(transaction.id)} className="h-[18px] w-[18px]" />
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <Tooltip><TooltipTrigger asChild><span className="truncate text-sm font-semibold text-foreground">{transaction.contact?.name ?? transaction.description}</span></TooltipTrigger><TooltipContent side="top" className="apple-tooltip"><p>{transaction.contact?.name ?? transaction.description}</p></TooltipContent></Tooltip>
                             {isOverdue && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-500 border border-red-500/40 whitespace-nowrap shrink-0">Vencido</span>}
-                          </div>
-                          <div className="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground">
-                            {transaction.bank && <span>{transaction.bank.name}</span>}
-                            {transaction.bank && <span className="text-muted-foreground/40">•</span>}
-                            <span className={transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'}>
-                              {transaction.type === 'receita' ? 'Receita' : 'Despesa'}
-                            </span>
                           </div>
                         </div>
                         <div className="min-w-0 flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -1131,16 +1124,16 @@ export default function Transactions() {
                             <span>—</span>
                           )}
                         </div>
-                        <div className="text-center text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.due_date)}</div>
-                        <div className="text-center text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.expected_date)}</div>
-                        <div className="text-center text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.date)}</div>
+                        <div className="text-center text-[12px] font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.due_date)}</div>
+                        <div className="text-center text-[12px] font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.expected_date)}</div>
+                        <div className="text-center text-[12px] font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.date)}</div>
                         <div className="flex justify-center">
                           {(() => {
                             const effectivelyPaid = isEffectivelyPaid(transaction);
                             return (
                               <button
                                 onClick={() => togglePaid.mutate({ id: transaction.id, is_paid: !effectivelyPaid })}
-                                className={`text-[10px] font-semibold px-2 py-1 rounded-full border transition-all cursor-pointer whitespace-nowrap ${
+                                className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border transition-all cursor-pointer whitespace-nowrap ${
                                   effectivelyPaid ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-amber-500 text-amber-500 bg-transparent hover:bg-amber-500/10'
                                 }`}>
                                 {effectivelyPaid ? 'Pago' : 'Pendente'}
@@ -1148,18 +1141,18 @@ export default function Transactions() {
                             );
                           })()}
                         </div>
-                        <div className={`text-right font-bold text-sm tabular-nums ${transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'}`}>
+                        <div className={`text-right font-bold text-[13px] tabular-nums min-w-[110px] ${transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'}`}>
                           {transaction.type === 'receita' ? '+' : '-'}{formatCurrency(Number(transaction.amount))}
                         </div>
-                        <div className={`text-right text-sm tabular-nums ${isEffectivelyPaid(transaction) && transaction.paid_amount != null ? (transaction.type === 'receita' ? 'text-emerald-500 font-bold' : 'text-red-500 font-bold') : 'text-muted-foreground'}`}>
+                        <div className={`text-right text-[13px] tabular-nums min-w-[110px] ${isEffectivelyPaid(transaction) && transaction.paid_amount != null ? (transaction.type === 'receita' ? 'text-emerald-500 font-bold' : 'text-red-500 font-bold') : 'text-muted-foreground'}`}>
                           {isEffectivelyPaid(transaction) && transaction.paid_amount != null
                             ? `${transaction.type === 'receita' ? '+' : '-'}${formatCurrency(Number(transaction.paid_amount))}`
                             : '—'}
                         </div>
-                        <div className="flex gap-0.5 justify-center">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted" onClick={() => handleEdit(transaction)}><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-emerald-500/10" onClick={() => handleSettle(transaction)}><CircleDollarSign className="w-3.5 h-3.5 text-emerald-500" /></Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => setDeleteId(transaction.id)}><Trash2 className="w-3.5 h-3.5 text-destructive" /></Button>
+                        <div className="flex gap-1.5 justify-center">
+                          <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-muted" onClick={() => handleEdit(transaction)}><Pencil className="w-4 h-4 text-muted-foreground" /></Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-emerald-500/10" onClick={() => handleSettle(transaction)}><CircleDollarSign className="w-4 h-4 text-emerald-500" /></Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-destructive/10" onClick={() => setDeleteId(transaction.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
                         </div>
                       </div>
                     );
