@@ -759,7 +759,7 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
               ))}
               <div className="flex items-center justify-between text-sm border-t border-border/50 pt-1 mt-1">
                 <span className="font-semibold text-muted-foreground">Disponível Total</span>
-                <span className={`font-bold ${totalBankBalance >= 0 ? 'text-primary' : 'text-red-500'}`}>
+                <span className="font-bold tabular-nums" style={{ color: totalBankBalance >= 0 ? 'var(--apple-blue)' : 'var(--apple-red)' }}>
                   {formatCurrency(totalBankBalance)}
                 </span>
               </div>
@@ -877,7 +877,7 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
                       </TableCell>
 
                       {/* Cliente/Fornecedor */}
-                      <TableCell className="truncate max-w-[150px]">{row.contact?.name ?? row.description}</TableCell>
+                      <TableCell className="truncate max-w-[150px]"><Tooltip><TooltipTrigger asChild><span className="truncate block">{row.contact?.name ?? row.description}</span></TooltipTrigger><TooltipContent side="top" className="apple-tooltip"><p>{row.contact?.name ?? row.description}</p></TooltipContent></Tooltip></TableCell>
 
                       {/* A Receber */}
                       <TableCell className="text-right whitespace-nowrap">
@@ -920,10 +920,10 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
                       <TableCell className="font-mono tabular-nums whitespace-nowrap">{row.due_date ? formatDate(row.due_date) : '—'}</TableCell>
 
                       {/* Evento Contábil */}
-                      <TableCell className="truncate max-w-[120px]">{row.category?.name ?? '—'}</TableCell>
+                      <TableCell className="truncate max-w-[120px]"><Tooltip><TooltipTrigger asChild><span className="truncate block">{row.category?.name ?? '—'}</span></TooltipTrigger><TooltipContent side="top" className="apple-tooltip"><p>{row.category?.name ?? '—'}</p></TooltipContent></Tooltip></TableCell>
 
                       {/* Histórico */}
-                      <TableCell className="truncate max-w-[140px]">{row.notes ?? '—'}</TableCell>
+                      <TableCell className="truncate max-w-[140px]"><Tooltip><TooltipTrigger asChild><span className="truncate block">{row.notes ?? '—'}</span></TooltipTrigger><TooltipContent side="top" className="apple-tooltip"><p>{row.notes ?? '—'}</p></TooltipContent></Tooltip></TableCell>
 
                       {/* Saldo Atual */}
                       <TableCell className={`text-right font-bold tabular-nums whitespace-nowrap ${row.saldoAtual < 0 ? 'text-red-500' : 'text-foreground'}`}>
