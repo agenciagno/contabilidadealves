@@ -759,7 +759,7 @@ export function CashFlowTab({ transactions, banks, categories, contacts, toggleP
               ))}
               <div className="flex items-center justify-between text-sm border-t border-border/50 pt-1 mt-1">
                 <span className="font-semibold text-muted-foreground">Disponível Total</span>
-                <span className={`font-bold ${totalBankBalance >= 0 ? 'text-primary' : 'text-red-500'}`}>
+                <span className="font-bold tabular-nums" style={{ color: totalBankBalance >= 0 ? 'var(--apple-blue)' : 'var(--apple-red)' }}>
                   {formatCurrency(totalBankBalance)}
                 </span>
               </div>
