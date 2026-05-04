@@ -469,7 +469,7 @@ export function TransactionFormDialog({
             )}
 
             {/* Row 1: Cliente | Valor | Valor Recebido/Pago */}
-            <div className={`grid ${isAPrazo ? 'grid-cols-2' : 'grid-cols-3'} gap-3`}>
+            <div className={`grid grid-cols-1 ${isAPrazo ? 'sm:grid-cols-2' : 'sm:grid-cols-3'} gap-3`}>
               <div className="space-y-1.5">
                 <Label className="text-xs">Cliente/Fornecedor <span className="text-destructive">*</span></Label>
                 <Select value={contactId} onValueChange={handleContactChange} disabled={structuralDisabled}>
