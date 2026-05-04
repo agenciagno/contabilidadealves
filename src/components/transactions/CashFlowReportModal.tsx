@@ -823,16 +823,37 @@ export function CashFlowReportModal({
 
     const fmt = useCompact ? fmtCompact : fmtFull;
     const head = [['Evento', ...sortedSelectedMonths.map(m => MONTHS_PT[m]), 'TOTAL']];
-    const body = monthlyMatrix.events.map(e => [
-      e.name,
-      ...sortedSelectedMonths.map(m => fmt(e.monthly[m])),
-      fmt(e.total),
-    ]);
-    const foot = [[
-      'TOTAL',
-      ...sortedSelectedMonths.map(m => fmt(monthlyMatrix.colTotals[m])),
-      fmt(monthlyMatrix.grand),
-    ]];
+
+    // Build body rows based on version
+    let body: string[][];
+    let foot: string[][];
+    const rowMeta: { isMacro?: boolean }[] = [];
+
+    if (monthlyVersion === 'completa') {
+      body = [];
+      for (const g of monthlyHierarchicalMatrix.groups) {
+        // Macro row
+        body.push([g.macroName, ...sortedSelectedMonths.map(m => fmt(g.monthly[m])), fmt(g.total)]);
+        rowMeta.push({ isMacro: true });
+        // Children
+        for (const c of g.children) {
+          body.push([`  ↳ ${c.name}`, ...sortedSelectedMonths.map(m => fmt(c.monthly[m])), fmt(c.total)]);
+          rowMeta.push({});
+        }
+      }
+      foot = [['TOTAL', ...sortedSelectedMonths.map(m => fmt(monthlyHierarchicalMatrix.colTotals[m])), fmt(monthlyHierarchicalMatrix.grand)]];
+    } else {
+      body = monthlyMatrix.events.map(e => [
+        e.name,
+        ...sortedSelectedMonths.map(m => fmt(e.monthly[m])),
+        fmt(e.total),
+      ]);
+      foot = [[
+        'TOTAL',
+        ...sortedSelectedMonths.map(m => fmt(monthlyMatrix.colTotals[m])),
+        fmt(monthlyMatrix.grand),
+      ]];
+    }
 
     const colStyles: Record<number, any> = {
       0: { cellWidth: eventW, halign: 'left', overflow: 'linebreak' },
@@ -851,6 +872,19 @@ export function CashFlowReportModal({
       footStyles: { fillColor: [230, 230, 230], textColor: 0, fontStyle: 'bold', overflow: 'visible' },
       alternateRowStyles: { fillColor: [248, 248, 248] },
       columnStyles: colStyles,
+      didDrawCell: monthlyVersion === 'completa' ? (data) => {
+        if (data.section === 'body' && rowMeta[data.row.index]?.isMacro) {
+          doc.setFillColor(235, 235, 240);
+          doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(40, 40, 40);
+          doc.setFontSize(chosenFont);
+          const text = String(data.cell.raw || '');
+          const textX = data.column.index === 0 ? data.cell.x + 2 : data.cell.x + data.cell.width - 2;
+          const textAlign = data.column.index === 0 ? 'left' : 'right';
+          doc.text(text, textX, data.cell.y + data.cell.height / 2 + 1, { align: textAlign as any });
+        }
+      } : undefined,
       didDrawPage: (data) => {
         const pageCount = (doc as any).internal.getNumberOfPages();
         const pageHeight = doc.internal.pageSize.height;
