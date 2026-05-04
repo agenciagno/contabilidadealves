@@ -120,6 +120,7 @@ export function CashFlowReportModal({
       setMonthlyYear(currentYear);
       setMonthlyStatus('pending');
       setMonthlySelectedCategories(new Set());
+      setMonthlyVersion('resumida');
       setMonthlyMonths(autoFillMonths('pending', currentYear));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
