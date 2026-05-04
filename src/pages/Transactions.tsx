@@ -1104,25 +1104,32 @@ export default function Transactions() {
                   {transactions.map(transaction => {
                     const isOverdue = !isEffectivelyPaid(transaction) && transaction.due_date && transaction.due_date < new Date().toISOString().split('T')[0];
                     return (
-                      <div key={transaction.id} className={`grid grid-cols-[40px_100px_1fr_110px_110px_110px_90px_110px_110px_90px] gap-3 px-4 py-3 hover:bg-muted/30 transition-colors items-center ${selectedIds.has(transaction.id) ? 'bg-primary/10 border-l-2 border-l-primary' : ''}`}>
+                      <div key={transaction.id} className={`grid grid-cols-[40px_1fr_1fr_110px_110px_110px_90px_110px_110px_90px] gap-3 px-4 py-3 hover:bg-muted/30 transition-colors items-center ${selectedIds.has(transaction.id) ? 'bg-primary/10 border-l-2 border-l-primary' : ''}`}>
                         <div className="flex items-center justify-center">
                           <Checkbox checked={selectedIds.has(transaction.id)} onCheckedChange={() => toggleSelect(transaction.id)} />
                         </div>
-                        <div className="text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.issue_date)}</div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="truncate text-sm font-semibold text-foreground">{transaction.contact?.name ?? transaction.description}</span>
                             {isOverdue && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-500 border border-red-500/40 whitespace-nowrap shrink-0">Vencido</span>}
                           </div>
                           <div className="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground">
-                            {transaction.category && <span style={{ color: transaction.category.color }}>{transaction.category.name}</span>}
-                            {transaction.category && transaction.bank && <span className="text-muted-foreground/40">•</span>}
                             {transaction.bank && <span>{transaction.bank.name}</span>}
-                            <span className="text-muted-foreground/40">•</span>
+                            {transaction.bank && <span className="text-muted-foreground/40">•</span>}
                             <span className={transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'}>
                               {transaction.type === 'receita' ? 'Receita' : 'Despesa'}
                             </span>
                           </div>
+                        </div>
+                        <div className="min-w-0 flex items-center gap-1.5 text-xs text-muted-foreground">
+                          {transaction.category ? (
+                            <>
+                              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: transaction.category.color || '#3B82F6' }} />
+                              <span className="truncate" style={{ color: transaction.category.color }}>{transaction.category.name}</span>
+                            </>
+                          ) : (
+                            <span>—</span>
+                          )}
                         </div>
                         <div className="text-center text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.due_date)}</div>
                         <div className="text-center text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.expected_date)}</div>
