@@ -78,8 +78,8 @@ export function CategoryPieChart({ data, title }: CategoryPieChartProps) {
         <CardTitle className="text-base">{title}</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-col lg:flex-row items-center gap-4">
-          <div className="h-[200px] w-full lg:w-1/2">
+        <div className="flex flex-col items-center">
+          <div className="h-[180px] w-[160px] mx-auto">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -87,7 +87,7 @@ export function CategoryPieChart({ data, title }: CategoryPieChartProps) {
                   cx="50%"
                   cy="50%"
                   innerRadius={45}
-                  outerRadius={80}
+                  outerRadius={75}
                   paddingAngle={2}
                   dataKey="value"
                   nameKey="name"
@@ -108,30 +108,28 @@ export function CategoryPieChart({ data, title }: CategoryPieChartProps) {
             </ResponsiveContainer>
           </div>
           
-          {/* Category list */}
-          <div className="w-full lg:w-1/2 space-y-2 max-h-[200px] overflow-y-auto">
-            {data.slice(0, 6).map((item, index) => (
-              <div key={index} className="flex items-center justify-between text-sm">
+          {/* Legend below chart */}
+          <div 
+            className="w-full flex flex-col gap-1.5 mt-3"
+            style={{ maxHeight: data.length > 5 ? '100px' : undefined, overflowY: data.length > 5 ? 'auto' : undefined }}
+          >
+            {data.map((item, index) => (
+              <div key={index} className="flex items-center justify-between text-xs" style={{ color: 'var(--apple-text-secondary)' }}>
                 <div className="flex items-center gap-2 min-w-0">
                   <div 
-                    className="w-3 h-3 rounded-full flex-shrink-0" 
-                    style={{ backgroundColor: item.color }}
+                    className="flex-shrink-0 rounded-full" 
+                    style={{ backgroundColor: item.color, width: 8, height: 8 }}
                   />
-                  <span className="text-muted-foreground truncate">{item.name}</span>
+                  <span className="truncate">{item.name}</span>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                   <span className="font-medium text-foreground">{formatCurrency(item.value)}</span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-muted-foreground">
                     ({((item.value / total) * 100).toFixed(0)}%)
                   </span>
                 </div>
               </div>
             ))}
-            {data.length > 6 && (
-              <p className="text-xs text-muted-foreground text-center pt-1">
-                +{data.length - 6} categorias
-              </p>
-            )}
           </div>
         </div>
       </CardContent>
