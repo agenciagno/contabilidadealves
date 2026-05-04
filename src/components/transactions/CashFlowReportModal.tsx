@@ -274,7 +274,130 @@ export function CashFlowReportModal({
     return { events, colTotals, grand };
   }, [transactions, monthlyYear, monthlyStatus, monthlySelectedCategories, sortedSelectedMonths]);
 
-  const monthlyCategoryLabel = useMemo(() => {
+  // ─── Hierarchical matrix for "Versão Completa" ────────────────────
+  interface HierarchicalEvent {
+    macroName: string;
+    macroColor: string | null;
+    monthly: number[];
+    total: number;
+    children: { name: string; color: string | null; monthly: number[]; total: number }[];
+  }
+
+  const monthlyHierarchicalMatrix = useMemo(() => {
+    if (monthlyVersion !== 'completa') return { groups: [] as HierarchicalEvent[], colTotals: Array(12).fill(0) as number[], grand: 0 };
+
+    const isPaid = monthlyStatus === 'paid';
+    const rows = transactions.filter(t => {
+      if (t.is_paid !== isPaid) return false;
+      const ref = isPaid ? t.date : t.expected_date;
+      if (!ref) return false;
+      if (parseInt(ref.slice(0, 4), 10) !== monthlyYear) return false;
+      if (monthlySelectedCategories.size > 0 && !monthlySelectedCategories.has(t.category_id)) return false;
+      return true;
+    });
+
+    // Build category lookup
+    const catMap = new Map(categories.map(c => [c.id, c]));
+    // Build parent set (categories that are parents of other categories)
+    const parentIds = new Set(categories.filter(c => c.parent_id).map(c => c.parent_id!));
+
+    // Aggregate by category_id
+    const byCatId = new Map<string, { monthly: number[]; total: number }>();
+    for (const t of rows) {
+      const ref = isPaid ? t.date : t.expected_date;
+      if (!ref) continue;
+      const month = parseInt(ref.slice(5, 7), 10) - 1;
+      if (!sortedSelectedMonths.includes(month)) continue;
+      const catId = t.category_id || '__none__';
+      const cur = byCatId.get(catId) || { monthly: Array(12).fill(0), total: 0 };
+      const amt = Number(isPaid ? (t.paid_amount ?? t.amount) : t.amount);
+      const signed = t.type === 'receita' ? amt : -amt;
+      cur.monthly[month] += signed;
+      cur.total += signed;
+      byCatId.set(catId, cur);
+    }
+
+    // Group into macro → children
+    const macroMap = new Map<string, HierarchicalEvent>();
+
+    for (const [catId, data] of byCatId) {
+      if (Math.abs(data.total) < 0.0001 && data.monthly.every(v => Math.abs(v) < 0.0001)) continue;
+
+      const cat = catId !== '__none__' ? catMap.get(catId) : null;
+      const catName = cat?.name || 'Sem evento';
+      const catColor = cat?.color ?? null;
+
+      if (!cat) {
+        // No category — standalone macro
+        const key = '__none__';
+        const existing = macroMap.get(key) || { macroName: 'Sem evento', macroColor: null, monthly: Array(12).fill(0), total: 0, children: [] };
+        for (let i = 0; i < 12; i++) existing.monthly[i] += data.monthly[i];
+        existing.total += data.total;
+        macroMap.set(key, existing);
+      } else if (cat.parent_id) {
+        // Child category → group under parent
+        const parent = catMap.get(cat.parent_id);
+        const macroKey = cat.parent_id;
+        const existing = macroMap.get(macroKey) || {
+          macroName: parent?.name || 'Macro desconhecido',
+          macroColor: parent?.color ?? null,
+          monthly: Array(12).fill(0),
+          total: 0,
+          children: [],
+        };
+        for (let i = 0; i < 12; i++) existing.monthly[i] += data.monthly[i];
+        existing.total += data.total;
+        existing.children.push({ name: catName, color: catColor, monthly: [...data.monthly], total: data.total });
+        macroMap.set(macroKey, existing);
+      } else if (parentIds.has(catId)) {
+        // This is a parent category — could have transactions directly on it
+        const existing = macroMap.get(catId) || {
+          macroName: catName,
+          macroColor: catColor,
+          monthly: Array(12).fill(0),
+          total: 0,
+          children: [],
+        };
+        for (let i = 0; i < 12; i++) existing.monthly[i] += data.monthly[i];
+        existing.total += data.total;
+        // Add as a "(Direto)" child
+        existing.children.push({ name: `${catName} (Direto)`, color: catColor, monthly: [...data.monthly], total: data.total });
+        macroMap.set(catId, existing);
+      } else {
+        // Standalone category (no parent, not a parent) — treat as its own macro
+        const existing = macroMap.get(catId) || {
+          macroName: catName,
+          macroColor: catColor,
+          monthly: Array(12).fill(0),
+          total: 0,
+          children: [],
+        };
+        for (let i = 0; i < 12; i++) existing.monthly[i] += data.monthly[i];
+        existing.total += data.total;
+        macroMap.set(catId, existing);
+      }
+    }
+
+    const groups = Array.from(macroMap.values())
+      .filter(g => Math.abs(g.total) > 0.0001)
+      .sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
+
+    // Sort children within each group
+    for (const g of groups) {
+      g.children.sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
+    }
+
+    const colTotals: number[] = Array(12).fill(0);
+    let grand = 0;
+    for (const g of groups) {
+      for (const m of sortedSelectedMonths) colTotals[m] += g.monthly[m];
+      grand += g.total;
+    }
+
+    return { groups, colTotals, grand };
+  }, [monthlyVersion, transactions, monthlyYear, monthlyStatus, monthlySelectedCategories, sortedSelectedMonths, categories]);
+
+
     if (monthlySelectedCategories.size === 0) return 'Todas';
     const names = categories.filter(c => monthlySelectedCategories.has(c.id)).map(c => c.name);
     if (names.length === 1) return names[0];
