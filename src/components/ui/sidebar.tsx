@@ -156,10 +156,14 @@ const Sidebar = React.forwardRef<
         <SheetContent
           data-sidebar="sidebar"
           data-mobile="true"
-          className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+          className="w-[--sidebar-width] p-0 text-sidebar-foreground [&>button]:hidden border-r-0"
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
+              background: "var(--apple-mat-sidebar)",
+              backdropFilter: "blur(20px) saturate(180%)",
+              WebkitBackdropFilter: "blur(20px) saturate(180%)",
+              borderRight: "0.5px solid var(--apple-border-hair)",
             } as React.CSSProperties
           }
           side={side}
