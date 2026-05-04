@@ -1,24 +1,47 @@
-## Ajustes visuais na página de Movimentações e Modal
+## PWA - Progressive Web App (Manifest-only, sem Service Worker)
 
-### 1. Checkboxes de seleção menores (tabela)
-**Arquivo:** `src/pages/Transactions.tsx`
-- Reduzir coluna de checkbox de `24px` para `18px` no grid-cols do header e rows.
-- Reduzir o checkbox do header (linha 1040) para `h-3.5 w-3.5`.
-- Reduzir o checkbox das rows (linha 1112) de `h-[18px] w-[18px]` para `h-3.5 w-3.5`.
+Abordagem simples e segura: manifest.json + meta tags + ícones. Sem service worker (evita problemas de cache no preview). O app será instalável via "Adicionar à Tela Inicial" no Chrome e Safari.
 
-### 2. Ícones de filtro em "Vencimento" e "Pagamento" cortados
-**Arquivo:** `src/pages/Transactions.tsx`
-- As colunas de data (Vencimento, Prevista, Pagamento) estão com `88px` -- o texto + ícone de filtro não cabem. Aumentar para `96px` cada uma.
-- Alternativamente, reduzir o texto com `text-[10px]` e manter layout. A abordagem será aumentar as 3 colunas de data de `88px` para `96px`.
+### 1. Gerar ícones PWA a partir da logo enviada
+- `public/pwa-icon-192.png` (192x192)
+- `public/pwa-icon-512.png` (512x512)
+- `public/pwa-icon-512-maskable.png` (512x512, com padding para safe zone)
+- `public/apple-touch-icon.png` (180x180)
 
-### 3. Badge "Pago" com largura mínima igual a "Pendente"
-**Arquivo:** `src/pages/Transactions.tsx` (linha ~1139)
-- Adicionar `min-w-[68px] text-center` ao botão de status para que "Pago" e "Pendente" fiquem com o mesmo tamanho visual.
+Os ícones de 192 e 512 já foram gerados no `/dev-server/public/` durante a exploração. Basta confirmar que estão lá e criar os arquivos restantes.
 
-### 4. Reduzir gaps do modal para evitar scroll
-**Arquivo:** `src/components/transactions/TransactionFormDialog.tsx`
-- Reduzir `space-y-5` do form (linha 448) para `space-y-3`.
-- Reduzir `p-6` do DialogContent (linha 444) para `p-5`.
-- Reduzir `pb-2` do DialogHeader para `pb-1`.
-- Reduzir `gap-3` dos grids internos para `gap-2`.
-- Estas mesmas mudanças se aplicam automaticamente ao tablet, pois o modal já é responsivo.
+### 2. Criar `public/manifest.json`
+```json
+{
+  "name": "Contabilidade Alves",
+  "short_name": "Alves",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f1729",
+  "theme_color": "#0f1729",
+  "orientation": "any",
+  "icons": [192, 512, 512-maskable]
+}
+```
+
+### 3. Atualizar `index.html`
+- `lang="pt-BR"`
+- `<meta name="viewport" ...>` com `viewport-fit=cover` e `maximum-scale=1`
+- `<link rel="manifest" href="/manifest.json">`
+- `<link rel="apple-touch-icon" href="/apple-touch-icon.png">`
+- `<meta name="theme-color" content="#0f1729">`
+- `<meta name="apple-mobile-web-app-capable" content="yes">`
+- `<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">`
+- `<meta name="apple-mobile-web-app-title" content="Alves">`
+- `<meta name="mobile-web-app-capable" content="yes">`
+
+### Arquivos modificados
+- `public/manifest.json` (novo)
+- `public/pwa-icon-192.png` (novo)
+- `public/pwa-icon-512.png` (novo)
+- `public/pwa-icon-512-maskable.png` (novo)
+- `public/apple-touch-icon.png` (novo)
+- `index.html` (editado)
+
+### Resultado
+O app poderá ser instalado na tela inicial em Android (Chrome) e iOS (Safari) com o ícone personalizado da logo Alves.
