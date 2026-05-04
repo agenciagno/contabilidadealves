@@ -945,16 +945,41 @@ export function CashFlowReportModal({
       `Evento Contábil: ${monthlyCategoryLabel}`,
       '',
     ];
-    const rows = monthlyMatrix.events.map(e => [
-      `"${e.name.replace(/"/g, '""')}"`,
-      ...sortedSelectedMonths.map(m => e.monthly[m].toFixed(2).replace('.', ',')),
-      e.total.toFixed(2).replace('.', ','),
-    ].join(';'));
-    const totalRow = [
-      'TOTAL',
-      ...sortedSelectedMonths.map(m => monthlyMatrix.colTotals[m].toFixed(2).replace('.', ',')),
-      monthlyMatrix.grand.toFixed(2).replace('.', ','),
-    ].join(';');
+    let rows: string[];
+    let totalRow: string;
+    if (monthlyVersion === 'completa') {
+      rows = [];
+      for (const g of monthlyHierarchicalMatrix.groups) {
+        rows.push([
+          `"${g.macroName.replace(/"/g, '""')}"`,
+          ...sortedSelectedMonths.map(m => g.monthly[m].toFixed(2).replace('.', ',')),
+          g.total.toFixed(2).replace('.', ','),
+        ].join(';'));
+        for (const c of g.children) {
+          rows.push([
+            `"  ↳ ${c.name.replace(/"/g, '""')}"`,
+            ...sortedSelectedMonths.map(m => c.monthly[m].toFixed(2).replace('.', ',')),
+            c.total.toFixed(2).replace('.', ','),
+          ].join(';'));
+        }
+      }
+      totalRow = [
+        'TOTAL',
+        ...sortedSelectedMonths.map(m => monthlyHierarchicalMatrix.colTotals[m].toFixed(2).replace('.', ',')),
+        monthlyHierarchicalMatrix.grand.toFixed(2).replace('.', ','),
+      ].join(';');
+    } else {
+      rows = monthlyMatrix.events.map(e => [
+        `"${e.name.replace(/"/g, '""')}"`,
+        ...sortedSelectedMonths.map(m => e.monthly[m].toFixed(2).replace('.', ',')),
+        e.total.toFixed(2).replace('.', ','),
+      ].join(';'));
+      totalRow = [
+        'TOTAL',
+        ...sortedSelectedMonths.map(m => monthlyMatrix.colTotals[m].toFixed(2).replace('.', ',')),
+        monthlyMatrix.grand.toFixed(2).replace('.', ','),
+      ].join(';');
+    }
     const csv = [...meta, headers.join(';'), ...rows, totalRow].join('\r\n');
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
