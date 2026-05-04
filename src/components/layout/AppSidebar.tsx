@@ -215,7 +215,7 @@ export function AppSidebar() {
             activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
           >
             <IconComponent className="w-4 h-4 shrink-0" strokeWidth={1.5} />
-            {!collapsed && (
+            {showLabels && (
               <>
                 <span className="flex-1 truncate">{shortcut.title}</span>
                 <button
@@ -245,7 +245,7 @@ export function AppSidebar() {
                 activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
               >
                 <entry.icon className="w-[18px] h-[18px] shrink-0" strokeWidth={1.5} />
-                {!collapsed && <span>{entry.title}</span>}
+                {showLabels && <span>{entry.title}</span>}
               </NavLink>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -261,9 +261,9 @@ export function AppSidebar() {
           <SidebarGroupLabel className="flex items-center justify-between cursor-pointer hover:bg-sidebar-accent rounded-lg px-3 py-2.5 transition-colors">
             <div className="flex items-center gap-3 text-sidebar-foreground">
               <entry.icon className="w-[18px] h-[18px]" strokeWidth={1.5} />
-              {!collapsed && <span className="text-sm font-semibold">{entry.title}</span>}
+              {showLabels && <span className="text-sm font-semibold">{entry.title}</span>}
             </div>
-            {!collapsed && (
+            {showLabels && (
               <ChevronDown className={cn("w-4 h-4 text-sidebar-foreground/50 transition-transform duration-200", openModules[entry.title] && "rotate-180")} />
             )}
           </SidebarGroupLabel>
@@ -280,7 +280,7 @@ export function AppSidebar() {
                       activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                     >
                       <item.icon className="w-4 h-4 shrink-0" strokeWidth={1.5} />
-                      {!collapsed && (
+                      {showLabels && (
                         <>
                           <span className="flex-1 truncate">{item.title}</span>
                           <button onClick={(e) => handlePinClick(e, item)} className="opacity-0 group-hover:opacity-100 transition-opacity">
@@ -311,7 +311,7 @@ export function AppSidebar() {
                 <Building2 className="w-4 h-4 text-primary-foreground" strokeWidth={1.5} />
               )}
             </div>
-            {!collapsed && (
+            {showLabels && (
               <div className="flex flex-col min-w-0">
                 <span className="font-semibold text-sidebar-foreground truncate">{companyName}</span>
                 <span className="text-xs text-sidebar-foreground/60 truncate">{companyCnpj || 'CNPJ não informado'}</span>
@@ -355,7 +355,7 @@ export function AppSidebar() {
                     activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                   >
                     <Settings className="w-[18px] h-[18px] shrink-0" strokeWidth={1.5} />
-                    {!collapsed && <span>Configurações</span>}
+                    {showLabels && <span>Configurações</span>}
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -372,7 +372,7 @@ export function AppSidebar() {
                 {avatarUrl && <AvatarImage src={avatarUrl} alt="Avatar" />}
                 <AvatarFallback className="text-xs bg-primary/10 text-primary">{initials}</AvatarFallback>
               </Avatar>
-              {!collapsed && (
+              {showLabels && (
                 <span className="text-sm text-sidebar-foreground truncate">{fullName || 'Usuário'}</span>
               )}
             </button>
