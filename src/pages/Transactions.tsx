@@ -330,31 +330,24 @@ function ColumnFilterIcon({ active }: { active: boolean }) {
   );
 }
 
-function ContactEventMultiFilter({
-  columnFilters, setColumnFilters, uniqueContactOptions, uniqueEventOptions,
+function ContactColumnFilter({
+  columnFilters, setColumnFilters, uniqueContactOptions,
 }: {
   columnFilters: ColumnFilters;
   setColumnFilters: React.Dispatch<React.SetStateAction<ColumnFilters>>;
   uniqueContactOptions: { id: string; name: string }[];
-  uniqueEventOptions: string[];
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [tempContacts, setTempContacts] = useState<string[]>([]);
-  const [tempEvents, setTempEvents] = useState<string[]>([]);
 
-  // Derived from parent when closed, from temp when open
   const selectedContacts = open ? tempContacts : (columnFilters.contactIds || []);
-  const selectedEvents = open ? tempEvents : (columnFilters.eventNames || []);
-  const totalSelected = selectedContacts.length + selectedEvents.length;
+  const totalSelected = selectedContacts.length;
   const isActive = totalSelected > 0;
 
   const filteredContacts = search
     ? uniqueContactOptions.filter(c => c.name.toLowerCase().includes(search.toLowerCase()))
     : uniqueContactOptions;
-  const filteredEvents = search
-    ? uniqueEventOptions.filter(d => d.toLowerCase().includes(search.toLowerCase()))
-    : uniqueEventOptions;
 
   const toggleContact = (id: string) => {
     setTempContacts(prev =>
@@ -362,30 +355,20 @@ function ContactEventMultiFilter({
     );
   };
 
-  const toggleEvent = (desc: string) => {
-    setTempEvents(prev =>
-      prev.includes(desc) ? prev.filter(x => x !== desc) : [...prev, desc]
-    );
-  };
-
   const clearAll = () => {
     setTempContacts([]);
-    setTempEvents([]);
     setSearch('');
   };
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
-      // Sync from parent state when opening
       setTempContacts(columnFilters.contactIds || []);
-      setTempEvents(columnFilters.eventNames || []);
       setSearch('');
     } else {
-      // Apply to parent only when closing
       setColumnFilters(prev => {
         const n = { ...prev };
         if (tempContacts.length) n.contactIds = tempContacts; else delete n.contactIds;
-        if (tempEvents.length) n.eventNames = tempEvents; else delete n.eventNames;
+        delete n.eventNames;
         return n;
       });
       setSearch('');
@@ -395,7 +378,7 @@ function ContactEventMultiFilter({
 
   return (
     <div className="flex items-center gap-0.5">
-      <span>Cliente / Evento</span>
+      <span>Cliente</span>
       {isActive && (
         <Badge variant="secondary" className="h-4 px-1 text-[9px] font-bold ml-0.5">{totalSelected}</Badge>
       )}
@@ -412,7 +395,7 @@ function ContactEventMultiFilter({
               <Input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                placeholder="Buscar..."
+                placeholder="Buscar cliente..."
                 className="h-7 text-xs pl-7"
                 autoFocus
               />
@@ -427,37 +410,18 @@ function ContactEventMultiFilter({
               />
               <span className="truncate italic text-muted-foreground">(Vazio)</span>
             </label>
-            {filteredContacts.length > 0 && (
-              <>
-                <div className="pt-1 pb-0.5 px-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Clientes / Fornecedores</div>
-                {filteredContacts.map(c => (
-                  <label key={c.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-xs">
-                    <Checkbox
-                      checked={selectedContacts.includes(c.id)}
-                      onCheckedChange={() => toggleContact(c.id)}
-                      className="h-3.5 w-3.5"
-                    />
-                    <span className="truncate">{c.name}</span>
-                  </label>
-                ))}
-              </>
-            )}
-            {filteredEvents.length > 0 && (
-              <>
-                <div className="pt-2 pb-0.5 px-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider border-t border-border/40 mt-1">Eventos (sem contato)</div>
-                {filteredEvents.map(desc => (
-                  <label key={desc} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-xs">
-                    <Checkbox
-                      checked={selectedEvents.includes(desc)}
-                      onCheckedChange={() => toggleEvent(desc)}
-                      className="h-3.5 w-3.5"
-                    />
-                    <span className="truncate">{desc}</span>
-                  </label>
-                ))}
-              </>
-            )}
-            {filteredContacts.length === 0 && filteredEvents.length === 0 && (
+            {filteredContacts.length > 0 ? (
+              filteredContacts.map(c => (
+                <label key={c.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-xs">
+                  <Checkbox
+                    checked={selectedContacts.includes(c.id)}
+                    onCheckedChange={() => toggleContact(c.id)}
+                    className="h-3.5 w-3.5"
+                  />
+                  <span className="truncate">{c.name}</span>
+                </label>
+              ))
+            ) : (
               <p className="text-xs text-muted-foreground text-center py-4">Nenhum resultado</p>
             )}
           </div>
@@ -465,6 +429,90 @@ function ContactEventMultiFilter({
             <div className="p-2 border-t border-border/40">
               <Button size="sm" variant="ghost" className="w-full h-7 text-xs" onClick={clearAll}>
                 <X className="w-3 h-3 mr-1" /> Limpar ({totalSelected})
+              </Button>
+            </div>
+          )}
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+function EventoContabilColumnFilter({
+  selected, onChange, categories,
+}: {
+  selected: string[];
+  onChange: (v: string[]) => void;
+  categories: { id: string; name: string; color: string }[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [temp, setTemp] = useState<string[]>([]);
+
+  const isActive = selected.length > 0;
+
+  const filtered = search
+    ? categories.filter(c => c.name.toLowerCase().includes(search.toLowerCase()))
+    : categories;
+
+  const toggle = (id: string) => {
+    setTemp(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const clearAll = () => { setTemp([]); setSearch(''); };
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      setTemp(selected);
+      setSearch('');
+    } else {
+      onChange(temp);
+      setSearch('');
+    }
+    setOpen(nextOpen);
+  };
+
+  const displaySelected = open ? temp : selected;
+  const displayActive = displaySelected.length > 0;
+
+  return (
+    <div className="flex items-center gap-0.5">
+      <span>Evento Contábil</span>
+      {displayActive && (
+        <Badge variant="secondary" className="h-4 px-1 text-[9px] font-bold ml-0.5">{displaySelected.length}</Badge>
+      )}
+      <Popover open={open} onOpenChange={handleOpenChange}>
+        <PopoverTrigger asChild>
+          <button className="p-1 rounded hover:bg-muted/60 transition-colors">
+            <ColumnFilterIcon active={isActive} />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 p-0" align="start" onOpenAutoFocus={e => e.preventDefault()}>
+          <div className="p-2 border-b border-border/40">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar evento..." className="h-7 text-xs pl-7" autoFocus />
+            </div>
+          </div>
+          <div className="max-h-60 overflow-auto p-1">
+            <label className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-xs border-b border-border/30 mb-1">
+              <Checkbox checked={displaySelected.includes(IS_EMPTY)} onCheckedChange={() => toggle(IS_EMPTY)} className="h-3.5 w-3.5" />
+              <span className="truncate italic text-muted-foreground">(Vazio)</span>
+            </label>
+            {filtered.length > 0 ? filtered.map(c => (
+              <label key={c.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-xs">
+                <Checkbox checked={displaySelected.includes(c.id)} onCheckedChange={() => toggle(c.id)} className="h-3.5 w-3.5" />
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.color || '#3B82F6' }} />
+                <span className="truncate">{c.name}</span>
+              </label>
+            )) : (
+              <p className="text-xs text-muted-foreground text-center py-4">Nenhum resultado</p>
+            )}
+          </div>
+          {displayActive && (
+            <div className="p-2 border-t border-border/40">
+              <Button size="sm" variant="ghost" className="w-full h-7 text-xs" onClick={clearAll}>
+                <X className="w-3 h-3 mr-1" /> Limpar ({displaySelected.length})
               </Button>
             </div>
           )}
