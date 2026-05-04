@@ -791,16 +791,6 @@ export default function Transactions() {
   const hasActiveColumnFilters = Object.keys(columnFilters).length > 0;
 
   const tableScrollRef = useRef<HTMLDivElement>(null);
-  const checkTableScroll = useCallback(() => {
-    const el = tableScrollRef.current;
-    if (!el) return;
-    el.classList.toggle('has-scroll', el.scrollWidth > el.clientWidth);
-  }, []);
-  useEffect(() => {
-    checkTableScroll();
-    window.addEventListener('resize', checkTableScroll);
-    return () => window.removeEventListener('resize', checkTableScroll);
-  }, [checkTableScroll, transactions.length]);
 
   if (isLoading) {
     return (
