@@ -822,11 +822,11 @@ export default function Transactions() {
 
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 min-w-0 max-w-full">
       {/* ── Header ── */}
-      <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between py-4 gap-4">
-        <h1 className="text-2xl font-bold text-foreground">Movimentações</h1>
-        <div className="flex items-center gap-2 flex-wrap w-full xl:w-auto">
+      <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between py-4 gap-3 min-w-0">
+        <h1 className="text-2xl font-bold text-foreground shrink-0">Movimentações</h1>
+        <div className="flex items-center gap-2 flex-wrap w-full xl:w-auto min-w-0">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="gap-1.5">
@@ -852,39 +852,39 @@ export default function Transactions() {
       </div>
 
       {/* ── KPI Cards ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2 sm:gap-3">
+      <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2 sm:gap-3">
         <Card className="bg-card border-border/50 border-l-2 border-l-emerald-500">
-          <CardContent className="px-3 py-[10px]">
+          <CardContent className="px-3 py-[10px] min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
               <TrendingUp className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
               <p className="text-[11px] font-semibold text-muted-foreground">A Receber</p>
             </div>
-            <p className="text-lg font-bold text-emerald-500">{formatCurrency(kpis.receitasPendentes)}</p>
+            <p className="text-base sm:text-lg font-bold text-emerald-500 truncate">{formatCurrency(kpis.receitasPendentes)}</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">Recebido: {formatCurrency(kpis.receitasPagas)}</p>
           </CardContent>
         </Card>
         <Card className="bg-card border-border/50 border-l-2 border-l-red-500">
-          <CardContent className="px-3 py-[10px]">
+          <CardContent className="px-3 py-[10px] min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
               <TrendingDown className="w-3.5 h-3.5 text-red-500 shrink-0" />
               <p className="text-[11px] font-semibold text-muted-foreground">A Pagar</p>
             </div>
-            <p className="text-lg font-bold text-red-500">{formatCurrency(kpis.despesasPendentes)}</p>
+            <p className="text-base sm:text-lg font-bold text-red-500 truncate">{formatCurrency(kpis.despesasPendentes)}</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">Pago: {formatCurrency(kpis.despesasPagas)}</p>
           </CardContent>
         </Card>
         <Card className="bg-card border-border/50 border-l-2 border-l-primary">
-          <CardContent className="px-3 py-[10px]">
+          <CardContent className="px-3 py-[10px] min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
               <Landmark className="w-3.5 h-3.5 text-primary shrink-0" />
               <p className="text-[11px] font-semibold text-muted-foreground">Saldo Bancário</p>
             </div>
-            <p className={`text-lg font-bold ${bankTotals.totalBalance >= 0 ? 'text-primary' : 'text-red-500'}`}>{formatCurrency(bankTotals.totalBalance)}</p>
+            <p className={`text-base sm:text-lg font-bold truncate ${bankTotals.totalBalance >= 0 ? 'text-primary' : 'text-red-500'}`}>{formatCurrency(bankTotals.totalBalance)}</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">Total bancos visíveis</p>
           </CardContent>
         </Card>
         <Card className="bg-card border-border/50 border-l-2 border-l-red-500">
-          <CardContent className="px-3 py-[10px]">
+          <CardContent className="px-3 py-[10px] min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
               <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />
               <p className="text-[11px] font-semibold text-muted-foreground">Em Atraso</p>
@@ -894,31 +894,31 @@ export default function Transactions() {
           </CardContent>
         </Card>
         <Card className="bg-card border-border/50 border-l-2 border-l-blue-500">
-          <CardContent className="px-3 py-[10px]">
+          <CardContent className="px-3 py-[10px] min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
               <Building2 className="w-3.5 h-3.5 text-blue-500 shrink-0" />
               <p className="text-[11px] font-semibold text-muted-foreground">Capital de Giro</p>
             </div>
-            <p className={`text-lg font-bold ${biMetrics.capitalDeGiroMes >= 0 ? 'text-blue-400' : 'text-red-500'}`}>{formatCurrency(biMetrics.capitalDeGiroMes)}</p>
+            <p className={`text-base sm:text-lg font-bold truncate ${biMetrics.capitalDeGiroMes >= 0 ? 'text-blue-400' : 'text-red-500'}`}>{formatCurrency(biMetrics.capitalDeGiroMes)}</p>
           </CardContent>
         </Card>
         <Card className="bg-card border-border/50 border-l-2 border-l-emerald-500">
-          <CardContent className="px-3 py-[10px]">
+          <CardContent className="px-3 py-[10px] min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
               <BarChart3 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
               <p className="text-[11px] font-semibold text-muted-foreground">Lucro Previsto</p>
             </div>
-            <p className={`text-lg font-bold ${biMetrics.lucroPrevisto >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{formatCurrency(biMetrics.lucroPrevisto)}</p>
+            <p className={`text-base sm:text-lg font-bold truncate ${biMetrics.lucroPrevisto >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{formatCurrency(biMetrics.lucroPrevisto)}</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">{format(new Date(), 'MMMM', { locale: ptBR }).replace(/^\w/, c => c.toUpperCase())}</p>
           </CardContent>
         </Card>
         <Card className="bg-card border-border/50 border-l-2 border-l-amber-500">
-          <CardContent className="px-3 py-[10px]">
+          <CardContent className="px-3 py-[10px] min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
               <CalendarCheck className="w-3.5 h-3.5 text-amber-500 shrink-0" />
               <p className="text-[11px] font-semibold text-muted-foreground">Realizado</p>
             </div>
-            <p className={`text-lg font-bold ${biMetrics.acumuladoReceitas - biMetrics.acumuladoDespesas >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{formatCurrency(biMetrics.acumuladoReceitas - biMetrics.acumuladoDespesas)}</p>
+            <p className={`text-base sm:text-lg font-bold truncate ${biMetrics.acumuladoReceitas - biMetrics.acumuladoDespesas >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{formatCurrency(biMetrics.acumuladoReceitas - biMetrics.acumuladoDespesas)}</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">{format(new Date(), 'MMMM', { locale: ptBR }).replace(/^\w/, c => c.toUpperCase())}</p>
           </CardContent>
         </Card>
