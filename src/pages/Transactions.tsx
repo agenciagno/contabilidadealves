@@ -1032,7 +1032,7 @@ export default function Transactions() {
             <div className="table-scroll-container max-h-[70vh] overflow-auto w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
               <div className="min-w-[720px]">
               {/* Table Header */}
-              <div className="grid grid-cols-[40px_1fr_1fr_110px_110px_110px_90px_110px_110px_90px] gap-3 px-4 py-2 bg-card border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 z-10">
+              <div className="grid grid-cols-[40px_1fr_1fr_88px_88px_88px_90px_110px_110px_90px] gap-3 px-4 py-2 bg-card border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 z-10">
                 <div className="flex items-center justify-center">
                   <Checkbox checked={selectedIds.size === transactions.length && transactions.length > 0} onCheckedChange={toggleSelectAll} />
                 </div>
