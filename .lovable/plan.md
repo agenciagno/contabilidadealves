@@ -1,47 +1,132 @@
+## Diagnóstico técnico
 
-# Diagnóstico dos Problemas de Responsividade
+Os problemas persistem por uma combinação de causas estruturais de layout, não por dados/filtros/ordenação:
 
-Identifiquei **3 causas raiz** para os problemas visíveis nos screenshots:
+1. **Flexbox sem `min-w-0` nos ancestrais principais**
+   - `AppLayout` usa sidebar + conteúdo em flex.
+   - Em flexbox, filhos têm `min-width: auto` por padrão, então o conteúdo tenta manter sua largura mínima real.
+   - Como alguns ancestrais também têm `overflow-x-hidden`, o conteúdo excedente é cortado em vez de permitir que o scroll interno da tabela assuma.
 
----
+2. **Tabela com largura mínima insuficiente**
+   - A tabela está dentro de `min-w-[720px]`, mas a própria grade tem colunas fixas + gaps + padding que passam de ~840px antes mesmo das colunas flexíveis de Cliente/Evento.
+   - Resultado: em tablet/celular as colunas competem por espaço, textos e botões ficam comprimidos/cortados, e o scroll horizontal não fica claramente disponível.
 
-## Problema 1 — Cards KPI empilhados em 1 coluna mas sem compactação adequada
+3. **Breakpoints baseados na viewport, não na largura útil do conteúdo**
+   - Em tablet, a sidebar consome parte da tela, mas classes como `sm:grid-cols-3` e `lg:grid-cols-4` continuam respondendo ao viewport inteiro.
+   - Isso cria cards estreitos demais dentro da área real disponível.
 
-Na viewport das imagens (~375-414px), o grid `grid-cols-1 sm:grid-cols-3` faz cada card ocupar 100% da largura, empilhando verticalmente 8 cards. Isso funciona, mas cada card tem padding excessivo para mobile e os valores ficam grandes demais, forçando scroll longo.
+4. **Toolbar e paginação não quebram linha de forma segura**
+   - A barra de busca/filtros/ações e a paginação têm trechos com `ml-auto`, botões em linha única e textos sem contenção.
+   - Em larguras médias e pequenas, isso força overflow lateral e acaba sendo cortado pelo `overflow-x-hidden` do layout.
 
-**Correção:** Em mobile (`< 640px`), usar `grid-cols-2` para os KPI cards, com padding e fontes ainda mais compactos (value `text-base` em vez de `text-lg`). Isso reduz o scroll vertical pela metade.
+5. **Scroll interno existe tecnicamente, mas não é robusto/visível**
+   - O container tem `overflow-auto`, porém falta uma largura interna coerente, `min-w-0` nos pais e uma barra/indicador visual confiável.
 
----
+## O que será alterado visualmente
 
-## Problema 2 — Regra CSS global de modal quebrando o TransactionFormDialog
+Apenas aparência/estrutura responsiva. Não vou alterar lógica, dados, filtros, ordenação, paginação, colunas, conteúdo textual, hooks, queries ou comportamento funcional.
 
-A regra em `src/index.css` linha 360-362:
-```css
-[role="dialog"]:not([data-mobile="true"]):not([data-sidebar]) {
-  max-width: min(480px, calc(100vw - 32px)) !important;
-}
+### 1. Layout base para permitir scroll interno
+
+Arquivo: `src/components/layout/AppLayout.tsx`
+
+- Adicionar contenção de largura correta aos containers principais:
+  - `min-w-0`
+  - `max-w-full`
+- Manter a prevenção de scroll horizontal global da página, mas impedir que ela corte componentes internos que deveriam rolar.
+
+Objetivo: o conteúdo da rota poder encolher corretamente e a tabela poder criar seu próprio scroll horizontal.
+
+### 2. Cards KPI responsivos sem corte
+
+Arquivo: `src/pages/Transactions.tsx`
+
+- Ajustar o grid dos KPIs para considerar a largura útil real:
+  - celular muito estreito: 1 coluna
+  - celular maior: 2 colunas
+  - tablet: 2 ou 3 colunas conforme largura
+  - desktop: manter expansão progressiva até 7 colunas
+- Adicionar `min-w-0` nos cards/conteúdos.
+- Ajustar valores monetários com fonte responsiva/compacta e quebra segura (`overflow-wrap`) para não cortar valores grandes.
+- Preservar todos os cards, ordem, textos, ícones e métricas.
+
+### 3. Cabeçalho e botões sem overflow
+
+Arquivo: `src/pages/Transactions.tsx`
+
+- Manter layout desktop.
+- Em tablet/mobile, permitir quebra segura dos botões.
+- Evitar que “Nova Movimentação” force largura lateral cortada.
+- Ajustar `w-full`/`min-w-0` apenas nos breakpoints pequenos.
+
+### 4. Toolbar responsiva
+
+Arquivo: `src/pages/Transactions.tsx`
+
+- Fazer a toolbar quebrar linha quando não houver espaço.
+- Tornar o campo de busca responsivo (`w-full` em larguras pequenas, largura fixa só quando couber).
+- Ajustar o grupo de ações em massa e contador para não ser empurrado para fora da área visível.
+- Não alterar nenhum filtro, popover, botão ou ação.
+
+### 5. Tabela com scroll horizontal interno definitivo
+
+Arquivo: `src/pages/Transactions.tsx`
+
+- Trocar o wrapper atual da tabela para uma estrutura mais robusta:
+
+```text
+Card
+  CardContent
+    Scroll container horizontal/vertical com max-w-full min-w-0
+      Inner table width mínima realista
+        Header grid
+        Rows grid
+    Pagination
 ```
-Esta regra está aplicando `480px !important` em **TODOS** os dialogs, incluindo o modal de transação que precisa de `580px`. O `!important` sobrepõe qualquer classe inline.
 
-**Correção:** Remover o `!important` e adicionar um seletor mais específico que exclua modals com classes de largura definida (como `sm:max-w-[580px]`). Ou melhor: aplicar essa restrição apenas em `@media (max-width: 640px)` para não limitar dialogs em desktop/tablet.
+- Definir largura mínima interna coerente para a tabela, por volta de `1080px–1120px`, compatível com:
+  - checkbox
+  - Cliente
+  - Evento Contábil
+  - Vencimento
+  - Prevista
+  - Pagamento
+  - Status
+  - Valor
+  - Recebido
+  - Ações
+- Ajustar as colunas Cliente/Evento para `minmax(...)` em vez de depender de `1fr` comprimido.
+- Adicionar `min-w-0` onde textos precisam truncar corretamente dentro da célula.
+- Preservar todas as colunas, filtros de coluna, ordenação, status, ações e dados.
 
----
+### 6. Barra/indicador de scroll visível
 
-## Problema 3 — Tabela com scroll container mas sem indicação visual funcional
+Arquivo: `src/index.css`
 
-O `.table-scroll-container::after` cria um fade gradient, mas o `::after` fica **sempre visível** (não tem lógica `has-scroll` como o kanban). Além disso, a tabela está dentro de um container que já tem `overflow-x-hidden` nos pais (`main`, `div`, `html`), o que pode suprimir o scroll interno.
+- Criar uma classe específica para a tabela de movimentações, sem afetar outras tabelas globalmente.
+- Estilizar o scrollbar horizontal/vertical para ficar visível em WebKit e Firefox.
+- Melhorar o fade lateral para aparecer apenas quando houver overflow.
+- Garantir que o indicador não cubra botões nem impeça clique.
 
-**Correção:** 
-- Garantir que o container de scroll da tabela (`overflow-auto`) funcione mesmo com `overflow-x: hidden` nos ancestrais — isso já deveria funcionar pois `overflow-auto` em um descendente cria seu próprio contexto.
-- Adicionar lógica condicional ao fade (mostrar apenas quando há scroll) como já existe no kanban.
+### 7. Paginação sem corte
 
----
+Arquivo: `src/pages/Transactions.tsx`
 
-## Arquivos a Modificar
+- Ajustar o container da paginação para quebrar em 2 linhas no mobile/tablet quando necessário.
+- Permitir rolagem horizontal apenas no grupo de páginas se faltar espaço.
+- Manter total, página atual, botões Anterior/Próxima e números exatamente com a mesma lógica.
 
-| Arquivo | Mudança |
-|---------|---------|
-| `src/pages/Transactions.tsx` | Grid KPI: `grid-cols-2 sm:grid-cols-3 ...`; fontes menores em mobile |
-| `src/index.css` | Regra `[role="dialog"]`: wrap em `@media (max-width: 639px)` para não afetar desktop; fade gradient condicional na tabela |
+## Arquivos previstos
 
-Nenhuma lógica, dado, filtro ou funcionalidade será alterada.
+- `src/components/layout/AppLayout.tsx`
+- `src/pages/Transactions.tsx`
+- `src/index.css`
+
+## Garantias
+
+- Não alterar lógica de negócio.
+- Não alterar filtros, ordenação ou queries.
+- Não alterar dados, métricas, fórmulas ou cálculos.
+- Não remover cards, colunas, botões ou textos existentes.
+- Não mexer em banco, autenticação, rotas ou integrações.
+- A correção será estritamente visual/estrutural de responsividade.
