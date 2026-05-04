@@ -109,7 +109,7 @@ export default function FiscalTasks() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between py-4 flex-wrap gap-4">
         <h1 className="text-2xl font-bold text-foreground">Tarefas Fiscais</h1>
         {canDelete && (
           <Button className="gap-2" onClick={() => setCreateOpen(true)}>

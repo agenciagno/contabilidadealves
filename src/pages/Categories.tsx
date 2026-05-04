@@ -116,7 +116,7 @@ export default function Categories() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between py-4 flex-wrap gap-4">
         <h1 className="text-2xl font-bold text-foreground">Eventos Contábeis</h1>
         <Button className="gap-2" onClick={handleNewCategory}>
           <Plus className="w-4 h-4" />

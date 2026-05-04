@@ -31,9 +31,11 @@ export default function PagarReceber() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Pagar / Receber</h1>
-        <p className="text-muted-foreground">Fluxo de caixa com projeção de saldo linha a linha</p>
+      <div className="flex items-center justify-between py-4 flex-wrap gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Pagar / Receber</h1>
+          <p className="text-muted-foreground text-sm mt-1">Fluxo de caixa com projeção de saldo linha a linha</p>
+        </div>
       </div>
 
       <CashFlowTab
