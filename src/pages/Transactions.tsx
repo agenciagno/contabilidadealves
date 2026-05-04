@@ -926,7 +926,7 @@ export default function Transactions() {
 
       {/* ── Toolbar ── */}
       <TooltipProvider delayDuration={200}>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-wrap min-w-0">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant={searchOpen ? 'secondary' : 'ghost'} size="icon" className="h-8 w-8" onClick={() => { setSearchOpen(!searchOpen); if (searchOpen) setSearchTerm(''); }}>
@@ -941,7 +941,7 @@ export default function Transactions() {
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               placeholder="Pesquisar..."
-              className="h-8 w-48 text-xs"
+              className="h-8 w-32 sm:w-48 text-xs"
             />
           )}
 
@@ -1011,7 +1011,7 @@ export default function Transactions() {
             </Button>
           )}
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-2 flex-wrap">
             {selectedIds.size > 0 && (
               <>
                 <Button size="sm" className="h-7 gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs" onClick={handleBulkPay}>
