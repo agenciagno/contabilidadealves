@@ -110,10 +110,10 @@
     /* ─── Apple Design System — MODO ESCURO ─── */
 
     /* Apple Backgrounds */
-    --apple-bg-base: #000000;
+    --apple-bg-base: #0D0D12;
     --apple-bg-surface: #1C1C1E;
     --apple-bg-elevated: #2C2C2E;
-    --apple-mat-sidebar: rgba(22,22,24,0.92);
+    --apple-mat-sidebar: rgba(9,9,14,0.94);
     --apple-mat-card: rgba(28,28,30,0.88);
     --apple-mat-modal: rgba(38,38,40,0.96);
 
