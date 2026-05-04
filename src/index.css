@@ -328,3 +328,13 @@ button, a, [role="button"] {
     padding: 2px 4px !important;
   }
 }
+
+/* ─── Mobile overflow prevention ─── */
+html, body {
+  overflow-x: hidden;
+}
+
+/* Touch-friendly table scroll */
+.relative.w-full.overflow-auto {
+  -webkit-overflow-scrolling: touch;
+}
