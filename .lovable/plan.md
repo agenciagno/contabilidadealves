@@ -1,77 +1,47 @@
 
-# Ajustes Visuais — /movimentacoes
+# Diagnóstico dos Problemas de Responsividade
 
-## 1. Cabecalho Responsivo (`src/pages/Transactions.tsx`, linhas 811-839)
-
-**Desktop (>1200px):** manter layout atual (titulo a esquerda, botoes a direita).
-
-**Tablet/Mobile (<1200px):** reorganizar com `flex-col-reverse`:
-- Linha 1 (topo): botoes Exportar, Importar, Nova Movimentacao — `flex-wrap gap-2 w-full`
-- Linha 2: KPI cards (ver item 2)
-- Linha 3: toolbar de filtros
-
-Usar classes Tailwind: `xl:flex-row flex-col-reverse` no container do header, e `w-full xl:w-auto` nos botoes.
-
-## 2. KPI Cards Compactos (linhas 842-912)
-
-- Grid: `grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7`
-- Compactar todos os cards em todos os breakpoints:
-  - CardContent padding: `p-[10px_12px]` (era `p-3`)
-  - Label: `text-[11px] font-semibold` (era `text-xs`)
-  - Valor principal: `text-lg` (era `text-base`)
-  - Subtitulo: `text-[10px]` (ja esta)
-
-## 3. Tabela — Compactacao das Linhas (linhas 1098-1167)
-
-- Remover o bloco de tipo (Receita/Despesa) que aparece abaixo do nome do cliente (linhas 1115-1121 — o `div` com `transaction.bank` e `transaction.type`). Manter apenas o nome do cliente e badge "Vencido".
-- Checkbox: adicionar `h-[18px] w-[18px]`
-- Padding vertical das linhas: `py-[10px]` (era `py-3`)
-- Colunas de data: adicionar `w-[88px] text-[12px]`
-- Status badge: `text-[11px] px-2 py-0.5`
-- Colunas Valor/Recebido: `text-[13px] min-w-[110px]`
-- Icones de acoes: `w-4 h-4` (era `w-3.5 h-3.5`), botoes `h-7 w-7` com `gap-1.5`
-
-## 4. Tabela — Scroll Horizontal Responsivo
-
-- No container da tabela (linha 1030-1032), adicionar classe `relative` e um pseudo-elemento `::after` via CSS para fade gradient no lado direito.
-- Tabela interna: `min-w-[720px]`
-- Container: `overflow-x-auto w-full`
-- Adicionar CSS em `src/index.css` para o fade gradient:
-```css
-.table-scroll-container {
-  position: relative;
-}
-.table-scroll-container::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 32px;
-  background: linear-gradient(to right, transparent, var(--apple-bg-base));
-  pointer-events: none;
-  z-index: 5;
-}
-```
-
-## 5. Modal "Nova Transacao" (`src/components/transactions/TransactionFormDialog.tsx`)
-
-- DialogContent (linha 444): mudar `sm:max-w-2xl` para `sm:max-w-[580px]`
-- Adicionar classes de estilo vidro: `bg-[rgba(22,22,26,0.85)] backdrop-blur-[24px] border-white/[0.08] rounded-2xl`
-- Padding do form: `p-6` (24px)
-- Gap entre grupos: `space-y-5` (20px, era `space-y-3`)
-- Gap entre label e input: `space-y-1.5` (6px, era `space-y-1`)
-- Gap entre campos lado a lado: `gap-3` (12px, ja esta)
-- Reorganizar datas (linhas 550-573) de 1 linha de 3-4 para 2 linhas de 2:
-  - Linha 1: `grid-cols-2` — Emissao | Vencimento
-  - Linha 2: `grid-cols-2` — Prevista | Pagamento
+Identifiquei **3 causas raiz** para os problemas visíveis nos screenshots:
 
 ---
 
-## Arquivos Modificados
+## Problema 1 — Cards KPI empilhados em 1 coluna mas sem compactação adequada
 
-| Arquivo | Mudancas |
-|---------|----------|
-| `src/pages/Transactions.tsx` | Header responsivo, KPI compactos, tabela compacta, scroll container |
-| `src/components/transactions/TransactionFormDialog.tsx` | Modal vidro, largura 580px, datas 2x2 |
-| `src/index.css` | Classe `.table-scroll-container::after` fade gradient |
+Na viewport das imagens (~375-414px), o grid `grid-cols-1 sm:grid-cols-3` faz cada card ocupar 100% da largura, empilhando verticalmente 8 cards. Isso funciona, mas cada card tem padding excessivo para mobile e os valores ficam grandes demais, forçando scroll longo.
+
+**Correção:** Em mobile (`< 640px`), usar `grid-cols-2` para os KPI cards, com padding e fontes ainda mais compactos (value `text-base` em vez de `text-lg`). Isso reduz o scroll vertical pela metade.
+
+---
+
+## Problema 2 — Regra CSS global de modal quebrando o TransactionFormDialog
+
+A regra em `src/index.css` linha 360-362:
+```css
+[role="dialog"]:not([data-mobile="true"]):not([data-sidebar]) {
+  max-width: min(480px, calc(100vw - 32px)) !important;
+}
+```
+Esta regra está aplicando `480px !important` em **TODOS** os dialogs, incluindo o modal de transação que precisa de `580px`. O `!important` sobrepõe qualquer classe inline.
+
+**Correção:** Remover o `!important` e adicionar um seletor mais específico que exclua modals com classes de largura definida (como `sm:max-w-[580px]`). Ou melhor: aplicar essa restrição apenas em `@media (max-width: 640px)` para não limitar dialogs em desktop/tablet.
+
+---
+
+## Problema 3 — Tabela com scroll container mas sem indicação visual funcional
+
+O `.table-scroll-container::after` cria um fade gradient, mas o `::after` fica **sempre visível** (não tem lógica `has-scroll` como o kanban). Além disso, a tabela está dentro de um container que já tem `overflow-x-hidden` nos pais (`main`, `div`, `html`), o que pode suprimir o scroll interno.
+
+**Correção:** 
+- Garantir que o container de scroll da tabela (`overflow-auto`) funcione mesmo com `overflow-x: hidden` nos ancestrais — isso já deveria funcionar pois `overflow-auto` em um descendente cria seu próprio contexto.
+- Adicionar lógica condicional ao fade (mostrar apenas quando há scroll) como já existe no kanban.
+
+---
+
+## Arquivos a Modificar
+
+| Arquivo | Mudança |
+|---------|---------|
+| `src/pages/Transactions.tsx` | Grid KPI: `grid-cols-2 sm:grid-cols-3 ...`; fontes menores em mobile |
+| `src/index.css` | Regra `[role="dialog"]`: wrap em `@media (max-width: 639px)` para não afetar desktop; fade gradient condicional na tabela |
+
+Nenhuma lógica, dado, filtro ou funcionalidade será alterada.

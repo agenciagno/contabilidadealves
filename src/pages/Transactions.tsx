@@ -839,7 +839,7 @@ export default function Transactions() {
       </div>
 
       {/* ── KPI Cards ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2 sm:gap-3">
         <Card className="bg-card border-border/50 border-l-2 border-l-emerald-500">
           <CardContent className="px-3 py-[10px]">
             <div className="flex items-center gap-2 mb-0.5">
