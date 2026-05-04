@@ -338,3 +338,20 @@ html, body {
 .relative.w-full.overflow-auto {
   -webkit-overflow-scrolling: touch;
 }
+
+/* ─── Apple-styled tooltip ─── */
+.apple-tooltip {
+  background: var(--apple-bg-elevated) !important;
+  border: 0.5px solid var(--apple-border-subtle) !important;
+  color: var(--apple-text-primary) !important;
+  border-radius: var(--r-md) !important;
+  font-size: 12px !important;
+}
+
+/* ─── DRE section row contrast ─── */
+:root {
+  --dre-section-color: #1a7a38;
+}
+.dark {
+  --dre-section-color: #34D172;
+}
