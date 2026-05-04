@@ -1035,9 +1035,9 @@ export default function Transactions() {
             <div ref={tableScrollRef} className="table-scroll-container max-h-[70vh] overflow-auto scrollbar-thin" style={{ WebkitOverflowScrolling: 'touch' }}>
               <div className="min-w-[1100px]">
               {/* Table Header */}
-              <div className="grid grid-cols-[24px_minmax(120px,1fr)_minmax(120px,1fr)_88px_88px_88px_80px_100px_100px_90px] gap-2 px-4 py-2 bg-card border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 z-10">
+              <div className="grid grid-cols-[18px_minmax(120px,1fr)_minmax(120px,1fr)_96px_96px_96px_80px_100px_100px_90px] gap-2 px-4 py-2 bg-card border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 z-10">
                 <div className="flex items-center justify-center">
-                  <Checkbox checked={selectedIds.size === transactions.length && transactions.length > 0} onCheckedChange={toggleSelectAll} />
+                  <Checkbox checked={selectedIds.size === transactions.length && transactions.length > 0} onCheckedChange={toggleSelectAll} className="h-3.5 w-3.5" />
                 </div>
 
                 <ContactColumnFilter
@@ -1107,9 +1107,9 @@ export default function Transactions() {
                   {transactions.map(transaction => {
                     const isOverdue = !isEffectivelyPaid(transaction) && transaction.due_date && transaction.due_date < new Date().toISOString().split('T')[0];
                     return (
-                      <div key={transaction.id} className={`grid grid-cols-[24px_minmax(120px,1fr)_minmax(120px,1fr)_88px_88px_88px_80px_100px_100px_90px] gap-2 px-4 py-[10px] hover:bg-muted/30 transition-colors items-center ${selectedIds.has(transaction.id) ? 'bg-primary/10 border-l-2 border-l-primary' : ''}`}>
+                      <div key={transaction.id} className={`grid grid-cols-[18px_minmax(120px,1fr)_minmax(120px,1fr)_96px_96px_96px_80px_100px_100px_90px] gap-2 px-4 py-[10px] hover:bg-muted/30 transition-colors items-center ${selectedIds.has(transaction.id) ? 'bg-primary/10 border-l-2 border-l-primary' : ''}`}>
                         <div className="flex items-center justify-center">
-                          <Checkbox checked={selectedIds.has(transaction.id)} onCheckedChange={() => toggleSelect(transaction.id)} className="h-[18px] w-[18px]" />
+                          <Checkbox checked={selectedIds.has(transaction.id)} onCheckedChange={() => toggleSelect(transaction.id)} className="h-3.5 w-3.5" />
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
@@ -1136,7 +1136,7 @@ export default function Transactions() {
                             return (
                               <button
                                 onClick={() => togglePaid.mutate({ id: transaction.id, is_paid: !effectivelyPaid })}
-                                className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border transition-all cursor-pointer whitespace-nowrap ${
+                                className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border transition-all cursor-pointer whitespace-nowrap min-w-[68px] text-center ${
                                   effectivelyPaid ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-amber-500 text-amber-500 bg-transparent hover:bg-amber-500/10'
                                 }`}>
                                 {effectivelyPaid ? 'Pago' : 'Pendente'}

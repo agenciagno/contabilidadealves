@@ -441,11 +441,11 @@ export function TransactionFormDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-         <DialogContent className="sm:max-w-[720px] max-h-[90vh] overflow-y-auto bg-[rgba(22,22,26,0.85)] backdrop-blur-[24px] border-white/[0.08] rounded-2xl p-6">
-          <DialogHeader className="pb-2">
+         <DialogContent className="sm:max-w-[720px] max-h-[90vh] overflow-y-auto bg-[rgba(22,22,26,0.85)] backdrop-blur-[24px] border-white/[0.08] rounded-2xl p-5">
+          <DialogHeader className="pb-1">
             <DialogTitle className="text-base">{dialogTitle}</DialogTitle>
           </DialogHeader>
-          <form ref={formRef} onSubmit={handleSubmit} className="space-y-5">
+          <form ref={formRef} onSubmit={handleSubmit} className="space-y-3">
             {/* Type Toggle */}
             <Tabs value={type} onValueChange={(v) => !structuralDisabled && setType(v as 'receita' | 'despesa')}>
               <TabsList className={`w-full h-9 ${structuralDisabled ? 'opacity-60 pointer-events-none' : ''}`}>
@@ -469,7 +469,7 @@ export function TransactionFormDialog({
             )}
 
             {/* Row 1: Cliente | Valor | Valor Recebido/Pago */}
-            <div className={`grid grid-cols-1 ${isAPrazo ? 'sm:grid-cols-2' : 'sm:grid-cols-3'} gap-3`}>
+            <div className={`grid grid-cols-1 ${isAPrazo ? 'sm:grid-cols-2' : 'sm:grid-cols-3'} gap-2`}>
               <div className="space-y-1.5">
                 <Label className="text-xs">Cliente/Fornecedor <span className="text-destructive">*</span></Label>
                 <Select value={contactId} onValueChange={handleContactChange} disabled={structuralDisabled}>
@@ -504,7 +504,7 @@ export function TransactionFormDialog({
             </div>
 
             {/* Row 2: Evento Contábil | Conta/Banco */}
-            <div className="grid grid-cols-2 gap-3">
+<div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5">
                 <Label className="text-xs">Evento Contábil <span className="text-destructive">*</span></Label>
                 <Select value={categoryId} onValueChange={handleCategoryChange} disabled={structuralDisabled}>
@@ -548,7 +548,7 @@ export function TransactionFormDialog({
             </div>
 
             {/* Row 3: Datas — Linha 1: Emissão | Vencimento */}
-            <div className="grid grid-cols-2 gap-3">
+<div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5">
                 <Label className="text-xs">Emissão <span className="text-destructive">*</span></Label>
                 <Input type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} className="h-8 text-xs" disabled={isSettleMode} min="1900-01-01" max="9999-12-31" />
@@ -560,7 +560,7 @@ export function TransactionFormDialog({
             </div>
 
             {/* Row 4: Datas — Linha 2: Prevista | Pagamento */}
-            <div className="grid grid-cols-2 gap-3">
+<div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5">
                 <Label className="text-xs">Prevista {!isAVista && <span className="text-destructive">*</span>}</Label>
                 <Input type="date" value={expectedDate} onChange={e => setExpectedDate(e.target.value)} className="h-8 text-xs" disabled={isSettleMode} min="1900-01-01" max="9999-12-31" />
@@ -676,7 +676,7 @@ export function TransactionFormDialog({
             )}
 
             {/* Row 4: Anexo | Histórico side by side */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
                 <Label className="text-xs">Anexo</Label>
                 <div className={isSettleMode ? 'opacity-60 pointer-events-none' : ''}>
