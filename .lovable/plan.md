@@ -1,18 +1,35 @@
-## Correção da tipografia dos Eventos Filho no PDF
+## Objetivo
 
-### Arquivo: `src/components/transactions/CashFlowReportModal.tsx`
+Alterar a lógica da "Versão Completa" no relatório Consulta Mensal para que a hierarquia seja **Evento Selecionado > Cliente/Fornecedor** (em vez de Evento Macro > Evento Filho). A versão resumida permanece inalterada (apenas eventos).
 
-### Mudanças
+## Mudanças no arquivo `src/components/transactions/CashFlowReportModal.tsx`
 
-1. **Remover espaços antes do `↳` no texto das células filhas** (linha ~855): trocar `"  ↳ ${c.name}"` por `"↳ ${c.name}"` — os espaços causam letter-spacing excessivo no jsPDF.
+### 1. Alterar o tipo `HierarchicalEvent` e o `useMemo` (linhas ~292-413)
 
-2. **Adicionar flag `isChild` no `rowMeta`** para identificar linhas filhas (linha ~856): `rowMeta.push({ isChild: true })`.
+- Renomear semanticamente: `macroName` passa a representar o nome do **Evento Contábil** (categoria da transação).
+- `children` passa a representar os **Clientes/Fornecedores** vinculados àquele evento.
+- Nova lógica de agrupamento:
+  1. Filtrar transações pelo ano, status, categorias selecionadas e meses.
+  2. Agrupar primeiro por `category_id`, depois dentro de cada categoria agrupar por `contact_id`.
+  3. Cada grupo terá o nome do evento como header e os contatos como linhas filhas.
+  4. Transações sem contato serão agrupadas como "Sem cliente/fornecedor".
 
-3. **Expandir `didDrawCell`** (linhas ~890-902) para também tratar linhas filhas:
-   - Quando `isChild === true` e `column.index === 0`: renderizar o texto com `cellPadding` esquerdo aumentado (ex: `x + 6`) para criar a indentação visual sem usar espaços no texto.
-   - Usar `doc.setFont('helvetica', 'normal')` e `doc.setTextColor(100, 100, 100)` para diferenciar visualmente dos macros (texto cinza, peso normal).
-   - Manter os valores numéricos (colunas > 0) sem alteração de estilo.
+### 2. Corrigir tipografia no PDF (linhas ~903-916)
 
-4. **Aplicar mesma correção no XLS** (linha ~932): trocar `"  ↳ "` por `"&nbsp;&nbsp;&nbsp;↳ "` ou usar `padding-left` inline no `<td>` para manter indentação visual no Excel sem espaços extras.
+- No `didDrawCell` para linhas `isChild`, remover o caractere `↳` do texto inserido via `doc.text()` e usar apenas indentação via `x + 6`.
+- Ou manter `↳` mas garantir que o texto seja renderizado com `doc.text()` numa única chamada sem espaços iniciais, usando posicionamento `x` correto.
+- Ajustar `charSpace` para 0 explicitamente: `doc.setCharSpace(0)` antes de desenhar o texto filho, garantindo espaçamento normal.
 
-Nenhuma lógica de dados, filtro ou cálculo será alterada — apenas a tipografia/layout das linhas filhas nos exports.
+### 3. Atualizar exports XLS e CSV (linhas ~943-1001)
+
+- Substituir referências a `macroName`/children pela nova estrutura (evento > contatos).
+- Manter mesma formatação visual (macro bold, children indentados).
+
+### 4. Atualizar preview summary (linha ~1325)
+
+- Ajustar label de "X macros" para "X eventos" na contagem da versão completa.
+
+## Resultado esperado
+
+- **Versão Resumida**: Sem mudança — lista de eventos com valores mensais.
+- **Versão Completa**: Evento como header (bold, fundo cinza), abaixo os clientes/fornecedores vinculados com valores mensais, tipografia limpa e sem espaçamento estranho.
