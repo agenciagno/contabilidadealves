@@ -1288,7 +1288,7 @@ export function CashFlowReportModal({
                   <span className="text-muted-foreground">Eventos com valor:</span>
                   <span className="font-semibold">
                     {monthlyVersion === 'completa'
-                      ? `${monthlyHierarchicalMatrix.groups.length} macros`
+                      ? `${monthlyHierarchicalMatrix.groups.length} eventos`
                       : monthlyMatrix.events.length}
                   </span>
                 </div>
