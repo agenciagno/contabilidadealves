@@ -911,7 +911,7 @@ export function CashFlowReportModal({
       for (const g of monthlyHierarchicalMatrix.groups) {
         rowParts.push(`<tr style="background:#EBEBF0;font-weight:bold"><td>${g.macroName}</td>${sortedSelectedMonths.map(m => `<td>${g.monthly[m].toFixed(2).replace('.', ',')}</td>`).join('')}<td>${g.total.toFixed(2).replace('.', ',')}</td></tr>`);
         for (const c of g.children) {
-          rowParts.push(`<tr><td style="padding-left:16px;color:#666">↳ ${c.name}</td>${sortedSelectedMonths.map(m => `<td>${c.monthly[m].toFixed(2).replace('.', ',')}</td>`).join('')}<td>${c.total.toFixed(2).replace('.', ',')}</td></tr>`);
+          rowParts.push(`<tr><td style="padding-left:16px;color:#666">${c.name}</td>${sortedSelectedMonths.map(m => `<td>${c.monthly[m].toFixed(2).replace('.', ',')}</td>`).join('')}<td>${c.total.toFixed(2).replace('.', ',')}</td></tr>`);
         }
       }
       rows = rowParts.join('');
