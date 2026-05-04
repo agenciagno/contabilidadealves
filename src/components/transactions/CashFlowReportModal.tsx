@@ -287,7 +287,7 @@ export function CashFlowReportModal({
       grand += e.total;
     }
     return { events, colTotals, grand };
-  }, [transactions, monthlyYear, monthlyStatus, monthlySelectedCategories, sortedSelectedMonths]);
+  }, [transactions, monthlyYear, monthlyStatus, expandedSelectedCategories, sortedSelectedMonths]);
 
   // ─── Hierarchical matrix for "Versão Completa" ────────────────────
   type HierarchicalEvent = {
