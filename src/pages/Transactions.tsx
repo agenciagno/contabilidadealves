@@ -1109,7 +1109,7 @@ export default function Transactions() {
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="truncate text-sm font-semibold text-foreground">{transaction.contact?.name ?? transaction.description}</span>
+                            <Tooltip><TooltipTrigger asChild><span className="truncate text-sm font-semibold text-foreground">{transaction.contact?.name ?? transaction.description}</span></TooltipTrigger><TooltipContent side="top" className="apple-tooltip"><p>{transaction.contact?.name ?? transaction.description}</p></TooltipContent></Tooltip>
                             {isOverdue && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-500 border border-red-500/40 whitespace-nowrap shrink-0">Vencido</span>}
                           </div>
                           <div className="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground">
@@ -1124,7 +1124,7 @@ export default function Transactions() {
                           {transaction.category ? (
                             <>
                               <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: transaction.category.color || '#3B82F6' }} />
-                              <span className="truncate" style={{ color: transaction.category.color }}>{transaction.category.name}</span>
+                              <Tooltip><TooltipTrigger asChild><span className="truncate" style={{ color: transaction.category.color }}>{transaction.category.name}</span></TooltipTrigger><TooltipContent side="top" className="apple-tooltip"><p>{transaction.category.name}</p></TooltipContent></Tooltip>
                             </>
                           ) : (
                             <span>—</span>
