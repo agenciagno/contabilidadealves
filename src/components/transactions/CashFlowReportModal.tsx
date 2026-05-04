@@ -869,15 +869,16 @@ export function CashFlowReportModal({
           doc.setFillColor(255, 255, 255);
           doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
           doc.setFont('helvetica', 'normal');
-          doc.setFontSize(chosenFont);
+          doc.setFontSize(chosenFont > 6 ? chosenFont - 0.5 : chosenFont);
+          (doc as any).setCharSpace?.(0);
           const text = String(data.cell.raw || '');
+          const yPos = data.cell.y + data.cell.height / 2 + 1;
           if (data.column.index === 0) {
             doc.setTextColor(100, 100, 100);
-            doc.text(`↳ ${text}`, data.cell.x + 6, data.cell.y + data.cell.height / 2 + 1);
+            doc.text(text, data.cell.x + 6, yPos);
           } else {
             doc.setTextColor(80, 80, 80);
-            const textX = data.cell.x + data.cell.width - 2;
-            doc.text(text, textX, data.cell.y + data.cell.height / 2 + 1, { align: 'right' });
+            doc.text(text, data.cell.x + data.cell.width - 2, yPos, { align: 'right' });
           }
         }
       } : undefined,
