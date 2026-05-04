@@ -842,7 +842,7 @@ export function CashFlowReportModal({
     // Build body rows based on version
     let body: string[][];
     let foot: string[][];
-    const rowMeta: { isMacro?: boolean }[] = [];
+    const rowMeta: { isMacro?: boolean; isChild?: boolean }[] = [];
 
     if (monthlyVersion === 'completa') {
       body = [];
@@ -852,8 +852,9 @@ export function CashFlowReportModal({
         rowMeta.push({ isMacro: true });
         // Children
         for (const c of g.children) {
-          body.push([`  ↳ ${c.name}`, ...sortedSelectedMonths.map(m => fmt(c.monthly[m])), fmt(c.total)]);
-          rowMeta.push({});
+          body.push([c.name, ...sortedSelectedMonths.map(m => fmt(c.monthly[m])), fmt(c.total)]);
+          rowMeta.push({ isChild: true });
+        }
         }
       }
       foot = [['TOTAL', ...sortedSelectedMonths.map(m => fmt(monthlyHierarchicalMatrix.colTotals[m])), fmt(monthlyHierarchicalMatrix.grand)]];
