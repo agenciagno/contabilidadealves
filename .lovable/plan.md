@@ -1,53 +1,77 @@
 
-## 1. DRE — Fix text contrast on highlighted rows
+# Auditoria de Responsividade
 
-**File:** `src/pages/DRE.tsx`
+## Resumo
+Ajustes visuais globais de layout para garantir que nenhum elemento cause scroll horizontal na pagina, com regras de responsividade por breakpoint. Inclui mudancas de cor na sidebar e background.
 
-In the `CalculatedRow` component (lines 99-124), the rows with `isFinal=true` (lucro_liquido, fluxo_caixa) use `bg-primary/10` background with `text-primary` text — blue on blue.
+---
 
-**Change:** When `isFinal` is true, force all text in those cells to `text-white` and use a solid `bg-primary` background instead of the translucent `bg-primary/10`. This ensures white text on a solid blue row.
+## 1. CSS Global (`src/index.css`)
 
-Specifically:
-- Row className: `bg-primary text-white` (instead of `bg-primary/10 text-primary`)
-- Label span: `text-white` (instead of `text-primary`)
-- Value cells: `text-white` for all values (previsto, realizado, rxp, percentages) — override the `valueColor()` function for these rows
-- Dark mode variant: `dark:bg-primary` (same solid background)
+Adicionar bloco de regras globais de responsividade:
 
-## 2. Compact page headers — consistent layout
+- `html, body, #root`: `overflow-x: hidden; max-width: 100vw;` (ja existe parcial, reforcar no `#root`)
+- Tabelas: garantir que `.relative.w-full.overflow-auto` tenha `-webkit-overflow-scrolling: touch` (ja existe) e adicionar `table { min-width: max-content; }` dentro desse container
+- Imagens/SVG: `img, svg { max-width: 100%; height: auto; }`
+- Titulos: `h1, h2 { overflow-wrap: break-word; word-break: break-word; max-width: 100%; }`
 
-Apply a uniform header structure across all pages that have title + action buttons. The pattern:
+**Cores solicitadas:**
+- `.dark` sidebar: `--apple-mat-sidebar: rgba(28,28,28,0.94);`
+- `.dark` background: `--apple-bg-base: #0f0f0f;` e `--background: 0 0% 5.9%;` (equivalente HSL de #0f0f0f)
 
+## 2. Layout principal (`src/components/layout/AppLayout.tsx`)
+
+- Adicionar `max-w-[100vw]` ao container principal alem do `overflow-x-hidden` existente
+
+## 3. KPI Grids — Dashboard (`src/pages/Dashboard.tsx`)
+
+Atualizar grids de cards KPI:
+- `grid-cols-1 sm:grid-cols-3` → `grid-cols-1 md:grid-cols-2 xl:grid-cols-3`
+- `grid-cols-2 sm:grid-cols-4` → `grid-cols-1 sm:grid-cols-2 xl:grid-cols-4`
+
+## 4. KPI Grids — Transactions (`src/pages/Transactions.tsx`)
+
+- `grid-cols-2 sm:grid-cols-4 lg:grid-cols-7` → `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7`
+- A grid fixa de colunas `grid-cols-[40px_1fr_...]` (usada como tabela custom) sera envolvida num container com `overflow-x: auto` se nao estiver ja
+
+## 5. KPI Grids — PagarReceber (`src/pages/PagarReceber.tsx`)
+
+- `grid-cols-3` → `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`
+
+## 6. Banks grid (`src/pages/Banks.tsx`)
+
+- `md:grid-cols-2 lg:grid-cols-3` — ja responsivo, manter
+
+## 7. Kanban (`src/components/fiscal/KanbanBoard.tsx`)
+
+- O container `flex gap-4 overflow-x-auto` ja permite scroll interno — adicionar `flex-shrink-0` nas colunas e garantir `min-w-[260px]` (ja existe)
+- Adicionar um fade gradient visual a direita como indicador de scroll
+
+## 8. Modais e Drawers
+
+Adicionar regra CSS global:
+```css
+[role="dialog"] {
+  max-width: min(480px, calc(100vw - 32px));
+}
 ```
-Row 1: [Title + subtitle (left)]  [Action buttons (right, gap-8px)]
-Row 2: [Filters / search / quick actions] (when present)
-Mobile: title full-width, actions wrap below at w-full
-```
+Com excecao para Sheet (sidebar mobile), que ja usa largura propria.
 
-**Pages to update:**
+## 9. Sidebar — cor atualizada
 
-| Page | File | Current state | Changes needed |
-|------|------|--------------|----------------|
-| Dashboard | Dashboard.tsx | Already correct pattern (lines 455-488) | Add `py-4` to header, ensure mobile wrap |
-| Movimentações | Transactions.tsx | Already correct (814-838) | Add `py-4`, mobile wrap |
-| Pagar/Receber | PagarReceber.tsx | h1 is `text-3xl`, no actions | Reduce to `text-2xl`, add `py-4`, wrap in flex row |
-| Boletos | Boletos.tsx | Has `p-6 pb-4` padding | Normalize to `py-4`, keep flex layout |
-| Conta Corrente | Banks.tsx | Already correct (165-180) | Add `py-4` |
-| Eventos Contábeis | Categories.tsx | Already correct (119-125) | Add `py-4` |
-| DRE | DRE.tsx | Already correct (149-170) | Add `py-4` |
-| Cliente/Fornecedor | Contacts.tsx | Title alone on row, actions separated below | Move action buttons (view toggle + "Novo Cliente") to same row as title |
-| Tarefas Fiscais | FiscalTasks.tsx | Already correct (112-120) | Add `py-4` |
-| Contas Recorrentes | RecurringBills.tsx | Already correct (181-190) | Add `py-4` |
-| Centro de Disparos | CrmDispatches.tsx | `text-3xl` with icon block | Reduce to `text-2xl`, simplify icon |
-| Relatório de Clientes | ClientReport.tsx | `text-3xl` | Reduce to `text-2xl` |
+Ja mencionado no item 1: atualizar `--apple-mat-sidebar` no `.dark` para `rgba(28,28,28,0.94)`.
 
-For each header container, the standard classes will be:
-```
-flex items-center justify-between py-4 flex-wrap gap-4
-```
-With mobile responsive classes:
-```
-md:flex-nowrap (title and actions same line on desktop)
-```
-Action buttons group: `flex items-center gap-2`
+---
 
-No logic, data, routes, or functional behavior will be changed. Only visual spacing, font sizes, and flex alignment.
+## Arquivos modificados
+
+| Arquivo | Tipo de mudanca |
+|---------|----------------|
+| `src/index.css` | Regras globais de overflow, tipografia, imagens, cores dark |
+| `src/components/layout/AppLayout.tsx` | max-w-[100vw] |
+| `src/pages/Dashboard.tsx` | Grid breakpoints |
+| `src/pages/Transactions.tsx` | Grid breakpoints + overflow container |
+| `src/pages/PagarReceber.tsx` | Grid breakpoints |
+| `src/components/fiscal/KanbanBoard.tsx` | flex-shrink-0, fade gradient |
+
+Nenhuma logica, dado, texto ou funcionalidade sera alterada.
