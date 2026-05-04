@@ -527,9 +527,8 @@ function TableSkeleton() {
   return (
     <div className="divide-y divide-border/30">
       {Array.from({ length: 10 }).map((_, i) => (
-        <div key={i} className="grid grid-cols-[40px_100px_1fr_110px_110px_110px_90px_110px_110px_90px] gap-3 px-4 py-3 items-center">
+        <div key={i} className="grid grid-cols-[40px_1fr_1fr_110px_110px_110px_90px_110px_110px_90px] gap-3 px-4 py-3 items-center">
           <Skeleton className="h-4 w-4 rounded" />
-          <Skeleton className="h-4 w-16" />
           <div className="space-y-1.5">
             <Skeleton className="h-4 w-40" />
             <Skeleton className="h-3 w-28" />
