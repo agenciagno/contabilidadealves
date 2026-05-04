@@ -888,7 +888,9 @@ export function CashFlowReportModal({
       alternateRowStyles: { fillColor: [248, 248, 248] },
       columnStyles: colStyles,
       didDrawCell: monthlyVersion === 'completa' ? (data) => {
-        if (data.section === 'body' && rowMeta[data.row.index]?.isMacro) {
+        if (data.section !== 'body') return;
+        const meta = rowMeta[data.row.index];
+        if (meta?.isMacro) {
           doc.setFillColor(235, 235, 240);
           doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
           doc.setFont('helvetica', 'bold');
@@ -898,6 +900,20 @@ export function CashFlowReportModal({
           const textX = data.column.index === 0 ? data.cell.x + 2 : data.cell.x + data.cell.width - 2;
           const textAlign = data.column.index === 0 ? 'left' : 'right';
           doc.text(text, textX, data.cell.y + data.cell.height / 2 + 1, { align: textAlign as any });
+        } else if (meta?.isChild) {
+          doc.setFillColor(255, 255, 255);
+          doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(chosenFont);
+          const text = String(data.cell.raw || '');
+          if (data.column.index === 0) {
+            doc.setTextColor(100, 100, 100);
+            doc.text(`↳ ${text}`, data.cell.x + 6, data.cell.y + data.cell.height / 2 + 1);
+          } else {
+            doc.setTextColor(80, 80, 80);
+            const textX = data.cell.x + data.cell.width - 2;
+            doc.text(text, textX, data.cell.y + data.cell.height / 2 + 1, { align: 'right' });
+          }
         }
       } : undefined,
       didDrawPage: (data) => {
