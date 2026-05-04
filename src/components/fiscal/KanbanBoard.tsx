@@ -135,7 +135,8 @@ export function KanbanBoard({ tasks, contactsMap, profilesMap, onStatusChange, o
 
   return (
     <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div className="flex gap-4 overflow-x-auto pb-4">
+      <div className="kanban-scroll-container has-scroll">
+        <div className="flex gap-4 overflow-x-auto pb-4">
         {COLUMNS.map(col => (
           <DroppableColumn key={col.id} id={col.id} label={col.label} color={col.color} count={tasksByStatus[col.id].length}>
             <SortableContext items={tasksByStatus[col.id].map(t => t.id)} strategy={verticalListSortingStrategy}>

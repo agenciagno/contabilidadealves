@@ -839,7 +839,7 @@ export default function Transactions() {
       </div>
 
       {/* ── KPI Cards ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
         <Card className="bg-card border-border/50 border-l-2 border-l-emerald-500">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
@@ -1029,7 +1029,7 @@ export default function Transactions() {
       ) : (
         <Card className="bg-card border-border/50 overflow-hidden">
           <CardContent className="p-0">
-            <div className="max-h-[70vh] overflow-auto">
+            <div className="max-h-[70vh] overflow-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
               {/* Table Header */}
               <div className="grid grid-cols-[40px_1fr_1fr_110px_110px_110px_90px_110px_110px_90px] gap-3 px-4 py-2 bg-card border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 z-10">
                 <div className="flex items-center justify-center">
