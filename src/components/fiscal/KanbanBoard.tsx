@@ -152,6 +152,7 @@ export function KanbanBoard({ tasks, contactsMap, profilesMap, onStatusChange, o
             </SortableContext>
           </DroppableColumn>
         ))}
+        </div>
       </div>
       <DragOverlay>
         {activeTask && (
