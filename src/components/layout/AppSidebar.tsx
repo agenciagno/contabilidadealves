@@ -160,6 +160,7 @@ export function AppSidebar() {
   const { signOut } = useAuth();
   const { state, isMobile, setOpenMobile } = useSidebar();
   const collapsed = state === 'collapsed';
+  const showLabels = isMobile || !collapsed;
 
   // Close sidebar sheet on mobile when navigating
   const handleMobileNav = () => {
