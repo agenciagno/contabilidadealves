@@ -330,31 +330,24 @@ function ColumnFilterIcon({ active }: { active: boolean }) {
   );
 }
 
-function ContactEventMultiFilter({
-  columnFilters, setColumnFilters, uniqueContactOptions, uniqueEventOptions,
+function ContactColumnFilter({
+  columnFilters, setColumnFilters, uniqueContactOptions,
 }: {
   columnFilters: ColumnFilters;
   setColumnFilters: React.Dispatch<React.SetStateAction<ColumnFilters>>;
   uniqueContactOptions: { id: string; name: string }[];
-  uniqueEventOptions: string[];
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [tempContacts, setTempContacts] = useState<string[]>([]);
-  const [tempEvents, setTempEvents] = useState<string[]>([]);
 
-  // Derived from parent when closed, from temp when open
   const selectedContacts = open ? tempContacts : (columnFilters.contactIds || []);
-  const selectedEvents = open ? tempEvents : (columnFilters.eventNames || []);
-  const totalSelected = selectedContacts.length + selectedEvents.length;
+  const totalSelected = selectedContacts.length;
   const isActive = totalSelected > 0;
 
   const filteredContacts = search
     ? uniqueContactOptions.filter(c => c.name.toLowerCase().includes(search.toLowerCase()))
     : uniqueContactOptions;
-  const filteredEvents = search
-    ? uniqueEventOptions.filter(d => d.toLowerCase().includes(search.toLowerCase()))
-    : uniqueEventOptions;
 
   const toggleContact = (id: string) => {
     setTempContacts(prev =>
@@ -362,30 +355,20 @@ function ContactEventMultiFilter({
     );
   };
 
-  const toggleEvent = (desc: string) => {
-    setTempEvents(prev =>
-      prev.includes(desc) ? prev.filter(x => x !== desc) : [...prev, desc]
-    );
-  };
-
   const clearAll = () => {
     setTempContacts([]);
-    setTempEvents([]);
     setSearch('');
   };
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
-      // Sync from parent state when opening
       setTempContacts(columnFilters.contactIds || []);
-      setTempEvents(columnFilters.eventNames || []);
       setSearch('');
     } else {
-      // Apply to parent only when closing
       setColumnFilters(prev => {
         const n = { ...prev };
         if (tempContacts.length) n.contactIds = tempContacts; else delete n.contactIds;
-        if (tempEvents.length) n.eventNames = tempEvents; else delete n.eventNames;
+        delete n.eventNames;
         return n;
       });
       setSearch('');
@@ -395,7 +378,7 @@ function ContactEventMultiFilter({
 
   return (
     <div className="flex items-center gap-0.5">
-      <span>Cliente / Evento</span>
+      <span>Cliente</span>
       {isActive && (
         <Badge variant="secondary" className="h-4 px-1 text-[9px] font-bold ml-0.5">{totalSelected}</Badge>
       )}
@@ -412,7 +395,7 @@ function ContactEventMultiFilter({
               <Input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                placeholder="Buscar..."
+                placeholder="Buscar cliente..."
                 className="h-7 text-xs pl-7"
                 autoFocus
               />
@@ -427,37 +410,18 @@ function ContactEventMultiFilter({
               />
               <span className="truncate italic text-muted-foreground">(Vazio)</span>
             </label>
-            {filteredContacts.length > 0 && (
-              <>
-                <div className="pt-1 pb-0.5 px-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Clientes / Fornecedores</div>
-                {filteredContacts.map(c => (
-                  <label key={c.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-xs">
-                    <Checkbox
-                      checked={selectedContacts.includes(c.id)}
-                      onCheckedChange={() => toggleContact(c.id)}
-                      className="h-3.5 w-3.5"
-                    />
-                    <span className="truncate">{c.name}</span>
-                  </label>
-                ))}
-              </>
-            )}
-            {filteredEvents.length > 0 && (
-              <>
-                <div className="pt-2 pb-0.5 px-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider border-t border-border/40 mt-1">Eventos (sem contato)</div>
-                {filteredEvents.map(desc => (
-                  <label key={desc} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-xs">
-                    <Checkbox
-                      checked={selectedEvents.includes(desc)}
-                      onCheckedChange={() => toggleEvent(desc)}
-                      className="h-3.5 w-3.5"
-                    />
-                    <span className="truncate">{desc}</span>
-                  </label>
-                ))}
-              </>
-            )}
-            {filteredContacts.length === 0 && filteredEvents.length === 0 && (
+            {filteredContacts.length > 0 ? (
+              filteredContacts.map(c => (
+                <label key={c.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-xs">
+                  <Checkbox
+                    checked={selectedContacts.includes(c.id)}
+                    onCheckedChange={() => toggleContact(c.id)}
+                    className="h-3.5 w-3.5"
+                  />
+                  <span className="truncate">{c.name}</span>
+                </label>
+              ))
+            ) : (
               <p className="text-xs text-muted-foreground text-center py-4">Nenhum resultado</p>
             )}
           </div>
@@ -474,14 +438,97 @@ function ContactEventMultiFilter({
   );
 }
 
+function EventoContabilColumnFilter({
+  selected, onChange, categories,
+}: {
+  selected: string[];
+  onChange: (v: string[]) => void;
+  categories: { id: string; name: string; color: string }[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [temp, setTemp] = useState<string[]>([]);
+
+  const isActive = selected.length > 0;
+
+  const filtered = search
+    ? categories.filter(c => c.name.toLowerCase().includes(search.toLowerCase()))
+    : categories;
+
+  const toggle = (id: string) => {
+    setTemp(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const clearAll = () => { setTemp([]); setSearch(''); };
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      setTemp(selected);
+      setSearch('');
+    } else {
+      onChange(temp);
+      setSearch('');
+    }
+    setOpen(nextOpen);
+  };
+
+  const displaySelected = open ? temp : selected;
+  const displayActive = displaySelected.length > 0;
+
+  return (
+    <div className="flex items-center gap-0.5">
+      <span>Evento Contábil</span>
+      {displayActive && (
+        <Badge variant="secondary" className="h-4 px-1 text-[9px] font-bold ml-0.5">{displaySelected.length}</Badge>
+      )}
+      <Popover open={open} onOpenChange={handleOpenChange}>
+        <PopoverTrigger asChild>
+          <button className="p-1 rounded hover:bg-muted/60 transition-colors">
+            <ColumnFilterIcon active={isActive} />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 p-0" align="start" onOpenAutoFocus={e => e.preventDefault()}>
+          <div className="p-2 border-b border-border/40">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar evento..." className="h-7 text-xs pl-7" autoFocus />
+            </div>
+          </div>
+          <div className="max-h-60 overflow-auto p-1">
+            <label className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-xs border-b border-border/30 mb-1">
+              <Checkbox checked={displaySelected.includes(IS_EMPTY)} onCheckedChange={() => toggle(IS_EMPTY)} className="h-3.5 w-3.5" />
+              <span className="truncate italic text-muted-foreground">(Vazio)</span>
+            </label>
+            {filtered.length > 0 ? filtered.map(c => (
+              <label key={c.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-xs">
+                <Checkbox checked={displaySelected.includes(c.id)} onCheckedChange={() => toggle(c.id)} className="h-3.5 w-3.5" />
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.color || '#3B82F6' }} />
+                <span className="truncate">{c.name}</span>
+              </label>
+            )) : (
+              <p className="text-xs text-muted-foreground text-center py-4">Nenhum resultado</p>
+            )}
+          </div>
+          {displayActive && (
+            <div className="p-2 border-t border-border/40">
+              <Button size="sm" variant="ghost" className="w-full h-7 text-xs" onClick={clearAll}>
+                <X className="w-3 h-3 mr-1" /> Limpar ({displaySelected.length})
+              </Button>
+            </div>
+          )}
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
 // Skeleton rows for loading state
 function TableSkeleton() {
   return (
     <div className="divide-y divide-border/30">
       {Array.from({ length: 10 }).map((_, i) => (
-        <div key={i} className="grid grid-cols-[40px_100px_1fr_110px_110px_110px_90px_110px_110px_90px] gap-3 px-4 py-3 items-center">
+        <div key={i} className="grid grid-cols-[40px_1fr_1fr_110px_110px_110px_90px_110px_110px_90px] gap-3 px-4 py-3 items-center">
           <Skeleton className="h-4 w-4 rounded" />
-          <Skeleton className="h-4 w-16" />
           <div className="space-y-1.5">
             <Skeleton className="h-4 w-40" />
             <Skeleton className="h-3 w-28" />
@@ -668,15 +715,10 @@ export default function Transactions() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [contacts]);
 
-  // Event options — we use a lightweight approach from current page data
-  // This is acceptable since events without contact are rarer
-  const uniqueEventOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const t of transactions) {
-      if (!t.contact_id) set.add(t.description);
-    }
-    return Array.from(set).sort();
-  }, [transactions]);
+  // Category options for the Evento Contábil column filter
+  const categoryOptions = useMemo(() => {
+    return categories.map(c => ({ id: c.id, name: c.name, color: c.color || '#3B82F6' }));
+  }, [categories]);
 
   // Unique amounts for NumericMultiFilter
   const uniqueAmounts = useMemo(() => transactions.map(t => Number(t.amount)), [transactions]);
@@ -989,24 +1031,21 @@ export default function Transactions() {
           <CardContent className="p-0">
             <div className="max-h-[70vh] overflow-auto">
               {/* Table Header */}
-              <div className="grid grid-cols-[40px_100px_1fr_110px_110px_110px_90px_110px_110px_90px] gap-3 px-4 py-2 bg-card border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 z-10">
+              <div className="grid grid-cols-[40px_1fr_1fr_110px_110px_110px_90px_110px_110px_90px] gap-3 px-4 py-2 bg-card border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 z-10">
                 <div className="flex items-center justify-center">
                   <Checkbox checked={selectedIds.size === transactions.length && transactions.length > 0} onCheckedChange={toggleSelectAll} />
                 </div>
 
-                <div className="flex items-center gap-0.5">
-                  <span>Emissão</span>
-                  <Popover>
-                    <PopoverTrigger asChild><button className="p-1 rounded hover:bg-muted/60 transition-colors"><ColumnFilterIcon active={!!columnFilters.issue_date || !!columnFilters.issue_date_empty || sortField === 'issue_date'} /></button></PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start"><DateColumnFilter value={columnFilters.issue_date} onChange={v => updateColumnFilter('issue_date', v)} sortField="issue_date" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortDirect} includeEmpty={!!columnFilters.issue_date_empty} onIncludeEmptyChange={v => updateColumnFilter('issue_date_empty', v || undefined)} /></PopoverContent>
-                  </Popover>
-                </div>
-
-                <ContactEventMultiFilter
+                <ContactColumnFilter
                   columnFilters={columnFilters}
                   setColumnFilters={setColumnFilters}
                   uniqueContactOptions={uniqueContactOptions}
-                  uniqueEventOptions={uniqueEventOptions}
+                />
+
+                <EventoContabilColumnFilter
+                  selected={categoryFilters}
+                  onChange={setCategoryFilters}
+                  categories={categoryOptions}
                 />
 
                 <div className="flex items-center justify-center gap-0.5">
@@ -1064,25 +1103,32 @@ export default function Transactions() {
                   {transactions.map(transaction => {
                     const isOverdue = !isEffectivelyPaid(transaction) && transaction.due_date && transaction.due_date < new Date().toISOString().split('T')[0];
                     return (
-                      <div key={transaction.id} className={`grid grid-cols-[40px_100px_1fr_110px_110px_110px_90px_110px_110px_90px] gap-3 px-4 py-3 hover:bg-muted/30 transition-colors items-center ${selectedIds.has(transaction.id) ? 'bg-primary/10 border-l-2 border-l-primary' : ''}`}>
+                      <div key={transaction.id} className={`grid grid-cols-[40px_1fr_1fr_110px_110px_110px_90px_110px_110px_90px] gap-3 px-4 py-3 hover:bg-muted/30 transition-colors items-center ${selectedIds.has(transaction.id) ? 'bg-primary/10 border-l-2 border-l-primary' : ''}`}>
                         <div className="flex items-center justify-center">
                           <Checkbox checked={selectedIds.has(transaction.id)} onCheckedChange={() => toggleSelect(transaction.id)} />
                         </div>
-                        <div className="text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.issue_date)}</div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="truncate text-sm font-semibold text-foreground">{transaction.contact?.name ?? transaction.description}</span>
                             {isOverdue && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-500 border border-red-500/40 whitespace-nowrap shrink-0">Vencido</span>}
                           </div>
                           <div className="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground">
-                            {transaction.category && <span style={{ color: transaction.category.color }}>{transaction.category.name}</span>}
-                            {transaction.category && transaction.bank && <span className="text-muted-foreground/40">•</span>}
                             {transaction.bank && <span>{transaction.bank.name}</span>}
-                            <span className="text-muted-foreground/40">•</span>
+                            {transaction.bank && <span className="text-muted-foreground/40">•</span>}
                             <span className={transaction.type === 'receita' ? 'text-emerald-500' : 'text-red-500'}>
                               {transaction.type === 'receita' ? 'Receita' : 'Despesa'}
                             </span>
                           </div>
+                        </div>
+                        <div className="min-w-0 flex items-center gap-1.5 text-xs text-muted-foreground">
+                          {transaction.category ? (
+                            <>
+                              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: transaction.category.color || '#3B82F6' }} />
+                              <span className="truncate" style={{ color: transaction.category.color }}>{transaction.category.name}</span>
+                            </>
+                          ) : (
+                            <span>—</span>
+                          )}
                         </div>
                         <div className="text-center text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.due_date)}</div>
                         <div className="text-center text-xs font-mono tabular-nums text-muted-foreground">{formatDateShort(transaction.expected_date)}</div>
