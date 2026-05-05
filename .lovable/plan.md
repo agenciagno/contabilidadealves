@@ -1,31 +1,37 @@
-## Correções no fluxo de criação e autenticação
+Plano para resolver o loop da troca obrigatória de senha:
 
-### 1. Migração de banco de dados
-- Adicionar coluna `password_changed_at` (timestamptz, nullable) na tabela `profiles`
-- Alterar o default da coluna `status` de `'active'` para `'active'` (já é `'active'`, confirmar)
+1. Tornar a leitura de `password_changed_at` resiliente
+- Ajustar `src/hooks/useUserRole.ts` para não quebrar o fluxo se a query que inclui `password_changed_at` falhar por cache de schema.
+- Fazer a leitura principal do perfil com os campos estáveis (`role`, `is_super_admin`, `allowed_modules`, `avatar_url`, `status_active`, `full_name`, `email`).
+- Fazer uma leitura separada e protegida de `password_changed_at`.
+- Se essa leitura separada falhar ou o campo vier `undefined`, considerar como “senha já trocada” e liberar o acesso.
+- Se o campo vier explicitamente `null`, exigir troca de senha.
 
-### 2. Edge Function `create-user-v2`
-- No INSERT do profile (CREATE MODE), adicionar `status: 'active'` explicitamente
-- Manter `force_password_change: true` como está (compatibilidade)
-- Garantir que `password_changed_at` fique `null` para novos usuários (default)
+2. Pular troca obrigatória para Super Admin
+- No mesmo hook, se o usuário for `super_admin` por `role` ou `is_super_admin`, retornar `forcePasswordChange: false` independentemente de `password_changed_at`.
+- Isso evita que o perfil Super Admin entre no fluxo obrigatório.
 
-### 3. AuthContext - Remover bloqueio de `pending`
-- Remover o bloco que verifica `status === 'pending'` e faz signOut
-- Manter apenas o bloqueio para `status === 'blocked'`
+3. Corrigir o salvamento da nova senha
+- Revisar `src/components/auth/ForcePasswordChange.tsx` mantendo a sequência atual:
+  - atualizar a senha no auth com `supabase.auth.updateUser({ password: newPassword })`;
+  - atualizar `profiles.password_changed_at` com timestamp atual para o usuário logado;
+  - invalidar/refazer a query de perfil usada pelo layout;
+  - redirecionar para `/`.
+- Ajustar apenas o necessário para evitar loop após salvar, preservando validação de força da senha e UI existente.
 
-### 4. useUserRole - Usar `password_changed_at`
-- Adicionar `password_changed_at` ao select do query
-- Mudar `forcePasswordChange` para retornar `true` quando `password_changed_at` for `null` (em vez de usar o campo `force_password_change`)
+4. Garantir criação de usuário novo com troca obrigatória
+- Alterar apenas o INSERT de perfil em `supabase/functions/create-user-v2/index.ts` para incluir explicitamente:
+  - `password_changed_at: null`
+- Não alterar a lógica da função além disso.
 
-### 5. ForcePasswordChange - Atualizar `password_changed_at`
-- Após troca de senha bem-sucedida, fazer update em `password_changed_at: new Date().toISOString()` além de `force_password_change: false`
+5. Aplicar ajuste no banco para usuários existentes / Super Admin
+- Como a coluna já foi criada manualmente, não recriar a coluna.
+- Criar uma migração segura somente para preencher `password_changed_at = NOW()` em perfis Super Admin que ainda estejam com o campo nulo, garantindo que o perfil existente do Super Admin não seja forçado à troca.
 
-### 6. Redeploy da Edge Function
-- Redeployar `create-user-v2` após as alterações
-
-### Arquivos modificados
-- `supabase/functions/create-user-v2/index.ts`
-- `src/contexts/AuthContext.tsx`
+Arquivos previstos:
 - `src/hooks/useUserRole.ts`
-- `src/components/auth/ForcePasswordChange.tsx`
-- Nova migração SQL para `password_changed_at`
+- `src/components/auth/ForcePasswordChange.tsx` se necessário
+- `supabase/functions/create-user-v2/index.ts`
+- nova migration SQL apenas para preencher Super Admins existentes com `password_changed_at`, sem alterar schema
+
+Não vou remover, ocultar ou adicionar funcionalidades fora desses pontos.

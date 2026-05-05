@@ -8,13 +8,31 @@ export function useUserRole() {
   const { data, isLoading } = useQuery({
     queryKey: ['user-role-profile', user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Main profile query with stable fields
+      const { data: profile, error } = await supabase
         .from('profiles')
-        .select('role, is_super_admin, allowed_modules, force_password_change, password_changed_at, avatar_url, status_active, full_name, email')
+        .select('role, is_super_admin, allowed_modules, avatar_url, status_active, full_name, email')
         .eq('user_id', user!.id)
         .single();
       if (error) throw error;
-      return data;
+
+      // Separate resilient read for password_changed_at
+      let passwordChangedAt: string | null | undefined = undefined;
+      try {
+        const { data: pwData, error: pwError } = await supabase
+          .from('profiles')
+          .select('password_changed_at')
+          .eq('user_id', user!.id)
+          .single();
+        if (!pwError && pwData) {
+          passwordChangedAt = (pwData as any).password_changed_at ?? undefined;
+        }
+      } catch {
+        // If this fails (schema cache, missing column, etc.), treat as already changed
+        passwordChangedAt = undefined;
+      }
+
+      return { ...profile, passwordChangedAt };
     },
     enabled: !!user?.id,
     staleTime: 0,
@@ -22,14 +40,23 @@ export function useUserRole() {
   });
 
   const role = data?.role ?? 'colaborador';
+  const isSuperAdmin = role === 'super_admin' || (data?.is_super_admin ?? false);
+
+  // Determine if password change is required:
+  // - Super admins are always exempt
+  // - If passwordChangedAt is undefined (query failed or field missing), treat as already changed
+  // - Only force if passwordChangedAt is explicitly null
+  const forcePasswordChange = isSuperAdmin
+    ? false
+    : data?.passwordChangedAt === null;
 
   return {
     role,
-    isSuperAdmin: role === 'super_admin' || (data?.is_super_admin ?? false),
+    isSuperAdmin,
     isAdmin: role === 'admin',
     isColaborador: role === 'colaborador',
     allowedModules: (data?.allowed_modules as string[]) ?? ['home', 'financeiro', 'clientes'],
-    forcePasswordChange: data?.password_changed_at == null,
+    forcePasswordChange,
     avatarUrl: data?.avatar_url ?? null,
     statusActive: data?.status_active ?? true,
     fullName: data?.full_name ?? null,
