@@ -116,8 +116,6 @@ export default function UserFormDialog({ open, onOpenChange, companyId, onSucces
 
     setIsLoading(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
 
       if (isEditMode) {
         const payload: Record<string, unknown> = {
