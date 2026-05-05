@@ -13,6 +13,7 @@ import { PasswordStrength, isPasswordStrong } from '@/components/ui/PasswordStre
 
 export function ForcePasswordChange() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
