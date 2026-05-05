@@ -73,6 +73,10 @@ export default function Auth() {
     }
   };
 
+  if (statusBlock === 'pending') {
+    return <PendingApprovalScreen onBack={() => setStatusBlock(null)} />;
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--apple-bg-base)' }}>
       <div className="w-full max-w-md">
