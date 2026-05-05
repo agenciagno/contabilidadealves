@@ -142,6 +142,7 @@ Deno.serve(async (req) => {
       role,
       status_active: statusActive,
       force_password_change: forcePasswordChange,
+      status: 'active',
     };
 
     const { error: profileInsertError } = await adminClient
