@@ -1,26 +1,30 @@
 ## Problem
 
-When editing an existing user, the `UserFormDialog` calls the `create-user-v2` Edge Function, which fails with a non-2xx error. The Edge Function should only be used for creating new users.
+When a user without `home` in their `allowed_modules` logs in, they land on `/` which triggers `ModuleGuard` to redirect to `/sem-acesso`, even if they have access to other modules.
 
 ## Solution
 
-Replace the Edge Function call in edit mode (lines 136-155 of `UserFormDialog.tsx`) with a direct Supabase client update:
+Update `ModuleGuard.tsx` to find the first accessible module and redirect there instead of `/sem-acesso`.
+
+### Changes to `src/components/auth/ModuleGuard.tsx`
+
+Add a module-to-route mapping and a priority list:
 
 ```typescript
-const { error } = await supabase
-  .from('profiles')
-  .update({
-    full_name: fullName,
-    role,
-    status_active: statusActive,
-    is_super_admin: role === 'super_admin',
-    allowed_modules: resolvedModules,
-  })
-  .eq('user_id', editUser!.userId);
+const MODULE_ROUTE_MAP: Record<string, string> = {
+  home: '/',
+  financeiro: '/painel-financeiro',
+  fiscal: '/fiscal/tarefas',
+  clientes: '/contatos',
+  legalizacao: '/legalizacao',
+  pessoal_rh: '/pessoal-rh',
+  configuracoes: '/configuracoes',
+};
+
+const MODULE_PRIORITY = ['home', 'financeiro', 'fiscal', 'clientes', 'legalizacao', 'pessoal_rh', 'configuracoes'];
 ```
 
-This works because the `profiles` table already has RLS policies allowing admins and super admins to update profiles in their company.
+When access is denied, instead of immediately redirecting to `/sem-acesso`, find the first module the user can access (intersecting `planModules` and `allowedModules`) and redirect there. Only redirect to `/sem-acesso` if no modules are accessible at all.
 
-## Files modified
-
-- `src/components/users/UserFormDialog.tsx` -- replace Edge Function call with direct `.update()` in edit mode only. Create mode remains unchanged.
+### Files modified
+- `src/components/auth/ModuleGuard.tsx`
