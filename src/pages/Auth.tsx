@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, User, Lock, Eye, EyeOff } from 'lucide-react';
+import { Loader2, User, Lock, Eye, EyeOff, ShieldX } from 'lucide-react';
+import { PendingApprovalScreen } from '@/components/auth/PendingApprovalScreen';
 import { z } from 'zod';
 
 const loginSchema = z.object({
@@ -17,6 +18,7 @@ const loginSchema = z.object({
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [statusBlock, setStatusBlock] = useState<'pending' | 'blocked' | null>(null);
   const [loginData, setLoginData] = useState({
     emailOrUsername: '',
     password: ''
@@ -47,10 +49,20 @@ export default function Auth() {
     }
 
     setIsLoading(true);
+    setStatusBlock(null);
     const { error } = await signIn(loginData.emailOrUsername, loginData.password);
     setIsLoading(false);
 
     if (error) {
+      const code = (error as any).code;
+      if (code === 'STATUS_PENDING') {
+        setStatusBlock('pending');
+        return;
+      }
+      if (code === 'STATUS_BLOCKED') {
+        setStatusBlock('blocked');
+        return;
+      }
       toast({
         title: 'Erro ao entrar',
         description: error.message,

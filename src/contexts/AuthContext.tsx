@@ -149,7 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -159,6 +159,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return { error: new Error('Usuário ou senha incorretos') };
         }
         return { error };
+      }
+
+      // Check profile status
+      if (authData?.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('status')
+          .eq('user_id', authData.user.id)
+          .single();
+
+        if (profile?.status === 'pending') {
+          await supabase.auth.signOut();
+          const err = new Error('Acesso em análise');
+          (err as any).code = 'STATUS_PENDING';
+          return { error: err };
+        }
+
+        if (profile?.status === 'blocked') {
+          await supabase.auth.signOut();
+          const err = new Error('Seu acesso foi bloqueado. Entre em contato com o administrador.');
+          (err as any).code = 'STATUS_BLOCKED';
+          return { error: err };
+        }
       }
 
       return { error: null };
