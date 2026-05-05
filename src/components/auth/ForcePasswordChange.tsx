@@ -44,12 +44,13 @@ export function ForcePasswordChange() {
 
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({ force_password_change: false, password_changed_at: new Date().toISOString() })
+        .update({ password_changed_at: new Date().toISOString() })
         .eq('user_id', user!.id);
       if (profileError) throw profileError;
 
       queryClient.invalidateQueries({ queryKey: ['user-role-profile'] });
       toast.success('Senha alterada com sucesso!');
+      navigate('/');
     } catch (err: any) {
       toast.error(err.message || 'Erro ao alterar senha');
     } finally {
