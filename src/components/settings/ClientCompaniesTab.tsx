@@ -310,8 +310,6 @@ export default function ClientCompaniesTab() {
     }
     setSavingUser(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
       const payload: Record<string, unknown> = {
         userId: editingUser.user_id,
         fullName: editUserForm.fullName,
@@ -319,16 +317,11 @@ export default function ClientCompaniesTab() {
       };
       if (editUserForm.password) payload.password = editUserForm.password;
 
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user-v2`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify(payload),
-        }
-      );
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error || 'Erro ao atualizar usuário');
+      const { data: result, error: fnError } = await supabase.functions.invoke('create-user-v2', {
+        body: payload,
+      });
+      if (fnError) throw new Error(fnError.message || 'Erro ao atualizar usuário');
+      if (result?.error) throw new Error(result.error);
       toast.success('Usuário atualizado com sucesso!');
       queryClient.invalidateQueries({ queryKey: ['company-users', selectedCompanyId] });
       setEditUserOpen(false);
