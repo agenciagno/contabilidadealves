@@ -135,20 +135,19 @@ export default function UserFormDialog({ open, onOpenChange, companyId, onSucces
 
       if (isEditMode) {
         const resolvedModules = role === 'colaborador' ? allowedModules : ALL_MODULES.map(m => m.key);
-        const payload: Record<string, unknown> = {
-          userId: editUser!.userId,
-          fullName,
-          full_name: fullName,
-          role,
-          statusActive,
-          status_active: statusActive,
-          allowedModules: resolvedModules,
-          allowed_modules: resolvedModules,
-        };
 
-        const { data, error: fnError } = await supabase.functions.invoke('create-user-v2', { body: payload });
-        if (fnError) throw new Error(fnError.message || 'Erro ao atualizar usuário');
-        if (data?.error) throw new Error(data.error);
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            full_name: fullName,
+            role,
+            status_active: statusActive,
+            is_super_admin: role === 'super_admin',
+            allowed_modules: resolvedModules,
+          })
+          .eq('user_id', editUser!.userId);
+
+        if (updateError) throw new Error(updateError.message || 'Erro ao atualizar usuário');
 
         toast.success('Usuário atualizado com sucesso!');
         onSuccess();

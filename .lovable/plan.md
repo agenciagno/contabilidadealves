@@ -1,23 +1,26 @@
+## Problem
 
-## Changes
+When editing an existing user, the `UserFormDialog` calls the `create-user-v2` Edge Function, which fails with a non-2xx error. The Edge Function should only be used for creating new users.
 
-### 1. Disable forced password change (`src/hooks/useUserRole.ts`)
+## Solution
 
-Set `forcePasswordChange` to always return `false`. The `ForcePasswordChange` component stays in the codebase but will never render.
+Replace the Edge Function call in edit mode (lines 136-155 of `UserFormDialog.tsx`) with a direct Supabase client update:
 
-### 2. User creation modal: replace default password with custom field (`src/components/users/UserFormDialog.tsx`)
+```typescript
+const { error } = await supabase
+  .from('profiles')
+  .update({
+    full_name: fullName,
+    role,
+    status_active: statusActive,
+    is_super_admin: role === 'super_admin',
+    allowed_modules: resolvedModules,
+  })
+  .eq('user_id', editUser!.userId);
+```
 
-- Add a `password` state field and a corresponding form input (with show/hide toggle and `PasswordStrength` indicator)
-- Add validation: password is required in create mode and must pass `isPasswordStrong()`
-- Send the user-entered password in the `create-user-v2` body instead of hardcoded `Mudar@123`
-- Remove `forcePasswordChange` / `force_password_change` from the request body
-- Remove the info box about the temporary password (lines 274-278)
-- Reset the password field in `resetForm()`
+This works because the `profiles` table already has RLS policies allowing admins and super admins to update profiles in their company.
 
-### 3. Verify profile password change (already exists)
+## Files modified
 
-`ProfileModal.tsx` already has an "Alterar Senha" section using `supabase.auth.updateUser({ password })` with strength validation and confirmation. No changes needed here.
-
-### Files modified
-- `src/hooks/useUserRole.ts` — one-line change
-- `src/components/users/UserFormDialog.tsx` — add password field, remove default password and forced change flags
+- `src/components/users/UserFormDialog.tsx` -- replace Edge Function call with direct `.update()` in edit mode only. Create mode remains unchanged.
