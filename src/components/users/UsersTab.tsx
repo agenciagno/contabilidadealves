@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Plus, Trash2, Users, Shield, Pencil } from 'lucide-react';
+import { Loader2, Plus, Trash2, Users, Shield, Pencil, Check, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -43,6 +43,7 @@ interface Profile {
   email: string;
   role: string;
   status_active: boolean;
+  status: string | null;
   is_super_admin: boolean;
   allowed_modules: string[];
   created_at: string;
@@ -64,7 +65,7 @@ export default function UsersTab({ companyId, currentUserId }: UsersTabProps) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, user_id, full_name, email, role, status_active, is_super_admin, allowed_modules, created_at')
+        .select('id, user_id, full_name, email, role, status_active, status, is_super_admin, allowed_modules, created_at')
         .eq('company_id', companyId)
         .order('created_at', { ascending: false });
 
@@ -88,6 +89,24 @@ export default function UsersTab({ companyId, currentUserId }: UsersTabProps) {
     onError: (error: any) => {
       toast.error(error.message || 'Erro ao remover usuário');
     }
+  });
+
+  const updateStatus = useMutation({
+    mutationFn: async ({ userId, status }: { userId: string; status: string }) => {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ status })
+        .eq('user_id', userId);
+      if (error) throw error;
+    },
+    onSuccess: (_, { status }) => {
+      queryClient.invalidateQueries({ queryKey: ['company-users'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-approvals-count'] });
+      toast.success(status === 'active' ? 'Usuário aprovado!' : 'Usuário bloqueado.');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Erro ao atualizar status');
+    },
   });
 
   const handleDelete = (userId: string) => {
@@ -189,9 +208,39 @@ export default function UsersTab({ companyId, currentUserId }: UsersTabProps) {
                     )}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={user.status_active ? 'default' : 'secondary'}>
-                      {user.status_active ? 'Ativo' : 'Inativo'}
-                    </Badge>
+                    {(user.status ?? 'active') === 'pending' ? (
+                      <div className="flex items-center gap-1.5">
+                        <Badge className="bg-yellow-500/15 text-yellow-600 hover:bg-yellow-500/20 border-yellow-500/20">
+                          Aguardando aprovação
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-500/10"
+                          title="Aprovar"
+                          disabled={updateStatus.isPending}
+                          onClick={() => updateStatus.mutate({ userId: user.user_id, status: 'active' })}
+                        >
+                          <Check className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          title="Recusar"
+                          disabled={updateStatus.isPending}
+                          onClick={() => updateStatus.mutate({ userId: user.user_id, status: 'blocked' })}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ) : (user.status ?? 'active') === 'blocked' ? (
+                      <Badge variant="destructive">Bloqueado</Badge>
+                    ) : (
+                      <Badge variant={user.status_active ? 'default' : 'secondary'}>
+                        {user.status_active ? 'Ativo' : 'Inativo'}
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell>
                     {user.role === 'super_admin' || user.is_super_admin ? (
