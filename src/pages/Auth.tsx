@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, User, Lock, Eye, EyeOff } from 'lucide-react';
+import { Loader2, User, Lock, Eye, EyeOff, ShieldX } from 'lucide-react';
+import { PendingApprovalScreen } from '@/components/auth/PendingApprovalScreen';
 import { z } from 'zod';
 
 const loginSchema = z.object({
@@ -17,6 +18,7 @@ const loginSchema = z.object({
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [statusBlock, setStatusBlock] = useState<'pending' | 'blocked' | null>(null);
   const [loginData, setLoginData] = useState({
     emailOrUsername: '',
     password: ''
@@ -47,10 +49,20 @@ export default function Auth() {
     }
 
     setIsLoading(true);
+    setStatusBlock(null);
     const { error } = await signIn(loginData.emailOrUsername, loginData.password);
     setIsLoading(false);
 
     if (error) {
+      const code = (error as any).code;
+      if (code === 'STATUS_PENDING') {
+        setStatusBlock('pending');
+        return;
+      }
+      if (code === 'STATUS_BLOCKED') {
+        setStatusBlock('blocked');
+        return;
+      }
       toast({
         title: 'Erro ao entrar',
         description: error.message,
@@ -60,6 +72,10 @@ export default function Auth() {
       navigate('/');
     }
   };
+
+  if (statusBlock === 'pending') {
+    return <PendingApprovalScreen onBack={() => setStatusBlock(null)} />;
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--apple-bg-base)' }}>
@@ -89,6 +105,17 @@ export default function Auth() {
           </CardHeader>
 
           <CardContent>
+            {statusBlock === 'blocked' && (
+              <div
+                className="flex items-center gap-2 p-3 rounded-lg mb-4"
+                style={{ background: 'hsla(0, 70%, 50%, 0.1)', border: '1px solid hsla(0, 70%, 50%, 0.2)' }}
+              >
+                <ShieldX className="w-5 h-5 shrink-0" style={{ color: 'var(--apple-red)' }} />
+                <p className="text-sm" style={{ color: 'var(--apple-red)' }}>
+                  Seu acesso foi bloqueado. Entre em contato com o administrador.
+                </p>
+              </div>
+            )}
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="emailOrUsername" style={{ color: 'var(--apple-text-secondary)' }}>

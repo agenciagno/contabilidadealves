@@ -27,6 +27,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCompany } from '@/hooks/useCompany';
 import { usePinnedShortcuts, PinnedShortcut } from '@/hooks/usePinnedShortcuts';
 import { useUserRole } from '@/hooks/useUserRole';
+import { usePendingApprovals } from '@/hooks/usePendingApprovals';
 import { ProfileModal } from '@/components/profile/ProfileModal';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -170,6 +171,7 @@ export function AppSidebar() {
   const { pinnedShortcuts, isPinned, togglePin } = usePinnedShortcuts();
   const { isSuperAdmin, isColaborador, allowedModules, fullName, avatarUrl } = useUserRole();
   const [profileOpen, setProfileOpen] = useState(false);
+  const { pendingCount } = usePendingApprovals();
 
   const planModules: string[] = (company as any)?.plan_modules ?? ['home', 'legalizacao', 'fiscal', 'pessoal_rh', 'financeiro', 'clientes', 'configuracoes'];
   const logoUrl: string | null = (company as any)?.logo_url ?? null;
@@ -355,7 +357,14 @@ export function AppSidebar() {
                     activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                   >
                     <Settings className="w-[18px] h-[18px] shrink-0" strokeWidth={1.5} />
-                    {showLabels && <span>Configurações</span>}
+                    {showLabels && (
+                      <span className="flex-1">Configurações</span>
+                    )}
+                    {pendingCount > 0 && (
+                      <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-medium text-destructive-foreground">
+                        {pendingCount}
+                      </span>
+                    )}
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
