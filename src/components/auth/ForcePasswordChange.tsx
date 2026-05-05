@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +13,7 @@ import { PasswordStrength, isPasswordStrong } from '@/components/ui/PasswordStre
 
 export function ForcePasswordChange() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -42,12 +44,13 @@ export function ForcePasswordChange() {
 
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({ force_password_change: false, password_changed_at: new Date().toISOString() })
+        .update({ password_changed_at: new Date().toISOString() })
         .eq('user_id', user!.id);
       if (profileError) throw profileError;
 
       queryClient.invalidateQueries({ queryKey: ['user-role-profile'] });
       toast.success('Senha alterada com sucesso!');
+      navigate('/');
     } catch (err: any) {
       toast.error(err.message || 'Erro ao alterar senha');
     } finally {
