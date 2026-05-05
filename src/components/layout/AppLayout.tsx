@@ -1,5 +1,5 @@
-import { ReactNode } from 'react';
-import { Navigate } from 'react-router-dom';
+import { ReactNode, useEffect } from 'react';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/hooks/useUserRole';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
@@ -8,6 +8,7 @@ import { AppHeader } from './AppHeader';
 import { InadimplentToast } from '@/components/notifications/InadimplentToast';
 import { ForcePasswordChange } from '@/components/auth/ForcePasswordChange';
 import { Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -16,6 +17,35 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const { user, loading } = useAuth();
   const { forcePasswordChange, isLoading: roleLoading } = useUserRole();
+  const navigate = useNavigate();
+
+  // Realtime session revocation listener
+  useEffect(() => {
+    const sessionUuid = localStorage.getItem('session_uuid');
+    if (!user || !sessionUuid) return;
+
+    const channel = supabase
+      .channel('session-control')
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'active_sessions',
+          filter: `session_uuid=eq.${sessionUuid}`,
+        },
+        async () => {
+          localStorage.removeItem('session_uuid');
+          await supabase.auth.signOut();
+          window.location.href = '/auth?reason=session_revoked';
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, navigate]);
 
   if (loading || (user && roleLoading)) {
     return (
