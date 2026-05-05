@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, User, Lock, Eye, EyeOff, ShieldX } from 'lucide-react';
+import { Loader2, User, Lock, Eye, EyeOff, ShieldX, Shield } from 'lucide-react';
 import { PendingApprovalScreen } from '@/components/auth/PendingApprovalScreen';
 import { z } from 'zod';
 
@@ -26,7 +26,19 @@ export default function Auth() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { signIn, user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
+  const [sessionRevoked, setSessionRevoked] = useState(false);
+
+  // Check for session_revoked reason
+  useEffect(() => {
+    if (searchParams.get('reason') === 'session_revoked') {
+      setSessionRevoked(true);
+      setSearchParams({}, { replace: true });
+      const timer = setTimeout(() => setSessionRevoked(false), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     if (user) {
