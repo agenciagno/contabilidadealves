@@ -1,16 +1,31 @@
 
-## Problema
+## Problem
 
-O `UserFormDialog.tsx` envia chaves em camelCase (`fullName`, `statusActive`, `allowedModules`), mas a Edge Function deployada manualmente espera snake_case (`full_name`, `status_active`, `allowed_modules`). Isso causa erro na edição e `full_name` null na criação.
+The `useUserRole` hook has two bugs preventing the forced password change screen from showing:
 
-## Correção
+1. **Null-coalescing operator masks null values**: On line 28, `(pwData as any).password_changed_at ?? undefined` converts `null` to `undefined` because `??` treats `null` as a nullish value. Then line 51 checks `=== null`, which never matches since the value is now `undefined`.
 
-**Arquivo:** `src/components/users/UserFormDialog.tsx`
+2. **`force_password_change` column is ignored**: The DB has a `force_password_change` boolean column, but the hook never reads it. Per the user's requirements, both `force_password_change: true` OR `password_changed_at: null` should trigger the mandatory password change screen.
 
-Enviar ambas as variantes (camelCase e snake_case) no payload para compatibilidade com qualquer versão da Edge Function:
+## Fix (single file: `src/hooks/useUserRole.ts`)
 
-1. **Modo edição (linha ~121-127):** Adicionar `full_name`, `status_active`, `allowed_modules` ao payload, mantendo as chaves camelCase existentes.
+1. **Add `force_password_change` to the main profile query** (line 14): include it in the `.select()` string.
 
-2. **Modo criação (linha ~138-148):** Adicionar `full_name`, `status_active`, `allowed_modules`, `company_id`, `force_password_change` ao body, mantendo as chaves camelCase existentes.
+2. **Fix the null-coalescing on line 28**: Change `?? undefined` to an explicit check:
+   ```typescript
+   passwordChangedAt = (pwData as any).password_changed_at;
+   // passwordChangedAt will be null (from DB) or a string — both are valid
+   // Only set to undefined if the query itself failed (catch block)
+   ```
 
-Nenhuma outra alteração. Nenhum arquivo da Edge Function será tocado.
+3. **Update the `forcePasswordChange` logic** (line 49-51):
+   ```typescript
+   const forcePasswordChange = isSuperAdmin
+     ? false
+     : (data?.passwordChangedAt === null || data?.force_password_change === true);
+   ```
+   - Super admins: never forced
+   - `passwordChangedAt === null` OR `force_password_change === true`: show forced change screen
+   - `passwordChangedAt === undefined` (query failed / column missing): treat as already changed (resilience fallback)
+
+No layout, routing, or other functionality changes.
