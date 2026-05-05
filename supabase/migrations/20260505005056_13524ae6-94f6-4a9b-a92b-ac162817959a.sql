@@ -1,15 +1,7 @@
 
-## Add `status` column to `profiles`
-
-Run a single migration to add a `status TEXT` column with a default of `'active'` and a CHECK constraint limiting values to `pending`, `active`, `blocked`.
-
-### Migration SQL
-
-```sql
 ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
 
--- Use a validation trigger instead of CHECK constraint (per project guidelines)
 CREATE OR REPLACE FUNCTION public.validate_profile_status()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -23,14 +15,8 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_validate_profile_status ON public.profiles;
 CREATE TRIGGER trg_validate_profile_status
   BEFORE INSERT OR UPDATE ON public.profiles
   FOR EACH ROW
   EXECUTE FUNCTION public.validate_profile_status();
-```
-
-### What stays unchanged
-- `status_active` boolean column remains for backward compatibility
-- No RLS policies modified
-- No other columns altered
-- No UI or logic changes
