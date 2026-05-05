@@ -118,12 +118,16 @@ export default function UserFormDialog({ open, onOpenChange, companyId, onSucces
     try {
 
       if (isEditMode) {
+        const resolvedModules = role === 'colaborador' ? allowedModules : ALL_MODULES.map(m => m.key);
         const payload: Record<string, unknown> = {
           userId: editUser!.userId,
           fullName,
+          full_name: fullName,
           role,
           statusActive,
-          allowedModules: role === 'colaborador' ? allowedModules : ALL_MODULES.map(m => m.key),
+          status_active: statusActive,
+          allowedModules: resolvedModules,
+          allowed_modules: resolvedModules,
         };
 
         const { data, error: fnError } = await supabase.functions.invoke('create-user-v2', { body: payload });
@@ -135,16 +139,22 @@ export default function UserFormDialog({ open, onOpenChange, companyId, onSucces
         handleClose();
       } else {
         // CREATE MODE — default password
+        const resolvedModules = role === 'colaborador' ? allowedModules : ALL_MODULES.map(m => m.key);
         const { data, error: fnError } = await supabase.functions.invoke('create-user-v2', {
           body: {
             email,
             password: 'Mudar@123',
             fullName,
+            full_name: fullName,
             companyId,
+            company_id: companyId,
             role,
             statusActive,
+            status_active: statusActive,
             forcePasswordChange: true,
-            allowedModules: role === 'colaborador' ? allowedModules : ALL_MODULES.map(m => m.key),
+            force_password_change: true,
+            allowedModules: resolvedModules,
+            allowed_modules: resolvedModules,
           },
         });
         if (fnError) throw new Error(fnError.message || 'Erro ao criar usuário');
