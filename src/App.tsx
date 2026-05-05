@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { ModuleGuard } from "@/components/auth/ModuleGuard";
 import { PwaUpdateBanner } from "@/components/PwaUpdateBanner";
 import { PwaInstallBanner } from "@/components/PwaInstallBanner";
 
@@ -29,6 +30,7 @@ import PagarReceber from "@/pages/PagarReceber";
 import FiscalTasks from "@/pages/FiscalTasks";
 import Legalizacao from "@/pages/Legalizacao";
 import PessoalRH from "@/pages/PessoalRH";
+import NoAccess from "@/pages/NoAccess";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -46,24 +48,25 @@ const App = () => (
             <NotificationProvider>
               <Routes>
               <Route path="/auth" element={<Auth />} />
-              <Route path="/" element={<AppLayout><Home /></AppLayout>} />
-              <Route path="/painel-financeiro" element={<AppLayout><Dashboard /></AppLayout>} />
-              <Route path="/movimentacoes" element={<AppLayout><Transactions /></AppLayout>} />
-              <Route path="/financeiro/pagar-receber" element={<AppLayout><PagarReceber /></AppLayout>} />
+              <Route path="/sem-acesso" element={<NoAccess />} />
+              <Route path="/" element={<AppLayout><ModuleGuard moduleName="home"><Home /></ModuleGuard></AppLayout>} />
+              <Route path="/painel-financeiro" element={<AppLayout><ModuleGuard moduleName="financeiro"><Dashboard /></ModuleGuard></AppLayout>} />
+              <Route path="/movimentacoes" element={<AppLayout><ModuleGuard moduleName="financeiro"><Transactions /></ModuleGuard></AppLayout>} />
+              <Route path="/financeiro/pagar-receber" element={<AppLayout><ModuleGuard moduleName="financeiro"><PagarReceber /></ModuleGuard></AppLayout>} />
               
-              <Route path="/contatos" element={<AppLayout><Contacts /></AppLayout>} />
-              <Route path="/crm/cliente/:id" element={<AppLayout><ContactProfile /></AppLayout>} />
-              <Route path="/bancos" element={<AppLayout><Banks /></AppLayout>} />
-              <Route path="/categorias" element={<AppLayout><Categories /></AppLayout>} />
-              <Route path="/dre" element={<AppLayout><DRE /></AppLayout>} />
+              <Route path="/contatos" element={<AppLayout><ModuleGuard moduleName="clientes"><Contacts /></ModuleGuard></AppLayout>} />
+              <Route path="/crm/cliente/:id" element={<AppLayout><ModuleGuard moduleName="clientes"><ContactProfile /></ModuleGuard></AppLayout>} />
+              <Route path="/bancos" element={<AppLayout><ModuleGuard moduleName="financeiro"><Banks /></ModuleGuard></AppLayout>} />
+              <Route path="/categorias" element={<AppLayout><ModuleGuard moduleName="financeiro"><Categories /></ModuleGuard></AppLayout>} />
+              <Route path="/dre" element={<AppLayout><ModuleGuard moduleName="financeiro"><DRE /></ModuleGuard></AppLayout>} />
               
-              <Route path="/configuracoes" element={<AppLayout><SettingsPage /></AppLayout>} />
-              <Route path="/disparos" element={<AppLayout><CrmDispatches /></AppLayout>} />
-              <Route path="/relatorio-clientes" element={<AppLayout><ClientReport /></AppLayout>} />
-              <Route path="/boletos" element={<AppLayout><Boletos /></AppLayout>} />
-              <Route path="/fiscal/tarefas" element={<AppLayout><FiscalTasks /></AppLayout>} />
-              <Route path="/legalizacao" element={<AppLayout><Legalizacao /></AppLayout>} />
-              <Route path="/pessoal-rh" element={<AppLayout><PessoalRH /></AppLayout>} />
+              <Route path="/configuracoes" element={<AppLayout><ModuleGuard moduleName="configuracoes"><SettingsPage /></ModuleGuard></AppLayout>} />
+              <Route path="/disparos" element={<AppLayout><ModuleGuard moduleName="clientes"><CrmDispatches /></ModuleGuard></AppLayout>} />
+              <Route path="/relatorio-clientes" element={<AppLayout><ModuleGuard moduleName="clientes"><ClientReport /></ModuleGuard></AppLayout>} />
+              <Route path="/boletos" element={<AppLayout><ModuleGuard moduleName="financeiro"><Boletos /></ModuleGuard></AppLayout>} />
+              <Route path="/fiscal/tarefas" element={<AppLayout><ModuleGuard moduleName="fiscal"><FiscalTasks /></ModuleGuard></AppLayout>} />
+              <Route path="/legalizacao" element={<AppLayout><ModuleGuard moduleName="legalizacao"><Legalizacao /></ModuleGuard></AppLayout>} />
+              <Route path="/pessoal-rh" element={<AppLayout><ModuleGuard moduleName="pessoal_rh"><PessoalRH /></ModuleGuard></AppLayout>} />
               <Route path="*" element={<NotFound />} />
               </Routes>
             </NotificationProvider>
