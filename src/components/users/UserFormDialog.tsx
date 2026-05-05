@@ -126,42 +126,29 @@ export default function UserFormDialog({ open, onOpenChange, companyId, onSucces
           allowedModules: role === 'colaborador' ? allowedModules : ALL_MODULES.map(m => m.key),
         };
 
-        const res = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user-v2`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify(payload),
-          }
-        );
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Erro ao atualizar usuário');
+        const { data, error: fnError } = await supabase.functions.invoke('create-user-v2', { body: payload });
+        if (fnError) throw new Error(fnError.message || 'Erro ao atualizar usuário');
+        if (data?.error) throw new Error(data.error);
 
         toast.success('Usuário atualizado com sucesso!');
         onSuccess();
         handleClose();
       } else {
         // CREATE MODE — default password
-        const res = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user-v2`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({
-              email,
-              password: 'Mudar@123',
-              fullName,
-              companyId,
-              role,
-              statusActive,
-              forcePasswordChange: true,
-              allowedModules: role === 'colaborador' ? allowedModules : ALL_MODULES.map(m => m.key),
-            }),
-          }
-        );
-
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Erro ao criar usuário');
+        const { data, error: fnError } = await supabase.functions.invoke('create-user-v2', {
+          body: {
+            email,
+            password: 'Mudar@123',
+            fullName,
+            companyId,
+            role,
+            statusActive,
+            forcePasswordChange: true,
+            allowedModules: role === 'colaborador' ? allowedModules : ALL_MODULES.map(m => m.key),
+          },
+        });
+        if (fnError) throw new Error(fnError.message || 'Erro ao criar usuário');
+        if (data?.error) throw new Error(data.error);
 
         addNotification({
           title: 'Novo Usuário Criado',
