@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      active_sessions: {
+        Row: {
+          company_id: string
+          device_info: string | null
+          id: string
+          last_seen_at: string | null
+          logged_in_at: string | null
+          session_uuid: string
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          device_info?: string | null
+          id?: string
+          last_seen_at?: string | null
+          logged_in_at?: string | null
+          session_uuid: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          device_info?: string | null
+          id?: string
+          last_seen_at?: string | null
+          logged_in_at?: string | null
+          session_uuid?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       banks: {
         Row: {
           account_number: string | null
