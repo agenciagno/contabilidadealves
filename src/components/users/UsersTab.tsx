@@ -10,6 +10,8 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import UserFormDialog, { EditUserData } from './UserFormDialog';
+import ActiveSessionsPanel from './ActiveSessionsPanel';
+import { useUserRole } from '@/hooks/useUserRole';
 import {
   AlertDialog,
   AlertDialogAction,
