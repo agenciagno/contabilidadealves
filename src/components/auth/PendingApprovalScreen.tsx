@@ -31,12 +31,9 @@ export function PendingApprovalScreen({ onBack }: PendingApprovalScreenProps) {
           <CardContent className="pt-8 pb-8 flex flex-col items-center text-center gap-4">
             <div
               className="w-16 h-16 rounded-full flex items-center justify-center"
-              style={{ background: 'var(--apple-yellow)', opacity: 0.15 }}
+              style={{ background: 'hsla(45, 90%, 50%, 0.12)' }}
             >
-              <Clock className="w-8 h-8" style={{ color: 'var(--apple-yellow)', opacity: 1 }} />
-            </div>
-            <div className="absolute w-16 h-16 rounded-full flex items-center justify-center" style={{ position: 'relative' }}>
-              <Clock className="w-8 h-8" style={{ color: 'var(--apple-yellow)' }} />
+              <Clock className="w-8 h-8" style={{ color: 'hsl(45, 90%, 45%)' }} />
             </div>
 
             <h2 className="text-xl font-semibold" style={{ color: 'var(--apple-text-primary)' }}>
