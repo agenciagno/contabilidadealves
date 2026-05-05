@@ -11,7 +11,7 @@ export function useUserRole() {
       // Main profile query with stable fields
       const { data: profile, error } = await supabase
         .from('profiles')
-        .select('role, is_super_admin, allowed_modules, avatar_url, status_active, full_name, email')
+        .select('role, is_super_admin, allowed_modules, avatar_url, status_active, full_name, email, force_password_change')
         .eq('user_id', user!.id)
         .single();
       if (error) throw error;
@@ -25,7 +25,10 @@ export function useUserRole() {
           .eq('user_id', user!.id)
           .single();
         if (!pwError && pwData) {
-          passwordChangedAt = (pwData as any).password_changed_at ?? undefined;
+          // Preserve null explicitly — don't coalesce to undefined
+          passwordChangedAt = (pwData as any).password_changed_at !== undefined
+            ? (pwData as any).password_changed_at
+            : undefined;
         }
       } catch {
         // If this fails (schema cache, missing column, etc.), treat as already changed
@@ -44,11 +47,11 @@ export function useUserRole() {
 
   // Determine if password change is required:
   // - Super admins are always exempt
-  // - If passwordChangedAt is undefined (query failed or field missing), treat as already changed
-  // - Only force if passwordChangedAt is explicitly null
+  // - If passwordChangedAt is undefined (query failed or field missing), treat as already changed (resilience)
+  // - Force if passwordChangedAt is explicitly null OR force_password_change is true
   const forcePasswordChange = isSuperAdmin
     ? false
-    : data?.passwordChangedAt === null;
+    : (data?.passwordChangedAt === null || data?.force_password_change === true);
 
   return {
     role,
