@@ -117,6 +117,17 @@ export default function Auth() {
           </CardHeader>
 
           <CardContent>
+            {sessionRevoked && (
+              <div
+                className="flex items-center gap-2 p-3 rounded-lg mb-4"
+                style={{ background: 'rgba(255, 149, 0, 0.10)', border: '1px solid rgba(255, 149, 0, 0.2)' }}
+              >
+                <Shield className="w-5 h-5 shrink-0" style={{ color: 'var(--apple-yellow)' }} />
+                <p className="text-sm" style={{ color: 'var(--apple-yellow)' }}>
+                  Sua sessão foi encerrada pelo administrador.
+                </p>
+              </div>
+            )}
             {statusBlock === 'blocked' && (
               <div
                 className="flex items-center gap-2 p-3 rounded-lg mb-4"
