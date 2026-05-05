@@ -144,6 +144,7 @@ export default function UsersTab({ companyId, currentUserId }: UsersTabProps) {
   };
 
   return (
+    <>
     <Card className="bg-card border-border/50">
       <CardHeader>
         <div className="flex items-center justify-between">
