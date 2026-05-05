@@ -1,35 +1,44 @@
-## Objetivo
 
-Alterar a lógica da "Versão Completa" no relatório Consulta Mensal para que a hierarquia seja **Evento Selecionado > Cliente/Fornecedor** (em vez de Evento Macro > Evento Filho). A versão resumida permanece inalterada (apenas eventos).
+## Análise do Estado Atual
 
-## Mudanças no arquivo `src/components/transactions/CashFlowReportModal.tsx`
+O projeto **já possui** uma infraestrutura completa de autenticação e controle de acesso:
 
-### 1. Alterar o tipo `HierarchicalEvent` e o `useMemo` (linhas ~292-413)
+| O que voce pediu | O que ja existe |
+|---|---|
+| `profiles.role` com CHECK | `profiles.role` TEXT DEFAULT 'colaborador' (ja existe) |
+| `profiles.status` | `profiles.status_active` BOOLEAN (ja existe, abordagem diferente) |
+| `profiles.modules` | `profiles.allowed_modules` TEXT[] (ja existe) |
+| `profiles.name` | `profiles.full_name` (ja existe) |
+| `profiles.email` | `profiles.email` (ja existe) |
+| Edge Function `create-user` | Edge Function `create-user-v2` (ja existe e funciona) |
+| RLS em profiles | RLS ja configurada com `get_user_company_id` e `is_super_admin` |
 
-- Renomear semanticamente: `macroName` passa a representar o nome do **Evento Contábil** (categoria da transação).
-- `children` passa a representar os **Clientes/Fornecedores** vinculados àquele evento.
-- Nova lógica de agrupamento:
-  1. Filtrar transações pelo ano, status, categorias selecionadas e meses.
-  2. Agrupar primeiro por `category_id`, depois dentro de cada categoria agrupar por `contact_id`.
-  3. Cada grupo terá o nome do evento como header e os contatos como linhas filhas.
-  4. Transações sem contato serão agrupadas como "Sem cliente/fornecedor".
+### Problemas com a migration proposta
 
-### 2. Corrigir tipografia no PDF (linhas ~903-916)
+1. **Colunas duplicadas**: `role`, `email` ja existem. `name` e `modules` seriam redundantes com `full_name` e `allowed_modules`.
+2. **FK para auth.users**: A tabela `active_sessions` referencia `auth.users(id)` diretamente, o que viola as boas praticas do projeto (nunca referenciar schemas reservados como `auth`).
+3. **profiles.id vs profiles.user_id**: O schema atual usa `user_id UUID` para referenciar o usuario, nao `id`. As policies propostas usam `id = auth.uid()` que nao funcionaria.
+4. **RLS conflitante**: As novas policies de profiles conflitariam com as 4 policies existentes que ja cobrem SELECT, INSERT, UPDATE e DELETE com isolamento por `company_id`.
+5. **Edge Function duplicada**: `create-user` faria o mesmo que `create-user-v2` que ja esta em uso no `UserFormDialog.tsx`.
 
-- No `didDrawCell` para linhas `isChild`, remover o caractere `↳` do texto inserido via `doc.text()` e usar apenas indentação via `x + 6`.
-- Ou manter `↳` mas garantir que o texto seja renderizado com `doc.text()` numa única chamada sem espaços iniciais, usando posicionamento `x` correto.
-- Ajustar `charSpace` para 0 explicitamente: `doc.setCharSpace(0)` antes de desenhar o texto filho, garantindo espaçamento normal.
+## Plano Proposto
 
-### 3. Atualizar exports XLS e CSV (linhas ~943-1001)
+Dado que a infraestrutura ja existe, proponho **apenas as adicoes que fazem sentido** sem quebrar o que funciona:
 
-- Substituir referências a `macroName`/children pela nova estrutura (evento > contatos).
-- Manter mesma formatação visual (macro bold, children indentados).
+### 1. Tabela `active_sessions` (adaptada)
+- Criar a tabela **sem FK direta para `auth.users`** (usar `user_id UUID NOT NULL` sem constraint)
+- RLS usando `get_user_company_id` e `is_super_admin` no padrao do projeto
+- Habilitar Realtime
 
-### 4. Atualizar preview summary (linha ~1325)
+### 2. Adicionar coluna `status` em profiles (se desejado)
+- O campo `status_active` (boolean) ja existe. Se voce quer um status com 3 estados (`pending`, `active`, `blocked`), posso adicionar uma coluna `status TEXT DEFAULT 'active'` mantendo `status_active` para compatibilidade.
 
-- Ajustar label de "X macros" para "X eventos" na contagem da versão completa.
+### 3. Nenhuma nova Edge Function
+- `create-user-v2` ja faz tudo que `create-user` faria (cria usuario, insere profile, define role, verifica permissao admin). Nao ha necessidade de duplicar.
 
-## Resultado esperado
+### 4. Nenhuma alteracao em telas
+- Conforme solicitado, nenhuma tela sera alterada.
 
-- **Versão Resumida**: Sem mudança — lista de eventos com valores mensais.
-- **Versão Completa**: Evento como header (bold, fundo cinza), abaixo os clientes/fornecedores vinculados com valores mensais, tipografia limpa e sem espaçamento estranho.
+---
+
+**Quer que eu prossiga com esse plano adaptado, ou prefere que eu execute exatamente o SQL que voce enviou (ajustando apenas os nomes de coluna para `user_id` em vez de `id`)?**
