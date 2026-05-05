@@ -6,11 +6,12 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, User, Mail, ShieldCheck } from 'lucide-react';
+import { Loader2, User, Mail, ShieldCheck, Lock, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { z } from 'zod';
+import { PasswordStrength, isPasswordStrong } from '@/components/ui/PasswordStrength';
 
 const ALL_MODULES = [
   { key: 'home', label: 'Home', soon: false },
@@ -60,6 +61,8 @@ export default function UserFormDialog({ open, onOpenChange, companyId, onSucces
   const [role, setRole] = useState('colaborador');
   const [statusActive, setStatusActive] = useState(true);
   const [allowedModules, setAllowedModules] = useState<string[]>(ALL_MODULES.map(m => m.key));
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -84,6 +87,8 @@ export default function UserFormDialog({ open, onOpenChange, companyId, onSucces
   const resetForm = () => {
     setFullName('');
     setEmail('');
+    setPassword('');
+    setShowPassword(false);
     setRole('colaborador');
     setStatusActive(true);
     setAllowedModules(ALL_MODULES.map(m => m.key));
@@ -114,6 +119,17 @@ export default function UserFormDialog({ open, onOpenChange, companyId, onSucces
       return;
     }
 
+    if (!isEditMode) {
+      if (!password) {
+        toast.error('Defina uma senha para o novo usuário');
+        return;
+      }
+      if (!isPasswordStrong(password)) {
+        toast.error('A senha não atende aos requisitos mínimos');
+        return;
+      }
+    }
+
     setIsLoading(true);
     try {
 
@@ -138,12 +154,12 @@ export default function UserFormDialog({ open, onOpenChange, companyId, onSucces
         onSuccess();
         handleClose();
       } else {
-        // CREATE MODE — default password
+        // CREATE MODE
         const resolvedModules = role === 'colaborador' ? allowedModules : ALL_MODULES.map(m => m.key);
         const { data, error: fnError } = await supabase.functions.invoke('create-user-v2', {
           body: {
             email,
-            password: 'Mudar@123',
+            password,
             fullName,
             full_name: fullName,
             companyId,
@@ -151,8 +167,8 @@ export default function UserFormDialog({ open, onOpenChange, companyId, onSucces
             role,
             statusActive,
             status_active: statusActive,
-            forcePasswordChange: true,
-            force_password_change: true,
+            forcePasswordChange: false,
+            force_password_change: false,
             allowedModules: resolvedModules,
             allowed_modules: resolvedModules,
           },
@@ -167,7 +183,7 @@ export default function UserFormDialog({ open, onOpenChange, companyId, onSucces
           category: 'sucesso'
         });
 
-        toast.success('Usuário criado com sucesso! Senha temporária: Mudar@123');
+        toast.success('Usuário criado com sucesso!');
         onSuccess();
         handleClose();
       }
@@ -272,8 +288,23 @@ export default function UserFormDialog({ open, onOpenChange, companyId, onSucces
           )}
 
           {!isEditMode && (
-            <div className="p-3 rounded-lg bg-muted/50 border border-border text-sm text-muted-foreground">
-              O usuário receberá a senha temporária <span className="font-mono font-medium text-foreground">Mudar@123</span> e será obrigado a trocá-la no primeiro acesso.
+            <div className="space-y-2">
+              <Label htmlFor="password">Senha *</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Definir senha do usuário"
+                  className="pl-10 pr-10"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {password && <PasswordStrength password={password} />}
             </div>
           )}
 
