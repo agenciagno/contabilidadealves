@@ -1,23 +1,31 @@
+## Correções no fluxo de criação e autenticação
 
-## Diagnosis
+### 1. Migração de banco de dados
+- Adicionar coluna `password_changed_at` (timestamptz, nullable) na tabela `profiles`
+- Alterar o default da coluna `status` de `'active'` para `'active'` (já é `'active'`, confirmar)
 
-The edge function `create-user-v2` is deployed and responding correctly (confirmed via test call returning proper 400 for missing fields). The frontend URL pattern using `VITE_SUPABASE_URL` is also correct.
+### 2. Edge Function `create-user-v2`
+- No INSERT do profile (CREATE MODE), adicionar `status: 'active'` explicitamente
+- Manter `force_password_change: true` como está (compatibilidade)
+- Garantir que `password_changed_at` fique `null` para novos usuários (default)
 
-However, using raw `fetch()` with `import.meta.env.VITE_SUPABASE_URL` can cause 404s in production if the env var isn't properly injected at build time, or if there are subtle CORS/routing issues.
+### 3. AuthContext - Remover bloqueio de `pending`
+- Remover o bloco que verifica `status === 'pending'` e faz signOut
+- Manter apenas o bloqueio para `status === 'blocked'`
 
-## Plan
+### 4. useUserRole - Usar `password_changed_at`
+- Adicionar `password_changed_at` ao select do query
+- Mudar `forcePasswordChange` para retornar `true` quando `password_changed_at` for `null` (em vez de usar o campo `force_password_change`)
 
-### 1. Redeploy the edge function
-Force a fresh deployment of `create-user-v2` to ensure the published app hits the latest version.
+### 5. ForcePasswordChange - Atualizar `password_changed_at`
+- Após troca de senha bem-sucedida, fazer update em `password_changed_at: new Date().toISOString()` além de `force_password_change: false`
 
-### 2. Migrate all frontend calls to `supabase.functions.invoke()`
-Replace raw `fetch()` calls with the Supabase SDK method `supabase.functions.invoke('create-user-v2', { body: ... })`. This is more reliable because:
-- It automatically uses the correct base URL from the client config
-- It handles auth headers automatically
-- It avoids potential env var issues in production builds
+### 6. Redeploy da Edge Function
+- Redeployar `create-user-v2` após as alterações
 
-**Files to update:**
-- `src/components/users/UserFormDialog.tsx` (2 calls)
-- `src/components/settings/ClientCompaniesTab.tsx` (3 calls)
-
-No logic changes -- only the transport layer (fetch -> supabase.functions.invoke). The request bodies and error handling remain identical.
+### Arquivos modificados
+- `supabase/functions/create-user-v2/index.ts`
+- `src/contexts/AuthContext.tsx`
+- `src/hooks/useUserRole.ts`
+- `src/components/auth/ForcePasswordChange.tsx`
+- Nova migração SQL para `password_changed_at`

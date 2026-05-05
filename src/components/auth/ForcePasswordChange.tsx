@@ -42,7 +42,7 @@ export function ForcePasswordChange() {
 
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({ force_password_change: false })
+        .update({ force_password_change: false, password_changed_at: new Date().toISOString() })
         .eq('user_id', user!.id);
       if (profileError) throw profileError;
 

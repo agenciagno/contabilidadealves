@@ -10,7 +10,7 @@ export function useUserRole() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('role, is_super_admin, allowed_modules, force_password_change, avatar_url, status_active, full_name, email')
+        .select('role, is_super_admin, allowed_modules, force_password_change, password_changed_at, avatar_url, status_active, full_name, email')
         .eq('user_id', user!.id)
         .single();
       if (error) throw error;
@@ -29,7 +29,7 @@ export function useUserRole() {
     isAdmin: role === 'admin',
     isColaborador: role === 'colaborador',
     allowedModules: (data?.allowed_modules as string[]) ?? ['home', 'financeiro', 'clientes'],
-    forcePasswordChange: data?.force_password_change ?? false,
+    forcePasswordChange: data?.password_changed_at == null,
     avatarUrl: data?.avatar_url ?? null,
     statusActive: data?.status_active ?? true,
     fullName: data?.full_name ?? null,
