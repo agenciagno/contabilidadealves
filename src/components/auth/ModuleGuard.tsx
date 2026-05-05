@@ -3,6 +3,18 @@ import { Navigate } from 'react-router-dom';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useCompany } from '@/hooks/useCompany';
 
+const MODULE_ROUTE_MAP: Record<string, string> = {
+  home: '/',
+  financeiro: '/painel-financeiro',
+  fiscal: '/fiscal/tarefas',
+  clientes: '/contatos',
+  legalizacao: '/legalizacao',
+  pessoal_rh: '/pessoal-rh',
+  configuracoes: '/configuracoes',
+};
+
+const MODULE_PRIORITY = ['home', 'financeiro', 'fiscal', 'clientes', 'legalizacao', 'pessoal_rh', 'configuracoes'];
+
 interface ModuleGuardProps {
   moduleName: string;
   children: ReactNode;
@@ -12,7 +24,6 @@ export function ModuleGuard({ moduleName, children }: ModuleGuardProps) {
   const { isSuperAdmin, allowedModules, isLoading } = useUserRole();
   const { company } = useCompany();
 
-  // While loading, don't redirect
   if (isLoading) return null;
 
   if (isSuperAdmin) return <>{children}</>;
@@ -24,6 +35,14 @@ export function ModuleGuard({ moduleName, children }: ModuleGuardProps) {
   const hasAccess = planModules.includes(moduleName) && allowedModules.includes(moduleName);
 
   if (!hasAccess) {
+    const firstAccessible = MODULE_PRIORITY.find(
+      (m) => m !== moduleName && planModules.includes(m) && allowedModules.includes(m)
+    );
+
+    if (firstAccessible) {
+      return <Navigate to={MODULE_ROUTE_MAP[firstAccessible]} replace />;
+    }
+
     return <Navigate to="/sem-acesso" replace />;
   }
 
