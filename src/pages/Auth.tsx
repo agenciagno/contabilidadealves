@@ -105,6 +105,17 @@ export default function Auth() {
           </CardHeader>
 
           <CardContent>
+            {statusBlock === 'blocked' && (
+              <div
+                className="flex items-center gap-2 p-3 rounded-lg mb-4"
+                style={{ background: 'hsla(0, 70%, 50%, 0.1)', border: '1px solid hsla(0, 70%, 50%, 0.2)' }}
+              >
+                <ShieldX className="w-5 h-5 shrink-0" style={{ color: 'var(--apple-red)' }} />
+                <p className="text-sm" style={{ color: 'var(--apple-red)' }}>
+                  Seu acesso foi bloqueado. Entre em contato com o administrador.
+                </p>
+              </div>
+            )}
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="emailOrUsername" style={{ color: 'var(--apple-text-secondary)' }}>
