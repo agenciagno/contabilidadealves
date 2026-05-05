@@ -61,6 +61,7 @@ export default function UsersTab({ companyId, currentUserId }: UsersTabProps) {
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
   const [editUser, setEditUser] = useState<EditUserData | undefined>(undefined);
   const queryClient = useQueryClient();
+  const { isSuperAdmin } = useUserRole();
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['company-users', companyId],
