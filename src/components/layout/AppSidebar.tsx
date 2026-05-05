@@ -357,7 +357,14 @@ export function AppSidebar() {
                     activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                   >
                     <Settings className="w-[18px] h-[18px] shrink-0" strokeWidth={1.5} />
-                    {showLabels && <span>Configurações</span>}
+                    {showLabels && (
+                      <span className="flex-1">Configurações</span>
+                    )}
+                    {pendingCount > 0 && (
+                      <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-medium text-destructive-foreground">
+                        {pendingCount}
+                      </span>
+                    )}
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
