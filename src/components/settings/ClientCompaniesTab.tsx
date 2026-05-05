@@ -217,27 +217,17 @@ export default function ClientCompaniesTab() {
 
       // Optionally create admin user via edge function
       if (createAdmin && adminForm.email && adminForm.password && adminForm.fullName) {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData.session?.access_token;
-        const res = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user-v2`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              email: adminForm.email,
-              password: adminForm.password,
-              fullName: adminForm.fullName,
-              companyId: newCompany.id,
-              allowedModules: companyForm.planModules,
-            }),
-          }
-        );
-        const result = await res.json();
-        if (!res.ok) throw new Error(result.error || 'Erro ao criar usuário admin');
+        const { data: result, error: fnError } = await supabase.functions.invoke('create-user-v2', {
+          body: {
+            email: adminForm.email,
+            password: adminForm.password,
+            fullName: adminForm.fullName,
+            companyId: newCompany.id,
+            allowedModules: companyForm.planModules,
+          },
+        });
+        if (fnError) throw new Error(fnError.message || 'Erro ao criar usuário admin');
+        if (result?.error) throw new Error(result.error);
       }
 
       toast.success('Empresa criada com sucesso!');
@@ -274,27 +264,17 @@ export default function ClientCompaniesTab() {
     }
     setCreatingUser(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user-v2`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            email: userForm.email,
-            password: userForm.password,
-            fullName: userForm.fullName,
-            companyId: selectedCompanyId,
-            allowedModules: userForm.allowedModules,
-          }),
-        }
-      );
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error || 'Erro ao criar usuário');
+      const { data: result, error: fnError } = await supabase.functions.invoke('create-user-v2', {
+        body: {
+          email: userForm.email,
+          password: userForm.password,
+          fullName: userForm.fullName,
+          companyId: selectedCompanyId,
+          allowedModules: userForm.allowedModules,
+        },
+      });
+      if (fnError) throw new Error(fnError.message || 'Erro ao criar usuário');
+      if (result?.error) throw new Error(result.error);
       toast.success('Usuário criado com sucesso!');
       queryClient.invalidateQueries({ queryKey: ['company-users', selectedCompanyId] });
       setAddUserOpen(false);
