@@ -1,31 +1,23 @@
 
-## Problem
+## Changes
 
-The `useUserRole` hook has two bugs preventing the forced password change screen from showing:
+### 1. Disable forced password change (`src/hooks/useUserRole.ts`)
 
-1. **Null-coalescing operator masks null values**: On line 28, `(pwData as any).password_changed_at ?? undefined` converts `null` to `undefined` because `??` treats `null` as a nullish value. Then line 51 checks `=== null`, which never matches since the value is now `undefined`.
+Set `forcePasswordChange` to always return `false`. The `ForcePasswordChange` component stays in the codebase but will never render.
 
-2. **`force_password_change` column is ignored**: The DB has a `force_password_change` boolean column, but the hook never reads it. Per the user's requirements, both `force_password_change: true` OR `password_changed_at: null` should trigger the mandatory password change screen.
+### 2. User creation modal: replace default password with custom field (`src/components/users/UserFormDialog.tsx`)
 
-## Fix (single file: `src/hooks/useUserRole.ts`)
+- Add a `password` state field and a corresponding form input (with show/hide toggle and `PasswordStrength` indicator)
+- Add validation: password is required in create mode and must pass `isPasswordStrong()`
+- Send the user-entered password in the `create-user-v2` body instead of hardcoded `Mudar@123`
+- Remove `forcePasswordChange` / `force_password_change` from the request body
+- Remove the info box about the temporary password (lines 274-278)
+- Reset the password field in `resetForm()`
 
-1. **Add `force_password_change` to the main profile query** (line 14): include it in the `.select()` string.
+### 3. Verify profile password change (already exists)
 
-2. **Fix the null-coalescing on line 28**: Change `?? undefined` to an explicit check:
-   ```typescript
-   passwordChangedAt = (pwData as any).password_changed_at;
-   // passwordChangedAt will be null (from DB) or a string — both are valid
-   // Only set to undefined if the query itself failed (catch block)
-   ```
+`ProfileModal.tsx` already has an "Alterar Senha" section using `supabase.auth.updateUser({ password })` with strength validation and confirmation. No changes needed here.
 
-3. **Update the `forcePasswordChange` logic** (line 49-51):
-   ```typescript
-   const forcePasswordChange = isSuperAdmin
-     ? false
-     : (data?.passwordChangedAt === null || data?.force_password_change === true);
-   ```
-   - Super admins: never forced
-   - `passwordChangedAt === null` OR `force_password_change === true`: show forced change screen
-   - `passwordChangedAt === undefined` (query failed / column missing): treat as already changed (resilience fallback)
-
-No layout, routing, or other functionality changes.
+### Files modified
+- `src/hooks/useUserRole.ts` — one-line change
+- `src/components/users/UserFormDialog.tsx` — add password field, remove default password and forced change flags

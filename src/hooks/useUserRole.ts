@@ -49,9 +49,7 @@ export function useUserRole() {
   // - Super admins are always exempt
   // - If passwordChangedAt is undefined (query failed or field missing), treat as already changed (resilience)
   // - Force if passwordChangedAt is explicitly null OR force_password_change is true
-  const forcePasswordChange = isSuperAdmin
-    ? false
-    : (data?.passwordChangedAt === null || data?.force_password_change === true);
+  const forcePasswordChange = false;
 
   return {
     role,
