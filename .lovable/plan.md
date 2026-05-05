@@ -1,115 +1,58 @@
 
 ## Overview
 
-Add login status verification, pending/blocked screens, a pending-users badge for super admins, module-based route guards, and a "no access" page. No visual changes to the existing login form.
+Implement active session control: register on login, remove on logout, realtime-driven forced disconnect, revoked message on login page, and a super admin sessions panel.
 
 ---
 
-## 1. Login status verification (`src/contexts/AuthContext.tsx`)
+## 1. Register session on login (`src/contexts/AuthContext.tsx`)
 
-After `signInWithPassword` succeeds, fetch the user's profile and check `status`:
+In the `signIn` method, after the status check passes (status is active), change the profile select to also fetch `company_id`. Then insert into `active_sessions` with a `crypto.randomUUID()` stored in `localStorage` as `session_uuid`.
 
-- `'pending'` → sign out, return a custom error with code `STATUS_PENDING`
-- `'blocked'` → sign out, return a custom error with code `STATUS_BLOCKED`
-- `'active'` (or null for legacy) → proceed normally
+## 2. Remove session on logout (`src/contexts/AuthContext.tsx`)
 
-The `Auth.tsx` page will read the error code and show the appropriate UI.
+In the `signOut` method, before calling `supabase.auth.signOut()`, read `session_uuid` from localStorage, delete the matching row from `active_sessions`, and clear localStorage.
 
-## 2. Status screens (`src/pages/Auth.tsx`)
+## 3. Realtime session listener (`src/components/layout/AppLayout.tsx`)
 
-Add local state for `statusBlock: 'pending' | 'blocked' | null`.
+Add a `useEffect` that subscribes to `postgres_changes` on `active_sessions` filtering by `session_uuid=eq.${sessionUuid}` for `DELETE` events. When triggered:
+- Remove `session_uuid` from localStorage
+- Call `supabase.auth.signOut()`
+- Redirect to `/auth?reason=session_revoked`
 
-- **pending**: Render `PendingApprovalScreen` (new component) — Clock icon, "Acesso em análise" title, explanation text, "Voltar ao login" button. Glassmorphism style matching login card.
-- **blocked**: Show inline alert below the login form — ShieldX icon, red text, "Seu acesso foi bloqueado."
+Cleanup the channel on unmount.
 
-No changes to existing login layout, inputs, or styling.
+## 4. Session revoked message (`src/pages/Auth.tsx`)
 
-### New file: `src/components/auth/PendingApprovalScreen.tsx`
+On mount, check for `?reason=session_revoked` in URL search params. If present:
+- Show a yellow warning banner with Shield icon: "Sua sessão foi encerrada pelo administrador."
+- Auto-dismiss after 5 seconds
+- Remove the query param from URL
 
-## 3. Pending approvals badge (`src/components/layout/AppSidebar.tsx`)
+## 5. Active Sessions panel (`src/components/users/ActiveSessionsPanel.tsx`)
 
-For super_admin users, query `profiles` where `status = 'pending'` and `company_id` matches. Display a red badge with the count on the "Configurações" menu item.
+New component rendered inside `UsersTab` (below the users table), visible only to super admins.
 
-### New hook: `src/hooks/usePendingApprovals.ts`
+- Query `active_sessions` joined with profiles (`full_name`, `email`) ordered by `logged_in_at DESC`
+- Auto-refresh every 30 seconds via `refetchInterval`
+- Manual refresh button with `RefreshCw` icon
+- Table columns: Usuário, Dispositivo (parsed from user agent), Conectado desde (dd/MM/yyyy HH:mm), Ação
+- Disconnect button per row: deletes the session row; realtime handles the rest
+- Parse device_info with simple regex to show browser + OS
 
-Returns `{ pendingCount }` — only queries when `isSuperAdmin` is true.
+## 6. Integrate panel in UsersTab (`src/components/users/UsersTab.tsx`)
 
-## 4. Approve/Reject in UsersTab (`src/components/users/UsersTab.tsx`)
-
-For users with `status = 'pending'`:
-- Show yellow "Aguardando aprovação" badge instead of Ativo/Inativo
-- Add "Aprovar" button (sets `status = 'active'`) and "Recusar" button (sets `status = 'blocked'`)
-
-These buttons call `supabase.from('profiles').update({ status }).eq('user_id', userId)`.
-
-Note: The UPDATE policy on profiles only allows `user_id = auth.uid()`. A new RLS policy is needed to let admins update profiles in their company.
-
-### Database migration
-
-Add an RLS policy allowing admins/super_admins to update profiles within their company:
-
-```sql
-CREATE POLICY "Admins can update profiles in their company"
-ON public.profiles FOR UPDATE
-TO authenticated
-USING (
-  (company_id = get_user_company_id(auth.uid()))
-  AND (
-    has_role(auth.uid(), 'admin')
-    OR is_super_admin(auth.uid())
-  )
-);
-```
-
-## 5. Module route guard
-
-### New component: `src/components/auth/ModuleGuard.tsx`
-
-Props: `moduleName: string`, `children: ReactNode`.
-
-Logic:
-- If `isSuperAdmin` → render children
-- If `moduleName` is in `allowedModules` AND in company `plan_modules` → render children
-- Otherwise → redirect to `/sem-acesso`
-
-### New page: `src/pages/NoAccess.tsx`
-
-Lock icon, "Módulo não disponível" title, explanation, "Ir para Home" button.
-
-### Route updates (`src/App.tsx`)
-
-Wrap each route's element with `<ModuleGuard moduleName="...">`:
-
-| Route | Module key |
-|---|---|
-| `/` | `home` |
-| `/legalizacao` | `legalizacao` |
-| `/fiscal/*` | `fiscal` |
-| `/pessoal-rh` | `pessoal_rh` |
-| `/painel-financeiro`, `/movimentacoes`, `/financeiro/*`, `/boletos`, `/bancos`, `/categorias`, `/dre` | `financeiro` |
-| `/contatos`, `/crm/*`, `/disparos`, `/relatorio-clientes` | `clientes` |
-| `/configuracoes` | `configuracoes` |
-
-Add route: `/sem-acesso` → `NoAccess` (no guard, no AppLayout).
-
-## 6. Fiscal task visibility
-
-Already implemented — `useFiscalTasks.ts` filters by `responsible_id` when `isColaborador`. The request says "if super_admin, no filter; otherwise filter by assigned_to." Current code already does this (colaborador = filtered, admin/super_admin = unfiltered). No changes needed.
+Import `ActiveSessionsPanel` and render it after the AlertDialog, passing `companyId`. Only render when the current user is super admin (check via `useUserRole`).
 
 ---
 
 ## Files to create
-- `src/components/auth/PendingApprovalScreen.tsx`
-- `src/components/auth/ModuleGuard.tsx`
-- `src/pages/NoAccess.tsx`
-- `src/hooks/usePendingApprovals.ts`
+- `src/components/users/ActiveSessionsPanel.tsx`
 
 ## Files to modify
-- `src/contexts/AuthContext.tsx` — status check after login
-- `src/pages/Auth.tsx` — handle pending/blocked states
-- `src/components/layout/AppSidebar.tsx` — pending badge on Configurações
-- `src/components/users/UsersTab.tsx` — approve/reject buttons for pending users
-- `src/App.tsx` — wrap routes with ModuleGuard, add `/sem-acesso`
+- `src/contexts/AuthContext.tsx` — session insert on login, delete on logout
+- `src/components/layout/AppLayout.tsx` — realtime DELETE listener
+- `src/pages/Auth.tsx` — session_revoked warning
+- `src/components/users/UsersTab.tsx` — render ActiveSessionsPanel
 
-## Migration
-- Add admin UPDATE policy on profiles
+No database changes needed — `active_sessions` table and realtime are already configured.

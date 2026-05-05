@@ -165,7 +165,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (authData?.user) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('status')
+          .select('status, company_id')
           .eq('user_id', authData.user.id)
           .single();
 
@@ -182,6 +182,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           (err as any).code = 'STATUS_BLOCKED';
           return { error: err };
         }
+
+        // Register active session
+        if (profile?.company_id) {
+          const sessionUuid = crypto.randomUUID();
+          localStorage.setItem('session_uuid', sessionUuid);
+
+          await supabase.from('active_sessions').insert({
+            user_id: authData.user.id,
+            company_id: profile.company_id,
+            session_uuid: sessionUuid,
+            device_info: navigator.userAgent,
+            logged_in_at: new Date().toISOString(),
+            last_seen_at: new Date().toISOString(),
+          });
+        }
       }
 
       return { error: null };
@@ -191,6 +206,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    const sessionUuid = localStorage.getItem('session_uuid');
+    if (sessionUuid) {
+      await supabase
+        .from('active_sessions')
+        .delete()
+        .eq('session_uuid', sessionUuid);
+      localStorage.removeItem('session_uuid');
+    }
     await supabase.auth.signOut();
   };
 

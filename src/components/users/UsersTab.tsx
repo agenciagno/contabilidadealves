@@ -10,6 +10,8 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import UserFormDialog, { EditUserData } from './UserFormDialog';
+import ActiveSessionsPanel from './ActiveSessionsPanel';
+import { useUserRole } from '@/hooks/useUserRole';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -59,6 +61,7 @@ export default function UsersTab({ companyId, currentUserId }: UsersTabProps) {
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
   const [editUser, setEditUser] = useState<EditUserData | undefined>(undefined);
   const queryClient = useQueryClient();
+  const { isSuperAdmin } = useUserRole();
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['company-users', companyId],
@@ -141,6 +144,7 @@ export default function UsersTab({ companyId, currentUserId }: UsersTabProps) {
   };
 
   return (
+    <>
     <Card className="bg-card border-border/50">
       <CardHeader>
         <div className="flex items-center justify-between">
@@ -321,5 +325,8 @@ export default function UsersTab({ companyId, currentUserId }: UsersTabProps) {
         </AlertDialogContent>
       </AlertDialog>
     </Card>
+
+      {isSuperAdmin && <ActiveSessionsPanel companyId={companyId} />}
+    </>
   );
 }
