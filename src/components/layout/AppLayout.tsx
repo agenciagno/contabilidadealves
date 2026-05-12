@@ -20,6 +20,53 @@ export function AppLayout({ children }: AppLayoutProps) {
   const { forcePasswordChange, isLoading: roleLoading } = useUserRole();
   const navigate = useNavigate();
 
+  // Auto-register current session + heartbeat
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    let heartbeat: ReturnType<typeof setInterval> | null = null;
+
+    const ensureSession = async () => {
+      let sessionUuid = localStorage.getItem('session_uuid');
+      if (!sessionUuid) {
+        sessionUuid = crypto.randomUUID();
+        localStorage.setItem('session_uuid', sessionUuid);
+      }
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (cancelled || !profile?.company_id) return;
+
+      await supabase
+        .from('active_sessions')
+        .upsert(
+          {
+            user_id: user.id,
+            company_id: profile.company_id,
+            session_uuid: sessionUuid,
+            device_info: navigator.userAgent,
+            last_seen_at: new Date().toISOString(),
+          },
+          { onConflict: 'session_uuid', ignoreDuplicates: false }
+        );
+
+      heartbeat = setInterval(async () => {
+        await supabase
+          .from('active_sessions')
+          .update({ last_seen_at: new Date().toISOString() })
+          .eq('session_uuid', sessionUuid!);
+      }, 60_000);
+    };
+
+    ensureSession();
+    return () => {
+      cancelled = true;
+      if (heartbeat) clearInterval(heartbeat);
+    };
+  }, [user]);
+
   // Realtime session revocation listener
   useEffect(() => {
     const sessionUuid = localStorage.getItem('session_uuid');
