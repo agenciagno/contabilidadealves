@@ -224,7 +224,9 @@ export default function Banks() {
             <p>Nenhuma conta cadastrada</p>
             <p className="text-sm mt-1">Clique em "Novo Banco" para adicionar sua primeira conta</p>
           </CardContent>
-        </Card>
+      </Card>
+
+      <BankBalanceDiagnosticPanel />
       }
 
       {/* Unified Statement Accordion */}
