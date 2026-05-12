@@ -326,7 +326,7 @@ export default function UsersTab({ companyId, currentUserId }: UsersTabProps) {
       </AlertDialog>
     </Card>
 
-      {isSuperAdmin && <ActiveSessionsPanel companyId={companyId} />}
+      {isSuperAdmin && <ActiveSessionsPanel />}
     </>
   );
 }
