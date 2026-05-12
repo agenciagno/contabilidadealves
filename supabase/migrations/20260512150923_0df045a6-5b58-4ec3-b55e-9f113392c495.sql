@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS active_sessions_session_uuid_key ON public.active_sessions (session_uuid);
