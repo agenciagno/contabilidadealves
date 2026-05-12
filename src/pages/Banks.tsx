@@ -8,6 +8,7 @@ import { BankFormDialog } from '@/components/banks/BankFormDialog';
 import { BankDetailSheet } from '@/components/banks/BankDetailSheet';
 import { UnifiedStatementAccordion } from '@/components/banks/UnifiedStatementAccordion';
 import { BankReportModal } from '@/components/banks/BankReportModal';
+import { BankBalanceDiagnosticPanel } from '@/components/banks/BankBalanceDiagnosticPanel';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
