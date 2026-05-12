@@ -97,7 +97,8 @@ async function fetchAllPeriodRows(
       .is('deleted_at', null)
       .eq('is_paid', true)
       .order('date', { ascending: true })
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true });
 
     if (bankId !== 'all') {
       query = query.eq('bank_id', bankId);
