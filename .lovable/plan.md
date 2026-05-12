@@ -1,64 +1,70 @@
 ## Objetivo
 
-Adicionar um **aviso visual em destaque** quando o app estiver rodando no ambiente de **desenvolvimento (preview)**, deixando claro que os dados ali NÃO são os mesmos do ambiente publicado.
+Identificar a origem exata da diferença de **R$ 96,83** entre:
+- **Soma dos cards visíveis**: Caixa Geral (R$ 0,00) + Sicoob (R$ 11.443,67) = **R$ 11.443,67**
+- **Card "Saldo total em contas ativas"**: **R$ 11.540,50**
 
-## Contexto
+Como o ambiente publicado usa o banco **Live** (`wpczgwxsriezaubncuom`), e nossas ferramentas internas só conseguem ler o banco **Test**, a investigação precisa rodar **dentro do app publicado**, sem alterar nenhuma lógica.
 
-- Ambiente Test (preview): `id-preview--…lovable.app` → banco Test (`slyagzloscnhplczgosx`).
-- Ambiente Live (publicado): `contabilidadealves.lovable.app` → banco Live (`wpczgwxsriezaubncuom`).
-- Os dois bancos são independentes; lançamentos feitos em um não aparecem no outro.
+---
 
-## Como detectar o ambiente
+## Hipóteses a validar (em ordem de probabilidade)
 
-Comparar `window.location.hostname` em runtime:
+1. **Existe um terceiro banco ativo "oculto" do usuário** (talvez `is_active = true` mas filtrado da listagem por outro motivo, ou um banco antigo sem nome aparente) cujo saldo entra no total mas não aparece como card.
+2. **Existe um banco marcado como `is_invisible = true`** (apesar do usuário dizer que não há) — o cálculo do total já exclui invisíveis, então isso causaria o efeito *oposto*. Vale checar mesmo assim.
+3. **Banco com `is_active = true` mas sem transações visíveis no ano** — initial_balance entra no total, mas se também tem card, o card mostraria esse mesmo valor. Se NÃO tem card por algum filtro de UI, gera divergência.
+4. **Diferença de arredondamento acumulado** entre soma de transações por banco vs soma agregada (improvável gerar exatamente R$ 96,83).
+5. **Transação paga com `bank_id` apontando para banco deletado / órfão** — excluída pelo `.in(activeBankIds)`, então não causaria diff. Descartável.
 
-- Contém `id-preview--` ou `lovable.app/projects/` → **DEV / TEST**.
-- Hostname for o domínio publicado (`contabilidadealves.lovable.app`) ou domínio próprio → **LIVE**.
+A causa mais provável é a **hipótese 1 ou 3**: um terceiro registro em `banks` que entra no total mas o usuário não percebe na listagem.
 
-A função utilitária ficará em `src/lib/environment.ts` e exportará `isDevEnvironment(): boolean`.
+---
 
-## Mudanças visuais
+## Plano de Investigação (sem alterar lógica)
 
-### 1. Banner fixo no topo (apenas em DEV)
+### Etapa 1 — Diagnóstico read-only no app publicado
 
-Novo componente `src/components/layout/DevEnvironmentBanner.tsx`:
+Adicionar um **painel de diagnóstico temporário** visível apenas para Super Admin, na página `/bancos`, que liste:
 
-- Renderiza somente quando `isDevEnvironment() === true`.
-- Barra fina fixa no topo, full-width, acima do `AppHeader`.
-- Cor: amarelo/âmbar de aviso (usar token semântico — `bg-yellow-500/15`, `text-yellow-600 dark:text-yellow-400`, `border-yellow-500/30`), seguindo o padrão minimalista Apple-like do projeto.
-- Conteúdo:
-  - Ícone `AlertTriangle` (lucide-react).
-  - Texto: **"Ambiente de Desenvolvimento — os dados exibidos aqui não refletem o app publicado."**
-- Altura ~32px, tipografia pequena (text-xs), centralizado.
-- Sem botão de fechar (precisa estar sempre visível em DEV).
+- Todos os registros de `banks` retornados pelo hook `useBanks()` (sem filtro), mostrando para cada um:
+  - `id`, `name`, `is_active`, `is_invisible`, `initial_balance`
+  - Saldo calculado individual (mesma fórmula do card)
+- Total dos `initial_balance` de bancos ativos
+- Total dos saldos calculados de bancos ativos
+- Total exibido pelo hook agregado (`bankId: 'all'`)
+- **Diferença entre os dois totais** destacada
 
-### 2. Integração no layout
+Isso revela imediatamente:
+- Se há um 3º banco ativo
+- Qual banco contribui com os R$ 96,83
+- Se a divergência vem de `initial_balance` ou de transações
 
-Em `src/components/layout/AppLayout.tsx`:
-- Renderizar `<DevEnvironmentBanner />` no topo absoluto do layout, antes do `AppHeader`.
-- Ajustar o `padding-top` / espaçamento do conteúdo abaixo apenas o suficiente para acomodar a barra (sem alterar nenhum outro componente, card, métrica ou cálculo).
+### Etapa 2 — Investigação adicional, se Etapa 1 não for conclusiva
 
-### 3. Badge sutil no `AppHeader` (opcional, mesma fonte de verdade)
+Se todos os bancos ativos somarem exatamente o total, a divergência está nas transações. Nesse caso o painel também mostra:
 
-No `src/components/layout/AppHeader.tsx`, ao lado do nome da empresa, adicionar um pequeno badge `DEV` quando `isDevEnvironment()` for `true`. Mesmo esquema de cor da barra. Pequeno, não intrusivo.
+- Quantidade de transações pagas no ano por banco (individual) vs total agregado
+- Lista de transações pagas no ano cujo `bank_id` **não pertence** à lista de bancos ativos visíveis (órfãs)
 
-## Fora de escopo (não será alterado)
+### Etapa 3 — Após identificar a causa
 
-- Nenhum cálculo de saldo, lógica de bancos, hooks (`useBankTransactions`, `useBanks`), filtros, queries ou regras de negócio.
-- Layout dos cards de banco e Saldo Total permanece intacto.
-- Nenhuma mudança de rota, autenticação ou permissões.
+- Documentar a causa raiz
+- Remover o painel de diagnóstico
+- Propor correção (se for bug) ou orientação ao usuário (se for dado inconsistente, ex: banco esquecido ativo)
 
-## Sobre a diferença de R$ 96,83 entre Sicoob e Saldo Total no Live
+---
 
-Como você confirmou que existem apenas Sicoob e Caixa Geral, ambos visíveis e ativos no Live, **a matemática da página deveria fechar** (Caixa 0,00 + Sicoob 11.443,67 = 11.443,67, mas o card mostra 11.540,50). Isso indica que **há um lançamento ou conta não-óbvio no banco Live** que minhas ferramentas (apontadas para o Test) não conseguem inspecionar diretamente.
+## Arquivos envolvidos
 
-Proponho tratar isso em **um próximo ticket separado**, onde você poderá:
-- Exportar a lista de bancos e a soma de transações pagas de 2026 do ambiente Live, ou
-- Me autorizar a adicionar um pequeno painel de debug (visível só em DEV) que liste, por banco, `initial_balance + receitas pagas - despesas pagas` para validar o cálculo direto na página `/bancos`.
+- **Novo:** `src/components/banks/BankBalanceDiagnosticPanel.tsx` — painel read-only, visível só para Super Admin
+- **Editar:** `src/pages/Banks.tsx` — renderizar o painel condicionalmente (após o card de saldo total)
 
-## Arquivos afetados nesta entrega
+Nenhuma alteração em hooks, queries, fórmulas, RLS ou schema. Apenas leitura e exibição.
 
-- **Novo:** `src/lib/environment.ts`
-- **Novo:** `src/components/layout/DevEnvironmentBanner.tsx`
-- **Editado:** `src/components/layout/AppLayout.tsx` (montar o banner)
-- **Editado (opcional):** `src/components/layout/AppHeader.tsx` (badge DEV)
+---
+
+## Fora de escopo
+
+- Qualquer alteração em `useBankTransactions`, `useBanks`, triggers SQL ou cálculo de saldo
+- Sincronização entre Test e Live
+- Mudança visual nos cards atuais
