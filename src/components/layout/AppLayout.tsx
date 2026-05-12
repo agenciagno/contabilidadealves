@@ -32,14 +32,22 @@ export function AppLayout({ children }: AppLayoutProps) {
         sessionUuid = crypto.randomUUID();
         localStorage.setItem('session_uuid', sessionUuid);
       }
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('company_id')
         .eq('user_id', user.id)
         .maybeSingle();
-      if (cancelled || !profile?.company_id) return;
+      if (profileError) {
+        console.error('[active_sessions] erro ao buscar profile', profileError);
+        return;
+      }
+      if (cancelled) return;
+      if (!profile?.company_id) {
+        console.warn('[active_sessions] profile sem company_id', { userId: user.id });
+        return;
+      }
 
-      await supabase
+      const { error: upsertError } = await supabase
         .from('active_sessions')
         .upsert(
           {
@@ -51,12 +59,24 @@ export function AppLayout({ children }: AppLayoutProps) {
           },
           { onConflict: 'session_uuid', ignoreDuplicates: false }
         );
+      if (upsertError) {
+        console.error('[active_sessions:upsert] falhou', upsertError, {
+          user_id: user.id,
+          company_id: profile.company_id,
+          session_uuid: sessionUuid,
+        });
+        return;
+      }
+      console.info('[active_sessions:registered]', sessionUuid);
 
       heartbeat = setInterval(async () => {
-        await supabase
+        const { error: hbError } = await supabase
           .from('active_sessions')
           .update({ last_seen_at: new Date().toISOString() })
           .eq('session_uuid', sessionUuid!);
+        if (hbError) {
+          console.error('[active_sessions:heartbeat] falhou', hbError);
+        }
       }, 60_000);
     };
 
