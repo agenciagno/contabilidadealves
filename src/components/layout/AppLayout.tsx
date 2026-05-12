@@ -5,6 +5,7 @@ import { useUserRole } from '@/hooks/useUserRole';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
 import { AppHeader } from './AppHeader';
+import { DevEnvironmentBanner } from './DevEnvironmentBanner';
 import { InadimplentToast } from '@/components/notifications/InadimplentToast';
 import { ForcePasswordChange } from '@/components/auth/ForcePasswordChange';
 import { Loader2 } from 'lucide-react';
@@ -69,6 +70,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       <div className="min-h-screen flex w-full max-w-[100vw] overflow-x-hidden">
         <AppSidebar />
         <SidebarInset className="flex-1 min-w-0">
+          <DevEnvironmentBanner />
           <AppHeader />
           <main className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 min-w-0 max-w-full">
             {children}
