@@ -225,9 +225,9 @@ export default function Banks() {
             <p className="text-sm mt-1">Clique em "Novo Banco" para adicionar sua primeira conta</p>
           </CardContent>
       </Card>
+      }
 
       <BankBalanceDiagnosticPanel />
-      }
 
       {/* Unified Statement Accordion */}
       {banks.length > 0 && <UnifiedStatementAccordion banks={banks} />}
