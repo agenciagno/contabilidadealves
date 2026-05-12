@@ -8,6 +8,7 @@ import { BankFormDialog } from '@/components/banks/BankFormDialog';
 import { BankDetailSheet } from '@/components/banks/BankDetailSheet';
 import { UnifiedStatementAccordion } from '@/components/banks/UnifiedStatementAccordion';
 import { BankReportModal } from '@/components/banks/BankReportModal';
+import { BankBalanceDiagnosticPanel } from '@/components/banks/BankBalanceDiagnosticPanel';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -223,8 +224,10 @@ export default function Banks() {
             <p>Nenhuma conta cadastrada</p>
             <p className="text-sm mt-1">Clique em "Novo Banco" para adicionar sua primeira conta</p>
           </CardContent>
-        </Card>
+      </Card>
       }
+
+      <BankBalanceDiagnosticPanel />
 
       {/* Unified Statement Accordion */}
       {banks.length > 0 && <UnifiedStatementAccordion banks={banks} />}
