@@ -1,70 +1,81 @@
-## Objetivo
+## Causa raiz identificada
 
-Identificar a origem exata da diferença de **R$ 96,83** entre:
-- **Soma dos cards visíveis**: Caixa Geral (R$ 0,00) + Sicoob (R$ 11.443,67) = **R$ 11.443,67**
-- **Card "Saldo total em contas ativas"**: **R$ 11.540,50**
+O painel de diagnóstico mostrou:
 
-Como o ambiente publicado usa o banco **Live** (`wpczgwxsriezaubncuom`), e nossas ferramentas internas só conseguem ler o banco **Test**, a investigação precisa rodar **dentro do app publicado**, sem alterar nenhuma lógica.
+- Soma dos cards (ativos visíveis): **R$ 11.443,67**
+- Total agregado replicado pelo diagnóstico: **R$ 11.443,67**
+- Card "Saldo total em contas ativas" (real): **R$ 11.540,50**
+- Diferença: **R$ 96,83**
+
+O diagnóstico replica a fórmula do hook e bate com a soma dos cards. Logo, o problema **não é diferença de fórmula** — está em **quais linhas o hook real consegue ler do banco**.
+
+A pista decisiva está no rodapé: **"Extrato Unificado — 2011 lançamentos"**. Mais de 1000 linhas pagas no ano, ou seja, a query do período pagina (limite Supabase = 1000).
+
+Olhando `src/hooks/useBankTransactions.ts → fetchAllPeriodRows`:
+
+```ts
+.order('date', { ascending: true })
+.order('created_at', { ascending: true });
+// ❌ sem desempate por id
+```
+
+Sem `id` como desempate final, o Postgres pode reordenar arbitrariamente registros com o mesmo `(date, created_at)`. Em paginação iterativa por `range(offset, offset+999)` isso causa:
+
+- linhas duplicadas (entram em duas páginas) → saldo **inflado**
+- linhas saltadas (não entram em nenhuma) → saldo deflacionado
+
+Os R$ 96,83 a mais são exatamente esse efeito: o card "Saldo total em contas ativas" usa a query paginada instável; o card individual do Sicoob usa filtro `.eq('bank_id', sicoob)` que devolve menos linhas (provavelmente <1000) e não dispara o bug; o diagnóstico já usa ordenação estável (`created_at, id`) e por isso bate com os cards.
+
+Isso é exatamente a regra `mem://architecture/database/stable-pagination-logic`, que já está aplicada em outros hooks (`useTransactions`) mas **não foi aplicada no `fetchAllPeriodRows`** de bancos.
+
+A `fetchAllPriorRows` no mesmo arquivo já tem `order('created_at').order('id')` — está correta. O bug está só no `fetchAllPeriodRows`.
 
 ---
 
-## Hipóteses a validar (em ordem de probabilidade)
+## Por que o ambiente publicado mostra valores diferentes do dev
 
-1. **Existe um terceiro banco ativo "oculto" do usuário** (talvez `is_active = true` mas filtrado da listagem por outro motivo, ou um banco antigo sem nome aparente) cujo saldo entra no total mas não aparece como card.
-2. **Existe um banco marcado como `is_invisible = true`** (apesar do usuário dizer que não há) — o cálculo do total já exclui invisíveis, então isso causaria o efeito *oposto*. Vale checar mesmo assim.
-3. **Banco com `is_active = true` mas sem transações visíveis no ano** — initial_balance entra no total, mas se também tem card, o card mostraria esse mesmo valor. Se NÃO tem card por algum filtro de UI, gera divergência.
-4. **Diferença de arredondamento acumulado** entre soma de transações por banco vs soma agregada (improvável gerar exatamente R$ 96,83).
-5. **Transação paga com `bank_id` apontando para banco deletado / órfão** — excluída pelo `.in(activeBankIds)`, então não causaria diff. Descartável.
-
-A causa mais provável é a **hipótese 1 ou 3**: um terceiro registro em `banks` que entra no total mas o usuário não percebe na listagem.
+Não é um bug separado. Test e Live são bancos físicos diferentes (refs distintos), então naturalmente têm volumes diferentes de lançamentos. A divergência de saldo dentro de cada ambiente é o mesmo bug acima, apenas com magnitudes diferentes (em Live são R$ 96,83 porque ultrapassa 1000 linhas; em Test pode ser outro valor ou nenhum se tiver <1000).
 
 ---
 
-## Plano de Investigação (sem alterar lógica)
+## Plano de correção (mínimo, cirúrgico)
 
-### Etapa 1 — Diagnóstico read-only no app publicado
+### Etapa 1 — Corrigir paginação instável
 
-Adicionar um **painel de diagnóstico temporário** visível apenas para Super Admin, na página `/bancos`, que liste:
+**Arquivo:** `src/hooks/useBankTransactions.ts`
 
-- Todos os registros de `banks` retornados pelo hook `useBanks()` (sem filtro), mostrando para cada um:
-  - `id`, `name`, `is_active`, `is_invisible`, `initial_balance`
-  - Saldo calculado individual (mesma fórmula do card)
-- Total dos `initial_balance` de bancos ativos
-- Total dos saldos calculados de bancos ativos
-- Total exibido pelo hook agregado (`bankId: 'all'`)
-- **Diferença entre os dois totais** destacada
+Em `fetchAllPeriodRows`, adicionar `.order('id', { ascending: true })` como último critério de ordenação, mantendo os anteriores:
 
-Isso revela imediatamente:
-- Se há um 3º banco ativo
-- Qual banco contribui com os R$ 96,83
-- Se a divergência vem de `initial_balance` ou de transações
+```ts
+.order('date', { ascending: true })
+.order('created_at', { ascending: true })
+.order('id', { ascending: true });   // ← desempate estável
+```
 
-### Etapa 2 — Investigação adicional, se Etapa 1 não for conclusiva
+Nenhuma outra alteração de lógica, filtro, fórmula ou contrato do hook.
 
-Se todos os bancos ativos somarem exatamente o total, a divergência está nas transações. Nesse caso o painel também mostra:
+### Etapa 2 — Validar no app publicado
 
-- Quantidade de transações pagas no ano por banco (individual) vs total agregado
-- Lista de transações pagas no ano cujo `bank_id` **não pertence** à lista de bancos ativos visíveis (órfãs)
+Após o deploy:
+1. Recarregar `/bancos` no app Live.
+2. Confirmar que o card "Saldo total em contas ativas" passa de R$ 11.540,50 para **R$ 11.443,67** (igual à soma dos cards).
+3. Confirmar no painel de diagnóstico que "Diferença" continua R$ 0,00.
 
-### Etapa 3 — Após identificar a causa
+### Etapa 3 — Limpeza
 
-- Documentar a causa raiz
-- Remover o painel de diagnóstico
-- Propor correção (se for bug) ou orientação ao usuário (se for dado inconsistente, ex: banco esquecido ativo)
+Após o usuário confirmar que o saldo bateu:
+- Remover `BankBalanceDiagnosticPanel` de `src/pages/Banks.tsx` e o arquivo do componente.
+- (Opcional) manter o banner de ambiente DEV — é independente desta investigação.
 
 ---
 
 ## Arquivos envolvidos
 
-- **Novo:** `src/components/banks/BankBalanceDiagnosticPanel.tsx` — painel read-only, visível só para Super Admin
-- **Editar:** `src/pages/Banks.tsx` — renderizar o painel condicionalmente (após o card de saldo total)
-
-Nenhuma alteração em hooks, queries, fórmulas, RLS ou schema. Apenas leitura e exibição.
-
----
+- **Editar:** `src/hooks/useBankTransactions.ts` (1 linha em `fetchAllPeriodRows`)
+- **Editar (depois da validação):** `src/pages/Banks.tsx` (remover painel diagnóstico)
+- **Excluir (depois da validação):** `src/components/banks/BankBalanceDiagnosticPanel.tsx`
 
 ## Fora de escopo
 
-- Qualquer alteração em `useBankTransactions`, `useBanks`, triggers SQL ou cálculo de saldo
-- Sincronização entre Test e Live
-- Mudança visual nos cards atuais
+- Qualquer mudança em fórmulas de saldo, RLS, schema, triggers ou sincronização Test/Live.
+- Mudanças visuais nos cards.
