@@ -24,6 +24,23 @@ const taxRegimeLabels: Record<string, string> = {
 export function ContactDetailsTab({ contact }: ContactDetailsTabProps) {
   const [editSection, setEditSection] = useState<Section | null>(null);
 
+  const { data: profiles } = useQuery({
+    queryKey: ['profiles-active-for-contact'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .eq('status_active', true)
+        .order('full_name', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const responsibleName = contact.responsible_id
+    ? profiles?.find((p) => p.id === contact.responsible_id)?.full_name
+    : null;
+
   return (
     <div className="grid md:grid-cols-2 gap-6">
       {/* Informações de Contato */}
