@@ -35,7 +35,7 @@ export interface Contact {
   updated_at: string;
 }
 
-export type ContactInsert = Omit<Contact, 'id' | 'company_id' | 'created_at' | 'updated_at' | 'origin' | 'whatsapp'> & { origin?: string; whatsapp?: string | null };
+export type ContactInsert = Omit<Contact, 'id' | 'company_id' | 'created_at' | 'updated_at' | 'origin' | 'whatsapp' | 'responsible_id'> & { origin?: string; whatsapp?: string | null; responsible_id?: string | null };
 export type ContactUpdate = Partial<ContactInsert>;
 
 export function useContacts() {
