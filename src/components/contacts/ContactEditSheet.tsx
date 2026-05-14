@@ -239,6 +239,20 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
                 </div>
                 <Switch checked={isActive} onCheckedChange={setIsActive} />
               </div>
+              <div className="space-y-1.5">
+                <Label>Colaborador Responsável</Label>
+                <Select value={responsibleId} onValueChange={setResponsibleId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o responsável" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Não atribuído</SelectItem>
+                    {profiles?.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.full_name || 'Sem nome'}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </>
           )}
 
