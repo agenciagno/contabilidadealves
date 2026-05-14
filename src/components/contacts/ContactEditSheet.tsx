@@ -71,6 +71,18 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
   // Observações fields
   const [notes, setNotes] = useState(contact.notes || '');
 
+  // Cobrança fields
+  const [boletoValue, setBoletoValue] = useState<string>(
+    contact.boleto_value != null ? String(contact.boleto_value) : ''
+  );
+  const [boletoDueDay, setBoletoDueDay] = useState<string>(
+    contact.boleto_due_day != null ? String(contact.boleto_due_day) : 'none'
+  );
+  const [canalEntrega, setCanalEntrega] = useState<string>(contact.canal_entrega || 'none');
+  const [numeroSicoob, setNumeroSicoob] = useState<string>(
+    contact.numero_cliente_sicoob != null ? String(contact.numero_cliente_sicoob) : ''
+  );
+
   const { data: profiles } = useQuery({
     queryKey: ['profiles-active-for-contact-edit'],
     queryFn: async () => {
