@@ -1,32 +1,27 @@
-## Ajustes no modal de cadastro de Cliente/Fornecedor
+## Adicionar "Colaborador Responsável" ao card Dados Fiscais
 
-Arquivo afetado: `src/components/contacts/ContactFormDialog.tsx`
-Tabela afetada: `contacts` (a tabela "clientes" do projeto)
+### Arquivos afetados
+- `src/components/contacts/ContactDetailsTab.tsx` — exibição do campo no card Dados Fiscais
+- `src/components/contacts/ContactEditSheet.tsx` — edição inline (seção `fiscal`)
 
-### 1. Banco de dados
-Criar nova coluna na tabela `contacts`:
-- `whatsapp` — texto, opcional (nullable), sem default
+### Banco
+Sem mudanças. Coluna `responsible_id` já existe em `contacts`.
 
-(Sem alterações em RLS, triggers ou outros campos.)
+### Mudanças
 
-### 2. Remover do modal
-- Toda a seção **"Configuração de Boletos"** (separator, título, toggle "Gerar Boleto Mensal?" e os campos Valor / Dia de Vencimento / Data de Início).
-- Toda a seção **"Colaborador Responsável"** (separator, label e Select).
-- Estados, efeitos e payload relacionados: `boletoActive`, `boletoValue`, `boletoDueDay`, `boletoStartDate`, `responsibleId`, a query `company-profiles-form`, imports não utilizados (`Switch`, `Separator`, `FileCheck`, `useQuery`, `supabase`, `useCompany`).
-- Os campos `boleto_active`, `boleto_value`, `boleto_due_day`, `boleto_start_date` e `responsible_id` deixam de ser enviados pelo `onSubmit` deste modal (continuam existindo no banco e em outros lugares — apenas este modal não os define mais; novos cadastros assumirão os defaults da coluna).
+**ContactDetailsTab.tsx — card "Dados Fiscais"**
+Adicionar após o bloco "Status" um terceiro item:
+- Label: "Colaborador Responsável"
+- Valor: nome (`full_name`) do profile referenciado por `contact.responsible_id`, ou `"Não atribuído"` em `text-muted-foreground` se vazio
+- Buscar profiles via `useQuery` (`profiles` onde `status_active = true`, ordenado por `full_name`) — reaproveitado para resolver o nome
+- Sem ícone novo: o lápis de edição já está no header do card e abre a seção `fiscal`
 
-### 3. Adicionar ao modal
-Logo após o campo **Telefone**, na mesma linha em grid de 2 colunas (Telefone vira coluna esquerda, WhatsApp coluna direita — ajusto o grid para acomodar):
-
-- Label: **WhatsApp**
-- Input texto, opcional
-- Placeholder: `(00) 00000-0000`
-- Máscara: mesma do telefone (`maskPhone`), `maxLength={15}`
-- Estado novo: `whatsapp`
-- Persiste no campo `whatsapp` da tabela `contacts`
-
-### 4. Tipagem
-Adicionar `whatsapp: string | null` à interface `Contact` e ao tipo `ContactInsert` em `src/hooks/useContacts.ts` para refletir a nova coluna.
+**ContactEditSheet.tsx — seção `fiscal`**
+Adicionar campo após o bloco Status:
+- Estado novo `responsibleId` inicializado de `contact.responsible_id`
+- `Select` com opção "Não atribuído" (mapeada para `null`, usando o padrão de Radix com sentinel `"none"`) + lista de profiles ativos (`full_name`)
+- Persistir em `responsible_id` no `handleSave` quando `section === 'fiscal'`
 
 ### Fora de escopo
-- Nenhuma outra alteração visual, de validação, de submit, de rotas ou de outros componentes (ContactEditSheet, perfil etc.) será feita neste passo.
+- Outros cards, abas, validações, layout, ou listagem de contatos.
+- Tipagem: `responsible_id` já existe em `Contact`.
