@@ -1,27 +1,48 @@
-## Adicionar "Colaborador Responsável" ao card Dados Fiscais
-
-### Arquivos afetados
-- `src/components/contacts/ContactDetailsTab.tsx` — exibição do campo no card Dados Fiscais
-- `src/components/contacts/ContactEditSheet.tsx` — edição inline (seção `fiscal`)
+## Card "Configurações de Cobrança" no perfil do cliente
 
 ### Banco
-Sem mudanças. Coluna `responsible_id` já existe em `contacts`.
+Migração na tabela `contacts`:
+- `canal_entrega` TEXT NULL
+- `numero_cliente_sicoob` INTEGER NULL
+- `enviar_cobranca_auto` BOOLEAN NOT NULL DEFAULT false
 
-### Mudanças
+(`boleto_value`, `boleto_due_day`, `boleto_active` já existem.)
 
-**ContactDetailsTab.tsx — card "Dados Fiscais"**
-Adicionar após o bloco "Status" um terceiro item:
-- Label: "Colaborador Responsável"
-- Valor: nome (`full_name`) do profile referenciado por `contact.responsible_id`, ou `"Não atribuído"` em `text-muted-foreground` se vazio
-- Buscar profiles via `useQuery` (`profiles` onde `status_active = true`, ordenado por `full_name`) — reaproveitado para resolver o nome
-- Sem ícone novo: o lápis de edição já está no header do card e abre a seção `fiscal`
+### Tipagem (`src/hooks/useContacts.ts`)
+Adicionar à interface `Contact`:
+- `canal_entrega: string | null`
+- `numero_cliente_sicoob: number | null`
+- `enviar_cobranca_auto: boolean`
 
-**ContactEditSheet.tsx — seção `fiscal`**
-Adicionar campo após o bloco Status:
-- Estado novo `responsibleId` inicializado de `contact.responsible_id`
-- `Select` com opção "Não atribuído" (mapeada para `null`, usando o padrão de Radix com sentinel `"none"`) + lista de profiles ativos (`full_name`)
-- Persistir em `responsible_id` no `handleSave` quando `section === 'fiscal'`
+E permitir esses campos em `ContactInsert` (opcionais).
+
+### Novo componente
+`src/components/contacts/ContactBillingCard.tsx` — card autônomo, recebe `contact: Contact`. Usa `useContacts().updateContact` para todas as alterações.
+
+Conteúdo:
+- Header padrão (mesma estética dos demais cards): `<Card className="bg-card border-border/50">`, título "Configurações de Cobrança" com ícone `FileText`, botão lápis no canto que abre o sheet de edição.
+- **Grupo A (display)** — leitura, com botão lápis no header do card (padrão da aba):
+  - Valor mensal de honorários: `R$ X,XX` ou "Não configurado"
+  - Dia de vencimento: `5 / 10 / 15 / 20` ou "Não configurado"
+  - Canal de entrega: label legível (WhatsApp / E-mail / Impresso / WhatsApp + E-mail) ou "Não configurado"
+  - Nº cliente Sicoob: número ou "Não configurado", em `text-muted-foreground`
+- **Divisor** `border-t border-border/50 pt-4 mt-4` + título "Automações" (`text-sm font-medium text-muted-foreground`)
+- **Grupo B (toggles inline, sem sheet)**:
+  - Switch "Gerar boleto automaticamente" + descrição. Optimistic update via `updateContact.mutateAsync`. Em erro, reverte estado local; toast sucesso "Configuração salva" e erro "Erro ao salvar. Tente novamente."
+  - Switch "Enviar cobrança automaticamente" + descrição. `disabled` quando `boleto_active === false`, com `Tooltip` "Ative a geração automática primeiro". Mesmo padrão optimistic.
+
+### Edição inline do Grupo A
+Estender `ContactEditSheet.tsx` com nova seção `'cobranca'`:
+- Input numérico (R$) → `boleto_value`
+- Select 5/10/15/20 → `boleto_due_day` (sentinel `"none"` → null)
+- Select de canal → `canal_entrega`
+- Input numérico → `numero_cliente_sicoob`
+
+Adicionar `'cobranca'` ao type `Section`, ao `sectionTitles`, aos states/reset/handleSave. Botão lápis do novo card chama `setEditSection('cobranca')`.
+
+### Integração
+`ContactDetailsTab.tsx`: renderizar `<ContactBillingCard contact={contact} />` logo após o card "Dados Fiscais", dentro do mesmo grid (col-span se necessário para ficar visualmente "abaixo" — sigo o grid `md:grid-cols-2` atual; o card cai naturalmente na próxima linha).
 
 ### Fora de escopo
-- Outros cards, abas, validações, layout, ou listagem de contatos.
-- Tipagem: `responsible_id` já existe em `Contact`.
+- Lógica real de geração/envio de boleto (apenas persiste a flag).
+- Outros cards, abas, listagens.
