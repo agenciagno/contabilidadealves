@@ -65,9 +65,24 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
   // Fiscal fields
   const [taxRegime, setTaxRegime] = useState<TaxRegime | ''>(contact.tax_regime || '');
   const [isActive, setIsActive] = useState(contact.is_active);
+  const [responsibleId, setResponsibleId] = useState<string>(contact.responsible_id || 'none');
 
   // Observações fields
   const [notes, setNotes] = useState(contact.notes || '');
+
+  const { data: profiles } = useQuery({
+    queryKey: ['profiles-active-for-contact-edit'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .eq('status_active', true)
+        .order('full_name', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: section === 'fiscal',
+  });
 
   // Reset when contact or section changes
   useEffect(() => {
