@@ -30,6 +30,7 @@ export interface Contact {
   boleto_due_day: number | null;
   boleto_start_date: string | null;
   origin: string;
+  responsible_id: string | null;
   created_at: string;
   updated_at: string;
 }
