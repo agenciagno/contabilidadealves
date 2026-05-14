@@ -130,7 +130,7 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
     } else if (section === 'endereco') {
       updates = { cep: cep || null, address: address || null, address_number: addressNumber || null, neighborhood: neighborhood || null, city: city || null, state: state || null };
     } else if (section === 'fiscal') {
-      updates = { tax_regime: (taxRegime as TaxRegime) || null, is_active: isActive };
+      updates = { tax_regime: (taxRegime as TaxRegime) || null, is_active: isActive, responsible_id: responsibleId === 'none' ? null : responsibleId };
     } else if (section === 'observacoes') {
       updates = { notes: notes || null };
     }
