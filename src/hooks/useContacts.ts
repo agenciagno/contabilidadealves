@@ -29,13 +29,16 @@ export interface Contact {
   boleto_value: number | null;
   boleto_due_day: number | null;
   boleto_start_date: string | null;
+  canal_entrega: string | null;
+  numero_cliente_sicoob: number | null;
+  enviar_cobranca_auto: boolean;
   origin: string;
   responsible_id: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export type ContactInsert = Omit<Contact, 'id' | 'company_id' | 'created_at' | 'updated_at' | 'origin' | 'whatsapp' | 'responsible_id'> & { origin?: string; whatsapp?: string | null; responsible_id?: string | null };
+export type ContactInsert = Omit<Contact, 'id' | 'company_id' | 'created_at' | 'updated_at' | 'origin' | 'whatsapp' | 'responsible_id' | 'canal_entrega' | 'numero_cliente_sicoob' | 'enviar_cobranca_auto'> & { origin?: string; whatsapp?: string | null; responsible_id?: string | null; canal_entrega?: string | null; numero_cliente_sicoob?: number | null; enviar_cobranca_auto?: boolean };
 export type ContactUpdate = Partial<ContactInsert>;
 
 export function useContacts() {
