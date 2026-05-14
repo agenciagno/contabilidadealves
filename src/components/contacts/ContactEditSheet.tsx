@@ -293,6 +293,68 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
               />
             </div>
           )}
+
+          {section === 'cobranca' && (
+            <>
+              <div className="space-y-1.5">
+                <Label>Valor mensal de honorários</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="0"
+                    value={boletoValue}
+                    onChange={(e) => setBoletoValue(e.target.value)}
+                    placeholder="0,00"
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Dia de vencimento</Label>
+                <Select value={boletoDueDay} onValueChange={setBoletoDueDay}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o dia" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Não configurado</SelectItem>
+                    <SelectItem value="5">5</SelectItem>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="15">15</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Canal de entrega</Label>
+                <Select value={canalEntrega} onValueChange={setCanalEntrega}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o canal" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Não configurado</SelectItem>
+                    <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                    <SelectItem value="email">E-mail</SelectItem>
+                    <SelectItem value="impresso">Impresso</SelectItem>
+                    <SelectItem value="whatsapp_email">WhatsApp + E-mail</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-muted-foreground">Nº cliente Sicoob</Label>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  value={numeroSicoob}
+                  onChange={(e) => setNumeroSicoob(e.target.value)}
+                  placeholder="Número do beneficiário no Sisbr"
+                  className="text-muted-foreground"
+                />
+              </div>
+            </>
+          )}
         </div>
 
         <SheetFooter className="gap-2">
