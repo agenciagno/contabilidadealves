@@ -29,7 +29,7 @@ export interface Contact {
   boleto_value: number | null;
   boleto_due_day: number | null;
   boleto_start_date: string | null;
-  canal_entrega: string | null;
+  canal_entrega: 'whatsapp' | 'email' | 'impresso' | 'whatsapp_email' | null;
   numero_cliente_sicoob: number | null;
   enviar_cobranca_auto: boolean;
   origin: string;
