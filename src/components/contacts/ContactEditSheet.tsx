@@ -156,7 +156,7 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
       updates = {
         boleto_value: parsedValue !== null && !isNaN(parsedValue) ? parsedValue : null,
         boleto_due_day: boletoDueDay === 'none' ? null : parseInt(boletoDueDay, 10),
-        canal_entrega: canalEntrega === 'none' ? null : canalEntrega,
+        canal_entrega: canalEntrega === 'none' ? null : (canalEntrega as 'whatsapp' | 'email' | 'impresso' | 'whatsapp_email'),
         numero_cliente_sicoob: parsedSicoob !== null && !isNaN(parsedSicoob) ? parsedSicoob : null,
       };
     }
