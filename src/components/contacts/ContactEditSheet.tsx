@@ -22,7 +22,7 @@ import { Contact, TaxRegime, useContacts } from '@/hooks/useContacts';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
-type Section = 'contato' | 'endereco' | 'fiscal' | 'observacoes';
+type Section = 'contato' | 'endereco' | 'fiscal' | 'observacoes' | 'cobranca';
 
 interface ContactEditSheetProps {
   contact: Contact;
@@ -36,6 +36,7 @@ const sectionTitles: Record<Section, string> = {
   endereco: 'Editar Endereço',
   fiscal: 'Editar Dados Fiscais',
   observacoes: 'Editar Observações',
+  cobranca: 'Editar Configurações de Cobrança',
 };
 
 const BR_STATES = [
