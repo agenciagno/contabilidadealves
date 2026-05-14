@@ -6,6 +6,7 @@ import { Mail, MapPin, FileText, Building2, Pencil } from 'lucide-react';
 import { Contact } from '@/hooks/useContacts';
 import { supabase } from '@/integrations/supabase/client';
 import { ContactEditSheet } from './ContactEditSheet';
+import { ContactBillingCard } from './ContactBillingCard';
 
 type Section = 'contato' | 'endereco' | 'fiscal' | 'observacoes';
 
