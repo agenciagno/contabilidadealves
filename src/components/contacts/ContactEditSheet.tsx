@@ -113,6 +113,10 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
     setIsActive(contact.is_active);
     setResponsibleId(contact.responsible_id || 'none');
     setNotes(contact.notes || '');
+    setBoletoValue(contact.boleto_value != null ? String(contact.boleto_value) : '');
+    setBoletoDueDay(contact.boleto_due_day != null ? String(contact.boleto_due_day) : 'none');
+    setCanalEntrega(contact.canal_entrega || 'none');
+    setNumeroSicoob(contact.numero_cliente_sicoob != null ? String(contact.numero_cliente_sicoob) : '');
   }, [contact, section]);
 
   const handleCepBlur = async () => {
