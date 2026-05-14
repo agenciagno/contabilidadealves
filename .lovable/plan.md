@@ -1,40 +1,32 @@
-# Diagnóstico final — sessões não aparecem em produção
+## Ajustes no modal de cadastro de Cliente/Fornecedor
 
-## Causa raiz
+Arquivo afetado: `src/components/contacts/ContactFormDialog.tsx`
+Tabela afetada: `contacts` (a tabela "clientes" do projeto)
 
-Os logs do navegador em `app.contabilidadealves.com.br` mostram:
+### 1. Banco de dados
+Criar nova coluna na tabela `contacts`:
+- `whatsapp` — texto, opcional (nullable), sem default
 
-```
-[active_sessions:upsert] falhou
-{ code: 'PGRST205',
-  message: "Could not find the table 'public.active_sessions' in the schema cache",
-  hint: "Perhaps you meant the table 'public.transactions'" }
-```
+(Sem alterações em RLS, triggers ou outros campos.)
 
-O código do front-end já está correto (auto-registro + heartbeat + listener funcionando no preview). O problema é puramente de **infraestrutura de banco**:
+### 2. Remover do modal
+- Toda a seção **"Configuração de Boletos"** (separator, título, toggle "Gerar Boleto Mensal?" e os campos Valor / Dia de Vencimento / Data de Início).
+- Toda a seção **"Colaborador Responsável"** (separator, label e Select).
+- Estados, efeitos e payload relacionados: `boletoActive`, `boletoValue`, `boletoDueDay`, `boletoStartDate`, `responsibleId`, a query `company-profiles-form`, imports não utilizados (`Switch`, `Separator`, `FileCheck`, `useQuery`, `supabase`, `useCompany`).
+- Os campos `boleto_active`, `boleto_value`, `boleto_due_day`, `boleto_start_date` e `responsible_id` deixam de ser enviados pelo `onSubmit` deste modal (continuam existindo no banco e em outros lugares — apenas este modal não os define mais; novos cadastros assumirão os defaults da coluna).
 
-- A migração que cria `active_sessions` foi aplicada no banco de **Test** (preview Lovable, ref `slyagzloscnhplczgosx`) — a tabela existe lá.
-- O domínio publicado `app.contabilidadealves.com.br` consulta o banco **Live** (`bapydjfdfiozbmsbrnfb`), onde a tabela **não existe**.
-- Por isso o upsert retorna 404 e a listagem fica vazia em produção, mesmo com várias abas abertas.
+### 3. Adicionar ao modal
+Logo após o campo **Telefone**, na mesma linha em grid de 2 colunas (Telefone vira coluna esquerda, WhatsApp coluna direita — ajusto o grid para acomodar):
 
-## Plano
+- Label: **WhatsApp**
+- Input texto, opcional
+- Placeholder: `(00) 00000-0000`
+- Máscara: mesma do telefone (`maskPhone`), `maxLength={15}`
+- Estado novo: `whatsapp`
+- Persiste no campo `whatsapp` da tabela `contacts`
 
-**Passo único — Publicar o app**
+### 4. Tipagem
+Adicionar `whatsapp: string | null` à interface `Contact` e ao tipo `ContactInsert` em `src/hooks/useContacts.ts` para refletir a nova coluna.
 
-Ao publicar, a migração `active_sessions` (com índice único em `session_uuid` e RLS) é propagada para o banco Live, junto com o código já corrigido de `AppLayout.tsx` e `ActiveSessionsPanel.tsx`.
-
-Não é necessária nenhuma alteração de código. Basta clicar em **Publicar**.
-
-## Validação após publicar
-
-1. Abrir `app.contabilidadealves.com.br` em duas abas (uma anônima).
-2. Em ambas, abrir o DevTools → Console e procurar por `[active_sessions:registered]`.
-3. Ir em **Configurações → Minha Equipe → Sessões Ativas**.
-4. Devem aparecer as duas sessões, com badge **"Esta sessão"** marcando a aba atual.
-5. Testar o botão de desconectar na outra sessão — ela deve receber o evento realtime e ser deslogada.
-
-## Fora de escopo
-
-- Nenhuma alteração de código (front, RLS, schema ou edge functions).
-- Nenhuma alteração no painel de sessões além da publicação.
-
+### Fora de escopo
+- Nenhuma outra alteração visual, de validação, de submit, de rotas ou de outros componentes (ContactEditSheet, perfil etc.) será feita neste passo.

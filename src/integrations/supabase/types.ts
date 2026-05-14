@@ -481,6 +481,7 @@ export type Database = {
           tax_regime: string | null
           type: string
           updated_at: string
+          whatsapp: string | null
         }
         Insert: {
           address?: string | null
@@ -508,6 +509,7 @@ export type Database = {
           tax_regime?: string | null
           type: string
           updated_at?: string
+          whatsapp?: string | null
         }
         Update: {
           address?: string | null
@@ -535,6 +537,7 @@ export type Database = {
           tax_regime?: string | null
           type?: string
           updated_at?: string
+          whatsapp?: string | null
         }
         Relationships: [
           {
