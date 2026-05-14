@@ -98,6 +98,7 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
     setState(contact.state || '');
     setTaxRegime(contact.tax_regime || '');
     setIsActive(contact.is_active);
+    setResponsibleId(contact.responsible_id || 'none');
     setNotes(contact.notes || '');
   }, [contact, section]);
 
