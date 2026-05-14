@@ -5,16 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
 import { Contact, ContactInsert } from '@/hooks/useContacts';
 import { maskCPFCNPJ, maskPhone } from '@/lib/utils';
-import { Search, Loader2, FileCheck } from 'lucide-react';
+import { Search, Loader2 } from 'lucide-react';
 import { fetchCnpjData } from '@/lib/cnpj-api';
 import { useToast } from '@/hooks/use-toast';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useCompany } from '@/hooks/useCompany';
 
 interface ContactFormDialogProps {
   open: boolean;
@@ -47,6 +42,7 @@ export function ContactFormDialog({
   const [document, setDocument] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [whatsapp, setWhatsapp] = useState('');
   const [cep, setCep] = useState('');
   const [address, setAddress] = useState('');
   const [addressNumber, setAddressNumber] = useState('');
@@ -54,29 +50,10 @@ export function ContactFormDialog({
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
   const [notes, setNotes] = useState('');
-  const [boletoActive, setBoletoActive] = useState(false);
-  const [boletoValue, setBoletoValue] = useState('');
-  const [boletoDueDay, setBoletoDueDay] = useState('');
-  const [boletoStartDate, setBoletoStartDate] = useState('');
   const [isFetchingCnpj, setIsFetchingCnpj] = useState(false);
   const [isLoadingCep, setIsLoadingCep] = useState(false);
   const [addressFieldsLocked, setAddressFieldsLocked] = useState(false);
-  const [responsibleId, setResponsibleId] = useState('');
   const { toast } = useToast();
-  const { company } = useCompany();
-
-  const { data: companyProfiles = [] } = useQuery({
-    queryKey: ['company-profiles-form', company?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .eq('company_id', company!.id);
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!company?.id && open,
-  });
 
   useEffect(() => {
     if (contact) {
@@ -84,6 +61,7 @@ export function ContactFormDialog({
       setDocument(contact.document || '');
       setEmail(contact.email || '');
       setPhone(contact.phone || '');
+      setWhatsapp((contact as any).whatsapp || '');
       setCep(contact.cep || '');
       setAddress(contact.address || '');
       setAddressNumber(contact.address_number || '');
@@ -91,16 +69,12 @@ export function ContactFormDialog({
       setCity(contact.city || '');
       setState(contact.state || '');
       setNotes(contact.notes || '');
-      setBoletoActive(contact.boleto_active || false);
-      setBoletoValue(contact.boleto_value?.toString() || '');
-      setBoletoDueDay(contact.boleto_due_day?.toString() || '');
-      setBoletoStartDate(contact.boleto_start_date || '');
-      setResponsibleId((contact as any).responsible_id || '');
     } else {
       setName('');
       setDocument('');
       setEmail('');
       setPhone('');
+      setWhatsapp('');
       setCep('');
       setAddress('');
       setAddressNumber('');
@@ -108,11 +82,6 @@ export function ContactFormDialog({
       setCity('');
       setState('');
       setNotes('');
-      setBoletoActive(false);
-      setBoletoValue('');
-      setBoletoDueDay('');
-      setBoletoStartDate('');
-      setResponsibleId('');
     }
   }, [contact, open]);
 
@@ -183,7 +152,6 @@ export function ContactFormDialog({
       setNeighborhood(data.neighborhood || '');
       setCity(data.city || '');
       setState(data.state || '');
-      // Não limpa addressNumber — preserva o que o usuário já digitou
 
       setTimeout(() => {
         window.document.getElementById('address-number')?.focus();
@@ -194,7 +162,6 @@ export function ContactFormDialog({
         description: 'Não conseguimos localizar este CEP. Por favor, preencha o endereço manualmente.',
         variant: 'destructive',
       });
-      // Não limpa campos já preenchidos
     } finally {
       setIsLoadingCep(false);
     }
@@ -209,6 +176,7 @@ export function ContactFormDialog({
       tax_regime: null,
       email: email.trim() || null,
       phone: phone.trim() || null,
+      whatsapp: whatsapp.trim() || null,
       cep: cep.trim() || null,
       address: address.trim() || null,
       address_number: addressNumber.trim() || null,
@@ -218,11 +186,6 @@ export function ContactFormDialog({
       notes: notes.trim() || null,
       is_active: true,
       representative_legal: null,
-      boleto_active: boletoActive,
-      boleto_value: boletoActive && boletoValue ? parseFloat(boletoValue.replace(/\./g, '').replace(',', '.')) : null,
-      boleto_due_day: boletoActive && boletoDueDay ? parseInt(boletoDueDay) : null,
-      boleto_start_date: boletoActive && boletoStartDate ? boletoStartDate : null,
-      responsible_id: responsibleId || null,
     } as any);
   };
 
@@ -277,8 +240,8 @@ export function ContactFormDialog({
               />
             </div>
 
-            {/* Linha 3: E-mail + Telefone */}
-            <div className="col-span-3 grid grid-cols-2 gap-4">
+            {/* Linha 3: E-mail + Telefone + WhatsApp */}
+            <div className="col-span-3 grid grid-cols-3 gap-4">
               <div>
                 <Label htmlFor="email">E-mail</Label>
                 <Input
@@ -295,6 +258,16 @@ export function ContactFormDialog({
                   id="phone"
                   value={phone}
                   onChange={(e) => setPhone(maskPhone(e.target.value))}
+                  placeholder="(00) 00000-0000"
+                  maxLength={15}
+                />
+              </div>
+              <div>
+                <Label htmlFor="whatsapp">WhatsApp</Label>
+                <Input
+                  id="whatsapp"
+                  value={whatsapp}
+                  onChange={(e) => setWhatsapp(maskPhone(e.target.value))}
                   placeholder="(00) 00000-0000"
                   maxLength={15}
                 />
@@ -390,91 +363,6 @@ export function ContactFormDialog({
                 rows={1}
                 className="min-h-[40px] resize-none"
               />
-            </div>
-          </div>
-
-          {/* Seção: Configuração de Boletos */}
-          <div className="space-y-3">
-            <Separator />
-            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <FileCheck className="w-4 h-4 text-primary" />
-              Configuração de Boletos
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label htmlFor="boleto-active" className="cursor-pointer">
-                Gerar Boleto Mensal?
-              </Label>
-              <Switch
-                id="boleto-active"
-                checked={boletoActive}
-                onCheckedChange={setBoletoActive}
-              />
-            </div>
-
-            {boletoActive && (
-              <div className="grid grid-cols-3 gap-4 pt-1">
-                <div>
-                  <Label htmlFor="boleto-value">Valor (R$)</Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
-                    <Input
-                      id="boleto-value"
-                      type="text"
-                      inputMode="numeric"
-                      value={boletoValue}
-                      onChange={(e) => {
-                        const raw = e.target.value.replace(/\D/g, '');
-                        if (raw === '') { setBoletoValue(''); return; }
-                        const num = parseInt(raw, 10) / 100;
-                        setBoletoValue(num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-                      }}
-                      placeholder="0,00"
-                      className="pl-9"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="boleto-due-day">Dia de Vencimento</Label>
-                  <Input
-                    id="boleto-due-day"
-                    type="number"
-                    min="1"
-                    max="31"
-                    value={boletoDueDay}
-                    onChange={(e) => setBoletoDueDay(e.target.value)}
-                    placeholder="Ex: 10"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="boleto-start-date">Data de Início</Label>
-                  <Input
-                    id="boleto-start-date"
-                    type="date"
-                    value={boletoStartDate}
-                    onChange={(e) => setBoletoStartDate(e.target.value)}
-                    min="1900-01-01" max="9999-12-31"
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Seção: Colaborador Responsável */}
-          <div className="space-y-3">
-            <Separator />
-            <div>
-              <Label>Colaborador Responsável</Label>
-              <Select value={responsibleId} onValueChange={setResponsibleId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o responsável" />
-                </SelectTrigger>
-                <SelectContent>
-                  {companyProfiles.map(p => (
-                    <SelectItem key={p.id} value={p.id}>{p.full_name || 'Sem nome'}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
           </div>
 
