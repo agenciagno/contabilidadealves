@@ -135,6 +135,9 @@ export function ContactDetailsTab({ contact }: ContactDetailsTabProps) {
         </CardContent>
       </Card>
 
+      {/* Configurações de Cobrança */}
+      <ContactBillingCard contact={contact} />
+
       {/* Observações */}
       <Card className="bg-card border-border/50">
         <CardHeader className="flex flex-row items-center justify-between pb-3">
