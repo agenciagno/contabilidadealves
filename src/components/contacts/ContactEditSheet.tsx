@@ -19,6 +19,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Contact, TaxRegime, useContacts } from '@/hooks/useContacts';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 type Section = 'contato' | 'endereco' | 'fiscal' | 'observacoes';
 
@@ -63,9 +65,24 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
   // Fiscal fields
   const [taxRegime, setTaxRegime] = useState<TaxRegime | ''>(contact.tax_regime || '');
   const [isActive, setIsActive] = useState(contact.is_active);
+  const [responsibleId, setResponsibleId] = useState<string>(contact.responsible_id || 'none');
 
   // Observações fields
   const [notes, setNotes] = useState(contact.notes || '');
+
+  const { data: profiles } = useQuery({
+    queryKey: ['profiles-active-for-contact-edit'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .eq('status_active', true)
+        .order('full_name', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: section === 'fiscal',
+  });
 
   // Reset when contact or section changes
   useEffect(() => {
@@ -81,6 +98,7 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
     setState(contact.state || '');
     setTaxRegime(contact.tax_regime || '');
     setIsActive(contact.is_active);
+    setResponsibleId(contact.responsible_id || 'none');
     setNotes(contact.notes || '');
   }, [contact, section]);
 
@@ -112,7 +130,7 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
     } else if (section === 'endereco') {
       updates = { cep: cep || null, address: address || null, address_number: addressNumber || null, neighborhood: neighborhood || null, city: city || null, state: state || null };
     } else if (section === 'fiscal') {
-      updates = { tax_regime: (taxRegime as TaxRegime) || null, is_active: isActive };
+      updates = { tax_regime: (taxRegime as TaxRegime) || null, is_active: isActive, responsible_id: responsibleId === 'none' ? null : responsibleId };
     } else if (section === 'observacoes') {
       updates = { notes: notes || null };
     }
@@ -220,6 +238,20 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
                   <p className="text-sm text-muted-foreground">{isActive ? 'Cliente ativo' : 'Cliente inativo'}</p>
                 </div>
                 <Switch checked={isActive} onCheckedChange={setIsActive} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Colaborador Responsável</Label>
+                <Select value={responsibleId} onValueChange={setResponsibleId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o responsável" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Não atribuído</SelectItem>
+                    {profiles?.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.full_name || 'Sem nome'}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </>
           )}

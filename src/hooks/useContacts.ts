@@ -30,11 +30,12 @@ export interface Contact {
   boleto_due_day: number | null;
   boleto_start_date: string | null;
   origin: string;
+  responsible_id: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export type ContactInsert = Omit<Contact, 'id' | 'company_id' | 'created_at' | 'updated_at' | 'origin' | 'whatsapp'> & { origin?: string; whatsapp?: string | null };
+export type ContactInsert = Omit<Contact, 'id' | 'company_id' | 'created_at' | 'updated_at' | 'origin' | 'whatsapp' | 'responsible_id'> & { origin?: string; whatsapp?: string | null; responsible_id?: string | null };
 export type ContactUpdate = Partial<ContactInsert>;
 
 export function useContacts() {

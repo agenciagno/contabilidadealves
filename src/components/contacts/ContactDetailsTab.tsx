@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Mail, MapPin, FileText, Building2, Pencil } from 'lucide-react';
 import { Contact } from '@/hooks/useContacts';
+import { supabase } from '@/integrations/supabase/client';
 import { ContactEditSheet } from './ContactEditSheet';
 
 type Section = 'contato' | 'endereco' | 'fiscal' | 'observacoes';
@@ -21,6 +23,23 @@ const taxRegimeLabels: Record<string, string> = {
 
 export function ContactDetailsTab({ contact }: ContactDetailsTabProps) {
   const [editSection, setEditSection] = useState<Section | null>(null);
+
+  const { data: profiles } = useQuery({
+    queryKey: ['profiles-active-for-contact'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .eq('status_active', true)
+        .order('full_name', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const responsibleName = contact.responsible_id
+    ? profiles?.find((p) => p.id === contact.responsible_id)?.full_name
+    : null;
 
   return (
     <div className="grid md:grid-cols-2 gap-6">
@@ -103,6 +122,14 @@ export function ContactDetailsTab({ contact }: ContactDetailsTabProps) {
           <div>
             <label className="text-xs text-muted-foreground">Status</label>
             <p className="text-foreground">{contact.is_active ? 'Ativo' : 'Inativo'}</p>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Colaborador Responsável</label>
+            {responsibleName ? (
+              <p className="text-foreground">{responsibleName}</p>
+            ) : (
+              <p className="text-muted-foreground">Não atribuído</p>
+            )}
           </div>
         </CardContent>
       </Card>
