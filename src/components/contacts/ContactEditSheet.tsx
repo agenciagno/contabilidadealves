@@ -19,6 +19,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Contact, TaxRegime, useContacts } from '@/hooks/useContacts';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 type Section = 'contato' | 'endereco' | 'fiscal' | 'observacoes';
 
