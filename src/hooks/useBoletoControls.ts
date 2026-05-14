@@ -1,17 +1,32 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+
+export type BoletoStatus = 'PENDENTE' | 'PAGO' | 'FILA_IMPRESSAO' | 'IMPRESSO' | string;
+export type CanalEntrega = 'whatsapp' | 'email' | 'impresso' | 'whatsapp_email' | null;
 
 export interface BoletoControl {
   id: string;
   company_id: string;
   contact_id: string;
   reference_month: string;
-  status: 'PENDING' | 'GENERATED';
+  status: BoletoStatus;
   generated_at: string | null;
   created_at: string;
   updated_at: string;
+  // Campos novos (criados manualmente no Supabase)
+  valor: number | null;
+  valor_pago: number | null;
+  data_vencimento: string | null;
+  data_pagamento: string | null;
+  canal_entrega: CanalEntrega;
+  nosso_numero: string | null;
+  seu_numero: string | null;
+  linha_digitavel: string | null;
+  codigo_barras: string | null;
+  url_qrcode: string | null;
+  origem_baixa: string | null;
+  sicoob_response: any;
 }
 
 export interface BoletoWithContact extends BoletoControl {
@@ -20,146 +35,111 @@ export interface BoletoWithContact extends BoletoControl {
   contact_document: string | null;
   contact_email: string | null;
   contact_phone: string | null;
-  boleto_value: number | null;
-  boleto_due_day: number | null;
 }
 
-async function getCompanyId(): Promise<string> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Usuário não autenticado');
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('company_id')
-    .eq('user_id', user.id)
-    .single();
-  if (!profile) throw new Error('Perfil não encontrado');
-  return profile.company_id;
-}
+const N8N_REENVIO_URL = 'https://n8n.contabilidadealves.com.br/webhook/sicoob-reenvio';
+const N8N_GERAR_URL = 'https://n8n.contabilidadealves.com.br/webhook/sicoob-gerar-boletos';
 
 export function useBoletoControls(referenceMonth: string) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // 1. Busca boleto_controls do mês
-  const { data: boletoControls = [], isLoading: isLoadingControls, refetch: refetchControls } = useQuery({
-    queryKey: ['boleto-controls', referenceMonth],
+  // 1. Busca boleto_controls do mês com join em contacts
+  const { data: boletoList = [], isLoading, refetch } = useQuery({
+    queryKey: ['boleto-controls-v2', referenceMonth],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('boleto_controls')
-        .select('*')
+        .select(`
+          id, contact_id, company_id, reference_month, status, generated_at,
+          created_at, updated_at,
+          valor, valor_pago, data_vencimento, data_pagamento, canal_entrega,
+          nosso_numero, seu_numero, linha_digitavel, codigo_barras, url_qrcode,
+          origem_baixa, sicoob_response,
+          contacts:contact_id ( id, name, type, document, email, phone )
+        `)
         .eq('reference_month', referenceMonth)
-        .order('created_at', { ascending: true });
+        .order('data_vencimento', { ascending: false, nullsFirst: false });
       if (error) throw error;
-      return data as BoletoControl[];
-    },
-    staleTime: 1000 * 30,
-  });
-
-  // 2. Busca contacts com boleto_active = true
-  const { data: activeContacts = [], isLoading: isLoadingContacts, refetch: refetchContacts } = useQuery({
-    queryKey: ['contacts-boleto-active'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('contacts')
-        .select('id, name, type, document, email, phone, whatsapp, boleto_value, boleto_due_day, boleto_start_date, canal_entrega, numero_cliente_sicoob, enviar_cobranca_auto, company_id')
-        .eq('boleto_active', true)
-        .eq('is_active', true)
-        .order('name', { ascending: true });
-      if (error) throw error;
-      return data;
-    },
-    staleTime: 1000 * 30,
-  });
-
-  const isLoading = isLoadingControls || isLoadingContacts;
-
-  // 3. Mutação para gerar registros do mês (lazy generation)
-  const generateMonth = useMutation({
-    mutationFn: async (contacts: typeof activeContacts) => {
-      const companyId = await getCompanyId();
-      const records = contacts.map(c => ({
-        company_id: companyId,
-        contact_id: c.id,
-        reference_month: referenceMonth,
-        status: 'PENDING' as const,
+      return (data || []).map((bc: any): BoletoWithContact => ({
+        ...bc,
+        contact_name: bc.contacts?.name ?? '—',
+        contact_type: bc.contacts?.type ?? 'cliente',
+        contact_document: bc.contacts?.document ?? null,
+        contact_email: bc.contacts?.email ?? null,
+        contact_phone: bc.contacts?.phone ?? null,
       }));
-      const { error } = await supabase.from('boleto_controls').insert(records);
+    },
+    staleTime: 1000 * 30,
+  });
+
+  // 2. Marcar como impresso (status FILA_IMPRESSAO -> IMPRESSO)
+  const markAsPrinted = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any)
+        .from('boleto_controls')
+        .update({ status: 'IMPRESSO' })
+        .eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['boleto-controls', referenceMonth] });
+      queryClient.invalidateQueries({ queryKey: ['boleto-controls-v2', referenceMonth] });
+      toast({ title: 'Marcado como impresso' });
     },
-    onError: (error: Error) => {
-      console.error('Erro ao gerar boletos do mês:', error.message);
+    onError: (e: Error) => {
+      toast({ title: 'Erro ao atualizar', description: e.message, variant: 'destructive' });
     },
   });
 
-  // 4. Sincronização incremental: gera entradas para contatos ainda não listados no mês
-  useEffect(() => {
-    if (isLoading || generateMonth.isPending) return;
-    if (activeContacts.length === 0) return;
-
-    const existingContactIds = new Set(boletoControls.map(bc => bc.contact_id));
-    const missingContacts = activeContacts.filter(c => !existingContactIds.has(c.id));
-
-    if (missingContacts.length > 0) {
-      generateMonth.mutate(missingContacts);
-    }
-  }, [isLoading, boletoControls.length, activeContacts.length]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // 5. Mutação para alternar status
-  const toggleStatus = useMutation({
-    mutationFn: async ({ id, currentStatus }: { id: string; currentStatus: string }) => {
-      const newStatus = currentStatus === 'PENDING' ? 'GENERATED' : 'PENDING';
-      const { error } = await supabase
-        .from('boleto_controls')
-        .update({
-          status: newStatus,
-          generated_at: newStatus === 'GENERATED' ? new Date().toISOString() : null,
-        })
-        .eq('id', id);
-      if (error) throw error;
-      return newStatus;
-    },
-    onSuccess: (newStatus) => {
-      queryClient.invalidateQueries({ queryKey: ['boleto-controls', referenceMonth] });
-      toast({
-        title: newStatus === 'GENERATED' ? 'Boleto marcado como Gerado!' : 'Boleto revertido para Pendente',
+  // 3. Reenviar cobrança via N8N
+  const resendBilling = useMutation({
+    mutationFn: async (boleto: BoletoWithContact) => {
+      const res = await fetch(N8N_REENVIO_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          boleto_id: boleto.id,
+          contact_id: boleto.contact_id,
+          canal_entrega: boleto.canal_entrega,
+        }),
       });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
     },
-    onError: (error: Error) => {
-      toast({ title: 'Erro ao atualizar status', description: error.message, variant: 'destructive' });
+    onSuccess: () => {
+      toast({ title: 'Cobrança reenviada com sucesso' });
+    },
+    onError: () => {
+      toast({ title: 'Erro ao reenviar', variant: 'destructive' });
     },
   });
 
-  // 6. Mescla boleto_controls com dados dos contacts
-  const boletoList: BoletoWithContact[] = boletoControls.map(bc => {
-    const contact = activeContacts.find(c => c.id === bc.contact_id);
-    return {
-      ...bc,
-      status: bc.status as 'PENDING' | 'GENERATED',
-      contact_name: contact?.name ?? '—',
-      contact_type: contact?.type ?? 'cliente',
-      contact_document: contact?.document ?? null,
-      contact_email: contact?.email ?? null,
-      contact_phone: contact?.phone ?? null,
-      boleto_value: contact?.boleto_value ?? null,
-      boleto_due_day: contact?.boleto_due_day ?? null,
-    };
+  // 4. Disparo manual de geração via N8N
+  const triggerGeneration = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(N8N_GERAR_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          triggered_by: 'manual',
+          timestamp: new Date().toISOString(),
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    },
+    onSuccess: () => {
+      toast({ title: 'Solicitação enviada — os boletos serão gerados em instantes' });
+    },
+    onError: () => {
+      toast({ title: 'Erro ao acionar geração. Verifique o N8N.', variant: 'destructive' });
+    },
   });
-
-  const refreshAll = async () => {
-    queryClient.invalidateQueries({ queryKey: ['boleto-controls', referenceMonth] });
-    queryClient.invalidateQueries({ queryKey: ['contacts-boleto-active'] });
-    await Promise.all([refetchControls(), refetchContacts()]);
-  };
 
   return {
     boletoList,
     isLoading,
-    isGenerating: generateMonth.isPending,
-    toggleStatus,
-    refresh: refreshAll,
-    isRefreshing: isLoadingControls || isLoadingContacts,
+    refetch,
+    markAsPrinted,
+    resendBilling,
+    triggerGeneration,
   };
 }

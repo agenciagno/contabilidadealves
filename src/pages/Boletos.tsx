@@ -1,321 +1,391 @@
-import { useState } from 'react';
-import { format, addMonths, subMonths } from 'date-fns';
+import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { format, addMonths, subMonths, startOfMonth, parseISO, isBefore, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
-  ChevronLeft,
-  ChevronRight,
-  Printer,
-  Copy,
-  Check,
-  Loader2,
-  FileCheck,
-  User,
-  Search,
-  RefreshCw,
+  FileText, CheckCircle2, Clock, AlertCircle, Zap, Mail, MessageCircle, Printer,
+  FileX, MoreHorizontal, Loader2, Eye, Send, CheckSquare,
 } from 'lucide-react';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Separator } from '@/components/ui/separator';
-import { useBoletoControls } from '@/hooks/useBoletoControls';
-import { useToast } from '@/hooks/use-toast';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useBoletoControls, type BoletoWithContact } from '@/hooks/useBoletoControls';
 import { cn } from '@/lib/utils';
 
-function getFirstOfMonth(date: Date): string {
-  return format(date, 'yyyy-MM-01');
+const fmtBRL = (n: number | null) =>
+  n == null ? '—' : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n);
+
+const fmtDate = (s: string | null) => {
+  if (!s) return '—';
+  try { return format(parseISO(s), 'dd/MM/yyyy'); } catch { return '—'; }
+};
+
+const PAGE_SIZE = 20;
+
+function isOverdue(b: BoletoWithContact) {
+  if (b.status !== 'PENDENTE') return false;
+  if (!b.data_vencimento) return false;
+  return isBefore(parseISO(b.data_vencimento), startOfDay(new Date()));
+}
+
+function StatusBadge({ b }: { b: BoletoWithContact }) {
+  if (isOverdue(b)) {
+    return <Badge className="bg-destructive/15 text-destructive border-destructive/30 hover:bg-destructive/20">Vencido</Badge>;
+  }
+  if (b.status === 'PAGO') {
+    return <Badge className="bg-success/15 text-success border-success/30 hover:bg-success/20">Pago</Badge>;
+  }
+  if (b.status === 'FILA_IMPRESSAO') {
+    return <Badge className="bg-blue-500/15 text-blue-600 border-blue-500/30 dark:text-blue-400 hover:bg-blue-500/20">Fila de Impressão</Badge>;
+  }
+  if (b.status === 'IMPRESSO') {
+    return <Badge variant="outline">Impresso</Badge>;
+  }
+  return <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/20">Pendente</Badge>;
+}
+
+function CanalIcon({ canal }: { canal: BoletoWithContact['canal_entrega'] }) {
+  if (!canal) return <span className="text-muted-foreground">—</span>;
+  const cls = 'h-4 w-4';
+  if (canal === 'whatsapp') return <span className="inline-flex items-center gap-1.5 text-sm"><MessageCircle className={cls} /> WhatsApp</span>;
+  if (canal === 'email') return <span className="inline-flex items-center gap-1.5 text-sm"><Mail className={cls} /> E-mail</span>;
+  if (canal === 'impresso') return <span className="inline-flex items-center gap-1.5 text-sm"><Printer className={cls} /> Impresso</span>;
+  if (canal === 'whatsapp_email') return (
+    <span className="inline-flex items-center gap-1.5 text-sm">
+      <MessageCircle className={cls} /><Mail className={cls} /> WA + E-mail
+    </span>
+  );
+  return <span className="text-sm">{canal}</span>;
+}
+
+function getMonthOptions(): string[] {
+  const now = startOfMonth(new Date());
+  const months: string[] = [];
+  for (let i = -5; i <= 1; i++) {
+    months.push(format(addMonths(now, i), 'yyyy-MM-01'));
+  }
+  return months.reverse(); // mais recentes/futuros primeiro
 }
 
 export default function Boletos() {
-  const today = new Date();
-  const [currentMonth, setCurrentMonth] = useState(today);
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'GENERATED'>('ALL');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [copiedField, setCopiedField] = useState<string | null>(null);
-  const { toast } = useToast();
+  const monthOptions = useMemo(() => getMonthOptions(), []);
+  const [referenceMonth, setReferenceMonth] = useState(() => format(startOfMonth(new Date()), 'yyyy-MM-01'));
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDENTE' | 'PAGO' | 'VENCIDO' | 'FILA_IMPRESSAO'>('ALL');
+  const [canalFilter, setCanalFilter] = useState<'ALL' | 'whatsapp' | 'email' | 'impresso' | 'whatsapp_email'>('ALL');
+  const [page, setPage] = useState(1);
+  const [detailsOf, setDetailsOf] = useState<BoletoWithContact | null>(null);
+  const [confirmGenerate, setConfirmGenerate] = useState(false);
 
-  const referenceMonth = getFirstOfMonth(currentMonth);
-  const { boletoList, isLoading, isGenerating, toggleStatus, refresh, isRefreshing } = useBoletoControls(referenceMonth);
+  const { boletoList, isLoading, markAsPrinted, resendBilling, triggerGeneration } = useBoletoControls(referenceMonth);
 
-  const filteredList = boletoList.filter(b => {
-    const matchesStatus = statusFilter === 'ALL' || b.status === statusFilter;
-    const matchesSearch = !searchQuery || b.contact_name.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesStatus && matchesSearch;
-  });
+  // KPIs (sobre todo o mês, não a página)
+  const kpis = useMemo(() => {
+    const total = boletoList.length;
+    const pago = boletoList.filter((b: BoletoWithContact) => b.status === 'PAGO');
+    const totalPago = pago.reduce((s: number, b: BoletoWithContact) => s + (b.valor_pago ?? 0), 0);
+    const pendentes = boletoList.filter((b: BoletoWithContact) => b.status === 'PENDENTE').length;
+    const vencidos = boletoList.filter((b: BoletoWithContact) => isOverdue(b)).length;
+    return { total, totalPago, pendentes, vencidos };
+  }, [boletoList]);
 
-  const pendingCount = boletoList.filter(b => b.status === 'PENDING').length;
-  const generatedCount = boletoList.filter(b => b.status === 'GENERATED').length;
+  // Filtro
+  const filtered = useMemo(() => {
+    return (boletoList as BoletoWithContact[]).filter(b => {
+      if (canalFilter !== 'ALL' && b.canal_entrega !== canalFilter) return false;
+      if (statusFilter === 'ALL') return true;
+      if (statusFilter === 'VENCIDO') return isOverdue(b);
+      if (statusFilter === 'PENDENTE') return b.status === 'PENDENTE' && !isOverdue(b);
+      return b.status === statusFilter;
+    });
+  }, [boletoList, statusFilter, canalFilter]);
 
-  const handleCopy = async (text: string, fieldId: string) => {
-    if (!text) return;
-    await navigator.clipboard.writeText(text);
-    setCopiedField(fieldId);
-    toast({ title: 'Copiado!', description: text });
-    setTimeout(() => setCopiedField(null), 2000);
-  };
-
-  const CopyButton = ({ text, fieldId }: { text: string | null; fieldId: string }) => {
-    if (!text) return null;
-    const copied = copiedField === fieldId;
-    return (
-      <button
-        onClick={() => handleCopy(text, fieldId)}
-        className="ml-1 opacity-60 hover:opacity-100 transition-opacity text-muted-foreground hover:text-primary"
-        title="Copiar"
-      >
-        {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
-      </button>
-    );
-  };
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageRows = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   return (
     <div className="flex flex-col h-full">
       {/* Cabeçalho */}
-      <div className="flex items-center justify-between py-4 flex-wrap gap-4 print-hidden">
+      <div className="flex items-center justify-between py-4 px-6 flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <FileCheck className="w-6 h-6 text-primary" />
+            <FileText className="w-6 h-6 text-primary" />
             Controle de Boletos
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Geração e controle mensal de cobranças
+            Painel da automação de cobrança
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={refresh}
-            disabled={isLoading || isGenerating || isRefreshing}
-            title="Atualizar listagem"
-          >
-            <RefreshCw className={cn('w-4 h-4', isRefreshing && 'animate-spin')} />
-          </Button>
-          <Button variant="outline" onClick={() => window.print()} className="gap-2">
-            <Printer className="w-4 h-4" />
-            Imprimir Lista
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          className="gap-2"
+          onClick={() => setConfirmGenerate(true)}
+        >
+          <Zap className="w-4 h-4" />
+          Gerar boletos do mês
+        </Button>
+      </div>
+
+      {/* KPIs */}
+      <div className="px-6 grid grid-cols-2 md:grid-cols-4 gap-3">
+        <KpiCard icon={<FileText className="h-4 w-4" />} label="Boletos gerados" value={String(kpis.total)} />
+        <KpiCard icon={<CheckCircle2 className="h-4 w-4 text-success" />} label="Total pago" value={fmtBRL(kpis.totalPago)} valueClass="text-success" />
+        <KpiCard icon={<Clock className="h-4 w-4 text-amber-500" />} label="Pendentes" value={String(kpis.pendentes)} valueClass="text-amber-600 dark:text-amber-400" />
+        <KpiCard icon={<AlertCircle className="h-4 w-4 text-destructive" />} label="Vencidos" value={String(kpis.vencidos)} valueClass="text-destructive" />
       </div>
 
       {/* Filtros */}
-      <div className="flex items-center gap-3 px-6 pb-4 flex-wrap print-hidden">
-        {/* Campo de pesquisa */}
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <Input
-            placeholder="Pesquisar por nome..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 h-9 w-[220px] text-sm"
-          />
-        </div>
-        {/* Seletor de Mês */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className="gap-2 min-w-[160px]">
-              <ChevronLeft
-                className="h-4 w-4 cursor-pointer opacity-60 hover:opacity-100"
-                onClick={(e) => { e.stopPropagation(); setCurrentMonth(prev => subMonths(prev, 1)); }}
-              />
-              <span className="flex-1 text-center">
-                {format(currentMonth, 'MM/yyyy', { locale: ptBR })}
-              </span>
-              <ChevronRight
-                className="h-4 w-4 cursor-pointer opacity-60 hover:opacity-100"
-                onClick={(e) => { e.stopPropagation(); setCurrentMonth(prev => addMonths(prev, 1)); }}
-              />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-4" align="start">
-            <p className="text-sm text-muted-foreground mb-3 font-medium">Mês de Referência</p>
-            <div className="flex items-center gap-3">
-              <Button size="icon" variant="ghost" onClick={() => setCurrentMonth(prev => subMonths(prev, 1))}>
-                <ChevronLeft className="h-4 w-4" />
+      <div className="flex items-center gap-3 px-6 py-4 flex-wrap">
+        <Select value={referenceMonth} onValueChange={(v) => { setReferenceMonth(v); setPage(1); }}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Mês de referência" />
+          </SelectTrigger>
+          <SelectContent>
+            {monthOptions.map(m => (
+              <SelectItem key={m} value={m}>
+                {format(parseISO(m), "MMMM 'de' yyyy", { locale: ptBR })}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={statusFilter} onValueChange={(v: any) => { setStatusFilter(v); setPage(1); }}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">Todos os status</SelectItem>
+            <SelectItem value="PENDENTE">Pendente</SelectItem>
+            <SelectItem value="PAGO">Pago</SelectItem>
+            <SelectItem value="VENCIDO">Vencido</SelectItem>
+            <SelectItem value="FILA_IMPRESSAO">Fila de Impressão</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={canalFilter} onValueChange={(v: any) => { setCanalFilter(v); setPage(1); }}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Canal" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">Todos os canais</SelectItem>
+            <SelectItem value="whatsapp">WhatsApp</SelectItem>
+            <SelectItem value="email">E-mail</SelectItem>
+            <SelectItem value="impresso">Impresso</SelectItem>
+            <SelectItem value="whatsapp_email">WhatsApp + E-mail</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Tabela */}
+      <div className="flex-1 overflow-auto px-6 pb-6">
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Valor</TableHead>
+                  <TableHead>Vencimento</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Canal</TableHead>
+                  <TableHead>Data Pgto.</TableHead>
+                  <TableHead>Valor Pago</TableHead>
+                  <TableHead className="w-[60px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  Array.from({ length: 6 }).map((_, i) => (
+                    <TableRow key={i}>
+                      {Array.from({ length: 8 }).map((__, j) => (
+                        <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : pageRows.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="h-48 text-center text-muted-foreground">
+                      <div className="flex flex-col items-center gap-2">
+                        <FileX className="h-10 w-10 opacity-30" />
+                        <span>Nenhum boleto encontrado para o período selecionado</span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  pageRows.map(b => {
+                    const overdue = isOverdue(b);
+                    const canResend = (b.status === 'PENDENTE' || overdue) && b.canal_entrega !== 'impresso';
+                    const canMarkPrinted = b.status === 'FILA_IMPRESSAO';
+                    return (
+                      <TableRow key={b.id}>
+                        <TableCell className="font-medium">
+                          <Link to={`/crm/cliente/${b.contact_id}`} className="hover:underline text-primary">
+                            {b.contact_name}
+                          </Link>
+                        </TableCell>
+                        <TableCell>{fmtBRL(b.valor)}</TableCell>
+                        <TableCell className={cn(overdue && 'text-destructive font-medium')}>{fmtDate(b.data_vencimento)}</TableCell>
+                        <TableCell><StatusBadge b={b} /></TableCell>
+                        <TableCell><CanalIcon canal={b.canal_entrega} /></TableCell>
+                        <TableCell>{fmtDate(b.data_pagamento)}</TableCell>
+                        <TableCell>{fmtBRL(b.valor_pago)}</TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => setDetailsOf(b)}>
+                                <Eye className="h-4 w-4 mr-2" /> Ver detalhes
+                              </DropdownMenuItem>
+                              {canResend && (
+                                <DropdownMenuItem
+                                  onClick={() => resendBilling.mutate(b)}
+                                  disabled={resendBilling.isPending}
+                                >
+                                  <Send className="h-4 w-4 mr-2" /> Reenviar cobrança
+                                </DropdownMenuItem>
+                              )}
+                              {canMarkPrinted && (
+                                <DropdownMenuItem
+                                  onClick={() => markAsPrinted.mutate(b.id)}
+                                  disabled={markAsPrinted.isPending}
+                                >
+                                  <CheckSquare className="h-4 w-4 mr-2" /> Marcar como impresso
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        {/* Paginação */}
+        {filtered.length > PAGE_SIZE && (
+          <div className="flex items-center justify-between mt-4 text-sm">
+            <span className="text-muted-foreground">
+              Mostrando {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filtered.length)} de {filtered.length}
+            </span>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={safePage === 1}>
+                Anterior
               </Button>
-              <span className="font-semibold min-w-[120px] text-center">
-                {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
-              </span>
-              <Button size="icon" variant="ghost" onClick={() => setCurrentMonth(prev => addMonths(prev, 1))}>
-                <ChevronRight className="h-4 w-4" />
+              <span className="px-3 py-1.5">{safePage} / {totalPages}</span>
+              <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}>
+                Próxima
               </Button>
             </div>
-          </PopoverContent>
-        </Popover>
-
-        {/* Filtro de Status como botões */}
-        <div className="flex items-center gap-1">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setStatusFilter('ALL')}
-            className={cn(
-              'transition-all',
-              statusFilter === 'ALL' && 'bg-primary text-primary-foreground border-primary hover:bg-primary/90 hover:text-primary-foreground'
-            )}
-          >
-            Todos ({boletoList.length})
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setStatusFilter('PENDING')}
-            className={cn(
-              'transition-all',
-              statusFilter === 'PENDING'
-                ? 'bg-amber-100 border-amber-400 text-amber-800 hover:bg-amber-200 dark:bg-amber-900/30 dark:border-amber-500 dark:text-amber-300'
-                : 'hover:border-amber-300 hover:text-amber-700'
-            )}
-          >
-            Pendentes ({pendingCount})
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setStatusFilter('GENERATED')}
-            className={cn(
-              'transition-all',
-              statusFilter === 'GENERATED'
-                ? 'bg-green-100 border-green-400 text-green-800 hover:bg-green-200 dark:bg-green-900/30 dark:border-green-500 dark:text-green-300'
-                : 'hover:border-green-300 hover:text-green-700'
-            )}
-          >
-            Gerados ({generatedCount})
-          </Button>
-        </div>
-      </div>
-
-      {/* Título de impressão (visível apenas ao imprimir) */}
-      <div className="hidden print:block px-6 pb-4">
-        <h1 className="text-xl font-bold">Controle de Boletos — {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}</h1>
-        <p className="text-sm">{filteredList.length} boleto(s) listado(s)</p>
-      </div>
-
-      <Separator className="print-hidden" />
-
-      {/* Conteúdo */}
-      <div className="flex-1 overflow-auto p-6 pt-4">
-        {isLoading || isGenerating ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3 text-muted-foreground">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            <span className="text-sm">
-              {isGenerating ? 'Gerando boletos do mês...' : 'Carregando...'}
-            </span>
-          </div>
-        ) : filteredList.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3 text-muted-foreground">
-            <FileCheck className="w-12 h-12 opacity-30" />
-            <p className="font-medium">Nenhum boleto encontrado</p>
-            <p className="text-sm">
-              {boletoList.length === 0
-                ? 'Nenhum cliente com cobrança ativa cadastrada'
-                : 'Tente ajustar os filtros'}
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {filteredList.map((boleto) => {
-              const dueDate = boleto.boleto_due_day != null
-                ? format(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), boleto.boleto_due_day), 'dd/MM/yyyy')
-                : null;
-              return (
-                <Card
-                  key={boleto.id}
-                  className={cn(
-                    'boleto-card border transition-colors',
-                    boleto.status === 'GENERATED' && 'bg-success/5 border-success/30'
-                  )}
-                >
-                  <CardContent className="p-3">
-                    <div className="flex items-center justify-between gap-4">
-                      {/* Lado esquerdo: info */}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-sm truncate">{boleto.contact_name}</p>
-                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
-                          {boleto.contact_document && (
-                            <div className="flex items-center">
-                              <span className="font-medium text-foreground/70 mr-1">CNPJ:</span>
-                              <span>{boleto.contact_document}</span>
-                              <CopyButton text={boleto.contact_document} fieldId={`${boleto.id}-doc`} />
-                            </div>
-                          )}
-                          {boleto.contact_email && (
-                            <div className="flex items-center print:hidden">
-                              <span className="font-medium text-foreground/70 mr-1">Email:</span>
-                              <span className="truncate max-w-[180px]">{boleto.contact_email}</span>
-                              <CopyButton text={boleto.contact_email} fieldId={`${boleto.id}-email`} />
-                            </div>
-                          )}
-                          {boleto.contact_phone && (
-                            <div className="flex items-center print:hidden">
-                              <span className="font-medium text-foreground/70 mr-1">Tel:</span>
-                              <span>{boleto.contact_phone}</span>
-                              <CopyButton text={boleto.contact_phone} fieldId={`${boleto.id}-tel`} />
-                            </div>
-                          )}
-                          {dueDate && (
-                            <div className="flex items-center">
-                              <span className="font-medium text-foreground/70 mr-1">Venc:</span>
-                              <span>{dueDate}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      {/* Lado direito: valor + status */}
-                      <div className="flex items-center gap-3 shrink-0">
-                        {boleto.boleto_value != null && (
-                          <p className="text-sm font-bold text-foreground whitespace-nowrap">
-                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(boleto.boleto_value)}
-                          </p>
-                        )}
-                        {/* Badge interativo (tela) */}
-                        <div className="print-hidden">
-                          <Badge
-                            className={cn(
-                              'cursor-pointer select-none transition-all text-xs font-semibold px-3 py-1',
-                              boleto.status === 'PENDING'
-                                ? 'bg-amber-100 border border-amber-400 text-amber-800 hover:bg-amber-200 dark:bg-amber-900/30 dark:border-amber-500 dark:text-amber-300'
-                                : 'bg-success text-success-foreground hover:bg-success/90 border-transparent'
-                            )}
-                            onClick={() => {
-                              if (!toggleStatus.isPending) {
-                                toggleStatus.mutate({ id: boleto.id, currentStatus: boleto.status });
-                              }
-                            }}
-                          >
-                            {toggleStatus.isPending ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : boleto.status === 'PENDING' ? 'Pendente' : 'Gerado ✓'}
-                          </Badge>
-                        </div>
-                        {/* Status para impressão */}
-                        <span className={cn(
-                          'hidden print:inline-block text-xs font-medium px-2 py-1 border rounded',
-                          boleto.status === 'PENDING' ? 'border-border' : 'border-foreground bg-muted'
-                        )}>
-                          {boleto.status === 'PENDING' ? 'PENDENTE' : 'GERADO'}
-                        </span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-
-            {/* Totalizador */}
-            {filteredList.length > 0 && (
-              <div className="flex justify-end border-t pt-3 mt-4">
-                <p className="font-bold text-base">
-                  Total: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                    filteredList.reduce((sum, b) => sum + (b.boleto_value ?? 0), 0)
-                  )}
-                </p>
-              </div>
-            )}
           </div>
         )}
       </div>
+
+      {/* Dialog: detalhes do boleto */}
+      <Dialog open={!!detailsOf} onOpenChange={(o) => !o && setDetailsOf(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Detalhes do boleto</DialogTitle>
+            <DialogDescription>{detailsOf?.contact_name}</DialogDescription>
+          </DialogHeader>
+          {detailsOf && (
+            <div className="space-y-3 text-sm">
+              <Field label="Linha digitável" value={detailsOf.linha_digitavel} mono />
+              <Field label="Código de barras" value={detailsOf.codigo_barras} mono />
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Nosso número" value={detailsOf.nosso_numero} />
+                <Field label="Seu número" value={detailsOf.seu_numero} />
+              </div>
+              {detailsOf.url_qrcode && (
+                <div>
+                  <p className="text-muted-foreground mb-1">QR Code</p>
+                  <img src={detailsOf.url_qrcode} alt="QR Code" className="w-40 h-40 border rounded-md" />
+                </div>
+              )}
+              {detailsOf.sicoob_response && (
+                <details className="border rounded-md p-3 bg-muted/30">
+                  <summary className="cursor-pointer text-muted-foreground">Resposta Sicoob (debug)</summary>
+                  <pre className="mt-2 text-xs overflow-auto max-h-60">
+                    {JSON.stringify(detailsOf.sicoob_response, null, 2)}
+                  </pre>
+                </details>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: confirmação de geração */}
+      <Dialog open={confirmGenerate} onOpenChange={setConfirmGenerate}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Gerar boletos agora?</DialogTitle>
+            <DialogDescription>
+              Isso vai gerar boletos para todos os clientes elegíveis com vencimento no próximo mês.
+              Use apenas se necessário fora do ciclo automático.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmGenerate(false)} disabled={triggerGeneration.isPending}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={async () => {
+                await triggerGeneration.mutateAsync();
+                setConfirmGenerate(false);
+              }}
+              disabled={triggerGeneration.isPending}
+              className="gap-2"
+            >
+              {triggerGeneration.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function KpiCard({ icon, label, value, valueClass }: {
+  icon: React.ReactNode; label: string; value: string; valueClass?: string;
+}) {
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
+          {icon}<span>{label}</span>
+        </div>
+        <p className={cn('text-2xl font-bold mt-2', valueClass)}>{value}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function Field({ label, value, mono }: { label: string; value: string | null; mono?: boolean }) {
+  return (
+    <div>
+      <p className="text-muted-foreground text-xs mb-1">{label}</p>
+      <p className={cn('break-all', mono && 'font-mono text-xs')}>{value || '—'}</p>
     </div>
   );
 }
