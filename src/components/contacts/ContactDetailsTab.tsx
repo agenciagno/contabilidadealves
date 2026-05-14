@@ -6,6 +6,7 @@ import { Mail, MapPin, FileText, Building2, Pencil } from 'lucide-react';
 import { Contact } from '@/hooks/useContacts';
 import { supabase } from '@/integrations/supabase/client';
 import { ContactEditSheet } from './ContactEditSheet';
+import { ContactBillingCard } from './ContactBillingCard';
 
 type Section = 'contato' | 'endereco' | 'fiscal' | 'observacoes';
 
@@ -133,6 +134,9 @@ export function ContactDetailsTab({ contact }: ContactDetailsTabProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Configurações de Cobrança */}
+      <ContactBillingCard contact={contact} />
 
       {/* Observações */}
       <Card className="bg-card border-border/50">

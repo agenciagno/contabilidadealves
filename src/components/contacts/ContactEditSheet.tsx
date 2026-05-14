@@ -22,7 +22,7 @@ import { Contact, TaxRegime, useContacts } from '@/hooks/useContacts';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
-type Section = 'contato' | 'endereco' | 'fiscal' | 'observacoes';
+type Section = 'contato' | 'endereco' | 'fiscal' | 'observacoes' | 'cobranca';
 
 interface ContactEditSheetProps {
   contact: Contact;
@@ -36,6 +36,7 @@ const sectionTitles: Record<Section, string> = {
   endereco: 'Editar Endereço',
   fiscal: 'Editar Dados Fiscais',
   observacoes: 'Editar Observações',
+  cobranca: 'Editar Configurações de Cobrança',
 };
 
 const BR_STATES = [
@@ -70,6 +71,18 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
   // Observações fields
   const [notes, setNotes] = useState(contact.notes || '');
 
+  // Cobrança fields
+  const [boletoValue, setBoletoValue] = useState<string>(
+    contact.boleto_value != null ? String(contact.boleto_value) : ''
+  );
+  const [boletoDueDay, setBoletoDueDay] = useState<string>(
+    contact.boleto_due_day != null ? String(contact.boleto_due_day) : 'none'
+  );
+  const [canalEntrega, setCanalEntrega] = useState<string>(contact.canal_entrega || 'none');
+  const [numeroSicoob, setNumeroSicoob] = useState<string>(
+    contact.numero_cliente_sicoob != null ? String(contact.numero_cliente_sicoob) : ''
+  );
+
   const { data: profiles } = useQuery({
     queryKey: ['profiles-active-for-contact-edit'],
     queryFn: async () => {
@@ -100,6 +113,10 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
     setIsActive(contact.is_active);
     setResponsibleId(contact.responsible_id || 'none');
     setNotes(contact.notes || '');
+    setBoletoValue(contact.boleto_value != null ? String(contact.boleto_value) : '');
+    setBoletoDueDay(contact.boleto_due_day != null ? String(contact.boleto_due_day) : 'none');
+    setCanalEntrega(contact.canal_entrega || 'none');
+    setNumeroSicoob(contact.numero_cliente_sicoob != null ? String(contact.numero_cliente_sicoob) : '');
   }, [contact, section]);
 
   const handleCepBlur = async () => {
@@ -133,6 +150,15 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
       updates = { tax_regime: (taxRegime as TaxRegime) || null, is_active: isActive, responsible_id: responsibleId === 'none' ? null : responsibleId };
     } else if (section === 'observacoes') {
       updates = { notes: notes || null };
+    } else if (section === 'cobranca') {
+      const parsedValue = boletoValue.trim() === '' ? null : Number(boletoValue.replace(',', '.'));
+      const parsedSicoob = numeroSicoob.trim() === '' ? null : parseInt(numeroSicoob, 10);
+      updates = {
+        boleto_value: parsedValue !== null && !isNaN(parsedValue) ? parsedValue : null,
+        boleto_due_day: boletoDueDay === 'none' ? null : parseInt(boletoDueDay, 10),
+        canal_entrega: canalEntrega === 'none' ? null : canalEntrega,
+        numero_cliente_sicoob: parsedSicoob !== null && !isNaN(parsedSicoob) ? parsedSicoob : null,
+      };
     }
 
     updateContact.mutate(
@@ -266,6 +292,68 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
                 className="min-h-[160px]"
               />
             </div>
+          )}
+
+          {section === 'cobranca' && (
+            <>
+              <div className="space-y-1.5">
+                <Label>Valor mensal de honorários</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="0"
+                    value={boletoValue}
+                    onChange={(e) => setBoletoValue(e.target.value)}
+                    placeholder="0,00"
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Dia de vencimento</Label>
+                <Select value={boletoDueDay} onValueChange={setBoletoDueDay}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o dia" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Não configurado</SelectItem>
+                    <SelectItem value="5">5</SelectItem>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="15">15</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Canal de entrega</Label>
+                <Select value={canalEntrega} onValueChange={setCanalEntrega}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o canal" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Não configurado</SelectItem>
+                    <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                    <SelectItem value="email">E-mail</SelectItem>
+                    <SelectItem value="impresso">Impresso</SelectItem>
+                    <SelectItem value="whatsapp_email">WhatsApp + E-mail</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-muted-foreground">Nº cliente Sicoob</Label>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  value={numeroSicoob}
+                  onChange={(e) => setNumeroSicoob(e.target.value)}
+                  placeholder="Número do beneficiário no Sisbr"
+                  className="text-muted-foreground"
+                />
+              </div>
+            </>
           )}
         </div>
 
