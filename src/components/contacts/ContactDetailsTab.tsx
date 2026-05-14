@@ -123,6 +123,14 @@ export function ContactDetailsTab({ contact }: ContactDetailsTabProps) {
             <label className="text-xs text-muted-foreground">Status</label>
             <p className="text-foreground">{contact.is_active ? 'Ativo' : 'Inativo'}</p>
           </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Colaborador Responsável</label>
+            {responsibleName ? (
+              <p className="text-foreground">{responsibleName}</p>
+            ) : (
+              <p className="text-muted-foreground">Não atribuído</p>
+            )}
+          </div>
         </CardContent>
       </Card>
 
