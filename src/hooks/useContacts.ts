@@ -14,6 +14,7 @@ export interface Contact {
   document: string | null;
   email: string | null;
   phone: string | null;
+  whatsapp: string | null;
   cep: string | null;
   address: string | null;
   address_number: string | null;
