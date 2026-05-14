@@ -61,7 +61,7 @@ export function useBoletoControls(referenceMonth: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('contacts')
-        .select('id, name, type, document, email, phone, boleto_value, boleto_due_day, boleto_start_date, company_id')
+        .select('id, name, type, document, email, phone, whatsapp, boleto_value, boleto_due_day, boleto_start_date, canal_entrega, numero_cliente_sicoob, enviar_cobranca_auto, company_id')
         .eq('boleto_active', true)
         .eq('is_active', true)
         .order('name', { ascending: true });
