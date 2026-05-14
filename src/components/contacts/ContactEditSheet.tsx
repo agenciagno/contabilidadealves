@@ -150,6 +150,15 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
       updates = { tax_regime: (taxRegime as TaxRegime) || null, is_active: isActive, responsible_id: responsibleId === 'none' ? null : responsibleId };
     } else if (section === 'observacoes') {
       updates = { notes: notes || null };
+    } else if (section === 'cobranca') {
+      const parsedValue = boletoValue.trim() === '' ? null : Number(boletoValue.replace(',', '.'));
+      const parsedSicoob = numeroSicoob.trim() === '' ? null : parseInt(numeroSicoob, 10);
+      updates = {
+        boleto_value: parsedValue !== null && !isNaN(parsedValue) ? parsedValue : null,
+        boleto_due_day: boletoDueDay === 'none' ? null : parseInt(boletoDueDay, 10),
+        canal_entrega: canalEntrega === 'none' ? null : canalEntrega,
+        numero_cliente_sicoob: parsedSicoob !== null && !isNaN(parsedSicoob) ? parsedSicoob : null,
+      };
     }
 
     updateContact.mutate(
