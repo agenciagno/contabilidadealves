@@ -274,7 +274,9 @@ export function AppSidebar() {
         <CollapsibleContent>
           <SidebarGroupContent>
             <SidebarMenu>
-              {entry.items.map((item) => (
+              {entry.items
+                .filter((item) => item.url !== '/fiscal/calendario' || isAdmin || isSuperAdmin)
+                .map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild tooltip={item.title}>
                     <NavLink onClick={handleMobileNav}
