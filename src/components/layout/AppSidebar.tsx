@@ -118,6 +118,7 @@ const menuEntries: MenuEntry[] = [
     icon: FileCheck,
     moduleKey: 'fiscal',
     items: [
+      { title: 'Dashboard', url: '/fiscal/dashboard', icon: LayoutDashboard, iconName: 'layout-dashboard' },
       { title: 'Tarefas', url: '/fiscal/tarefas', icon: CalendarClock, iconName: 'calendar-clock' },
       { title: 'Calendário Fiscal', url: '/fiscal/calendario', icon: CalendarClock, iconName: 'calendar-clock' },
     ],
