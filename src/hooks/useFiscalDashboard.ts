@@ -1,0 +1,103 @@
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useCompany } from '@/hooks/useCompany';
+
+export interface FiscalTaskRow {
+  id: string;
+  status: string;
+  due_date: string | null;
+  fiscal_due_date: string | null;
+  responsible_id: string | null;
+}
+
+export interface CollaboratorRow {
+  id: string;
+  full_name: string | null;
+}
+
+export interface UpcomingTaskRow {
+  id: string;
+  title: string | null;
+  status: string;
+  due_date: string | null;
+  fiscal_due_date: string | null;
+  contacts: { name: string | null } | null;
+  responsible: { full_name: string | null } | null;
+  fiscal_obligations_catalog: { name: string | null } | null;
+}
+
+const today = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+const inDays = (n: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+export function useFiscalTasksOfMonth(year: number, month: number) {
+  const { company } = useCompany();
+  const companyId = (company as any)?.id;
+
+  return useQuery<FiscalTaskRow[]>({
+    queryKey: ['fiscal-dashboard', 'tasks', companyId, year, month],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('fiscal_tasks')
+        .select('id, status, due_date, fiscal_due_date, responsible_id')
+        .eq('company_id', companyId)
+        .eq('competence_year', year)
+        .eq('competence_month', month)
+        .is('deleted_at', null);
+      if (error) throw error;
+      return (data ?? []) as FiscalTaskRow[];
+    },
+  });
+}
+
+export function useFiscalCollaborators() {
+  const { company } = useCompany();
+  const companyId = (company as any)?.id;
+
+  return useQuery<CollaboratorRow[]>({
+    queryKey: ['fiscal-dashboard', 'collaborators', companyId],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .eq('company_id', companyId)
+        .eq('status_active', true)
+        .in('role', ['admin', 'colaborador']);
+      if (error) throw error;
+      return (data ?? []) as CollaboratorRow[];
+    },
+  });
+}
+
+export function useUpcomingFiscalTasks() {
+  const { company } = useCompany();
+  const companyId = (company as any)?.id;
+
+  return useQuery<UpcomingTaskRow[]>({
+    queryKey: ['fiscal-dashboard', 'upcoming', companyId],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('fiscal_tasks')
+        .select(
+          'id, title, status, due_date, fiscal_due_date, contacts(name), responsible:profiles!fiscal_tasks_responsible_id_fkey(full_name), fiscal_obligations_catalog(name)'
+        )
+        .eq('company_id', companyId)
+        .neq('status', 'concluido')
+        .gte('due_date', today())
+        .lte('due_date', inDays(7))
+        .order('due_date', { ascending: true })
+        .limit(20);
+      if (error) throw error;
+      return (data ?? []) as UpcomingTaskRow[];
+    },
+  });
+}
