@@ -28,6 +28,7 @@ import ClientReport from "@/pages/ClientReport";
 import Boletos from "@/pages/Boletos";
 import PagarReceber from "@/pages/PagarReceber";
 import FiscalTasks from "@/pages/FiscalTasks";
+import FiscalCalendar from "@/pages/FiscalCalendar";
 import Legalizacao from "@/pages/Legalizacao";
 import PessoalRH from "@/pages/PessoalRH";
 import NoAccess from "@/pages/NoAccess";
