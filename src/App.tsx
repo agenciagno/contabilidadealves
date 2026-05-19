@@ -68,6 +68,7 @@ const App = () => (
               <Route path="/boletos" element={<AppLayout><ModuleGuard moduleName="financeiro"><Boletos /></ModuleGuard></AppLayout>} />
               <Route path="/fiscal/tarefas" element={<AppLayout><ModuleGuard moduleName="fiscal"><FiscalTasks /></ModuleGuard></AppLayout>} />
               <Route path="/fiscal/calendario" element={<AppLayout><ModuleGuard moduleName="fiscal"><FiscalCalendar /></ModuleGuard></AppLayout>} />
+              <Route path="/fiscal/dashboard" element={<AppLayout><ModuleGuard moduleName="fiscal"><FiscalDashboard /></ModuleGuard></AppLayout>} />
               <Route path="/legalizacao" element={<AppLayout><ModuleGuard moduleName="legalizacao"><Legalizacao /></ModuleGuard></AppLayout>} />
               <Route path="/pessoal-rh" element={<AppLayout><ModuleGuard moduleName="pessoal_rh"><PessoalRH /></ModuleGuard></AppLayout>} />
               <Route path="*" element={<NotFound />} />
