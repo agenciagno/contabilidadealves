@@ -9,8 +9,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { HeaderCalculator } from './HeaderCalculator';
 import { HeaderCalendar } from './HeaderCalendar';
-import { NotificationPanel } from '@/components/notifications/NotificationPanel';
-import { useNotifications } from '@/contexts/NotificationContext';
+import { NotificationBellDropdown } from '@/components/notifications/NotificationBellDropdown';
+import { useNotifications } from '@/hooks/useNotifications';
 import { isDevEnvironment } from '@/lib/environment';
 
 export function AppHeader() {
@@ -59,7 +59,7 @@ export function AppHeader() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="p-0">
-              <NotificationPanel />
+              <NotificationBellDropdown />
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

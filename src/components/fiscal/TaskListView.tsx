@@ -5,6 +5,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Eye, Trash2, Paperclip } from 'lucide-react';
 import { FiscalTask } from '@/hooks/useFiscalTasks';
 import { cn } from '@/lib/utils';
@@ -26,6 +29,8 @@ function getDueDateColor(dueDate: string) {
   return 'text-emerald-600';
 }
 
+interface ProfileOption { id: string; name: string }
+
 interface TaskListViewProps {
   tasks: FiscalTask[];
   contactsMap: Record<string, string>;
@@ -33,9 +38,19 @@ interface TaskListViewProps {
   onTaskClick: (task: FiscalTask) => void;
   onDelete: (id: string) => void;
   canDelete: boolean;
+  // Bulk selection
+  selectedIds?: Set<string>;
+  onToggleSelected?: (id: string) => void;
+  onToggleAll?: (ids: string[], allSelected: boolean) => void;
+  // Inline reassign
+  profileOptions?: ProfileOption[];
+  onReassign?: (taskId: string, newResponsibleId: string) => void;
 }
 
-export function TaskListView({ tasks, contactsMap, profilesMap, onTaskClick, onDelete, canDelete }: TaskListViewProps) {
+export function TaskListView({
+  tasks, contactsMap, profilesMap, onTaskClick, onDelete, canDelete,
+  selectedIds, onToggleSelected, onToggleAll, profileOptions, onReassign,
+}: TaskListViewProps) {
   if (tasks.length === 0) {
     return (
       <Card className="bg-card border-border/50">
@@ -44,11 +59,24 @@ export function TaskListView({ tasks, contactsMap, profilesMap, onTaskClick, onD
     );
   }
 
+  const showCheckbox = !!selectedIds && !!onToggleSelected;
+  const allIds = tasks.map((t) => t.id);
+  const allSelected = showCheckbox && allIds.length > 0 && allIds.every((id) => selectedIds!.has(id));
+  const someSelected = showCheckbox && allIds.some((id) => selectedIds!.has(id));
+
   return (
     <Card className="bg-card border-border/50">
       <Table>
         <TableHeader>
           <TableRow>
+            {showCheckbox && (
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={allSelected ? true : someSelected ? 'indeterminate' : false}
+                  onCheckedChange={() => onToggleAll?.(allIds, allSelected)}
+                />
+              </TableHead>
+            )}
             <TableHead>Cliente</TableHead>
             <TableHead>Obrigação</TableHead>
             <TableHead>Responsável</TableHead>
@@ -62,17 +90,49 @@ export function TaskListView({ tasks, contactsMap, profilesMap, onTaskClick, onD
           {tasks.map(task => {
             const profile = profilesMap[task.responsible_id || ''] || { name: '—', initials: '?' };
             const statusInfo = STATUS_LABELS[task.status] || STATUS_LABELS.a_fazer;
+            const checked = !!selectedIds?.has(task.id);
             return (
               <TableRow key={task.id} className="cursor-pointer" onClick={() => onTaskClick(task)}>
+                {showCheckbox && (
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Checkbox checked={checked} onCheckedChange={() => onToggleSelected!(task.id)} />
+                  </TableCell>
+                )}
                 <TableCell className="font-medium text-sm">{contactsMap[task.contact_id] || '—'}</TableCell>
                 <TableCell className="text-sm">{task.title}</TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Avatar className="w-6 h-6">
-                      <AvatarFallback className="text-[10px] bg-primary/10 text-primary">{profile.initials}</AvatarFallback>
-                    </Avatar>
-                    <span className="text-sm text-muted-foreground">{profile.name}</span>
-                  </div>
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                  {onReassign && profileOptions ? (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button className="flex items-center gap-2 hover:bg-muted/50 rounded-md px-1.5 py-1 transition-colors">
+                          <Avatar className="w-6 h-6">
+                            <AvatarFallback className="text-[10px] bg-primary/10 text-primary">{profile.initials}</AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm text-muted-foreground">{profile.name}</span>
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" className="w-56 p-2">
+                        <Select
+                          value={task.responsible_id ?? ''}
+                          onValueChange={(v) => onReassign(task.id, v)}
+                        >
+                          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                          <SelectContent>
+                            {profileOptions.map((p) => (
+                              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </PopoverContent>
+                    </Popover>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Avatar className="w-6 h-6">
+                        <AvatarFallback className="text-[10px] bg-primary/10 text-primary">{profile.initials}</AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm text-muted-foreground">{profile.name}</span>
+                    </div>
+                  )}
                 </TableCell>
                 <TableCell className={cn('text-sm font-medium', getDueDateColor(task.due_date))}>
                   {format(parseISO(task.due_date), 'dd/MM/yyyy', { locale: ptBR })}
