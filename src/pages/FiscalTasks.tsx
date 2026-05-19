@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { format, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Plus, Kanban, List, CalendarDays, CalendarIcon } from 'lucide-react';
+import { Plus, Kanban, List, CalendarDays, CalendarIcon, X, ArrowRightLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { useContacts } from '@/hooks/useContacts';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useCompany } from '@/hooks/useCompany';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -20,6 +20,8 @@ import { TaskListView } from '@/components/fiscal/TaskListView';
 import { TaskCalendarView } from '@/components/fiscal/TaskCalendarView';
 import { TaskDetailModal } from '@/components/fiscal/TaskDetailModal';
 import { TaskCreateModal } from '@/components/fiscal/TaskCreateModal';
+import { BulkReassignModal } from '@/components/fiscal/BulkReassignModal';
+import { toast } from 'sonner';
 
 type ViewMode = 'kanban' | 'list' | 'calendar';
 
@@ -41,6 +43,9 @@ export default function FiscalTasks() {
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<FiscalTask | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
+  const queryClient = useQueryClient();
 
   // Fetch company profiles for responsible dropdown
   const { data: companyProfiles = [] } = useQuery({
