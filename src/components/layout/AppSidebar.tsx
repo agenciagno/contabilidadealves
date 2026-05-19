@@ -118,6 +118,7 @@ const menuEntries: MenuEntry[] = [
     icon: FileCheck,
     moduleKey: 'fiscal',
     items: [
+      { title: 'Dashboard', url: '/fiscal/dashboard', icon: LayoutDashboard, iconName: 'layout-dashboard' },
       { title: 'Tarefas', url: '/fiscal/tarefas', icon: CalendarClock, iconName: 'calendar-clock' },
       { title: 'Calendário Fiscal', url: '/fiscal/calendario', icon: CalendarClock, iconName: 'calendar-clock' },
     ],
@@ -275,7 +276,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {entry.items
-                .filter((item) => item.url !== '/fiscal/calendario' || isAdmin || isSuperAdmin)
+                .filter((item) => (item.url !== '/fiscal/calendario' && item.url !== '/fiscal/dashboard') || isAdmin || isSuperAdmin)
                 .map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild tooltip={item.title}>
