@@ -276,7 +276,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {entry.items
-                .filter((item) => item.url !== '/fiscal/calendario' || isAdmin || isSuperAdmin)
+                .filter((item) => (item.url !== '/fiscal/calendario' && item.url !== '/fiscal/dashboard') || isAdmin || isSuperAdmin)
                 .map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild tooltip={item.title}>
