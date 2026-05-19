@@ -119,8 +119,9 @@ const menuEntries: MenuEntry[] = [
     moduleKey: 'fiscal',
     items: [
       { title: 'Dashboard', url: '/fiscal/dashboard', icon: LayoutDashboard, iconName: 'layout-dashboard' },
-      { title: 'Tarefas', url: '/fiscal/tarefas', icon: CalendarClock, iconName: 'calendar-clock' },
+      { title: 'Tarefas Fiscais', url: '/fiscal/tarefas', icon: CalendarClock, iconName: 'calendar-clock' },
       { title: 'Calendário Fiscal', url: '/fiscal/calendario', icon: CalendarClock, iconName: 'calendar-clock' },
+      { title: 'Colaboradores', url: '/fiscal/colaboradores', icon: UsersRound, iconName: 'users-round' },
     ],
   },
   {
@@ -276,7 +277,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {entry.items
-                .filter((item) => (item.url !== '/fiscal/calendario' && item.url !== '/fiscal/dashboard') || isAdmin || isSuperAdmin)
+                .filter((item) => (!['/fiscal/calendario', '/fiscal/dashboard', '/fiscal/colaboradores'].includes(item.url)) || isAdmin || isSuperAdmin)
                 .map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild tooltip={item.title}>
