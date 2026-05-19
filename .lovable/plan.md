@@ -1,68 +1,88 @@
-# Plano — Calendário Fiscal
+# Plano — Dashboard Fiscal
 
-Exceção autorizada ao reskin. Schema (view `fiscal_calendar_effective`, tabelas `fiscal_obligations_catalog`, `fiscal_calendar` + colunas de override), Edge Function `calculate-fiscal-calendar` e RPC `generate_monthly_fiscal_tasks` serão criados manualmente por você. Aqui só implemento frontend + chamadas.
-
-## Pré-requisitos que você confirma antes de eu rodar
-
-Para a tipagem (`types.ts` é auto-gerado, então usarei `as any` nas chamadas até o schema existir):
-
-- **View `fiscal_calendar_effective`** expõe: `id` (= fiscal_calendar.id), `obligation_id`, `company_id`, `year`, `month`, `adjusted_due_date`, `internal_delivery_date`, `adjusted_due_date_override`, `internal_delivery_date_override`, `override_reason`, `overridden_at`, `overridden_by`.
-- **`fiscal_obligations_catalog`**: `id`, `name`, `code`, `applies_to` (text[]).
-- **`fiscal_calendar`**: editável via UPDATE direto (com RLS por `company_id`) nas colunas `adjusted_due_date_override`, `internal_delivery_date_override`, `override_reason`, `overridden_at`, `overridden_by`.
-- **RPC** `generate_monthly_fiscal_tasks(p_year int, p_month int)` retorna `{ tasks_created: number }`.
-- **Edge function** `calculate-fiscal-calendar` aceita `POST { year, month }`.
-
-Se algum nome divergir, ajusto antes de codar.
+Nova página `/fiscal/dashboard`, exceção autorizada ao reskin. Assumo o schema estendido em `fiscal_tasks` (`competence_year`, `competence_month`, `fiscal_due_date`) e nos status (`'concluido' | 'pendente' | 'em_andamento'`) já configurado por você. Se algum nome divergir, ajusto antes de codar.
 
 ## Arquivos a criar
 
 ```text
-src/hooks/useFiscalCalendar.ts        // queries + mutations (TanStack Query)
-src/pages/FiscalCalendar.tsx          // página
-src/components/fiscal/FiscalObligationOverrideDialog.tsx  // modal de override
+src/hooks/useFiscalDashboard.ts        // todas as queries do dashboard
+src/pages/FiscalDashboard.tsx          // página
 ```
 
 ## Arquivos a editar
 
-- `src/App.tsx` — registrar rota `/fiscal/calendario` envolvida em `ModuleGuard moduleName="fiscal"` + guarda local que redireciona se `!isAdmin && !isSuperAdmin`.
-- `src/components/layout/AppSidebar.tsx` — adicionar item "Calendário Fiscal" (ícone `CalendarDays`) dentro do grupo Fiscal, abaixo de "Tarefas", **renderizado apenas se** `isAdmin || isSuperAdmin`.
+- `src/App.tsx` — registrar rota `/fiscal/dashboard` com `ModuleGuard moduleName="fiscal"`. Guard local redireciona para `/fiscal/tarefas` se `!isAdmin && !isSuperAdmin`.
+- `src/components/layout/AppSidebar.tsx` — adicionar item "Dashboard" (ícone `LayoutDashboard`) como **primeiro item** do grupo Fiscal, oculto para `colaborador` (mesmo filtro já usado em "Calendário Fiscal").
 
-## Comportamento
+## Queries (hook único, TanStack Query)
 
-### Cabeçalho
-- Título "Calendário Fiscal".
-- 2 `Select` (Mês 01–12 com nomes em PT, Ano 2025–2027), default = atual.
-- Botão primário "⚡ Gerar Tarefas do Mês" à direita.
+Todas filtradas por `company_id` resolvido via `useCompany()` e por competência selecionada.
 
-### Tabela (Card + shadcn Table)
-- Query: `supabase.from('fiscal_calendar_effective').select('*, fiscal_obligations_catalog!inner(name, code, applies_to)').eq('year', year).eq('month', month).order('adjusted_due_date')`.
-- Loading: skeleton nas linhas. Vazio: "Nenhuma obrigação encontrada para o período".
-- Colunas conforme especificado. Regime renderizado como `Badge` por item do array. Override badge: amarelo se `adjusted_due_date_override` não-nulo, verde "Automático" caso contrário. Ação: `Button variant="ghost" size="icon"` com `Pencil`.
+1. **tasksOfMonth** — `fiscal_tasks` WHERE `competence_year = year AND competence_month = month AND company_id = X AND deleted_at IS NULL`. Select: `id, status, due_date, fiscal_due_date, responsible_id`. Base para KPIs e gráfico.
+2. **collaborators** — `profiles` WHERE `company_id = X AND role IN ('admin','colaborador') AND status_active = true`. Select: `id, full_name`.
+3. **upcoming** — `fiscal_tasks` com joins, WHERE `status != 'concluido' AND due_date BETWEEN today AND today+7 AND company_id = X`, order `due_date ASC`, limit 20. Joins: `contacts(name)`, `responsible:profiles!fiscal_tasks_responsible_id_fkey(full_name)`, `fiscal_obligations_catalog(name)` (assumo FK `obligation_id`; se não existir, removo a coluna "Obrigação" e mostro `fiscal_tasks.title`).
 
-### Botão "Gerar Tarefas"
-- Mutation sequencial:
-  1. `fetch(${VITE_SUPABASE_URL}/functions/v1/calculate-fiscal-calendar, POST, body {year, month}, header Authorization: Bearer ${VITE_SUPABASE_PUBLISHABLE_KEY})`.
-  2. `supabase.rpc('generate_monthly_fiscal_tasks', { p_year, p_month })`.
-- Toasts (sonner): sucesso `✅ {tasks_created} tarefas geradas para MM/YYYY`; zero → `ℹ️ Todas as tarefas deste mês já foram geradas`; erro → `toast.error(err.message)`.
-- Invalida query `['fiscal-calendar', year, month]` e `['fiscal-tasks']`.
-- Durante execução: `Loader2` + texto "Gerando..." e `disabled`.
+Botão "Atualizar" invalida as 3 queries.
 
-### Modal de override
-- `Dialog` shadcn, `max-h-[90vh]` com scroll interno (memória Global Modals).
-- Bloco read-only cinza com datas calculadas.
-- Dois `Popover + Calendar` (padrão shadcn-datepicker) — cada um permite limpar via botão "Limpar".
-- `Textarea` motivo. Validação: se algum override preenchido, motivo obrigatório → desabilita "Salvar Ajuste".
-- "Salvar": `update` em `fiscal_calendar` por `id` setando os 3 campos + `overridden_at: new Date().toISOString()` + `overridden_by: profile.id` (lido via `useAuth().user.id` resolvido para `profiles.id` por `useUserRole`/`useProfile`).
-- "Remover Ajuste": visível só se override existe; seta os 5 campos como `null`.
-- Pós-sucesso: fechar, toast, invalidar query.
+## Cabeçalho
+
+- Título "Dashboard Fiscal".
+- 2 `Select` (Mês PT 01–12, Ano 2025–2027), default = atual.
+- Botão `RefreshCw` "Atualizar".
+
+## Seção 1 — KPIs
+
+Computados em memória a partir de `tasksOfMonth`:
+
+| Card | Cálculo | Ícone | Borda |
+|---|---|---|---|
+| Total | `tasks.length` | `ListChecks` | `border-l-4 border-l-blue-500` |
+| Concluídas | `count(status === 'concluido')` | `CheckCircle2` | `border-l-green-500` |
+| Pendentes | `count(status === 'pendente')` | `Clock` | `border-l-yellow-500` |
+| Atrasadas | `count(status !== 'concluido' && due_date < today)` | `AlertTriangle` | `border-l-red-500` |
+
+Cada card: ícone topo direito, número grande (`text-3xl font-semibold`), label, percentual `Math.round(n/total*100)` ou `0%` se total = 0.
+
+## Seção 2 — BarChart empilhado por colaborador
+
+Recharts `BarChart` com `stackId="a"` em 3 `<Bar>`:
+- `concluidas` — `hsl(142 71% 45%)` (verde)
+- `pendentes` — `hsl(48 96% 53%)` (amarelo)
+- `atrasadas` — `hsl(0 84% 60%)` (vermelho)
+
+Dataset: para cada colaborador, contar tasks por status (atrasadas absorve qualquer task não-concluída com `due_date < today`; pendentes = `status === 'pendente'` e não-atrasadas; concluídas = `status === 'concluido'`). Inclui só colaboradores que aparecem em `tasksOfMonth` OU na lista de colaboradores (todos, mesmo com 0). Não-atribuídos agrupados como "Sem responsável".
+
+`Tooltip` shadcn-chart com breakdown por status, `Legend` abaixo, eixos com `tickLine={false}`. Altura 320px em Card.
+
+## Seção 3 — Progresso por colaborador
+
+Para cada item de `collaborators`:
+- Card com Avatar (inicial), nome.
+- `Progress` (shadcn) com valor `concluidas/total*100` (ou 0).
+- Texto `"{concluidas} de {total} tarefas — {pct}%"`.
+- Se `atrasadas > 0`, `Badge variant="destructive"` "{N} atrasada(s)".
+
+Grid responsivo: `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3`.
+
+## Seção 4 — Próximos vencimentos (7 dias)
+
+Card + `Table` shadcn. Colunas: Cliente, Obrigação, Entrega Interna (`due_date`), Vencimento Fiscal (`fiscal_due_date`), Responsável, Status.
+
+Status badge:
+- `pendente` → amarelo
+- `em_andamento` → azul
+- atrasado (não concluído e `due_date < today`) → vermelho
+
+Datas formatadas `dd/MM/yyyy` com `date-fns`. Loading: skeleton. Vazio: "Nenhum vencimento nos próximos 7 dias".
 
 ## Controle de acesso
 
-- Sidebar: item oculto para `colaborador`.
-- Rota: `<ModuleGuard moduleName="fiscal">` + componente interno que faz `if (!isAdmin && !isSuperAdmin) return <Navigate to="/fiscal/tarefas" replace/>`.
+- Sidebar: item escondido para `colaborador` (mesmo padrão atual com filtro por URL).
+- Rota: `<ModuleGuard moduleName="fiscal">` + guard local `(!isAdmin && !isSuperAdmin) → <Navigate to="/fiscal/tarefas" replace />`.
 
 ## Notas técnicas
 
-- TanStack Query keys: `['fiscal-calendar', year, month]`.
-- Tipagem: como `types.ts` é regenerado pelo Supabase, uso interfaces locais e `from('fiscal_calendar_effective' as any)` para não quebrar build até o schema existir.
-- Sem alterações em outras rotas, hooks ou componentes.
+- Sem nova migration. Uso `from('fiscal_tasks').select(...) as any` para colunas que ainda não estão no `types.ts` gerado.
+- KPIs e dataset do gráfico computados via `useMemo` sobre `tasksOfMonth` para evitar refetches.
+- Sem alterar `FiscalTasks`, `FiscalCalendar` ou hooks existentes.
+- "7 dias úteis": o pedido textual diz "7 dias úteis" mas o filtro SQL diz `+7`. Vou usar `+7 dias corridos` (alinhado ao SQL). Se quiser dias úteis de verdade, me avise — uso `addBusinessDays`.
