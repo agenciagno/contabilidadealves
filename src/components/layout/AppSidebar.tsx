@@ -119,6 +119,7 @@ const menuEntries: MenuEntry[] = [
     moduleKey: 'fiscal',
     items: [
       { title: 'Tarefas', url: '/fiscal/tarefas', icon: CalendarClock, iconName: 'calendar-clock' },
+      { title: 'Calendário Fiscal', url: '/fiscal/calendario', icon: CalendarClock, iconName: 'calendar-clock' },
     ],
   },
   {
@@ -169,7 +170,7 @@ export function AppSidebar() {
   };
   const { companyName, companyCnpj, company } = useCompany();
   const { pinnedShortcuts, isPinned, togglePin } = usePinnedShortcuts();
-  const { isSuperAdmin, isColaborador, allowedModules, fullName, avatarUrl } = useUserRole();
+  const { isSuperAdmin, isAdmin, isColaborador, allowedModules, fullName, avatarUrl } = useUserRole();
   const [profileOpen, setProfileOpen] = useState(false);
   const { pendingCount } = usePendingApprovals();
 
@@ -273,7 +274,9 @@ export function AppSidebar() {
         <CollapsibleContent>
           <SidebarGroupContent>
             <SidebarMenu>
-              {entry.items.map((item) => (
+              {entry.items
+                .filter((item) => item.url !== '/fiscal/calendario' || isAdmin || isSuperAdmin)
+                .map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild tooltip={item.title}>
                     <NavLink onClick={handleMobileNav}
