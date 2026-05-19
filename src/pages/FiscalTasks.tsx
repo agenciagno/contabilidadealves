@@ -112,6 +112,73 @@ export default function FiscalTasks() {
 
   const canDelete = isSuperAdmin || isAdmin;
 
+  const profileOptions = useMemo(
+    () => companyProfiles.map((p) => ({ id: p.id, name: p.full_name || p.email || '—' })),
+    [companyProfiles],
+  );
+
+  const toggleSelected = (id: string) => {
+    setSelectedTaskIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const toggleAll = (ids: string[], allSelected: boolean) => {
+    setSelectedTaskIds((prev) => {
+      const next = new Set(prev);
+      if (allSelected) ids.forEach((id) => next.delete(id));
+      else ids.forEach((id) => next.add(id));
+      return next;
+    });
+  };
+  const clearSelection = () => setSelectedTaskIds(new Set());
+
+  const handleInlineReassign = async (taskId: string, newId: string) => {
+    try {
+      await (supabase as any).from('fiscal_tasks').update({ responsible_id: newId }).eq('id', taskId);
+      const name = profileOptions.find((p) => p.id === newId)?.name ?? 'colaborador';
+      toast.success(`Responsável alterado para ${name}`);
+      queryClient.invalidateQueries({ queryKey: ['fiscal-tasks'] });
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Erro ao alterar responsável');
+    }
+  };
+
+  const handleBulkReassign = async (newId: string, expandToMonth: boolean) => {
+    if (!companyId) return;
+    let ids = Array.from(selectedTaskIds);
+    if (expandToMonth) {
+      const selectedTasks = tasks.filter((t) => selectedTaskIds.has(t.id));
+      const contactIds = Array.from(new Set(selectedTasks.map((t) => t.contact_id).filter(Boolean)));
+      const now = new Date();
+      if (contactIds.length > 0) {
+        const { data } = await (supabase as any)
+          .from('fiscal_tasks')
+          .select('id')
+          .eq('company_id', companyId)
+          .eq('competence_year', now.getFullYear())
+          .eq('competence_month', now.getMonth() + 1)
+          .in('contact_id', contactIds)
+          .in('status', ['pendente', 'em_andamento', 'a_fazer', 'em_progresso', 'aguardando_cliente']);
+        ids = Array.from(new Set([...(ids), ...((data ?? []) as any[]).map((r) => r.id)]));
+      }
+    }
+    if (ids.length === 0) {
+      toast.error('Nenhuma tarefa para transferir.');
+      return;
+    }
+    const { error } = await (supabase as any).from('fiscal_tasks').update({ responsible_id: newId }).in('id', ids);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    const name = profileOptions.find((p) => p.id === newId)?.name ?? 'colaborador';
+    toast.success(`✅ ${ids.length} tarefa${ids.length === 1 ? '' : 's'} transferida${ids.length === 1 ? '' : 's'} para ${name}`);
+    queryClient.invalidateQueries({ queryKey: ['fiscal-tasks'] });
+    clearSelection();
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between py-4 flex-wrap gap-4">
@@ -215,14 +282,36 @@ export default function FiscalTasks() {
       )}
 
       {viewMode === 'list' && (
-        <TaskListView
-          tasks={tasks}
-          contactsMap={contactsMap}
-          profilesMap={profilesMap}
-          onTaskClick={handleTaskClick}
-          onDelete={id => deleteTask.mutate(id)}
-          canDelete={canDelete}
-        />
+        <>
+          {selectedTaskIds.size > 0 && (
+            <div className="sticky top-14 z-30 flex items-center gap-3 px-4 py-2.5 rounded-lg border border-primary/30 bg-primary/5 backdrop-blur">
+              <span className="text-sm font-medium text-foreground">
+                {selectedTaskIds.size} tarefa{selectedTaskIds.size === 1 ? '' : 's'} selecionada{selectedTaskIds.size === 1 ? '' : 's'}
+              </span>
+              <div className="ml-auto flex items-center gap-2">
+                <Button size="sm" variant="outline" onClick={clearSelection} className="gap-1.5">
+                  <X className="w-3.5 h-3.5" /> Desmarcar tudo
+                </Button>
+                <Button size="sm" onClick={() => setBulkOpen(true)} className="gap-1.5">
+                  <ArrowRightLeft className="w-3.5 h-3.5" /> Transferir Responsabilidade
+                </Button>
+              </div>
+            </div>
+          )}
+          <TaskListView
+            tasks={tasks}
+            contactsMap={contactsMap}
+            profilesMap={profilesMap}
+            onTaskClick={handleTaskClick}
+            onDelete={id => deleteTask.mutate(id)}
+            canDelete={canDelete}
+            selectedIds={selectedTaskIds}
+            onToggleSelected={toggleSelected}
+            onToggleAll={toggleAll}
+            profileOptions={!isColaborador ? profileOptions : undefined}
+            onReassign={!isColaborador ? handleInlineReassign : undefined}
+          />
+        </>
       )}
 
       {viewMode === 'calendar' && (
@@ -252,6 +341,14 @@ export default function FiscalTasks() {
         profiles={companyProfiles}
         onUpdate={(id, data) => updateTask.mutate({ id, ...data })}
         onDelete={id => deleteTask.mutate(id)}
+      />
+
+      <BulkReassignModal
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+        count={selectedTaskIds.size}
+        profiles={profileOptions}
+        onConfirm={handleBulkReassign}
       />
     </div>
   );
