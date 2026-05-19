@@ -170,7 +170,7 @@ export function AppSidebar() {
   };
   const { companyName, companyCnpj, company } = useCompany();
   const { pinnedShortcuts, isPinned, togglePin } = usePinnedShortcuts();
-  const { isSuperAdmin, isColaborador, allowedModules, fullName, avatarUrl } = useUserRole();
+  const { isSuperAdmin, isAdmin, isColaborador, allowedModules, fullName, avatarUrl } = useUserRole();
   const [profileOpen, setProfileOpen] = useState(false);
   const { pendingCount } = usePendingApprovals();
 
