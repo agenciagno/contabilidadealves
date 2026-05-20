@@ -145,6 +145,9 @@ function StatusBadge({ status, isLate }: { status: string; isLate: boolean }) {
 export default function FiscalDashboard() {
   const { isAdmin, isSuperAdmin, isLoading: roleLoading } = useUserRole();
   const qc = useQueryClient();
+  const { company } = useCompany();
+  const companyId = (company as any)?.id;
+
 
   const now = new Date();
   const [year, setYear] = useState<number>(now.getFullYear());
@@ -207,9 +210,6 @@ export default function FiscalDashboard() {
   const handleRefresh = () => {
     qc.invalidateQueries({ queryKey: ['fiscal-dashboard'] });
   };
-
-  const { company } = useCompany();
-  const companyId = (company as any)?.id;
 
   const fetchExportData = async (): Promise<{ tasks: ExportTask[]; contacts: any[]; profiles: any[] }> => {
     const [{ data: tasks }, { data: contacts }, { data: profiles }] = await Promise.all([
