@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 export interface ObligationOption {
   id: string;
   name: string;
+  is_custom?: boolean | null;
 }
 
 interface Props {
