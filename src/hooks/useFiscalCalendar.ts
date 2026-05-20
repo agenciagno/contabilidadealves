@@ -5,8 +5,12 @@ import { toast } from 'sonner';
 export interface FiscalObligationCatalog {
   id: string;
   name: string;
-  code: string;
+  code: string | null;
   applies_to: string[] | null;
+  is_custom?: boolean | null;
+  description?: string | null;
+  due_rule?: string | null;
+  holiday_adjustment?: string | null;
 }
 
 export interface FiscalCalendarEffectiveRow {
