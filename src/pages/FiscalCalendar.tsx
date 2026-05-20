@@ -99,7 +99,7 @@ export default function FiscalCalendar() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h1 className="text-2xl font-semibold">Calendário Fiscal</h1>
         <div className="flex flex-wrap items-center gap-2">
-          <Select value={String(month)} onValueChange={(v) => setMonth(Number(v))}>
+          <Select value={String(month)} onValueChange={handleMonthChange}>
             <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               {MONTHS.map((m, i) => (
@@ -107,7 +107,7 @@ export default function FiscalCalendar() {
               ))}
             </SelectContent>
           </Select>
-          <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
+          <Select value={String(year)} onValueChange={handleYearChange}>
             <SelectTrigger className="w-[110px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               {YEARS.map((y) => (
