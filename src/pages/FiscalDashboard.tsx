@@ -259,18 +259,12 @@ export default function FiscalDashboard() {
                 <Download className="h-4 w-4" /> Exportar
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64">
-              <DropdownMenuItem onClick={() => handleExport('productivity')}>
-                Produtividade da Equipe
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onClick={handlePrint}>
+                <Download className="h-4 w-4" /> Exportar como PDF
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport('compliance')}>
-                Compliance por Cliente
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport('critical')}>
-                Vencimentos Críticos
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport('executive')}>
-                Relatório Executivo do Mês
+              <DropdownMenuItem onClick={handlePrint}>
+                <Printer className="h-4 w-4" /> Imprimir
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
