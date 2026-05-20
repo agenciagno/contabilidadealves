@@ -60,7 +60,7 @@ export function useFiscalTasks(filters: FiscalTaskFilters = {}) {
       let query = supabase
         .from('fiscal_tasks')
         .select('*')
-        .order('due_date', { ascending: true });
+        .order('due_date', { ascending: filters.sortOrder !== 'desc' });
 
       if (companyId) {
         query = query.eq('company_id', companyId);
