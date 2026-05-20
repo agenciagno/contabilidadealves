@@ -6,9 +6,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
-  Download,
   ListChecks,
-  Printer,
   RefreshCw,
 } from 'lucide-react';
 import {
@@ -27,12 +25,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { useCompany } from '@/hooks/useCompany';
 import {
@@ -223,21 +215,13 @@ export default function FiscalDashboard() {
     qc.invalidateQueries({ queryKey: ['fiscal-dashboard'] });
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
 
   const fmt = (s: string | null) => (s ? format(parseISO(s), 'dd/MM/yyyy') : '—');
 
   return (
-    <div className="p-6 space-y-6 fiscal-print-area">
-      {/* Print-only title */}
-      <div className="hidden print:block print-title">
-        <h1 className="text-2xl font-bold">Dashboard Fiscal — {String(month).padStart(2, '0')}/{year}</h1>
-      </div>
+    <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 print:hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h1 className="text-2xl font-semibold">Dashboard Fiscal</h1>
         <div className="flex flex-wrap items-center gap-2">
           <Select value={String(month)} onValueChange={(v) => setMonth(Number(v))}>
@@ -257,21 +241,6 @@ export default function FiscalDashboard() {
           <Button variant="outline" onClick={handleRefresh}>
             <RefreshCw className="h-4 w-4" /> Atualizar
           </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline">
-                <Download className="h-4 w-4" /> Exportar
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem onClick={handlePrint}>
-                <Download className="h-4 w-4" /> Exportar como PDF
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handlePrint}>
-                <Printer className="h-4 w-4" /> Imprimir
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
 
@@ -397,10 +366,6 @@ export default function FiscalDashboard() {
         </CardContent>
       </Card>
 
-      {/* Print-only footer */}
-      <div className="hidden print:block print-footer text-xs text-muted-foreground pt-4 border-t">
-        Gerado em {format(new Date(), 'dd/MM/yyyy HH:mm')} — Contabilidade Alves
-      </div>
     </div>
   );
 }
