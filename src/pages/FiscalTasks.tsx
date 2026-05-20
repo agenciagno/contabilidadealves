@@ -427,8 +427,10 @@ export default function FiscalTasks() {
           onTaskClick={handleTaskClick}
           onEdit={handleTaskClick}
           onDelete={canDelete ? (id) => deleteTask.mutate(id) : undefined}
+          onUploadAttachment={handleUploadAttachment}
         />
       )}
+
 
       {viewMode === 'list' && (
         <>
