@@ -21,6 +21,9 @@ import {
 import { Contact, TaxRegime, useContacts } from '@/hooks/useContacts';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useCompany } from '@/hooks/useCompany';
+import { ContactObligationsSelector } from '@/components/fiscal/ContactObligationsSelector';
+import { toast } from 'sonner';
 
 type Section = 'contato' | 'endereco' | 'fiscal' | 'observacoes' | 'cobranca';
 
