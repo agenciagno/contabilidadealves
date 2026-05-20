@@ -91,6 +91,7 @@ export default function FiscalTasks() {
   const [filterResponsible, setFilterResponsible] = useState('all');
   const [filterObligation, setFilterObligation] = useState('all');
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
   // Pre-populate responsible from URL (?responsible=<profileId>)
   const [searchParams, setSearchParams] = useSearchParams();
