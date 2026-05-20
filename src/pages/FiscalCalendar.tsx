@@ -46,11 +46,10 @@ export default function FiscalCalendar() {
   const [year, setYear] = useState<number>(now.getFullYear());
   const [month, setMonth] = useState<number>(now.getMonth() + 1);
 
-  const { data: rows, isLoading } = useFiscalCalendar(year, month);
+  const [phase, setPhase] = useState<Phase>('idle');
+  const { data: rows, isLoading } = useFiscalCalendar(year, month, phase !== 'idle');
   const calculate = useCalculateCalendar();
   const confirm = useConfirmMonthlyTasks();
-
-  const [phase, setPhase] = useState<Phase>('idle');
 
   useEffect(() => {
     try {
@@ -66,6 +65,16 @@ export default function FiscalCalendar() {
     try {
       sessionStorage.setItem(phaseKey(year, month), next);
     } catch {}
+  };
+
+  // Reset phase to idle on period change (clears table)
+  const handleMonthChange = (v: string) => {
+    setPhasePersist('idle');
+    setMonth(Number(v));
+  };
+  const handleYearChange = (v: string) => {
+    setPhasePersist('idle');
+    setYear(Number(v));
   };
 
   const [editing, setEditing] = useState<FiscalCalendarEffectiveRow | null>(null);
