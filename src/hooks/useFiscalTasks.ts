@@ -28,6 +28,7 @@ export interface FiscalTaskFilters {
   contactId?: string;
   responsibleId?: string;
   titleSearch?: string;
+  sortOrder?: 'asc' | 'desc';
 }
 
 export function useFiscalTasks(filters: FiscalTaskFilters = {}) {
