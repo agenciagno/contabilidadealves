@@ -242,47 +242,59 @@ export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, 
           <section className="space-y-3">
             <h3 className="text-sm font-semibold text-foreground">Checklist de Documentos</h3>
 
-            <div className="rounded-md border border-border/50 p-3 space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  {attachmentUrl ? (
-                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-                  ) : (
-                    <div className="w-4 h-4 rounded-sm border border-muted-foreground/40 shrink-0" />
-                  )}
-                  <span className="text-sm truncate">{title}</span>
-                </div>
-                {attachmentUrl ? (
-                  <a
-                    href={attachmentUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-primary underline shrink-0 inline-flex items-center gap-1"
-                  >
-                    <Paperclip className="w-3 h-3" /> Ver anexo
-                  </a>
-                ) : (
-                  <Label htmlFor="task-attachment-detail" className="cursor-pointer shrink-0">
-                    <div className="inline-flex items-center gap-1 px-2 py-1 rounded border border-dashed border-border hover:bg-muted/50 text-xs">
-                      <Upload className="w-3 h-3" />
-                      {uploading ? 'Enviando...' : '📎 Anexar'}
-                    </div>
-                  </Label>
-                )}
-                <input
-                  id="task-attachment-detail"
-                  type="file"
-                  className="hidden"
-                  onChange={handleUpload}
-                  disabled={uploading}
-                />
+            {groupTasks && groupTasks.length > 1 ? (
+              <div className="rounded-md border border-border/50 p-3 space-y-2">
+                {groupTasks.map((gt) => (
+                  <ChecklistRow
+                    key={gt.id}
+                    task={gt}
+                    onUpload={onUploadForTask}
+                  />
+                ))}
               </div>
-              {attachmentUrl && (
-                <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30">
-                  ✅ Documento anexado
-                </Badge>
-              )}
-            </div>
+            ) : (
+              <div className="rounded-md border border-border/50 p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {attachmentUrl ? (
+                      <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                    ) : (
+                      <div className="w-4 h-4 rounded-sm border border-muted-foreground/40 shrink-0" />
+                    )}
+                    <span className="text-sm truncate">{title}</span>
+                  </div>
+                  {attachmentUrl ? (
+                    <a
+                      href={attachmentUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-primary underline shrink-0 inline-flex items-center gap-1"
+                    >
+                      <Paperclip className="w-3 h-3" /> Ver anexo
+                    </a>
+                  ) : (
+                    <Label htmlFor="task-attachment-detail" className="cursor-pointer shrink-0">
+                      <div className="inline-flex items-center gap-1 px-2 py-1 rounded border border-dashed border-border hover:bg-muted/50 text-xs">
+                        <Upload className="w-3 h-3" />
+                        {uploading ? 'Enviando...' : '📎 Anexar'}
+                      </div>
+                    </Label>
+                  )}
+                  <input
+                    id="task-attachment-detail"
+                    type="file"
+                    className="hidden"
+                    onChange={handleUpload}
+                    disabled={uploading}
+                  />
+                </div>
+                {attachmentUrl && (
+                  <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30">
+                    ✅ Documento anexado
+                  </Badge>
+                )}
+              </div>
+            )}
           </section>
 
           <Separator />
