@@ -190,6 +190,9 @@ export default function FiscalCollaborators() {
         </div>
       </section>
 
+      {(isAdmin || isSuperAdmin) && <TransferHistory />}
+
+
       <TransferClientsModal
         open={modalOpen}
         onOpenChange={setModalOpen}
