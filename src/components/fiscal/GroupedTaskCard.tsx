@@ -19,6 +19,7 @@ interface GroupedTaskCardProps {
   responsibleName: string;
   onUploadAttachment: (task: FiscalTask, file: File) => Promise<void>;
   dragProps?: Record<string, any>;
+  onCardClick?: () => void;
 }
 
 function getDueDateColor(dueDate: string) {
