@@ -288,71 +288,72 @@ export default function FiscalTasks() {
 
       {/* Filters Bar */}
       <div className="flex flex-wrap gap-3 items-center">
-        {/* Date Range */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className={cn('gap-2 h-9', startDate && 'text-foreground')}>
-              <CalendarIcon className="w-3.5 h-3.5" />
-              {startDate ? format(startDate, 'dd/MM/yy', { locale: ptBR }) : 'Início'}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar mode="single" selected={startDate} onSelect={setStartDate} className="p-3 pointer-events-auto" />
-          </PopoverContent>
-        </Popover>
-        <span className="text-muted-foreground text-sm">até</span>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className={cn('gap-2 h-9', endDate && 'text-foreground')}>
-              <CalendarIcon className="w-3.5 h-3.5" />
-              {endDate ? format(endDate, 'dd/MM/yy', { locale: ptBR }) : 'Fim'}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar mode="single" selected={endDate} onSelect={setEndDate} className="p-3 pointer-events-auto" />
-          </PopoverContent>
-        </Popover>
-
-        {/* Client Filter */}
-        <Select value={filterContact} onValueChange={setFilterContact}>
-          <SelectTrigger className="w-[180px] h-9 bg-background/50 border-border/50">
-            <SelectValue placeholder="Cliente" />
+        {/* Sort order */}
+        <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as SortOrder)}>
+          <SelectTrigger className="w-[200px] h-9 bg-background/50 border-border/50">
+            <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos os Clientes</SelectItem>
-            {contacts.map(c => (
-              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-            ))}
+            <SelectItem value="desc">
+              <span className="inline-flex items-center gap-2"><ArrowDownNarrowWide className="h-3.5 w-3.5" /> Mais recente primeiro</span>
+            </SelectItem>
+            <SelectItem value="asc">
+              <span className="inline-flex items-center gap-2"><ArrowUpNarrowWide className="h-3.5 w-3.5" /> Mais antigo primeiro</span>
+            </SelectItem>
           </SelectContent>
         </Select>
+
+        {/* Date Range */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">De:</span>
+          <DateInput value={startDate} onChange={setStartDate} placeholder="DD/MM/AAAA" />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">Até:</span>
+          <DateInput value={endDate} onChange={setEndDate} placeholder="DD/MM/AAAA" />
+        </div>
+        {(startDate || endDate) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 gap-1.5 text-xs"
+            onClick={() => { setStartDate(undefined); setEndDate(undefined); }}
+          >
+            <X className="h-3.5 w-3.5" /> Limpar datas
+          </Button>
+        )}
+
+        {/* Client Filter */}
+        <SearchableSelect
+          value={filterContact}
+          onChange={setFilterContact}
+          options={contacts.map((c) => ({ value: c.id, label: c.name }))}
+          placeholder="Todos os clientes"
+          allLabel="Todos os clientes"
+          width="w-[200px]"
+        />
 
         {/* Responsible Filter (hidden for colaborador) */}
         {!isColaborador && (
-          <Select value={filterResponsible} onValueChange={setFilterResponsible}>
-            <SelectTrigger className="w-[180px] h-9 bg-background/50 border-border/50">
-              <SelectValue placeholder="Responsável" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              {companyProfiles.map(p => (
-                <SelectItem key={p.id} value={p.id}>{p.full_name || p.email}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            value={filterResponsible}
+            onChange={setFilterResponsible}
+            options={companyProfiles.map((p) => ({ value: p.id, label: p.full_name || p.email || '—' }))}
+            placeholder="Todos os colaboradores"
+            allLabel="Todos os colaboradores"
+            width="w-[200px]"
+          />
         )}
 
         {/* Obligation Filter */}
-        <Select value={filterObligation} onValueChange={setFilterObligation}>
-          <SelectTrigger className="w-[200px] h-9 bg-background/50 border-border/50">
-            <SelectValue placeholder="Obrigação" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas as Obrigações</SelectItem>
-            {obligations.map((o) => (
-              <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <SearchableSelect
+          value={filterObligation}
+          onChange={setFilterObligation}
+          options={obligations.map((o) => ({ value: o.id, label: o.name }))}
+          placeholder="Todas as obrigações"
+          allLabel="Todas as obrigações"
+          width="w-[220px]"
+        />
 
         {/* View Toggle */}
         <div className="ml-auto">
