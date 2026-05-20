@@ -28,6 +28,8 @@ interface TaskDetailModalProps {
   profiles: { id: string; full_name: string | null }[];
   onUpdate: (id: string, data: Partial<FiscalTask>) => void;
   onDelete: (id: string) => void;
+  groupTasks?: FiscalTask[] | null;
+  onUploadForTask?: (task: FiscalTask, file: File) => Promise<void>;
 }
 
 const STATUS_OPTIONS = [
