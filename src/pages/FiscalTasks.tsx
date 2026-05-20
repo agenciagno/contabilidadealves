@@ -200,6 +200,30 @@ export default function FiscalTasks() {
     updateTask.mutate({ id: taskId, status: newStatus as FiscalTask['status'] });
   };
 
+  const handleUploadAttachment = async (task: FiscalTask, file: File) => {
+    if (!companyId) return;
+    try {
+      const ext = file.name.split('.').pop();
+      const path = `fiscal/${companyId}/${task.id}/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from('transaction-attachments')
+        .upload(path, file);
+      if (upErr) throw upErr;
+      const { data: urlData } = supabase.storage
+        .from('transaction-attachments')
+        .getPublicUrl(path);
+      await updateTask.mutateAsync({
+        id: task.id,
+        attachment_url: urlData.publicUrl,
+        status: 'concluido' as FiscalTask['status'],
+      });
+    } catch (e: any) {
+      // updateTask shows its own error toast; storage errors fall here
+      console.error('Upload error', e);
+    }
+  };
+
+
   const handleTaskClick = (task: FiscalTask) => {
     setSelectedTask(task);
     setDetailOpen(true);
