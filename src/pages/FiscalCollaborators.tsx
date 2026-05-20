@@ -15,7 +15,7 @@ import { useCompany } from '@/hooks/useCompany';
 import {
   useCollaborators,
   useAllFiscalProfiles,
-  usePendingTasksByProfile,
+  useClientCountByProfile,
   useCollaboratorDetails,
 } from '@/hooks/useCollaboratorCoverage';
 import { TransferClientsModal } from '@/components/fiscal/TransferClientsModal';
@@ -99,7 +99,7 @@ export default function FiscalCollaborators() {
 
   const { data: collaborators = [] } = useCollaborators();
   const { data: allFiscalProfiles = [] } = useAllFiscalProfiles();
-  const { data: pendingMap = {} } = usePendingTasksByProfile(year, month);
+  const { data: clientCountMap = {} } = useClientCountByProfile();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -125,7 +125,7 @@ export default function FiscalCollaborators() {
 
       toast.success(`✅ Clientes e tarefas transferidos de ${fromName} para ${toName}.`);
       queryClient.invalidateQueries({ queryKey: ['collaborators-with-clients'] });
-      queryClient.invalidateQueries({ queryKey: ['pending-tasks-by-profile'] });
+      queryClient.invalidateQueries({ queryKey: ['client-count-by-profile'] });
       queryClient.invalidateQueries({ queryKey: ['fiscal-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['fiscal-dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
@@ -152,7 +152,7 @@ export default function FiscalCollaborators() {
           {collaborators.map((c) => {
             const name = c.full_name || c.email;
             const initials = (name || '?').substring(0, 2).toUpperCase();
-            const pending = pendingMap[c.id] ?? 0;
+            const clientsCount = clientCountMap[c.id] ?? 0;
             const isExpanded = expandedId === c.id;
             return (
               <Card
@@ -175,7 +175,7 @@ export default function FiscalCollaborators() {
                     </Badge>
                     <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
                       <UserCheck className="w-3 h-3" />
-                      {pending} tarefa{pending === 1 ? '' : 's'} pendente{pending === 1 ? '' : 's'} no mês
+                      {clientsCount} cliente{clientsCount === 1 ? '' : 's'} vinculado{clientsCount === 1 ? '' : 's'}
                     </p>
                   </div>
                   <ChevronDown className={cn('w-4 h-4 text-muted-foreground transition-transform', isExpanded && 'rotate-180')} />
