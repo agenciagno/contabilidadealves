@@ -19,6 +19,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { FiscalTask } from '@/hooks/useFiscalTasks';
 import { TaskCard } from './TaskCard';
+import { GroupedTaskCard } from './GroupedTaskCard';
 import { useToast } from '@/hooks/use-toast';
 
 const COLUMNS = [
@@ -30,6 +31,14 @@ const COLUMNS = [
 
 const COLUMN_IDS = COLUMNS.map((c) => c.id) as readonly string[];
 
+// Precedence: most-advanced status wins
+const STATUS_PRECEDENCE: Record<string, number> = {
+  a_fazer: 0,
+  em_progresso: 1,
+  aguardando_cliente: 2,
+  concluido: 3,
+};
+
 type SortDir = 'asc' | 'desc';
 
 interface KanbanBoardProps {
@@ -40,7 +49,24 @@ interface KanbanBoardProps {
   onTaskClick: (task: FiscalTask) => void;
   onEdit?: (task: FiscalTask) => void;
   onDelete?: (taskId: string) => void;
+  onUploadAttachment?: (task: FiscalTask, file: File) => Promise<void>;
 }
+
+interface SingleItem {
+  type: 'single';
+  id: string;
+  dueDate: string;
+  task: FiscalTask;
+}
+interface GroupItem {
+  type: 'group';
+  id: string; // group-<contactId>-<dueDate>
+  dueDate: string;
+  contactId: string;
+  tasks: FiscalTask[];
+  displayStatus: string;
+}
+type KanbanItem = SingleItem | GroupItem;
 
 function DroppableColumn({
   id, label, color, count, sortDir, onToggleSort, children,
@@ -83,32 +109,28 @@ function DroppableColumn({
   );
 }
 
-function SortableTaskCard({ task, contactsMap, profilesMap, onTaskClick, onEdit, onDelete }: {
-  task: FiscalTask;
+function SortableSingle({ item, contactsMap, profilesMap, onTaskClick, onEdit, onDelete }: {
+  item: SingleItem;
   contactsMap: Record<string, string>;
   profilesMap: Record<string, { name: string; initials: string }>;
   onTaskClick: (task: FiscalTask) => void;
   onEdit?: (task: FiscalTask) => void;
   onDelete?: (taskId: string) => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id, data: { status: task.status } });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  const profile = profilesMap[task.responsible_id || ''] || { name: 'Sem responsável', initials: '?' };
-
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: item.id,
+    data: { kind: 'single', status: item.task.status },
+  });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+  const profile = profilesMap[item.task.responsible_id || ''] || { name: 'Sem responsável', initials: '?' };
   return (
     <div ref={setNodeRef} style={style}>
       <TaskCard
-        task={task}
-        contactName={contactsMap[task.contact_id] || 'Cliente'}
+        task={item.task}
+        contactName={contactsMap[item.task.contact_id] || 'Cliente'}
         responsibleName={profile.name}
         responsibleInitials={profile.initials}
-        onClick={() => onTaskClick(task)}
+        onClick={() => onTaskClick(item.task)}
         dragProps={{ ...attributes, ...listeners }}
         onEdit={onEdit}
         onDelete={onDelete}
@@ -117,7 +139,36 @@ function SortableTaskCard({ task, contactsMap, profilesMap, onTaskClick, onEdit,
   );
 }
 
-export function KanbanBoard({ tasks, contactsMap, profilesMap, onStatusChange, onTaskClick, onEdit, onDelete }: KanbanBoardProps) {
+function SortableGroup({ item, contactsMap, profilesMap, onUploadAttachment }: {
+  item: GroupItem;
+  contactsMap: Record<string, string>;
+  profilesMap: Record<string, { name: string; initials: string }>;
+  onUploadAttachment: (task: FiscalTask, file: File) => Promise<void>;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: item.id,
+    data: { kind: 'group', status: item.displayStatus },
+  });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+  const respId = item.tasks[0]?.responsible_id || '';
+  const profile = profilesMap[respId] || { name: 'Sem responsável', initials: '?' };
+  return (
+    <div ref={setNodeRef} style={style}>
+      <GroupedTaskCard
+        groupId={item.id}
+        contactName={contactsMap[item.contactId] || 'Cliente'}
+        dueDate={item.dueDate}
+        tasks={item.tasks}
+        responsibleInitials={profile.initials}
+        responsibleName={profile.name}
+        onUploadAttachment={onUploadAttachment}
+        dragProps={{ ...attributes, ...listeners }}
+      />
+    </div>
+  );
+}
+
+export function KanbanBoard({ tasks, contactsMap, profilesMap, onStatusChange, onTaskClick, onEdit, onDelete, onUploadAttachment }: KanbanBoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [columnSort, setColumnSort] = useState<Record<string, SortDir>>(() =>
     COLUMNS.reduce((acc, c) => ({ ...acc, [c.id]: 'desc' as SortDir }), {}),
@@ -125,24 +176,66 @@ export function KanbanBoard({ tasks, contactsMap, profilesMap, onStatusChange, o
   const { toast } = useToast();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
-  const tasksByStatus = useMemo(() => {
+  // Build items: group by (contact_id + due_date) when 2+ tasks share the pair
+  const itemsByStatus = useMemo(() => {
+    const groupsMap = new Map<string, FiscalTask[]>();
+    for (const t of tasks) {
+      const key = `${t.contact_id}__${t.due_date}`;
+      const arr = groupsMap.get(key) ?? [];
+      arr.push(t);
+      groupsMap.set(key, arr);
+    }
+
+    const items: KanbanItem[] = [];
+    for (const [key, group] of groupsMap.entries()) {
+      if (group.length === 1) {
+        const t = group[0];
+        items.push({ type: 'single', id: t.id, dueDate: t.due_date, task: t });
+      } else {
+        // sort tasks inside group by title for consistency
+        const sorted = [...group].sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+        // display status = most advanced
+        let best = sorted[0].status as string;
+        for (const t of sorted) {
+          if ((STATUS_PRECEDENCE[t.status] ?? 0) > (STATUS_PRECEDENCE[best] ?? 0)) {
+            best = t.status;
+          }
+        }
+        const [contactId, dueDate] = key.split('__');
+        items.push({
+          type: 'group',
+          id: `group-${contactId}-${dueDate}`,
+          contactId,
+          dueDate,
+          tasks: sorted,
+          displayStatus: best,
+        });
+      }
+    }
+
+    // Distribute into columns and sort by due_date
     return COLUMNS.reduce((acc, col) => {
       const dir = columnSort[col.id];
-      const list = tasks
-        .filter((t) => t.status === col.id)
-        .slice()
+      const list = items
+        .filter((it) => (it.type === 'single' ? it.task.status : it.displayStatus) === col.id)
         .sort((a, b) => {
-          const cmp = a.due_date.localeCompare(b.due_date);
+          const cmp = a.dueDate.localeCompare(b.dueDate);
           return dir === 'asc' ? cmp : -cmp;
         });
       acc[col.id] = list;
       return acc;
-    }, {} as Record<string, FiscalTask[]>);
+    }, {} as Record<string, KanbanItem[]>);
   }, [tasks, columnSort]);
 
-  const activeTask = activeId ? tasks.find(t => t.id === activeId) : null;
+  const activeItem = useMemo(() => {
+    if (!activeId) return null;
+    for (const list of Object.values(itemsByStatus)) {
+      const found = list.find((i) => i.id === activeId);
+      if (found) return found;
+    }
+    return null;
+  }, [activeId, itemsByStatus]);
 
-  // Collision detection that prioritizes column droppables so empty/distant columns are reachable
   const collisionDetection: CollisionDetection = (args) => {
     const columnContainers = args.droppableContainers.filter((c) =>
       COLUMN_IDS.includes(String(c.id)),
@@ -163,28 +256,56 @@ export function KanbanBoard({ tasks, contactsMap, profilesMap, onStatusChange, o
     const { active, over } = event;
     if (!over) return;
 
-    const taskId = active.id as string;
-    const task = tasks.find(t => t.id === taskId);
-    if (!task) return;
-
     const targetStatus = String(over.id);
     if (!COLUMN_IDS.includes(targetStatus)) return;
-    if (targetStatus === task.status) return;
 
-    if (targetStatus === 'concluido' && !task.attachment_url) {
-      toast({
-        title: 'Anexo obrigatório',
-        description: 'É necessário anexar um arquivo antes de concluir a tarefa.',
-        variant: 'destructive',
-      });
+    const itemId = String(active.id);
+    // Find item
+    let item: KanbanItem | undefined;
+    for (const list of Object.values(itemsByStatus)) {
+      item = list.find((i) => i.id === itemId);
+      if (item) break;
+    }
+    if (!item) return;
+
+    if (item.type === 'single') {
+      const task = item.task;
+      if (targetStatus === task.status) return;
+      if (targetStatus === 'concluido' && !task.attachment_url) {
+        toast({
+          title: 'Anexo obrigatório',
+          description: 'É necessário anexar um arquivo antes de concluir a tarefa.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      onStatusChange(task.id, targetStatus);
       return;
     }
 
-    onStatusChange(taskId, targetStatus);
+    // Group
+    if (targetStatus === item.displayStatus) return;
+    if (targetStatus === 'concluido') {
+      toast({
+        title: 'Conclusão por anexo',
+        description: 'Para concluir, faça o upload do anexo em cada obrigação.',
+      });
+      return;
+    }
+    if (targetStatus !== 'em_progresso' && targetStatus !== 'aguardando_cliente') {
+      // Block drops to a_fazer for grouped cards
+      return;
+    }
+    // Apply to all tasks in the group whose status differs
+    for (const t of item.tasks) {
+      if (t.status !== targetStatus) onStatusChange(t.id, targetStatus);
+    }
   };
 
   const toggleColumnSort = (id: string) =>
     setColumnSort((prev) => ({ ...prev, [id]: prev[id] === 'desc' ? 'asc' : 'desc' }));
+
+  const noopUpload = async () => {};
 
   return (
     <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
@@ -196,21 +317,31 @@ export function KanbanBoard({ tasks, contactsMap, profilesMap, onStatusChange, o
             id={col.id}
             label={col.label}
             color={col.color}
-            count={tasksByStatus[col.id].length}
+            count={itemsByStatus[col.id].length}
             sortDir={columnSort[col.id]}
             onToggleSort={() => toggleColumnSort(col.id)}
           >
-            <SortableContext items={tasksByStatus[col.id].map(t => t.id)} strategy={verticalListSortingStrategy}>
-              {tasksByStatus[col.id].map(task => (
-                <SortableTaskCard
-                  key={task.id}
-                  task={task}
-                  contactsMap={contactsMap}
-                  profilesMap={profilesMap}
-                  onTaskClick={onTaskClick}
-                  onEdit={onEdit}
-                  onDelete={onDelete}
-                />
+            <SortableContext items={itemsByStatus[col.id].map(i => i.id)} strategy={verticalListSortingStrategy}>
+              {itemsByStatus[col.id].map(item => (
+                item.type === 'single' ? (
+                  <SortableSingle
+                    key={item.id}
+                    item={item}
+                    contactsMap={contactsMap}
+                    profilesMap={profilesMap}
+                    onTaskClick={onTaskClick}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                  />
+                ) : (
+                  <SortableGroup
+                    key={item.id}
+                    item={item}
+                    contactsMap={contactsMap}
+                    profilesMap={profilesMap}
+                    onUploadAttachment={onUploadAttachment ?? noopUpload}
+                  />
+                )
               ))}
             </SortableContext>
           </DroppableColumn>
@@ -218,13 +349,24 @@ export function KanbanBoard({ tasks, contactsMap, profilesMap, onStatusChange, o
         </div>
       </div>
       <DragOverlay>
-        {activeTask && (
+        {activeItem && activeItem.type === 'single' && (
           <TaskCard
-            task={activeTask}
-            contactName={contactsMap[activeTask.contact_id] || 'Cliente'}
-            responsibleName={profilesMap[activeTask.responsible_id || '']?.name || '?'}
-            responsibleInitials={profilesMap[activeTask.responsible_id || '']?.initials || '?'}
+            task={activeItem.task}
+            contactName={contactsMap[activeItem.task.contact_id] || 'Cliente'}
+            responsibleName={profilesMap[activeItem.task.responsible_id || '']?.name || '?'}
+            responsibleInitials={profilesMap[activeItem.task.responsible_id || '']?.initials || '?'}
             onClick={() => {}}
+          />
+        )}
+        {activeItem && activeItem.type === 'group' && (
+          <GroupedTaskCard
+            groupId={activeItem.id}
+            contactName={contactsMap[activeItem.contactId] || 'Cliente'}
+            dueDate={activeItem.dueDate}
+            tasks={activeItem.tasks}
+            responsibleInitials={profilesMap[activeItem.tasks[0]?.responsible_id || '']?.initials || '?'}
+            responsibleName={profilesMap[activeItem.tasks[0]?.responsible_id || '']?.name || '?'}
+            onUploadAttachment={noopUpload}
           />
         )}
       </DragOverlay>
