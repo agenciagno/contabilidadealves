@@ -157,10 +157,10 @@ export default function FiscalTasks() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('fiscal_obligations_catalog')
-        .select('id, name')
+        .select('id, name, is_custom')
         .order('name', { ascending: true });
       if (error) throw error;
-      return (data ?? []) as { id: string; name: string }[];
+      return (data ?? []) as { id: string; name: string; is_custom?: boolean }[];
     },
   });
 
@@ -404,7 +404,7 @@ export default function FiscalTasks() {
         <SearchableSelect
           value={filterObligation}
           onChange={setFilterObligation}
-          options={obligations.map((o) => ({ value: o.id, label: o.name }))}
+          options={obligations.map((o) => ({ value: o.id, label: o.is_custom ? `★ ${o.name}` : o.name }))}
           placeholder="Todas as obrigações"
           allLabel="Todas as obrigações"
           width="w-[220px]"

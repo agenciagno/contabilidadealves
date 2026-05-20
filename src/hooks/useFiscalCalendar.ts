@@ -5,8 +5,12 @@ import { toast } from 'sonner';
 export interface FiscalObligationCatalog {
   id: string;
   name: string;
-  code: string;
+  code: string | null;
   applies_to: string[] | null;
+  is_custom?: boolean | null;
+  description?: string | null;
+  due_rule?: string | null;
+  holiday_adjustment?: string | null;
 }
 
 export interface FiscalCalendarEffectiveRow {
@@ -31,7 +35,7 @@ export function useFiscalCalendar(year: number, month: number, enabled: boolean 
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('fiscal_calendar_effective')
-        .select('*, fiscal_obligations_catalog!inner(id, name, code, applies_to)')
+        .select('*, fiscal_obligations_catalog!inner(id, name, code, applies_to, is_custom, description, due_rule, holiday_adjustment)')
         .eq('year', year)
         .eq('month', month)
         .order('adjusted_due_date', { ascending: true });

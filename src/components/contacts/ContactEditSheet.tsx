@@ -108,10 +108,10 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('fiscal_obligations_catalog')
-        .select('id, name')
+        .select('id, name, is_custom')
         .order('name', { ascending: true });
       if (error) throw error;
-      return (data ?? []) as { id: string; name: string }[];
+      return (data ?? []) as { id: string; name: string; is_custom?: boolean }[];
     },
     enabled: section === 'fiscal',
   });

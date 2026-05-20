@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
-import { CalendarRange, CheckCircle2, Info, Loader2, Pencil, Rocket, Trash2, X, Zap } from 'lucide-react';
+import { CalendarRange, CheckCircle2, Info, Loader2, Pencil, Plus, Rocket, Sparkles, Trash2, X, Zap } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -41,6 +41,7 @@ import {
 } from '@/hooks/useFiscalCalendar';
 import { FiscalObligationOverrideDialog } from '@/components/fiscal/FiscalObligationOverrideDialog';
 import { BulkEditCalendarDialog } from '@/components/fiscal/BulkEditCalendarDialog';
+import { CustomObligationDialog, CustomObligationInitial } from '@/components/fiscal/CustomObligationDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -103,6 +104,11 @@ export default function FiscalCalendar() {
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [rowToDelete, setRowToDelete] = useState<FiscalCalendarEffectiveRow | null>(null);
+
+  // custom obligation dialog
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customInitial, setCustomInitial] = useState<CustomObligationInitial | null>(null);
+  const [obligationToDelete, setObligationToDelete] = useState<{ id: string; name: string } | null>(null);
 
   const sorted = useMemo(() => rows ?? [], [rows]);
 
@@ -212,6 +218,15 @@ export default function FiscalCalendar() {
             </SelectContent>
           </Select>
 
+          <Button
+            variant="outline"
+            onClick={() => { setCustomInitial(null); setCustomOpen(true); }}
+          >
+            <Plus className="h-4 w-4" /> Nova Obrigação
+          </Button>
+
+
+
           {phase === 'idle' && (
             <Button onClick={handleCalculate} disabled={calculate.isPending}>
               {calculate.isPending ? (
@@ -316,6 +331,7 @@ export default function FiscalCalendar() {
                 const cat = r.fiscal_obligations_catalog;
                 const isOverridden = !!r.adjusted_due_date_override;
                 const isChecked = selected.has(r.id);
+                const isCustom = !!cat?.is_custom;
                 return (
                   <TableRow key={r.id} data-state={isChecked ? 'selected' : undefined}>
                     <TableCell>
@@ -323,7 +339,19 @@ export default function FiscalCalendar() {
                         <Checkbox checked={isChecked} aria-label="Selecionar linha" />
                       </div>
                     </TableCell>
-                    <TableCell className="font-medium">{cat?.name ?? '—'}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <span>{cat?.name ?? '—'}</span>
+                        {isCustom && (
+                          <Badge
+                            variant="outline"
+                            className="gap-1 border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[10px] px-1.5 py-0"
+                          >
+                            <Sparkles className="h-3 w-3" /> Personalizada
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
                         {(cat?.applies_to ?? []).map((t) => (
@@ -354,11 +382,43 @@ export default function FiscalCalendar() {
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
+                        {isCustom && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                setCustomInitial({
+                                  id: cat!.id,
+                                  name: cat!.name,
+                                  description: cat!.description ?? '',
+                                  applies_to: cat!.applies_to ?? [],
+                                  due_rule: cat!.due_rule ?? null,
+                                  holiday_adjustment: cat!.holiday_adjustment ?? 'prev_business_day',
+                                });
+                                setCustomOpen(true);
+                              }}
+                              title="Editar obrigação personalizada"
+                              className="text-amber-600 hover:text-amber-700"
+                            >
+                              <Sparkles className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setObligationToDelete({ id: cat!.id, name: cat!.name })}
+                              title="Excluir obrigação personalizada"
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => setRowToDelete(r)}
-                          title="Excluir"
+                          title="Excluir entrada do mês"
                           className="text-destructive hover:text-destructive"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -423,6 +483,51 @@ export default function FiscalCalendar() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => rowToDelete && handleDeleteRow(rowToDelete.id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <CustomObligationDialog
+        open={customOpen}
+        onOpenChange={(o) => { setCustomOpen(o); if (!o) setCustomInitial(null); }}
+        initial={customInitial}
+      />
+
+      <AlertDialog open={!!obligationToDelete} onOpenChange={(o) => !o && setObligationToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir obrigação personalizada</AlertDialogTitle>
+            <AlertDialogDescription>
+              {obligationToDelete && (
+                <>Excluir definitivamente a obrigação personalizada "{obligationToDelete.name}"? Esta ação removerá a obrigação de todos os meses e contatos vinculados.</>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!obligationToDelete) return;
+                try {
+                  const { error } = await (supabase as any)
+                    .from('fiscal_obligations_catalog')
+                    .delete()
+                    .eq('id', obligationToDelete.id)
+                    .eq('is_custom', true);
+                  if (error) throw error;
+                  toast.success('✅ Obrigação personalizada excluída.');
+                  qc.invalidateQueries({ queryKey: ['fiscal-calendar'] });
+                  qc.invalidateQueries({ queryKey: ['fiscal-obligations-catalog'] });
+                } catch (e: any) {
+                  toast.error(e?.message ?? 'Erro ao excluir');
+                } finally {
+                  setObligationToDelete(null);
+                }
+              }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Excluir
