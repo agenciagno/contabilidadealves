@@ -120,6 +120,7 @@ export default function FiscalTasks() {
   // Modals
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<FiscalTask | null>(null);
+  const [selectedGroupTasks, setSelectedGroupTasks] = useState<FiscalTask[] | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
@@ -226,6 +227,14 @@ export default function FiscalTasks() {
 
   const handleTaskClick = (task: FiscalTask) => {
     setSelectedTask(task);
+    setSelectedGroupTasks(null);
+    setDetailOpen(true);
+  };
+
+  const handleGroupClick = (groupTasks: FiscalTask[]) => {
+    if (!groupTasks.length) return;
+    setSelectedTask(groupTasks[0]);
+    setSelectedGroupTasks(groupTasks);
     setDetailOpen(true);
   };
 
@@ -428,6 +437,7 @@ export default function FiscalTasks() {
           onEdit={handleTaskClick}
           onDelete={canDelete ? (id) => deleteTask.mutate(id) : undefined}
           onUploadAttachment={handleUploadAttachment}
+          onGroupClick={handleGroupClick}
         />
       )}
 
@@ -513,12 +523,14 @@ export default function FiscalTasks() {
       {/* Detail Modal */}
       <TaskDetailModal
         open={detailOpen}
-        onOpenChange={setDetailOpen}
+        onOpenChange={(o) => { setDetailOpen(o); if (!o) setSelectedGroupTasks(null); }}
         task={selectedTask}
         contacts={fiscalContacts.map((c: any) => ({ id: c.id, name: c.name }))}
         profiles={companyProfiles}
         onUpdate={(id, data) => updateTask.mutate({ id, ...data })}
         onDelete={id => deleteTask.mutate(id)}
+        groupTasks={selectedGroupTasks}
+        onUploadForTask={handleUploadAttachment}
       />
 
       <BulkReassignModal

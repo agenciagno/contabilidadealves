@@ -28,6 +28,8 @@ interface TaskDetailModalProps {
   profiles: { id: string; full_name: string | null }[];
   onUpdate: (id: string, data: Partial<FiscalTask>) => void;
   onDelete: (id: string) => void;
+  groupTasks?: FiscalTask[] | null;
+  onUploadForTask?: (task: FiscalTask, file: File) => Promise<void>;
 }
 
 const STATUS_OPTIONS = [
@@ -44,7 +46,7 @@ const statusBadgeClass: Record<string, string> = {
   concluido: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
 };
 
-export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, onUpdate, onDelete }: TaskDetailModalProps) {
+export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, onUpdate, onDelete, groupTasks, onUploadForTask }: TaskDetailModalProps) {
   const { isColaborador, isSuperAdmin, isAdmin } = useUserRole();
   const { company } = useCompany();
   const companyId = company?.id;
@@ -158,7 +160,9 @@ export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, 
 
             <div>
               <Label>Obrigação</Label>
-              {canEdit ? (
+              {groupTasks && groupTasks.length > 1 ? (
+                <p className="text-sm text-foreground mt-1">{groupTasks.length} obrigações</p>
+              ) : canEdit ? (
                 <Input value={title} onChange={e => setTitle(e.target.value)} />
               ) : (
                 <p className="text-sm text-foreground mt-1">{title}</p>
@@ -238,47 +242,59 @@ export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, 
           <section className="space-y-3">
             <h3 className="text-sm font-semibold text-foreground">Checklist de Documentos</h3>
 
-            <div className="rounded-md border border-border/50 p-3 space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  {attachmentUrl ? (
-                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-                  ) : (
-                    <div className="w-4 h-4 rounded-sm border border-muted-foreground/40 shrink-0" />
-                  )}
-                  <span className="text-sm truncate">{title}</span>
-                </div>
-                {attachmentUrl ? (
-                  <a
-                    href={attachmentUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-primary underline shrink-0 inline-flex items-center gap-1"
-                  >
-                    <Paperclip className="w-3 h-3" /> Ver anexo
-                  </a>
-                ) : (
-                  <Label htmlFor="task-attachment-detail" className="cursor-pointer shrink-0">
-                    <div className="inline-flex items-center gap-1 px-2 py-1 rounded border border-dashed border-border hover:bg-muted/50 text-xs">
-                      <Upload className="w-3 h-3" />
-                      {uploading ? 'Enviando...' : '📎 Anexar'}
-                    </div>
-                  </Label>
-                )}
-                <input
-                  id="task-attachment-detail"
-                  type="file"
-                  className="hidden"
-                  onChange={handleUpload}
-                  disabled={uploading}
-                />
+            {groupTasks && groupTasks.length > 1 ? (
+              <div className="rounded-md border border-border/50 p-3 space-y-2">
+                {groupTasks.map((gt) => (
+                  <ChecklistRow
+                    key={gt.id}
+                    task={gt}
+                    onUpload={onUploadForTask}
+                  />
+                ))}
               </div>
-              {attachmentUrl && (
-                <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30">
-                  ✅ Documento anexado
-                </Badge>
-              )}
-            </div>
+            ) : (
+              <div className="rounded-md border border-border/50 p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {attachmentUrl ? (
+                      <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                    ) : (
+                      <div className="w-4 h-4 rounded-sm border border-muted-foreground/40 shrink-0" />
+                    )}
+                    <span className="text-sm truncate">{title}</span>
+                  </div>
+                  {attachmentUrl ? (
+                    <a
+                      href={attachmentUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-primary underline shrink-0 inline-flex items-center gap-1"
+                    >
+                      <Paperclip className="w-3 h-3" /> Ver anexo
+                    </a>
+                  ) : (
+                    <Label htmlFor="task-attachment-detail" className="cursor-pointer shrink-0">
+                      <div className="inline-flex items-center gap-1 px-2 py-1 rounded border border-dashed border-border hover:bg-muted/50 text-xs">
+                        <Upload className="w-3 h-3" />
+                        {uploading ? 'Enviando...' : '📎 Anexar'}
+                      </div>
+                    </Label>
+                  )}
+                  <input
+                    id="task-attachment-detail"
+                    type="file"
+                    className="hidden"
+                    onChange={handleUpload}
+                    disabled={uploading}
+                  />
+                </div>
+                {attachmentUrl && (
+                  <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30">
+                    ✅ Documento anexado
+                  </Badge>
+                )}
+              </div>
+            )}
           </section>
 
           <Separator />
@@ -327,5 +343,68 @@ export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, 
         </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+function ChecklistRow({
+  task,
+  onUpload,
+}: {
+  task: FiscalTask;
+  onUpload?: (task: FiscalTask, file: File) => Promise<void>;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const done = task.status === 'concluido' || !!task.attachment_url;
+  const inputId = `chk-${task.id}`;
+
+  const handle = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !onUpload) return;
+    try {
+      setUploading(true);
+      await onUpload(task, file);
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center gap-2 min-w-0">
+        {done ? (
+          <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+        ) : (
+          <div className="w-4 h-4 rounded-sm border border-muted-foreground/40 shrink-0" />
+        )}
+        <span className={`text-sm truncate ${done ? 'line-through text-muted-foreground' : ''}`}>
+          {task.title}
+        </span>
+      </div>
+      {done && task.attachment_url ? (
+        <a
+          href={task.attachment_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-primary underline shrink-0 inline-flex items-center gap-1"
+        >
+          <Paperclip className="w-3 h-3" /> Ver anexo
+        </a>
+      ) : done ? (
+        <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 shrink-0">
+          ✅ Anexado
+        </Badge>
+      ) : (
+        <>
+          <Label htmlFor={inputId} className="cursor-pointer shrink-0">
+            <div className="inline-flex items-center gap-1 px-2 py-1 rounded border border-dashed border-border hover:bg-muted/50 text-xs">
+              <Upload className="w-3 h-3" />
+              {uploading ? 'Enviando...' : '📎 Anexar'}
+            </div>
+          </Label>
+          <input id={inputId} type="file" className="hidden" onChange={handle} disabled={uploading} />
+        </>
+      )}
+    </div>
   );
 }

@@ -19,6 +19,7 @@ interface GroupedTaskCardProps {
   responsibleName: string;
   onUploadAttachment: (task: FiscalTask, file: File) => Promise<void>;
   dragProps?: Record<string, any>;
+  onCardClick?: () => void;
 }
 
 function getDueDateColor(dueDate: string) {
@@ -38,6 +39,7 @@ export function GroupedTaskCard({
   responsibleInitials,
   onUploadAttachment,
   dragProps,
+  onCardClick,
 }: GroupedTaskCardProps) {
   const dateColor = getDueDateColor(dueDate);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -63,7 +65,11 @@ export function GroupedTaskCard({
 
   return (
     <Card
-      className="border-border/50 bg-card relative cursor-grab active:cursor-grabbing"
+      className={cn(
+        "border-border/50 bg-card relative cursor-grab active:cursor-grabbing",
+        onCardClick && "hover:shadow-md transition-shadow",
+      )}
+      onClick={onCardClick}
       {...dragProps}
     >
       <CardContent className="p-3 space-y-2.5">

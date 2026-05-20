@@ -50,6 +50,7 @@ interface KanbanBoardProps {
   onEdit?: (task: FiscalTask) => void;
   onDelete?: (taskId: string) => void;
   onUploadAttachment?: (task: FiscalTask, file: File) => Promise<void>;
+  onGroupClick?: (tasks: FiscalTask[]) => void;
 }
 
 interface SingleItem {
@@ -139,11 +140,12 @@ function SortableSingle({ item, contactsMap, profilesMap, onTaskClick, onEdit, o
   );
 }
 
-function SortableGroup({ item, contactsMap, profilesMap, onUploadAttachment }: {
+function SortableGroup({ item, contactsMap, profilesMap, onUploadAttachment, onCardClick }: {
   item: GroupItem;
   contactsMap: Record<string, string>;
   profilesMap: Record<string, { name: string; initials: string }>;
   onUploadAttachment: (task: FiscalTask, file: File) => Promise<void>;
+  onCardClick?: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
@@ -163,12 +165,13 @@ function SortableGroup({ item, contactsMap, profilesMap, onUploadAttachment }: {
         responsibleName={profile.name}
         onUploadAttachment={onUploadAttachment}
         dragProps={{ ...attributes, ...listeners }}
+        onCardClick={onCardClick}
       />
     </div>
   );
 }
 
-export function KanbanBoard({ tasks, contactsMap, profilesMap, onStatusChange, onTaskClick, onEdit, onDelete, onUploadAttachment }: KanbanBoardProps) {
+export function KanbanBoard({ tasks, contactsMap, profilesMap, onStatusChange, onTaskClick, onEdit, onDelete, onUploadAttachment, onGroupClick }: KanbanBoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [columnSort, setColumnSort] = useState<Record<string, SortDir>>(() =>
     COLUMNS.reduce((acc, c) => ({ ...acc, [c.id]: 'desc' as SortDir }), {}),
@@ -340,6 +343,7 @@ export function KanbanBoard({ tasks, contactsMap, profilesMap, onStatusChange, o
                     contactsMap={contactsMap}
                     profilesMap={profilesMap}
                     onUploadAttachment={onUploadAttachment ?? noopUpload}
+                    onCardClick={onGroupClick ? () => onGroupClick(item.tasks) : undefined}
                   />
                 )
               ))}
