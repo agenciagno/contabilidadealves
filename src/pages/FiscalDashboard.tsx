@@ -8,6 +8,7 @@ import {
   Clock,
   Download,
   ListChecks,
+  Printer,
   RefreshCw,
 } from 'lucide-react';
 import {
