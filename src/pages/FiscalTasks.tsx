@@ -277,13 +277,18 @@ export default function FiscalTasks() {
           </Select>
         )}
 
-        {/* Title search */}
-        <Input
-          placeholder="Buscar obrigação..."
-          value={filterTitle}
-          onChange={e => setFilterTitle(e.target.value)}
-          className="w-[180px] h-9 bg-background/50 border-border/50"
-        />
+        {/* Obligation Filter */}
+        <Select value={filterObligation} onValueChange={setFilterObligation}>
+          <SelectTrigger className="w-[200px] h-9 bg-background/50 border-border/50">
+            <SelectValue placeholder="Obrigação" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas as Obrigações</SelectItem>
+            {obligations.map((o) => (
+              <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         {/* View Toggle */}
         <div className="ml-auto">
