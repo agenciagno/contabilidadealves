@@ -231,9 +231,13 @@ export default function FiscalDashboard() {
   const fmt = (s: string | null) => (s ? format(parseISO(s), 'dd/MM/yyyy') : '—');
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 fiscal-print-area">
+      {/* Print-only title */}
+      <div className="hidden print:block print-title">
+        <h1 className="text-2xl font-bold">Dashboard Fiscal — {String(month).padStart(2, '0')}/{year}</h1>
+      </div>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 print:hidden">
         <h1 className="text-2xl font-semibold">Dashboard Fiscal</h1>
         <div className="flex flex-wrap items-center gap-2">
           <Select value={String(month)} onValueChange={(v) => setMonth(Number(v))}>
