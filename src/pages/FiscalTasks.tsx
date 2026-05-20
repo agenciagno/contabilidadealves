@@ -1,9 +1,10 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { format } from 'date-fns';
+import { format, isValid, parse } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Plus, Kanban, List, CalendarDays, CalendarIcon, X, ArrowRightLeft } from 'lucide-react';
+import { Plus, Kanban, List, CalendarDays, CalendarIcon, X, ArrowRightLeft, ArrowDownNarrowWide, ArrowUpNarrowWide } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -21,9 +22,61 @@ import { TaskCalendarView } from '@/components/fiscal/TaskCalendarView';
 import { TaskDetailModal } from '@/components/fiscal/TaskDetailModal';
 import { TaskCreateModal } from '@/components/fiscal/TaskCreateModal';
 import { BulkReassignModal } from '@/components/fiscal/BulkReassignModal';
+import { SearchableSelect } from '@/components/fiscal/SearchableSelect';
 import { toast } from 'sonner';
 
 type ViewMode = 'kanban' | 'list' | 'calendar';
+type SortOrder = 'desc' | 'asc';
+
+// DateInput: accepts DD/MM/YYYY typing + popover calendar
+function DateInput({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: Date | undefined;
+  onChange: (d: Date | undefined) => void;
+  placeholder: string;
+}) {
+  const [text, setText] = useState(value ? format(value, 'dd/MM/yyyy') : '');
+  useEffect(() => {
+    setText(value ? format(value, 'dd/MM/yyyy') : '');
+  }, [value]);
+
+  const commit = (raw: string) => {
+    if (!raw.trim()) {
+      onChange(undefined);
+      return;
+    }
+    const parsed = parse(raw, 'dd/MM/yyyy', new Date());
+    if (isValid(parsed)) onChange(parsed);
+    else setText(value ? format(value, 'dd/MM/yyyy') : '');
+  };
+
+  return (
+    <div className="flex items-center gap-1">
+      <Input
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={(e) => commit(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+        placeholder={placeholder}
+        className="h-9 w-[120px] text-sm"
+      />
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" size="sm" className="h-9 w-9 p-0">
+            <CalendarIcon className="w-3.5 h-3.5" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar mode="single" selected={value} onSelect={onChange} className="p-3 pointer-events-auto" />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
 
 export default function FiscalTasks() {
   const { company } = useCompany();
@@ -38,6 +91,7 @@ export default function FiscalTasks() {
   const [filterResponsible, setFilterResponsible] = useState('all');
   const [filterObligation, setFilterObligation] = useState('all');
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
   // Pre-populate responsible from URL (?responsible=<profileId>)
   const [searchParams, setSearchParams] = useSearchParams();
@@ -107,7 +161,8 @@ export default function FiscalTasks() {
     titleSearch: filterObligation !== 'all'
       ? (obligations.find((o) => o.id === filterObligation)?.name)
       : undefined,
-  }), [startDate, endDate, filterContact, filterResponsible, filterObligation, obligations]);
+    sortOrder,
+  }), [startDate, endDate, filterContact, filterResponsible, filterObligation, obligations, sortOrder]);
 
   const { tasks, isLoading, createTask, updateTask, deleteTask } = useFiscalTasks(filters);
 
@@ -233,71 +288,72 @@ export default function FiscalTasks() {
 
       {/* Filters Bar */}
       <div className="flex flex-wrap gap-3 items-center">
-        {/* Date Range */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className={cn('gap-2 h-9', startDate && 'text-foreground')}>
-              <CalendarIcon className="w-3.5 h-3.5" />
-              {startDate ? format(startDate, 'dd/MM/yy', { locale: ptBR }) : 'Início'}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar mode="single" selected={startDate} onSelect={setStartDate} className="p-3 pointer-events-auto" />
-          </PopoverContent>
-        </Popover>
-        <span className="text-muted-foreground text-sm">até</span>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className={cn('gap-2 h-9', endDate && 'text-foreground')}>
-              <CalendarIcon className="w-3.5 h-3.5" />
-              {endDate ? format(endDate, 'dd/MM/yy', { locale: ptBR }) : 'Fim'}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar mode="single" selected={endDate} onSelect={setEndDate} className="p-3 pointer-events-auto" />
-          </PopoverContent>
-        </Popover>
-
-        {/* Client Filter */}
-        <Select value={filterContact} onValueChange={setFilterContact}>
-          <SelectTrigger className="w-[180px] h-9 bg-background/50 border-border/50">
-            <SelectValue placeholder="Cliente" />
+        {/* Sort order */}
+        <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as SortOrder)}>
+          <SelectTrigger className="w-[200px] h-9 bg-background/50 border-border/50">
+            <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos os Clientes</SelectItem>
-            {contacts.map(c => (
-              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-            ))}
+            <SelectItem value="desc">
+              <span className="inline-flex items-center gap-2"><ArrowDownNarrowWide className="h-3.5 w-3.5" /> Mais recente primeiro</span>
+            </SelectItem>
+            <SelectItem value="asc">
+              <span className="inline-flex items-center gap-2"><ArrowUpNarrowWide className="h-3.5 w-3.5" /> Mais antigo primeiro</span>
+            </SelectItem>
           </SelectContent>
         </Select>
+
+        {/* Date Range */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">De:</span>
+          <DateInput value={startDate} onChange={setStartDate} placeholder="DD/MM/AAAA" />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">Até:</span>
+          <DateInput value={endDate} onChange={setEndDate} placeholder="DD/MM/AAAA" />
+        </div>
+        {(startDate || endDate) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 gap-1.5 text-xs"
+            onClick={() => { setStartDate(undefined); setEndDate(undefined); }}
+          >
+            <X className="h-3.5 w-3.5" /> Limpar datas
+          </Button>
+        )}
+
+        {/* Client Filter */}
+        <SearchableSelect
+          value={filterContact}
+          onChange={setFilterContact}
+          options={contacts.map((c) => ({ value: c.id, label: c.name }))}
+          placeholder="Todos os clientes"
+          allLabel="Todos os clientes"
+          width="w-[200px]"
+        />
 
         {/* Responsible Filter (hidden for colaborador) */}
         {!isColaborador && (
-          <Select value={filterResponsible} onValueChange={setFilterResponsible}>
-            <SelectTrigger className="w-[180px] h-9 bg-background/50 border-border/50">
-              <SelectValue placeholder="Responsável" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              {companyProfiles.map(p => (
-                <SelectItem key={p.id} value={p.id}>{p.full_name || p.email}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            value={filterResponsible}
+            onChange={setFilterResponsible}
+            options={companyProfiles.map((p) => ({ value: p.id, label: p.full_name || p.email || '—' }))}
+            placeholder="Todos os colaboradores"
+            allLabel="Todos os colaboradores"
+            width="w-[200px]"
+          />
         )}
 
         {/* Obligation Filter */}
-        <Select value={filterObligation} onValueChange={setFilterObligation}>
-          <SelectTrigger className="w-[200px] h-9 bg-background/50 border-border/50">
-            <SelectValue placeholder="Obrigação" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas as Obrigações</SelectItem>
-            {obligations.map((o) => (
-              <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <SearchableSelect
+          value={filterObligation}
+          onChange={setFilterObligation}
+          options={obligations.map((o) => ({ value: o.id, label: o.name }))}
+          placeholder="Todas as obrigações"
+          allLabel="Todas as obrigações"
+          width="w-[220px]"
+        />
 
         {/* View Toggle */}
         <div className="ml-auto">

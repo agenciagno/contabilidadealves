@@ -38,8 +38,8 @@ export function TaskCard({ task, contactName, responsibleName, responsibleInitia
       {...dragProps}
     >
       <CardContent className="p-3 space-y-2">
-        <p className="text-xs text-muted-foreground truncate">{contactName}</p>
-        <p className="text-sm font-medium text-foreground line-clamp-2">{task.title}</p>
+        <p className="text-sm font-semibold text-foreground truncate">{contactName}</p>
+        <p className="text-xs text-muted-foreground line-clamp-2">{task.title}</p>
 
         <div className="flex items-center justify-between pt-1">
           <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0', dateColor.bg, dateColor.text, dateColor.border)}>

@@ -8,6 +8,7 @@ import {
   Clock,
   Download,
   ListChecks,
+  Printer,
   RefreshCw,
 } from 'lucide-react';
 import {
@@ -34,13 +35,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { useCompany } from '@/hooks/useCompany';
-import {
-  exportProductivity,
-  exportCompliance,
-  exportCriticalDueDates,
-  exportExecutive,
-  ExportTask,
-} from '@/lib/fiscal-exports';
 import {
   Select,
   SelectContent,
@@ -229,43 +223,21 @@ export default function FiscalDashboard() {
     qc.invalidateQueries({ queryKey: ['fiscal-dashboard'] });
   };
 
-  const fetchExportData = async (): Promise<{ tasks: ExportTask[]; contacts: any[]; profiles: any[] }> => {
-    const [{ data: tasks }, { data: contacts }, { data: profiles }] = await Promise.all([
-      (supabase as any)
-        .from('fiscal_tasks')
-        .select('id, status, due_date, fiscal_due_date, responsible_id, contact_id, title, fiscal_obligations_catalog(name)')
-        .eq('company_id', companyId)
-        .eq('competence_year', year)
-        .eq('competence_month', month),
-      supabase.from('contacts').select('id, name, document').eq('company_id', companyId),
-      supabase
-        .from('profiles')
-        .select('id, full_name, email')
-        .eq('company_id', companyId)
-        .eq('status_active', true)
-        .or('role.in.(admin,super_admin,colaborador),allowed_modules.cs.{fiscal}'),
-    ]);
-    const mappedTasks: ExportTask[] = (tasks ?? []).map((t: any) => ({
-      ...t,
-      obligation_name: t.fiscal_obligations_catalog?.name ?? null,
-    }));
-    return { tasks: mappedTasks, contacts: contacts ?? [], profiles: profiles ?? [] };
+  const handlePrint = () => {
+    window.print();
   };
 
-  const handleExport = async (kind: 'productivity' | 'compliance' | 'critical' | 'executive') => {
-    const { tasks, contacts, profiles } = await fetchExportData();
-    if (kind === 'productivity') exportProductivity(tasks, profiles, year, month);
-    if (kind === 'compliance') exportCompliance(tasks, contacts, profiles, year, month);
-    if (kind === 'critical') exportCriticalDueDates(tasks, contacts, profiles, year, month);
-    if (kind === 'executive') exportExecutive(tasks, contacts, profiles, year, month);
-  };
 
   const fmt = (s: string | null) => (s ? format(parseISO(s), 'dd/MM/yyyy') : '—');
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 fiscal-print-area">
+      {/* Print-only title */}
+      <div className="hidden print:block print-title">
+        <h1 className="text-2xl font-bold">Dashboard Fiscal — {String(month).padStart(2, '0')}/{year}</h1>
+      </div>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 print:hidden">
         <h1 className="text-2xl font-semibold">Dashboard Fiscal</h1>
         <div className="flex flex-wrap items-center gap-2">
           <Select value={String(month)} onValueChange={(v) => setMonth(Number(v))}>
@@ -291,18 +263,12 @@ export default function FiscalDashboard() {
                 <Download className="h-4 w-4" /> Exportar
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64">
-              <DropdownMenuItem onClick={() => handleExport('productivity')}>
-                Produtividade da Equipe
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onClick={handlePrint}>
+                <Download className="h-4 w-4" /> Exportar como PDF
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport('compliance')}>
-                Compliance por Cliente
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport('critical')}>
-                Vencimentos Críticos
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport('executive')}>
-                Relatório Executivo do Mês
+              <DropdownMenuItem onClick={handlePrint}>
+                <Printer className="h-4 w-4" /> Imprimir
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -430,6 +396,11 @@ export default function FiscalDashboard() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Print-only footer */}
+      <div className="hidden print:block print-footer text-xs text-muted-foreground pt-4 border-t">
+        Gerado em {format(new Date(), 'dd/MM/yyyy HH:mm')} — Contabilidade Alves
+      </div>
     </div>
   );
 }

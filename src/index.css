@@ -327,6 +327,10 @@ button, a, [role="button"] {
   table th, table td {
     padding: 2px 4px !important;
   }
+
+  .fiscal-print-area .upcoming-table-card {
+    page-break-before: auto;
+  }
 }
 
 /* ─── Mobile overflow prevention ─── */

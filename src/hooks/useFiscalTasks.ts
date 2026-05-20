@@ -28,6 +28,7 @@ export interface FiscalTaskFilters {
   contactId?: string;
   responsibleId?: string;
   titleSearch?: string;
+  sortOrder?: 'asc' | 'desc';
 }
 
 export function useFiscalTasks(filters: FiscalTaskFilters = {}) {
@@ -59,7 +60,7 @@ export function useFiscalTasks(filters: FiscalTaskFilters = {}) {
       let query = supabase
         .from('fiscal_tasks')
         .select('*')
-        .order('due_date', { ascending: true });
+        .order('due_date', { ascending: filters.sortOrder !== 'desc' });
 
       if (companyId) {
         query = query.eq('company_id', companyId);
@@ -123,11 +124,21 @@ export function useFiscalTasks(filters: FiscalTaskFilters = {}) {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['fiscal-tasks'] });
+    onMutate: async ({ id, ...updates }) => {
+      await queryClient.cancelQueries({ queryKey: ['fiscal-tasks'] });
+      const snapshots = queryClient.getQueriesData<FiscalTask[]>({ queryKey: ['fiscal-tasks'] });
+      snapshots.forEach(([key, old]) => {
+        if (!old) return;
+        queryClient.setQueryData<FiscalTask[]>(key, old.map((t) => (t.id === id ? { ...t, ...updates } as FiscalTask : t)));
+      });
+      return { snapshots };
     },
-    onError: () => {
-      toast({ title: 'Erro ao atualizar tarefa', variant: 'destructive' });
+    onError: (_err, _vars, ctx) => {
+      ctx?.snapshots?.forEach(([key, old]) => queryClient.setQueryData(key, old));
+      toast({ title: 'Erro ao atualizar status', variant: 'destructive' });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['fiscal-tasks'] });
     },
   });
 

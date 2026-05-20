@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
-import { CheckCircle2, Info, Loader2, Pencil, Rocket, Zap } from 'lucide-react';
+import { CalendarRange, CheckCircle2, Info, Loader2, Pencil, Rocket, Zap } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -46,11 +46,10 @@ export default function FiscalCalendar() {
   const [year, setYear] = useState<number>(now.getFullYear());
   const [month, setMonth] = useState<number>(now.getMonth() + 1);
 
-  const { data: rows, isLoading } = useFiscalCalendar(year, month);
+  const [phase, setPhase] = useState<Phase>('idle');
+  const { data: rows, isLoading } = useFiscalCalendar(year, month, phase !== 'idle');
   const calculate = useCalculateCalendar();
   const confirm = useConfirmMonthlyTasks();
-
-  const [phase, setPhase] = useState<Phase>('idle');
 
   useEffect(() => {
     try {
@@ -66,6 +65,16 @@ export default function FiscalCalendar() {
     try {
       sessionStorage.setItem(phaseKey(year, month), next);
     } catch {}
+  };
+
+  // Reset phase to idle on period change (clears table)
+  const handleMonthChange = (v: string) => {
+    setPhasePersist('idle');
+    setMonth(Number(v));
+  };
+  const handleYearChange = (v: string) => {
+    setPhasePersist('idle');
+    setYear(Number(v));
   };
 
   const [editing, setEditing] = useState<FiscalCalendarEffectiveRow | null>(null);
@@ -90,7 +99,7 @@ export default function FiscalCalendar() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h1 className="text-2xl font-semibold">Calendário Fiscal</h1>
         <div className="flex flex-wrap items-center gap-2">
-          <Select value={String(month)} onValueChange={(v) => setMonth(Number(v))}>
+          <Select value={String(month)} onValueChange={handleMonthChange}>
             <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               {MONTHS.map((m, i) => (
@@ -98,7 +107,7 @@ export default function FiscalCalendar() {
               ))}
             </SelectContent>
           </Select>
-          <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
+          <Select value={String(year)} onValueChange={handleYearChange}>
             <SelectTrigger className="w-[110px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               {YEARS.map((y) => (
@@ -158,7 +167,16 @@ export default function FiscalCalendar() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
+            {phase === 'idle' ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-16 text-muted-foreground">
+                  <div className="flex flex-col items-center gap-3">
+                    <CalendarRange className="h-10 w-10 opacity-40" />
+                    <p>Clique em <strong>Calcular Calendário</strong> para visualizar as obrigações do período.</p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
                   {Array.from({ length: 7 }).map((_, j) => (
