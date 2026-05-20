@@ -490,6 +490,51 @@ export default function FiscalCalendar() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <CustomObligationDialog
+        open={customOpen}
+        onOpenChange={(o) => { setCustomOpen(o); if (!o) setCustomInitial(null); }}
+        initial={customInitial}
+      />
+
+      <AlertDialog open={!!obligationToDelete} onOpenChange={(o) => !o && setObligationToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir obrigação personalizada</AlertDialogTitle>
+            <AlertDialogDescription>
+              {obligationToDelete && (
+                <>Excluir definitivamente a obrigação personalizada "{obligationToDelete.name}"? Esta ação removerá a obrigação de todos os meses e contatos vinculados.</>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!obligationToDelete) return;
+                try {
+                  const { error } = await (supabase as any)
+                    .from('fiscal_obligations_catalog')
+                    .delete()
+                    .eq('id', obligationToDelete.id)
+                    .eq('is_custom', true);
+                  if (error) throw error;
+                  toast.success('✅ Obrigação personalizada excluída.');
+                  qc.invalidateQueries({ queryKey: ['fiscal-calendar'] });
+                  qc.invalidateQueries({ queryKey: ['fiscal-obligations-catalog'] });
+                } catch (e: any) {
+                  toast.error(e?.message ?? 'Erro ao excluir');
+                } finally {
+                  setObligationToDelete(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
