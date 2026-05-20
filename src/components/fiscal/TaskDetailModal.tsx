@@ -345,3 +345,66 @@ export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, 
     </Sheet>
   );
 }
+
+function ChecklistRow({
+  task,
+  onUpload,
+}: {
+  task: FiscalTask;
+  onUpload?: (task: FiscalTask, file: File) => Promise<void>;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const done = task.status === 'concluido' || !!task.attachment_url;
+  const inputId = `chk-${task.id}`;
+
+  const handle = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !onUpload) return;
+    try {
+      setUploading(true);
+      await onUpload(task, file);
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center gap-2 min-w-0">
+        {done ? (
+          <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+        ) : (
+          <div className="w-4 h-4 rounded-sm border border-muted-foreground/40 shrink-0" />
+        )}
+        <span className={`text-sm truncate ${done ? 'line-through text-muted-foreground' : ''}`}>
+          {task.title}
+        </span>
+      </div>
+      {done && task.attachment_url ? (
+        <a
+          href={task.attachment_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-primary underline shrink-0 inline-flex items-center gap-1"
+        >
+          <Paperclip className="w-3 h-3" /> Ver anexo
+        </a>
+      ) : done ? (
+        <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 shrink-0">
+          ✅ Anexado
+        </Badge>
+      ) : (
+        <>
+          <Label htmlFor={inputId} className="cursor-pointer shrink-0">
+            <div className="inline-flex items-center gap-1 px-2 py-1 rounded border border-dashed border-border hover:bg-muted/50 text-xs">
+              <Upload className="w-3 h-3" />
+              {uploading ? 'Enviando...' : '📎 Anexar'}
+            </div>
+          </Label>
+          <input id={inputId} type="file" className="hidden" onChange={handle} disabled={uploading} />
+        </>
+      )}
+    </div>
+  );
+}
