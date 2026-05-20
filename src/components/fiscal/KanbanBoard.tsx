@@ -343,6 +343,7 @@ export function KanbanBoard({ tasks, contactsMap, profilesMap, onStatusChange, o
                     contactsMap={contactsMap}
                     profilesMap={profilesMap}
                     onUploadAttachment={onUploadAttachment ?? noopUpload}
+                    onCardClick={onGroupClick ? () => onGroupClick(item.tasks) : undefined}
                   />
                 )
               ))}
