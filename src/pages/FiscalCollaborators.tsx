@@ -19,6 +19,8 @@ import {
   useCollaboratorDetails,
 } from '@/hooks/useCollaboratorCoverage';
 import { TransferClientsModal } from '@/components/fiscal/TransferClientsModal';
+import { TransferHistory } from '@/components/fiscal/TransferHistory';
+
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -105,34 +107,29 @@ export default function FiscalCollaborators() {
   const handleTransfer = async ({ fromId, toId, fromName, toName }: { fromId: string; toId: string; fromName: string; toName: string }) => {
     if (!companyId) return;
     try {
-      const { error: cErr } = await supabase
-        .from('contacts')
-        .update({ responsible_id: toId })
-        .eq('company_id', companyId)
-        .eq('is_active', true)
-        .eq('responsible_id', fromId);
-      if (cErr) throw cErr;
-
-      const { error: tErr } = await (supabase as any)
-        .from('fiscal_tasks')
-        .update({ responsible_id: toId })
-        .eq('company_id', companyId)
-        .neq('status', 'concluido')
-        .eq('responsible_id', fromId);
-      if (tErr) throw tErr;
-
-      toast.success(`✅ Clientes e tarefas transferidos de ${fromName} para ${toName}.`);
-      queryClient.invalidateQueries({ queryKey: ['collaborators-with-clients'] });
-      queryClient.invalidateQueries({ queryKey: ['client-count-by-profile'] });
-      queryClient.invalidateQueries({ queryKey: ['fiscal-tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['fiscal-dashboard'] });
-      queryClient.invalidateQueries({ queryKey: ['contacts'] });
-      queryClient.invalidateQueries({ queryKey: ['company-profiles-fiscal-with-clients'] });
+      const { data, error } = await (supabase as any).rpc('transfer_clients_with_log', {
+        p_from_profile_id: fromId,
+        p_to_profile_id: toId,
+      });
+      if (error) throw error;
+      if (data?.success) {
+        toast.success(`✅ ${data.contacts_transferred} clientes e ${data.tasks_transferred} tarefas transferidos de ${fromName} para ${toName}.`);
+        queryClient.invalidateQueries({ queryKey: ['collaborators-with-clients'] });
+        queryClient.invalidateQueries({ queryKey: ['client-count-by-profile'] });
+        queryClient.invalidateQueries({ queryKey: ['fiscal-tasks'] });
+        queryClient.invalidateQueries({ queryKey: ['fiscal-dashboard'] });
+        queryClient.invalidateQueries({ queryKey: ['contacts'] });
+        queryClient.invalidateQueries({ queryKey: ['company-profiles-fiscal-with-clients'] });
+        queryClient.invalidateQueries({ queryKey: ['transfer-log'] });
+      } else {
+        toast.error(data?.error || 'Erro ao transferir clientes');
+      }
     } catch (e: any) {
       toast.error(e?.message ?? 'Erro ao transferir.');
       throw e;
     }
   };
+
 
   return (
     <div className="space-y-6">
@@ -192,6 +189,9 @@ export default function FiscalCollaborators() {
           )}
         </div>
       </section>
+
+      {(isAdmin || isSuperAdmin) && <TransferHistory />}
+
 
       <TransferClientsModal
         open={modalOpen}
