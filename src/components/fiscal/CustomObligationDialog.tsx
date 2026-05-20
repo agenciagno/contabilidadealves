@@ -105,6 +105,7 @@ export function CustomObligationDialog({ open, onOpenChange, initial }: Props) {
       active: true,
       is_custom: true,
       internal_delivery_offset: internalOffset,
+      internal_delivery_days: internalOffset,
     };
 
     setSaving(true);
