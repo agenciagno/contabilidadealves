@@ -19,6 +19,8 @@ import {
   useCollaboratorDetails,
 } from '@/hooks/useCollaboratorCoverage';
 import { TransferClientsModal } from '@/components/fiscal/TransferClientsModal';
+import { TransferHistory } from '@/components/fiscal/TransferHistory';
+
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
