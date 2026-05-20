@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
-import { CalendarRange, CheckCircle2, Info, Loader2, Pencil, Rocket, Zap } from 'lucide-react';
+import { CalendarRange, CheckCircle2, Info, Loader2, Pencil, Rocket, Trash2, X, Zap } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -21,6 +22,16 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useUserRole } from '@/hooks/useUserRole';
 import {
   useFiscalCalendar,
@@ -29,6 +40,10 @@ import {
   FiscalCalendarEffectiveRow,
 } from '@/hooks/useFiscalCalendar';
 import { FiscalObligationOverrideDialog } from '@/components/fiscal/FiscalObligationOverrideDialog';
+import { BulkEditCalendarDialog } from '@/components/fiscal/BulkEditCalendarDialog';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 const MONTHS = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -41,6 +56,7 @@ const phaseKey = (y: number, m: number) => `fiscal-calendar-phase:${y}-${m}`;
 
 export default function FiscalCalendar() {
   const { isAdmin, isSuperAdmin, isLoading: roleLoading } = useUserRole();
+  const qc = useQueryClient();
 
   const now = new Date();
   const [year, setYear] = useState<number>(now.getFullYear());
@@ -67,20 +83,40 @@ export default function FiscalCalendar() {
     } catch {}
   };
 
-  // Reset phase to idle on period change (clears table)
   const handleMonthChange = (v: string) => {
     setPhasePersist('idle');
     setMonth(Number(v));
+    setSelected(new Set());
   };
   const handleYearChange = (v: string) => {
     setPhasePersist('idle');
     setYear(Number(v));
+    setSelected(new Set());
   };
 
   const [editing, setEditing] = useState<FiscalCalendarEffectiveRow | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
+  // selection state
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [lastIdx, setLastIdx] = useState<number | null>(null);
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [rowToDelete, setRowToDelete] = useState<FiscalCalendarEffectiveRow | null>(null);
+
   const sorted = useMemo(() => rows ?? [], [rows]);
+
+  // Reset selection when rows change set
+  useEffect(() => {
+    setSelected((prev) => {
+      const ids = new Set(sorted.map((r) => r.id));
+      const next = new Set<string>();
+      prev.forEach((id) => {
+        if (ids.has(id)) next.add(id);
+      });
+      return next;
+    });
+  }, [sorted]);
 
   if (roleLoading) return null;
   if (!isAdmin && !isSuperAdmin) return <Navigate to="/fiscal/tarefas" replace />;
@@ -93,6 +129,66 @@ export default function FiscalCalendar() {
   const handleConfirm = () => {
     confirm.mutate({ year, month }, { onSuccess: () => setPhasePersist('launched') });
   };
+
+  const allChecked = sorted.length > 0 && selected.size === sorted.length;
+  const someChecked = selected.size > 0 && selected.size < sorted.length;
+
+  const toggleAll = () => {
+    if (allChecked) {
+      setSelected(new Set());
+      setLastIdx(null);
+    } else {
+      setSelected(new Set(sorted.map((r) => r.id)));
+    }
+  };
+
+  const handleRowCheckbox = (idx: number, e: React.MouseEvent) => {
+    const id = sorted[idx].id;
+    const next = new Set(selected);
+    if (e.shiftKey && lastIdx !== null) {
+      const [s, eIdx] = lastIdx < idx ? [lastIdx, idx] : [idx, lastIdx];
+      for (let i = s; i <= eIdx; i++) next.add(sorted[i].id);
+    } else {
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+    }
+    setSelected(next);
+    setLastIdx(idx);
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selected);
+    try {
+      const { error } = await (supabase as any)
+        .from('fiscal_calendar')
+        .delete()
+        .in('id', ids);
+      if (error) throw error;
+      toast.success(`✅ ${ids.length} entrada(s) excluída(s).`);
+      setSelected(new Set());
+      setLastIdx(null);
+      qc.invalidateQueries({ queryKey: ['fiscal-calendar'] });
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Erro ao excluir');
+    } finally {
+      setBulkDeleteOpen(false);
+    }
+  };
+
+  const handleDeleteRow = async (id: string) => {
+    try {
+      const { error } = await (supabase as any).from('fiscal_calendar').delete().eq('id', id);
+      if (error) throw error;
+      toast.success('✅ Obrigação removida do calendário.');
+      qc.invalidateQueries({ queryKey: ['fiscal-calendar'] });
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Erro ao excluir');
+    } finally {
+      setRowToDelete(null);
+    }
+  };
+
+  const COL_COUNT = 7;
 
   return (
     <div className="p-6 space-y-6">
@@ -153,23 +249,48 @@ export default function FiscalCalendar() {
         </div>
       )}
 
+      {selected.size > 0 && (
+        <div className="sticky top-2 z-10 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2 shadow-sm">
+          <span className="text-sm font-medium">
+            {selected.size} obrigação(ões) selecionada(s)
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => setBulkEditOpen(true)}>
+              <Pencil className="h-4 w-4" /> Editar selecionados
+            </Button>
+            <Button size="sm" variant="destructive" onClick={() => setBulkDeleteOpen(true)}>
+              <Trash2 className="h-4 w-4" /> Excluir selecionados
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => { setSelected(new Set()); setLastIdx(null); }}>
+              <X className="h-4 w-4" /> Desmarcar tudo
+            </Button>
+          </div>
+        </div>
+      )}
+
       <Card className="overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={allChecked ? true : someChecked ? 'indeterminate' : false}
+                  onCheckedChange={toggleAll}
+                  aria-label="Selecionar todos"
+                />
+              </TableHead>
               <TableHead>Obrigação</TableHead>
-              <TableHead>Código</TableHead>
               <TableHead>Regime</TableHead>
               <TableHead>Vencimento Fiscal</TableHead>
               <TableHead>Entrega Interna</TableHead>
               <TableHead>Override</TableHead>
-              <TableHead className="w-12 text-right">Ações</TableHead>
+              <TableHead className="w-24 text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {phase === 'idle' ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-16 text-muted-foreground">
+                <TableCell colSpan={COL_COUNT} className="text-center py-16 text-muted-foreground">
                   <div className="flex flex-col items-center gap-3">
                     <CalendarRange className="h-10 w-10 opacity-40" />
                     <p>Clique em <strong>Calcular Calendário</strong> para visualizar as obrigações do período.</p>
@@ -179,27 +300,30 @@ export default function FiscalCalendar() {
             ) : isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 7 }).map((_, j) => (
+                  {Array.from({ length: COL_COUNT }).map((_, j) => (
                     <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>
                   ))}
                 </TableRow>
               ))
             ) : sorted.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
+                <TableCell colSpan={COL_COUNT} className="text-center py-10 text-muted-foreground">
                   Nenhuma obrigação encontrada para o período
                 </TableCell>
               </TableRow>
             ) : (
-              sorted.map((r) => {
+              sorted.map((r, idx) => {
                 const cat = r.fiscal_obligations_catalog;
                 const isOverridden = !!r.adjusted_due_date_override;
+                const isChecked = selected.has(r.id);
                 return (
-                  <TableRow key={r.id}>
-                    <TableCell className="font-medium">{cat?.name ?? '—'}</TableCell>
+                  <TableRow key={r.id} data-state={isChecked ? 'selected' : undefined}>
                     <TableCell>
-                      <Badge variant="secondary">{cat?.code ?? '—'}</Badge>
+                      <div onClick={(e) => handleRowCheckbox(idx, e)} className="inline-flex">
+                        <Checkbox checked={isChecked} aria-label="Selecionar linha" />
+                      </div>
                     </TableCell>
+                    <TableCell className="font-medium">{cat?.name ?? '—'}</TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
                         {(cat?.applies_to ?? []).map((t) => (
@@ -221,13 +345,25 @@ export default function FiscalCalendar() {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => { setEditing(r); setDialogOpen(true); }}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
+                      <div className="inline-flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => { setEditing(r); setDialogOpen(true); }}
+                          title="Editar override"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setRowToDelete(r)}
+                          title="Excluir"
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -245,6 +381,55 @@ export default function FiscalCalendar() {
           if (!o) setEditing(null);
         }}
       />
+
+      <BulkEditCalendarDialog
+        open={bulkEditOpen}
+        onOpenChange={setBulkEditOpen}
+        selectedIds={Array.from(selected)}
+        onDone={() => { setSelected(new Set()); setLastIdx(null); }}
+      />
+
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir {selected.size} entrada(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir {selected.size} entrada(s) do calendário? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!rowToDelete} onOpenChange={(o) => !o && setRowToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir entrada</AlertDialogTitle>
+            <AlertDialogDescription>
+              {rowToDelete && (
+                <>Excluir a entrada "{rowToDelete.fiscal_obligations_catalog?.name ?? '—'}" do calendário de {String(month).padStart(2, '0')}/{year}?</>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => rowToDelete && handleDeleteRow(rowToDelete.id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
