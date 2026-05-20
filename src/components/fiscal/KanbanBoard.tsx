@@ -20,8 +20,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 const COLUMNS = [
   { id: 'a_fazer', label: 'A Fazer', color: 'bg-blue-500' },
-  { id: 'aguardando_cliente', label: 'Aguardando Cliente', color: 'bg-yellow-500' },
   { id: 'em_progresso', label: 'Em Progresso', color: 'bg-orange-500' },
+  { id: 'aguardando_cliente', label: 'Aguardando Cliente', color: 'bg-yellow-500' },
   { id: 'concluido', label: 'Concluído', color: 'bg-emerald-500' },
 ] as const;
 

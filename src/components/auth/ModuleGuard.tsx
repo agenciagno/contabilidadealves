@@ -18,10 +18,11 @@ const MODULE_PRIORITY = ['home', 'financeiro', 'fiscal', 'clientes', 'legalizaca
 interface ModuleGuardProps {
   moduleName: string;
   children: ReactNode;
+  requireAdmin?: boolean;
 }
 
-export function ModuleGuard({ moduleName, children }: ModuleGuardProps) {
-  const { isSuperAdmin, allowedModules, isLoading } = useUserRole();
+export function ModuleGuard({ moduleName, children, requireAdmin = false }: ModuleGuardProps) {
+  const { isSuperAdmin, isAdmin, allowedModules, isLoading } = useUserRole();
   const { company } = useCompany();
 
   if (isLoading) return null;
@@ -44,6 +45,10 @@ export function ModuleGuard({ moduleName, children }: ModuleGuardProps) {
     }
 
     return <Navigate to="/sem-acesso" replace />;
+  }
+
+  if (requireAdmin && !isAdmin) {
+    return <Navigate to="/fiscal/tarefas" replace />;
   }
 
   return <>{children}</>;

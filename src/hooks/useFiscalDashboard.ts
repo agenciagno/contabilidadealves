@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useCompany } from '@/hooks/useCompany';
+import { useUserRole } from '@/hooks/useUserRole';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface FiscalTaskRow {
   id: string;
@@ -36,21 +38,44 @@ const inDays = (n: number) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
+function useCurrentProfileId() {
+  const { user } = useAuth();
+  const { isColaborador } = useUserRole();
+  return useQuery({
+    queryKey: ['current-profile-id', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return (data?.id as string | undefined) ?? null;
+    },
+    enabled: !!user?.id && isColaborador,
+  });
+}
+
 export function useFiscalTasksOfMonth(year: number, month: number) {
   const { company } = useCompany();
   const companyId = (company as any)?.id;
+  const { isColaborador } = useUserRole();
+  const { data: profileId } = useCurrentProfileId();
 
   return useQuery<FiscalTaskRow[]>({
-    queryKey: ['fiscal-dashboard', 'tasks', companyId, year, month],
-    enabled: !!companyId,
+    queryKey: ['fiscal-dashboard', 'tasks', companyId, year, month, isColaborador, profileId],
+    enabled: !!companyId && (!isColaborador || !!profileId),
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      let q = (supabase as any)
         .from('fiscal_tasks')
         .select('id, status, due_date, fiscal_due_date, responsible_id')
         .eq('company_id', companyId)
         .eq('competence_year', year)
-        .eq('competence_month', month)
-        .is('deleted_at', null);
+        .eq('competence_month', month);
+      if (isColaborador && profileId) {
+        q = q.eq('responsible_id', profileId);
+      }
+      const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as FiscalTaskRow[];
     },
@@ -70,7 +95,7 @@ export function useFiscalCollaborators() {
         .select('id, full_name')
         .eq('company_id', companyId)
         .eq('status_active', true)
-        .in('role', ['admin', 'colaborador']);
+        .or('role.in.(admin,super_admin,colaborador),allowed_modules.cs.{fiscal}');
       if (error) throw error;
       return (data ?? []) as CollaboratorRow[];
     },
@@ -80,12 +105,14 @@ export function useFiscalCollaborators() {
 export function useUpcomingFiscalTasks() {
   const { company } = useCompany();
   const companyId = (company as any)?.id;
+  const { isColaborador } = useUserRole();
+  const { data: profileId } = useCurrentProfileId();
 
   return useQuery<UpcomingTaskRow[]>({
-    queryKey: ['fiscal-dashboard', 'upcoming', companyId],
-    enabled: !!companyId,
+    queryKey: ['fiscal-dashboard', 'upcoming', companyId, isColaborador, profileId],
+    enabled: !!companyId && (!isColaborador || !!profileId),
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      let q = (supabase as any)
         .from('fiscal_tasks')
         .select(
           'id, title, status, due_date, fiscal_due_date, contacts(name), responsible:profiles!fiscal_tasks_responsible_id_fkey(full_name), fiscal_obligations_catalog(name)'
@@ -96,6 +123,10 @@ export function useUpcomingFiscalTasks() {
         .lte('due_date', inDays(7))
         .order('due_date', { ascending: true })
         .limit(20);
+      if (isColaborador && profileId) {
+        q = q.eq('responsible_id', profileId);
+      }
+      const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as UpcomingTaskRow[];
     },

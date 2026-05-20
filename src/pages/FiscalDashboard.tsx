@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import {
   AlertTriangle,
   CheckCircle2,
   Clock,
+  Download,
   ListChecks,
   RefreshCw,
 } from 'lucide-react';
@@ -25,6 +26,21 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
+import { supabase } from '@/integrations/supabase/client';
+import { useCompany } from '@/hooks/useCompany';
+import {
+  exportProductivity,
+  exportCompliance,
+  exportCriticalDueDates,
+  exportExecutive,
+  ExportTask,
+} from '@/lib/fiscal-exports';
 import {
   Select,
   SelectContent,
@@ -129,6 +145,9 @@ function StatusBadge({ status, isLate }: { status: string; isLate: boolean }) {
 export default function FiscalDashboard() {
   const { isAdmin, isSuperAdmin, isLoading: roleLoading } = useUserRole();
   const qc = useQueryClient();
+  const { company } = useCompany();
+  const companyId = (company as any)?.id;
+
 
   const now = new Date();
   const [year, setYear] = useState<number>(now.getFullYear());
@@ -192,6 +211,37 @@ export default function FiscalDashboard() {
     qc.invalidateQueries({ queryKey: ['fiscal-dashboard'] });
   };
 
+  const fetchExportData = async (): Promise<{ tasks: ExportTask[]; contacts: any[]; profiles: any[] }> => {
+    const [{ data: tasks }, { data: contacts }, { data: profiles }] = await Promise.all([
+      (supabase as any)
+        .from('fiscal_tasks')
+        .select('id, status, due_date, fiscal_due_date, responsible_id, contact_id, title, fiscal_obligations_catalog(name)')
+        .eq('company_id', companyId)
+        .eq('competence_year', year)
+        .eq('competence_month', month),
+      supabase.from('contacts').select('id, name, document').eq('company_id', companyId),
+      supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .eq('company_id', companyId)
+        .eq('status_active', true)
+        .or('role.in.(admin,super_admin,colaborador),allowed_modules.cs.{fiscal}'),
+    ]);
+    const mappedTasks: ExportTask[] = (tasks ?? []).map((t: any) => ({
+      ...t,
+      obligation_name: t.fiscal_obligations_catalog?.name ?? null,
+    }));
+    return { tasks: mappedTasks, contacts: contacts ?? [], profiles: profiles ?? [] };
+  };
+
+  const handleExport = async (kind: 'productivity' | 'compliance' | 'critical' | 'executive') => {
+    const { tasks, contacts, profiles } = await fetchExportData();
+    if (kind === 'productivity') exportProductivity(tasks, profiles, year, month);
+    if (kind === 'compliance') exportCompliance(tasks, contacts, profiles, year, month);
+    if (kind === 'critical') exportCriticalDueDates(tasks, contacts, profiles, year, month);
+    if (kind === 'executive') exportExecutive(tasks, contacts, profiles, year, month);
+  };
+
   const fmt = (s: string | null) => (s ? format(parseISO(s), 'dd/MM/yyyy') : '—');
 
   return (
@@ -217,6 +267,27 @@ export default function FiscalDashboard() {
           <Button variant="outline" onClick={handleRefresh}>
             <RefreshCw className="h-4 w-4" /> Atualizar
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">
+                <Download className="h-4 w-4" /> Exportar
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuItem onClick={() => handleExport('productivity')}>
+                Produtividade da Equipe
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('compliance')}>
+                Compliance por Cliente
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('critical')}>
+                Vencimentos Críticos
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('executive')}>
+                Relatório Executivo do Mês
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
