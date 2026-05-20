@@ -478,7 +478,7 @@ export default function FiscalTasks() {
       <TaskCreateModal
         open={createOpen}
         onOpenChange={setCreateOpen}
-        contacts={contacts.map(c => ({ id: c.id, name: c.name, responsible_id: (c as any).responsible_id }))}
+        contacts={fiscalContacts.map((c: any) => ({ id: c.id, name: c.name, responsible_id: c.responsible_id }))}
         profiles={companyProfiles}
         onSubmit={handleCreate}
         isLoading={createTask.isPending}
@@ -489,7 +489,7 @@ export default function FiscalTasks() {
         open={detailOpen}
         onOpenChange={setDetailOpen}
         task={selectedTask}
-        contacts={contacts.map(c => ({ id: c.id, name: c.name }))}
+        contacts={fiscalContacts.map((c: any) => ({ id: c.id, name: c.name }))}
         profiles={companyProfiles}
         onUpdate={(id, data) => updateTask.mutate({ id, ...data })}
         onDelete={id => deleteTask.mutate(id)}
