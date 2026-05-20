@@ -227,6 +227,14 @@ export default function FiscalTasks() {
 
   const handleTaskClick = (task: FiscalTask) => {
     setSelectedTask(task);
+    setSelectedGroupTasks(null);
+    setDetailOpen(true);
+  };
+
+  const handleGroupClick = (groupTasks: FiscalTask[]) => {
+    if (!groupTasks.length) return;
+    setSelectedTask(groupTasks[0]);
+    setSelectedGroupTasks(groupTasks);
     setDetailOpen(true);
   };
 
