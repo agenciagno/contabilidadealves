@@ -223,36 +223,10 @@ export default function FiscalDashboard() {
     qc.invalidateQueries({ queryKey: ['fiscal-dashboard'] });
   };
 
-  const fetchExportData = async (): Promise<{ tasks: ExportTask[]; contacts: any[]; profiles: any[] }> => {
-    const [{ data: tasks }, { data: contacts }, { data: profiles }] = await Promise.all([
-      (supabase as any)
-        .from('fiscal_tasks')
-        .select('id, status, due_date, fiscal_due_date, responsible_id, contact_id, title, fiscal_obligations_catalog(name)')
-        .eq('company_id', companyId)
-        .eq('competence_year', year)
-        .eq('competence_month', month),
-      supabase.from('contacts').select('id, name, document').eq('company_id', companyId),
-      supabase
-        .from('profiles')
-        .select('id, full_name, email')
-        .eq('company_id', companyId)
-        .eq('status_active', true)
-        .or('role.in.(admin,super_admin,colaborador),allowed_modules.cs.{fiscal}'),
-    ]);
-    const mappedTasks: ExportTask[] = (tasks ?? []).map((t: any) => ({
-      ...t,
-      obligation_name: t.fiscal_obligations_catalog?.name ?? null,
-    }));
-    return { tasks: mappedTasks, contacts: contacts ?? [], profiles: profiles ?? [] };
+  const handlePrint = () => {
+    window.print();
   };
 
-  const handleExport = async (kind: 'productivity' | 'compliance' | 'critical' | 'executive') => {
-    const { tasks, contacts, profiles } = await fetchExportData();
-    if (kind === 'productivity') exportProductivity(tasks, profiles, year, month);
-    if (kind === 'compliance') exportCompliance(tasks, contacts, profiles, year, month);
-    if (kind === 'critical') exportCriticalDueDates(tasks, contacts, profiles, year, month);
-    if (kind === 'executive') exportExecutive(tasks, contacts, profiles, year, month);
-  };
 
   const fmt = (s: string | null) => (s ? format(parseISO(s), 'dd/MM/yyyy') : '—');
 
