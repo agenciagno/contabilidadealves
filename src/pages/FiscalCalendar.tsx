@@ -105,6 +105,11 @@ export default function FiscalCalendar() {
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [rowToDelete, setRowToDelete] = useState<FiscalCalendarEffectiveRow | null>(null);
 
+  // custom obligation dialog
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customInitial, setCustomInitial] = useState<CustomObligationInitial | null>(null);
+  const [obligationToDelete, setObligationToDelete] = useState<{ id: string; name: string } | null>(null);
+
   const sorted = useMemo(() => rows ?? [], [rows]);
 
   // Reset selection when rows change set
