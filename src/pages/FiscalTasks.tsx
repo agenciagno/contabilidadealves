@@ -523,12 +523,14 @@ export default function FiscalTasks() {
       {/* Detail Modal */}
       <TaskDetailModal
         open={detailOpen}
-        onOpenChange={setDetailOpen}
+        onOpenChange={(o) => { setDetailOpen(o); if (!o) setSelectedGroupTasks(null); }}
         task={selectedTask}
         contacts={fiscalContacts.map((c: any) => ({ id: c.id, name: c.name }))}
         profiles={companyProfiles}
         onUpdate={(id, data) => updateTask.mutate({ id, ...data })}
         onDelete={id => deleteTask.mutate(id)}
+        groupTasks={selectedGroupTasks}
+        onUploadForTask={handleUploadAttachment}
       />
 
       <BulkReassignModal
