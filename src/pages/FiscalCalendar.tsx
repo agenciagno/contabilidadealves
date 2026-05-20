@@ -41,6 +41,7 @@ import {
 } from '@/hooks/useFiscalCalendar';
 import { FiscalObligationOverrideDialog } from '@/components/fiscal/FiscalObligationOverrideDialog';
 import { BulkEditCalendarDialog } from '@/components/fiscal/BulkEditCalendarDialog';
+import { CustomObligationDialog, CustomObligationInitial } from '@/components/fiscal/CustomObligationDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
