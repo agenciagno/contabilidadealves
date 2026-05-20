@@ -1,9 +1,10 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { format } from 'date-fns';
+import { format, isValid, parse } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Plus, Kanban, List, CalendarDays, CalendarIcon, X, ArrowRightLeft } from 'lucide-react';
+import { Plus, Kanban, List, CalendarDays, CalendarIcon, X, ArrowRightLeft, ArrowDownNarrowWide, ArrowUpNarrowWide } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -21,9 +22,61 @@ import { TaskCalendarView } from '@/components/fiscal/TaskCalendarView';
 import { TaskDetailModal } from '@/components/fiscal/TaskDetailModal';
 import { TaskCreateModal } from '@/components/fiscal/TaskCreateModal';
 import { BulkReassignModal } from '@/components/fiscal/BulkReassignModal';
+import { SearchableSelect } from '@/components/fiscal/SearchableSelect';
 import { toast } from 'sonner';
 
 type ViewMode = 'kanban' | 'list' | 'calendar';
+type SortOrder = 'desc' | 'asc';
+
+// DateInput: accepts DD/MM/YYYY typing + popover calendar
+function DateInput({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: Date | undefined;
+  onChange: (d: Date | undefined) => void;
+  placeholder: string;
+}) {
+  const [text, setText] = useState(value ? format(value, 'dd/MM/yyyy') : '');
+  useEffect(() => {
+    setText(value ? format(value, 'dd/MM/yyyy') : '');
+  }, [value]);
+
+  const commit = (raw: string) => {
+    if (!raw.trim()) {
+      onChange(undefined);
+      return;
+    }
+    const parsed = parse(raw, 'dd/MM/yyyy', new Date());
+    if (isValid(parsed)) onChange(parsed);
+    else setText(value ? format(value, 'dd/MM/yyyy') : '');
+  };
+
+  return (
+    <div className="flex items-center gap-1">
+      <Input
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={(e) => commit(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+        placeholder={placeholder}
+        className="h-9 w-[120px] text-sm"
+      />
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" size="sm" className="h-9 w-9 p-0">
+            <CalendarIcon className="w-3.5 h-3.5" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar mode="single" selected={value} onSelect={onChange} className="p-3 pointer-events-auto" />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
 
 export default function FiscalTasks() {
   const { company } = useCompany();
