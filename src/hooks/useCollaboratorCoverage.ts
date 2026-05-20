@@ -24,11 +24,46 @@ export interface CoverageRow {
   created_at: string;
 }
 
+async function fetchProfileIdsWithActiveClients(companyId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('contacts')
+    .select('responsible_id')
+    .eq('company_id', companyId)
+    .eq('is_active', true)
+    .not('responsible_id', 'is', null);
+  if (error) throw error;
+  return Array.from(new Set((data ?? []).map((r: any) => r.responsible_id).filter(Boolean)));
+}
+
 export function useCollaborators() {
   const { company } = useCompany();
   const companyId = company?.id;
   return useQuery<Collaborator[]>({
-    queryKey: ['collaborators', companyId],
+    queryKey: ['collaborators-with-clients', companyId],
+    queryFn: async () => {
+      if (!companyId) return [];
+      const ids = await fetchProfileIdsWithActiveClients(companyId);
+      if (ids.length === 0) return [];
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, user_id, full_name, email, avatar_url, status_active')
+        .eq('company_id', companyId)
+        .eq('status_active', true)
+        .in('id', ids)
+        .order('full_name', { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as Collaborator[];
+    },
+    enabled: !!companyId,
+  });
+}
+
+/** All active profiles with fiscal module access (for "Para:" destination of transfers). */
+export function useAllFiscalProfiles() {
+  const { company } = useCompany();
+  const companyId = company?.id;
+  return useQuery<Collaborator[]>({
+    queryKey: ['all-fiscal-profiles', companyId],
     queryFn: async () => {
       if (!companyId) return [];
       const { data, error } = await supabase

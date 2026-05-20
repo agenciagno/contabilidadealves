@@ -125,17 +125,31 @@ function StatusBadge({ status, isLate }: { status: string; isLate: boolean }) {
       </Badge>
     );
   }
-  if (status === 'em_andamento') {
+  if (status === 'em_progresso') {
     return (
-      <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30 hover:bg-blue-500/20">
+      <Badge className="bg-orange-500/15 text-orange-700 dark:text-orange-400 border-orange-500/30 hover:bg-orange-500/20">
         Em andamento
       </Badge>
     );
   }
-  if (status === 'pendente') {
+  if (status === 'aguardando_cliente') {
     return (
       <Badge className="bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/20">
-        Pendente
+        Aguardando
+      </Badge>
+    );
+  }
+  if (status === 'a_fazer') {
+    return (
+      <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30 hover:bg-blue-500/20">
+        A Fazer
+      </Badge>
+    );
+  }
+  if (status === 'concluido') {
+    return (
+      <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20">
+        Concluído
       </Badge>
     );
   }
@@ -163,19 +177,22 @@ export default function FiscalDashboard() {
     const tasks = tasksQ.data ?? [];
     const total = tasks.length;
     const concluidas = tasks.filter((t) => t.status === 'concluido').length;
-    const pendentes = tasks.filter((t) => t.status === 'pendente').length;
     const atrasadas = tasks.filter((t) => isLateTask(t, today)).length;
-    return { total, concluidas, pendentes, atrasadas };
+    const pendentes = tasks.filter(
+      (t) => t.status === 'a_fazer' && (!t.due_date || t.due_date >= today)
+    ).length;
+    const emAndamento = tasks.filter((t) => t.status === 'em_progresso').length;
+    return { total, concluidas, pendentes, atrasadas, emAndamento };
   }, [tasksQ.data, today]);
 
   const chartData = useMemo(() => {
     const tasks = tasksQ.data ?? [];
     const collabs = collabsQ.data ?? [];
-    const map = new Map<string, { name: string; concluidas: number; pendentes: number; atrasadas: number }>();
+    const map = new Map<string, { name: string; concluidas: number; pendentes: number; emAndamento: number; atrasadas: number }>();
     collabs.forEach((c) => {
-      map.set(c.id, { name: c.full_name ?? '—', concluidas: 0, pendentes: 0, atrasadas: 0 });
+      map.set(c.id, { name: c.full_name ?? '—', concluidas: 0, pendentes: 0, emAndamento: 0, atrasadas: 0 });
     });
-    map.set('__none__', { name: 'Sem responsável', concluidas: 0, pendentes: 0, atrasadas: 0 });
+    map.set('__none__', { name: 'Sem responsável', concluidas: 0, pendentes: 0, emAndamento: 0, atrasadas: 0 });
 
     tasks.forEach((t: FiscalTaskRow) => {
       const key = t.responsible_id ?? '__none__';
@@ -183,11 +200,12 @@ export default function FiscalDashboard() {
       if (!entry) return;
       if (isLateTask(t, today)) entry.atrasadas += 1;
       else if (t.status === 'concluido') entry.concluidas += 1;
-      else if (t.status === 'pendente') entry.pendentes += 1;
+      else if (t.status === 'em_progresso') entry.emAndamento += 1;
+      else if (t.status === 'a_fazer') entry.pendentes += 1;
     });
 
     return Array.from(map.values()).filter(
-      (e) => e.concluidas + e.pendentes + e.atrasadas > 0 || e.name !== 'Sem responsável'
+      (e) => e.concluidas + e.pendentes + e.emAndamento + e.atrasadas > 0 || e.name !== 'Sem responsável'
     );
   }, [tasksQ.data, collabsQ.data, today]);
 
@@ -293,10 +311,10 @@ export default function FiscalDashboard() {
 
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label="Total de Tarefas" value={kpis.total} total={kpis.total} icon={ListChecks} borderClass="border-l-blue-500" iconClass="text-blue-500" />
-        <KpiCard label="Concluídas" value={kpis.concluidas} total={kpis.total} icon={CheckCircle2} borderClass="border-l-green-500" iconClass="text-green-500" />
-        <KpiCard label="Pendentes" value={kpis.pendentes} total={kpis.total} icon={Clock} borderClass="border-l-yellow-500" iconClass="text-yellow-500" />
+        <KpiCard label="Pendentes" value={kpis.pendentes} total={kpis.total} icon={Clock} borderClass="border-l-blue-500" iconClass="text-blue-500" />
+        <KpiCard label="Em andamento" value={kpis.emAndamento} total={kpis.total} icon={ListChecks} borderClass="border-l-orange-500" iconClass="text-orange-500" />
         <KpiCard label="Atrasadas" value={kpis.atrasadas} total={kpis.total} icon={AlertTriangle} borderClass="border-l-red-500" iconClass="text-red-500" />
+        <KpiCard label="Concluídas" value={kpis.concluidas} total={kpis.total} icon={CheckCircle2} borderClass="border-l-green-500" iconClass="text-green-500" />
       </div>
 
       {/* Chart */}
@@ -314,7 +332,8 @@ export default function FiscalDashboard() {
                 <Tooltip />
                 <Legend />
                 <Bar dataKey="concluidas" name="Concluídas" stackId="a" fill={COLOR_OK} radius={[0, 0, 0, 0]} />
-                <Bar dataKey="pendentes" name="Pendentes" stackId="a" fill={COLOR_PENDING} />
+                <Bar dataKey="pendentes" name="Pendentes" stackId="a" fill="hsl(217 91% 60%)" />
+                <Bar dataKey="emAndamento" name="Em andamento" stackId="a" fill="hsl(25 95% 53%)" />
                 <Bar dataKey="atrasadas" name="Atrasadas" stackId="a" fill={COLOR_LATE} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
