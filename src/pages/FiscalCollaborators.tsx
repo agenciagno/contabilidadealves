@@ -94,8 +94,6 @@ export default function FiscalCollaborators() {
   }, [isAdmin, isSuperAdmin, navigate]);
 
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
 
   const { data: collaborators = [] } = useCollaborators();
   const { data: allFiscalProfiles = [] } = useAllFiscalProfiles();
