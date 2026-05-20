@@ -331,6 +331,7 @@ export default function FiscalCalendar() {
                 const cat = r.fiscal_obligations_catalog;
                 const isOverridden = !!r.adjusted_due_date_override;
                 const isChecked = selected.has(r.id);
+                const isCustom = !!cat?.is_custom;
                 return (
                   <TableRow key={r.id} data-state={isChecked ? 'selected' : undefined}>
                     <TableCell>
@@ -338,7 +339,19 @@ export default function FiscalCalendar() {
                         <Checkbox checked={isChecked} aria-label="Selecionar linha" />
                       </div>
                     </TableCell>
-                    <TableCell className="font-medium">{cat?.name ?? '—'}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <span>{cat?.name ?? '—'}</span>
+                        {isCustom && (
+                          <Badge
+                            variant="outline"
+                            className="gap-1 border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[10px] px-1.5 py-0"
+                          >
+                            <Sparkles className="h-3 w-3" /> Personalizada
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
                         {(cat?.applies_to ?? []).map((t) => (
@@ -369,11 +382,43 @@ export default function FiscalCalendar() {
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
+                        {isCustom && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                setCustomInitial({
+                                  id: cat!.id,
+                                  name: cat!.name,
+                                  description: cat!.description ?? '',
+                                  applies_to: cat!.applies_to ?? [],
+                                  due_rule: cat!.due_rule ?? null,
+                                  holiday_adjustment: cat!.holiday_adjustment ?? 'prev_business_day',
+                                });
+                                setCustomOpen(true);
+                              }}
+                              title="Editar obrigação personalizada"
+                              className="text-amber-600 hover:text-amber-700"
+                            >
+                              <Sparkles className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setObligationToDelete({ id: cat!.id, name: cat!.name })}
+                              title="Excluir obrigação personalizada"
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => setRowToDelete(r)}
-                          title="Excluir"
+                          title="Excluir entrada do mês"
                           className="text-destructive hover:text-destructive"
                         >
                           <Trash2 className="h-4 w-4" />
