@@ -396,6 +396,11 @@ export default function FiscalDashboard() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Print-only footer */}
+      <div className="hidden print:block print-footer text-xs text-muted-foreground pt-4 border-t">
+        Gerado em {format(new Date(), 'dd/MM/yyyy HH:mm')} — Contabilidade Alves
+      </div>
     </div>
   );
 }
