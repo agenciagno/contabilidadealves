@@ -25,7 +25,7 @@ export interface FiscalCalendarEffectiveRow {
   fiscal_obligations_catalog: FiscalObligationCatalog | null;
 }
 
-export function useFiscalCalendar(year: number, month: number) {
+export function useFiscalCalendar(year: number, month: number, enabled: boolean = true) {
   return useQuery<FiscalCalendarEffectiveRow[]>({
     queryKey: ['fiscal-calendar', year, month],
     queryFn: async () => {
@@ -38,6 +38,7 @@ export function useFiscalCalendar(year: number, month: number) {
       if (error) throw error;
       return (data ?? []) as FiscalCalendarEffectiveRow[];
     },
+    enabled,
   });
 }
 
