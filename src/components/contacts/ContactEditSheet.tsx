@@ -50,6 +50,7 @@ const BR_STATES = [
 
 export function ContactEditSheet({ contact, section, open, onOpenChange }: ContactEditSheetProps) {
   const { updateContact } = useContacts();
+  const { company } = useCompany();
 
   // Contato fields
   const [email, setEmail] = useState(contact.email || '');
@@ -70,6 +71,8 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
   const [taxRegime, setTaxRegime] = useState<TaxRegime | ''>(contact.tax_regime || '');
   const [isActive, setIsActive] = useState(contact.is_active);
   const [responsibleId, setResponsibleId] = useState<string>(contact.responsible_id || 'none');
+  const [selectedObligations, setSelectedObligations] = useState<Set<string>>(new Set());
+  const [obligationsInitialized, setObligationsInitialized] = useState(false);
 
   // Observações fields
   const [notes, setNotes] = useState(contact.notes || '');
