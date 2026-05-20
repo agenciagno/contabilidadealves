@@ -1,12 +1,19 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { format, parseISO } from 'date-fns';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Upload, Paperclip, CheckCircle, X } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { Upload, Paperclip, CheckCircle, Trash2 } from 'lucide-react';
 import { FiscalTask } from '@/hooks/useFiscalTasks';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useToast } from '@/hooks/use-toast';
@@ -29,6 +36,13 @@ const STATUS_OPTIONS = [
   { value: 'em_progresso', label: 'Em Progresso' },
   { value: 'concluido', label: 'Concluído' },
 ];
+
+const statusBadgeClass: Record<string, string> = {
+  a_fazer: 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30',
+  aguardando_cliente: 'bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 border-yellow-500/30',
+  em_progresso: 'bg-orange-500/15 text-orange-700 dark:text-orange-400 border-orange-500/30',
+  concluido: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
+};
 
 export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, onUpdate, onDelete }: TaskDetailModalProps) {
   const { isColaborador, isSuperAdmin, isAdmin } = useUserRole();
@@ -88,25 +102,25 @@ export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, 
     }
   };
 
-  const handleSave = () => {
-    const updates: Partial<FiscalTask> = { notes };
-
-    if (canEdit) {
-      updates.title = title;
-      updates.description = description || null;
-      updates.due_date = dueDate;
-      updates.responsible_id = responsibleId || null;
-
-      // Validate concluido requires attachment
-      if (status === 'concluido' && !attachmentUrl) {
-        toast({ title: 'Anexo obrigatório para concluir', variant: 'destructive' });
-        return;
-      }
-      updates.status = status as FiscalTask['status'];
+  const handleSaveTaskInfo = () => {
+    if (!canEdit) return;
+    if (status === 'concluido' && !attachmentUrl) {
+      toast({ title: 'Anexo obrigatório para concluir', variant: 'destructive' });
+      return;
     }
+    onUpdate(task.id, {
+      title,
+      description: description || null,
+      due_date: dueDate,
+      responsible_id: responsibleId || null,
+      status: status as FiscalTask['status'],
+    });
+    toast({ title: '✅ Tarefa atualizada.' });
+  };
 
-    onUpdate(task.id, updates);
-    onOpenChange(false);
+  const handleSaveNotes = () => {
+    onUpdate(task.id, { notes });
+    toast({ title: '✅ Observação salva.' });
   };
 
   const handleMarkComplete = () => {
@@ -119,125 +133,174 @@ export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, 
   };
 
   const contactName = contacts.find(c => c.id === task.contact_id)?.name || '—';
+  const responsibleName = profiles.find(p => p.id === responsibleId)?.full_name || '—';
+  const competencia = task.due_date ? format(parseISO(task.due_date), 'MM/yyyy') : '—';
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Detalhes da Tarefa</DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          {/* Title */}
-          <div>
-            <Label>Obrigação</Label>
-            {canEdit ? (
-              <Input value={title} onChange={e => setTitle(e.target.value)} />
-            ) : (
-              <p className="text-sm text-foreground mt-1">{title}</p>
-            )}
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
+        <SheetHeader className="space-y-2 pb-4">
+          <SheetTitle className="text-2xl">{contactName}</SheetTitle>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline" className={statusBadgeClass[status]}>
+              {STATUS_OPTIONS.find(s => s.value === status)?.label}
+            </Badge>
+            <span className="text-xs text-muted-foreground">
+              Vencimento: {dueDate ? format(parseISO(dueDate), 'dd/MM/yyyy') : '—'}
+            </span>
           </div>
+        </SheetHeader>
 
-          {/* Client (always readonly) */}
-          <div>
-            <Label>Cliente</Label>
-            <p className="text-sm text-foreground mt-1">{contactName}</p>
-          </div>
+        <div className="space-y-6 pb-8">
+          {/* Informações da tarefa */}
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold text-foreground">Informações da Tarefa</h3>
 
-          {/* Responsible */}
-          <div>
-            <Label>Responsável</Label>
-            {canEdit ? (
-              <Select value={responsibleId} onValueChange={setResponsibleId}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  {profiles.map(p => (
-                    <SelectItem key={p.id} value={p.id}>{p.full_name || 'Sem nome'}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <p className="text-sm text-foreground mt-1">
-                {profiles.find(p => p.id === responsibleId)?.full_name || '—'}
-              </p>
-            )}
-          </div>
-
-          {/* Due date */}
-          <div>
-            <Label>Data de Vencimento</Label>
-            {canEdit ? (
-              <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
-            ) : (
-              <p className="text-sm text-foreground mt-1">{dueDate}</p>
-            )}
-          </div>
-
-          {/* Status */}
-          <div>
-            <Label>Status</Label>
-            {canEdit ? (
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {STATUS_OPTIONS.map(s => (
-                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <Badge variant="outline" className="mt-1">
-                {STATUS_OPTIONS.find(s => s.value === status)?.label}
-              </Badge>
-            )}
-          </div>
-
-          {/* Description */}
-          {canEdit && (
             <div>
-              <Label>Descrição</Label>
-              <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} />
+              <Label>Obrigação</Label>
+              {canEdit ? (
+                <Input value={title} onChange={e => setTitle(e.target.value)} />
+              ) : (
+                <p className="text-sm text-foreground mt-1">{title}</p>
+              )}
             </div>
-          )}
 
-          {/* Notes (editable by everyone) */}
-          <div>
-            <Label>Observações</Label>
-            <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder="Adicione observações..." />
-          </div>
-
-          {/* Attachment */}
-          <div>
-            <Label>Anexo</Label>
-            {attachmentUrl ? (
-              <div className="flex items-center gap-2 mt-1">
-                <Paperclip className="w-4 h-4 text-primary" />
-                <a href={attachmentUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary underline truncate">
-                  Ver anexo
-                </a>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Cliente</Label>
+                <p className="text-sm text-foreground mt-1">{contactName}</p>
               </div>
-            ) : (
-              <p className="text-xs text-muted-foreground mt-1">Nenhum anexo</p>
-            )}
-            <div className="mt-2">
-              <Label htmlFor="task-attachment" className="cursor-pointer">
-                <div className="flex items-center gap-2 px-3 py-2 border border-dashed border-border rounded-md hover:bg-muted/50 transition-colors w-fit">
-                  <Upload className="w-4 h-4" />
-                  <span className="text-sm">{uploading ? 'Enviando...' : 'Enviar arquivo'}</span>
-                </div>
-              </Label>
-              <input
-                id="task-attachment"
-                type="file"
-                className="hidden"
-                onChange={handleUpload}
-                disabled={uploading}
-              />
+              <div>
+                <Label>Competência</Label>
+                <p className="text-sm text-foreground mt-1">{competencia}</p>
+              </div>
             </div>
-          </div>
 
-          {/* Actions */}
-          <div className="flex justify-between pt-4">
+            <div>
+              <Label>Responsável</Label>
+              {canEdit ? (
+                <Select value={responsibleId} onValueChange={setResponsibleId}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {profiles.map(p => (
+                      <SelectItem key={p.id} value={p.id}>{p.full_name || 'Sem nome'}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="text-sm text-foreground mt-1">{responsibleName}</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Data de Vencimento</Label>
+                {canEdit ? (
+                  <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+                ) : (
+                  <p className="text-sm text-foreground mt-1">{dueDate ? format(parseISO(dueDate), 'dd/MM/yyyy') : '—'}</p>
+                )}
+              </div>
+              <div>
+                <Label>Status</Label>
+                {canEdit ? (
+                  <Select value={status} onValueChange={setStatus}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {STATUS_OPTIONS.map(s => (
+                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Badge variant="outline" className={`mt-1 ${statusBadgeClass[status]}`}>
+                    {STATUS_OPTIONS.find(s => s.value === status)?.label}
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+            {canEdit && (
+              <div>
+                <Label>Descrição</Label>
+                <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} />
+              </div>
+            )}
+
+            {canEdit && (
+              <Button size="sm" onClick={handleSaveTaskInfo}>Salvar alterações</Button>
+            )}
+          </section>
+
+          <Separator />
+
+          {/* Checklist de documentos */}
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold text-foreground">Checklist de Documentos</h3>
+
+            <div className="rounded-md border border-border/50 p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  {attachmentUrl ? (
+                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                  ) : (
+                    <div className="w-4 h-4 rounded-sm border border-muted-foreground/40 shrink-0" />
+                  )}
+                  <span className="text-sm truncate">{title}</span>
+                </div>
+                {attachmentUrl ? (
+                  <a
+                    href={attachmentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-primary underline shrink-0 inline-flex items-center gap-1"
+                  >
+                    <Paperclip className="w-3 h-3" /> Ver anexo
+                  </a>
+                ) : (
+                  <Label htmlFor="task-attachment-detail" className="cursor-pointer shrink-0">
+                    <div className="inline-flex items-center gap-1 px-2 py-1 rounded border border-dashed border-border hover:bg-muted/50 text-xs">
+                      <Upload className="w-3 h-3" />
+                      {uploading ? 'Enviando...' : '📎 Anexar'}
+                    </div>
+                  </Label>
+                )}
+                <input
+                  id="task-attachment-detail"
+                  type="file"
+                  className="hidden"
+                  onChange={handleUpload}
+                  disabled={uploading}
+                />
+              </div>
+              {attachmentUrl && (
+                <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30">
+                  ✅ Documento anexado
+                </Badge>
+              )}
+            </div>
+          </section>
+
+          <Separator />
+
+          {/* Observações */}
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold text-foreground">Observações</h3>
+            <Textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              rows={4}
+              placeholder="Adicionar observação..."
+            />
+            <Button size="sm" variant="outline" onClick={handleSaveNotes}>
+              Salvar observação
+            </Button>
+          </section>
+
+          <Separator />
+
+          {/* Footer actions */}
+          <div className="flex justify-between pt-2">
             <div>
               {canEdit && (
                 <Button
@@ -245,7 +308,7 @@ export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, 
                   size="sm"
                   onClick={() => { onDelete(task.id); onOpenChange(false); }}
                 >
-                  Excluir
+                  <Trash2 className="w-4 h-4" /> Excluir tarefa
                 </Button>
               )}
             </div>
@@ -256,11 +319,13 @@ export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, 
                   Concluir
                 </Button>
               )}
-              <Button size="sm" onClick={handleSave}>Salvar</Button>
+              <Button size="sm" variant="ghost" onClick={() => onOpenChange(false)}>
+                Fechar
+              </Button>
             </div>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }
