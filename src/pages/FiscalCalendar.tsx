@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
-import { CalendarRange, CheckCircle2, Info, Loader2, Pencil, Rocket, Trash2, X, Zap } from 'lucide-react';
+import { CalendarRange, CheckCircle2, Info, Loader2, Pencil, Plus, Rocket, Sparkles, Trash2, X, Zap } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
