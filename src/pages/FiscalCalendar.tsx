@@ -218,6 +218,15 @@ export default function FiscalCalendar() {
             </SelectContent>
           </Select>
 
+          <Button
+            variant="outline"
+            onClick={() => { setCustomInitial(null); setCustomOpen(true); }}
+          >
+            <Plus className="h-4 w-4" /> Nova Obrigação
+          </Button>
+
+
+
           {phase === 'idle' && (
             <Button onClick={handleCalculate} disabled={calculate.isPending}>
               {calculate.isPending ? (
