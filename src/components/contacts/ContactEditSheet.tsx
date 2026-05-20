@@ -103,6 +103,33 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
     enabled: section === 'fiscal',
   });
 
+  const { data: obligationsCatalog = [] } = useQuery({
+    queryKey: ['fiscal-obligations-catalog'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('fiscal_obligations_catalog')
+        .select('id, name')
+        .order('name', { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as { id: string; name: string }[];
+    },
+    enabled: section === 'fiscal',
+  });
+
+  const { data: contactObligations = [] } = useQuery({
+    queryKey: ['client-obligations', contact.id],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('client_obligations')
+        .select('obligation_id')
+        .eq('contact_id', contact.id);
+      if (error) throw error;
+      return (data ?? []) as { obligation_id: string }[];
+    },
+    enabled: section === 'fiscal',
+  });
+
+
   // Reset when contact or section changes
   useEffect(() => {
     setEmail(contact.email || '');
