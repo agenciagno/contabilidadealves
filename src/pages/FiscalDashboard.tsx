@@ -332,7 +332,8 @@ export default function FiscalDashboard() {
                 <Tooltip />
                 <Legend />
                 <Bar dataKey="concluidas" name="Concluídas" stackId="a" fill={COLOR_OK} radius={[0, 0, 0, 0]} />
-                <Bar dataKey="pendentes" name="Pendentes" stackId="a" fill={COLOR_PENDING} />
+                <Bar dataKey="pendentes" name="Pendentes" stackId="a" fill="hsl(217 91% 60%)" />
+                <Bar dataKey="emAndamento" name="Em andamento" stackId="a" fill="hsl(25 95% 53%)" />
                 <Bar dataKey="atrasadas" name="Atrasadas" stackId="a" fill={COLOR_LATE} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
