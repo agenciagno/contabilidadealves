@@ -171,7 +171,7 @@ function SortableGroup({ item, contactsMap, profilesMap, onUploadAttachment, onC
   );
 }
 
-export function KanbanBoard({ tasks, contactsMap, profilesMap, onStatusChange, onTaskClick, onEdit, onDelete, onUploadAttachment }: KanbanBoardProps) {
+export function KanbanBoard({ tasks, contactsMap, profilesMap, onStatusChange, onTaskClick, onEdit, onDelete, onUploadAttachment, onGroupClick }: KanbanBoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [columnSort, setColumnSort] = useState<Record<string, SortDir>>(() =>
     COLUMNS.reduce((acc, c) => ({ ...acc, [c.id]: 'desc' as SortDir }), {}),
