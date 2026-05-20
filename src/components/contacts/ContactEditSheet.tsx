@@ -150,7 +150,16 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
     setBoletoDueDay(contact.boleto_due_day != null ? String(contact.boleto_due_day) : 'none');
     setCanalEntrega(contact.canal_entrega || 'none');
     setNumeroSicoob(contact.numero_cliente_sicoob != null ? String(contact.numero_cliente_sicoob) : '');
+    setObligationsInitialized(false);
   }, [contact, section]);
+
+  // Initialize selected obligations once the query resolves
+  useEffect(() => {
+    if (section === 'fiscal' && !obligationsInitialized) {
+      setSelectedObligations(new Set(contactObligations.map((o) => o.obligation_id)));
+      setObligationsInitialized(true);
+    }
+  }, [section, contactObligations, obligationsInitialized]);
 
   const handleCepBlur = async () => {
     const cleanCep = cep.replace(/\D/g, '');
@@ -172,7 +181,35 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
     }
   };
 
-  const handleSave = () => {
+  const syncObligations = async () => {
+    if (!company?.id) return;
+    const original = new Set(contactObligations.map((o) => o.obligation_id));
+    const toDelete: string[] = [];
+    const toInsert: string[] = [];
+    original.forEach((id) => { if (!selectedObligations.has(id)) toDelete.push(id); });
+    selectedObligations.forEach((id) => { if (!original.has(id)) toInsert.push(id); });
+
+    if (toDelete.length > 0) {
+      const { error } = await (supabase as any)
+        .from('client_obligations')
+        .delete()
+        .eq('contact_id', contact.id)
+        .in('obligation_id', toDelete);
+      if (error) throw error;
+    }
+    if (toInsert.length > 0) {
+      const { error } = await (supabase as any)
+        .from('client_obligations')
+        .insert(toInsert.map((obligation_id) => ({
+          contact_id: contact.id,
+          obligation_id,
+          company_id: company.id,
+        })));
+      if (error) throw error;
+    }
+  };
+
+  const handleSave = async () => {
     let updates: Partial<Contact> = {};
 
     if (section === 'contato') {
@@ -196,7 +233,19 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
 
     updateContact.mutate(
       { id: contact.id, originalContact: contact, ...updates },
-      { onSuccess: () => onOpenChange(false) }
+      {
+        onSuccess: async () => {
+          if (section === 'fiscal') {
+            try {
+              await syncObligations();
+              toast.success('Dados fiscais atualizados.');
+            } catch (e: any) {
+              toast.error(e?.message ?? 'Erro ao atualizar obrigações');
+            }
+          }
+          onOpenChange(false);
+        },
+      }
     );
   };
 
