@@ -120,6 +120,7 @@ export default function FiscalTasks() {
   // Modals
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<FiscalTask | null>(null);
+  const [selectedGroupTasks, setSelectedGroupTasks] = useState<FiscalTask[] | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
