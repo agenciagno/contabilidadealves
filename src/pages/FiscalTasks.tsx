@@ -404,7 +404,7 @@ export default function FiscalTasks() {
         <SearchableSelect
           value={filterObligation}
           onChange={setFilterObligation}
-          options={obligations.map((o) => ({ value: o.id, label: o.name }))}
+          options={obligations.map((o) => ({ value: o.id, label: o.is_custom ? `★ ${o.name}` : o.name }))}
           placeholder="Todas as obrigações"
           allLabel="Todas as obrigações"
           width="w-[220px]"
