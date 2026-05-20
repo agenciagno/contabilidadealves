@@ -36,13 +36,6 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useCompany } from '@/hooks/useCompany';
 import {
-  exportProductivity,
-  exportCompliance,
-  exportCriticalDueDates,
-  exportExecutive,
-  ExportTask,
-} from '@/lib/fiscal-exports';
-import {
   Select,
   SelectContent,
   SelectItem,
