@@ -311,10 +311,10 @@ export default function FiscalDashboard() {
 
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label="Total de Tarefas" value={kpis.total} total={kpis.total} icon={ListChecks} borderClass="border-l-blue-500" iconClass="text-blue-500" />
-        <KpiCard label="Concluídas" value={kpis.concluidas} total={kpis.total} icon={CheckCircle2} borderClass="border-l-green-500" iconClass="text-green-500" />
-        <KpiCard label="Pendentes" value={kpis.pendentes} total={kpis.total} icon={Clock} borderClass="border-l-yellow-500" iconClass="text-yellow-500" />
+        <KpiCard label="Pendentes" value={kpis.pendentes} total={kpis.total} icon={Clock} borderClass="border-l-blue-500" iconClass="text-blue-500" />
+        <KpiCard label="Em andamento" value={kpis.emAndamento} total={kpis.total} icon={ListChecks} borderClass="border-l-orange-500" iconClass="text-orange-500" />
         <KpiCard label="Atrasadas" value={kpis.atrasadas} total={kpis.total} icon={AlertTriangle} borderClass="border-l-red-500" iconClass="text-red-500" />
+        <KpiCard label="Concluídas" value={kpis.concluidas} total={kpis.total} icon={CheckCircle2} borderClass="border-l-green-500" iconClass="text-green-500" />
       </div>
 
       {/* Chart */}
