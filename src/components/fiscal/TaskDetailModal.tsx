@@ -46,7 +46,7 @@ const statusBadgeClass: Record<string, string> = {
   concluido: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
 };
 
-export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, onUpdate, onDelete }: TaskDetailModalProps) {
+export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, onUpdate, onDelete, groupTasks, onUploadForTask }: TaskDetailModalProps) {
   const { isColaborador, isSuperAdmin, isAdmin } = useUserRole();
   const { company } = useCompany();
   const companyId = company?.id;
