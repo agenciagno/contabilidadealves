@@ -1,134 +1,72 @@
-## Escopo
 
-Aplicar 6 ajustes no módulo Fiscal num único build. Esta é uma exceção autorizada à regra de reskin (envolve lógica/RBAC/queries/UX).
+## Correção 1 — Colaboradores apenas com clientes atribuídos
 
----
+Criar um hook compartilhado `useCollaboratorsWithClients()` em `src/hooks/useCollaboratorCoverage.ts` (ou novo arquivo) que retorna apenas profiles cujo `id` aparece em `contacts.responsible_id` com `is_active = true`.
 
-## 1. RBAC nas rotas e no menu
+Implementação:
+1. Buscar `distinct responsible_id` de `contacts` (where `is_active = true` and `responsible_id is not null` and `company_id = X`).
+2. Buscar `profiles` `.in('id', distinctIds)` com `status_active = true`.
+3. Se a lista de IDs for vazia, retornar `[]` sem chamar o segundo query.
 
-**`src/components/auth/ModuleGuard.tsx`** — adicionar prop opcional `requireAdmin?: boolean`. Se `true` e o usuário não for `admin`/`isSuperAdmin`, redirecionar para `/fiscal/tarefas`.
+Aplicar em:
+- **`useCollaborators()`** (`src/hooks/useCollaboratorCoverage.ts`) — trocar implementação para usar o novo filtro. Reflete automaticamente em `FiscalCollaborators` (cards e modal) e em qualquer consumidor.
+- **`useFiscalCollaborators()`** (`src/hooks/useFiscalDashboard.ts`) — mesma lógica para gráfico "Tarefas por Colaborador" e cards "Progresso por Colaborador".
+- **`FiscalTasks.tsx`** — substituir a query `company-profiles-fiscal` pelo novo hook, alimentando o dropdown "Responsável" e o `BulkReassignModal`.
 
-**`src/App.tsx`** — aplicar `requireAdmin` nas rotas `/fiscal/dashboard`, `/fiscal/calendario`, `/fiscal/colaboradores`. `/fiscal/tarefas` permanece liberada.
-
-**`src/components/layout/AppSidebar.tsx`** — o filtro de itens fiscais admin-only já existe (linha 280); mantido. Garantir que `Tarefas Fiscais` continue visível para colaborador.
-
----
-
-## 2. Fluxo de geração em 2 etapas — `/fiscal/calendario`
-
-**`src/hooks/useFiscalCalendar.ts`**
-
-- Dividir `useGenerateMonthlyTasks` em dois hooks:
-  - `useCalculateCalendar({ year, month })` → chama apenas a edge function `calculate-fiscal-calendar`; invalida `['fiscal-calendar', year, month]`; toast "Calendário calculado".
-  - `useConfirmMonthlyTasks({ year, month })` → chama apenas `supabase.rpc('generate_monthly_fiscal_tasks', { p_year, p_month })`; toasts conforme `tasks_created`.
-
-**`src/pages/FiscalCalendar.tsx`**
-
-- Estado local `phase: 'idle' | 'calculated' | 'launched'` (persistido em `sessionStorage` chaveado por `year-month` para sobreviver à navegação).
-- Botão "Calcular Calendário" (visível em `idle`) → ao sucesso muda para `calculated`.
-- Banner azul "Calendário calculado. Revise as datas e confirme para lançar as tarefas." (em `calculated`).
-- Botão "Confirmar e Lançar Tarefas" (em `calculated`) → ao sucesso muda para `launched`.
-- Em `launched`: esconder ambos botões e exibir badge verde "Tarefas lançadas ✓".
-- Trocar mês/ano reinicia `phase` segundo o `sessionStorage` daquele período.
+Observação: o filtro `or(role.in.(...),allowed_modules.cs.{fiscal})` deixa de ser usado nesses pontos — o critério passa a ser "ter cliente atribuído".
 
 ---
 
-## 3. Kanban — `/fiscal/tarefas`
+## Correção 2 — "Nova Cobertura" → "Transferir Clientes"
 
-**`src/components/fiscal/KanbanBoard.tsx`**
+### `src/pages/FiscalCollaborators.tsx`
+- Renomear botão para **"Transferir Clientes"** (manter ícone Plus ou trocar por `ArrowRightLeft`).
+- Remover toda a seção `<section>` "Coberturas Programadas / Ativas" (tabela + uso de `useCoverages`, `endCoverage`, `REASON_LABELS`, `coverageStatus`, `statusByProfile`). Manter `useCoverages` removido do import.
+- Substituir `<CoverageCreateModal>` por novo `<TransferClientsModal>`.
+- Após confirmar, invalidar queries: `['collaborators']`, `['pending-tasks-by-profile']`, `['fiscal-tasks']`, `['fiscal-dashboard']`, `['contacts']`.
+- Os badges "Em férias"/"Cobrindo X" deixam de existir (sem coverages na UI) — todos os cards exibem "Ativo".
 
-- Reordenar `COLUMNS`: `a_fazer` (azul) → `em_progresso` (laranja) → `aguardando_cliente` (amarelo) → `concluido` (verde).
-- Remover a validação que bloqueia mover para `concluido` sem `attachment_url` (não consta no requisito; mantém só o mapeamento). Confirmar antes de remover? — manter por enquanto, é regra existente; só reordenar colunas.
+### Novo `src/components/fiscal/TransferClientsModal.tsx`
+Campos:
+- **De:** Select de colaboradores com `responsible_id` atribuído em `contacts` (usar `useCollaboratorsWithClients`).
+- **Para:** Select de colaboradores ativos (usar a mesma fonte, ou todos ativos com módulo fiscal — confirmar abaixo), excluindo o "De:".
+- Texto: `Todos os clientes e tarefas pendentes de {nomeDe} serão transferidos para {nomePara}.`
+- Botões: **Confirmar Transferência** (primário) + **Cancelar**.
 
-**`src/hooks/useFiscalTasks.ts`**
+Ação ao confirmar (sequencial):
+1. `UPDATE contacts SET responsible_id = para WHERE responsible_id = de AND is_active = true AND company_id = X`
+2. `UPDATE fiscal_tasks SET responsible_id = para WHERE responsible_id = de AND status != 'concluido' AND company_id = X`
 
-- Para admin/super: query atual já não filtra por `responsible_id` (ok). Adicionar `JOIN` em `profiles!fiscal_tasks_responsible_id_fkey(id, full_name, email)` para popular nome do responsável diretamente no card (hoje vem de `profilesMap` do `companyProfiles`; manter, é suficiente).
-- Para colaborador: já filtra por `currentProfile.id` (ok). Manter.
+Toast: `✅ Clientes e tarefas transferidos de {de} para {para}.`
+Invalidar queries listadas acima (efeito equivalente a recarregar a página).
 
-**`src/pages/FiscalTasks.tsx`**
-
-- Os filtros admin (datas, cliente, obrigação, colaborador) já existem; trocar o `Input "Buscar obrigação..."` por um `Select` "Obrigação" populando de `fiscal_obligations_catalog` (nova query). O filtro continua via `ilike` no `title` (catálogo retorna `name`).
-- Para colaborador (`isColaborador`): esconder Select de Responsável (já), esconder botão "Nova Tarefa" (já via `canDelete`). Manter datas, cliente, obrigação.
-
----
-
-## 4. Fix da query do Dashboard — `/fiscal/dashboard`
-
-**`src/hooks/useFiscalDashboard.ts`**
-
-- `useFiscalTasksOfMonth`: remover `.is('deleted_at', null)` (coluna não existe em `fiscal_tasks`) — é provavelmente a causa dos zeros. Manter `.eq('company_id')`, `.eq('competence_year')`, `.eq('competence_month')`.
-- Para colaborador: buscar `profiles.id` por `user_id = auth.uid()` e aplicar `.eq('responsible_id', profile.id)`. Adicionar `useUserRole` + `useAuth` no hook.
-- `useFiscalCollaborators`: trocar filtro para `role IN ('admin','colaborador') OR 'fiscal' = ANY(allowed_modules)`. Como PostgREST não suporta OR entre `.in()` e `.contains()` trivialmente, usar `.or("role.in.(admin,colaborador),allowed_modules.cs.{fiscal}")`.
-- `useUpcomingFiscalTasks`: também aplicar filtro de colaborador quando aplicável.
-
-**`src/pages/FiscalDashboard.tsx`**
-
-- Lógica de "Atrasadas" já usa `status !== 'concluido' && due_date < today` — manter.
-- Substituir guarda `isAdmin/isSuperAdmin` por permitir colaborador também (já que requisito diz colaborador vê o próprio escopo). **Aguardar confirmação** — requisito #1 diz Dashboard é admin-only. **Manter admin-only**; o branch colaborador no hook fica como código defensivo.
+### Manter intocado
+- `CoverageCreateModal.tsx` e `useCoverages` permanecem no código (não removidos), apenas deixam de ser referenciados pela página.
 
 ---
 
-## 5. Colaboradores — filtro de módulo + accordion — `/fiscal/colaboradores`
+## Correção 3 — KPIs do Dashboard
 
-**`src/hooks/useCollaboratorCoverage.ts`**
+Em `src/pages/FiscalDashboard.tsx`, ajustar o cálculo de `kpis` e do `chartData` para usar os status reais (`a_fazer`, `em_progresso`, `aguardando_cliente`, `concluido`):
 
-- `useCollaborators`: trocar filtro para `.or("role.in.(admin,super_admin),allowed_modules.cs.{fiscal}")` e `status_active = true`.
-- Novo hook `useCollaboratorDetails(profileId, year, month)`:
-  - Progresso do mês (total/concluídas para o `profileId`).
-  - Próximas 5 tarefas pendentes (`status != 'concluido'`, ordenado por `due_date ASC`, limit 5) com JOIN em `contacts(name)` e `fiscal_obligations_catalog(name)`.
+```ts
+const isLate = (t) => t.status !== 'concluido' && t.due_date && t.due_date < today;
+const atrasadas   = tasks.filter(isLate).length;
+const pendentes   = tasks.filter(t => t.status === 'a_fazer' && (!t.due_date || t.due_date >= today)).length;
+const emAndamento = tasks.filter(t => t.status === 'em_progresso').length;
+const concluidas  = tasks.filter(t => t.status === 'concluido').length;
+```
 
-**`src/pages/FiscalCollaborators.tsx`**
+Mudanças visuais nos KPIs:
+- Trocar o KPI **"Total de Tarefas"** por **"Em andamento"** (laranja) — assim ficam os 4 status pedidos: Pendentes / Em andamento / Atrasadas / Concluídas. **Confirmar abaixo** se prefere manter "Total" e exibir os 5.
 
-- Tornar cada `Card` clicável (toggle de expansão); estado `expandedId: string | null`.
-- Quando expandido, renderizar abaixo do card (`col-span-full` ou em layout próprio) um painel com: `<Progress>` concluídas/total, lista das 5 próximas tarefas e botão "Ver todas as tarefas" → `navigate('/fiscal/tarefas?responsible=' + profileId)`.
-- Em `FiscalTasks.tsx`: ler `searchParams.responsible` no mount e pré-popular `filterResponsible`.
+No `chartData` (gráfico empilhado por colaborador), classificar cada tarefa em exatamente um bucket usando a mesma regra (late tem prioridade; senão segue o status), adicionando série "Em andamento".
 
----
-
-## 6. Dashboard — Exportar Relatório
-
-**Dependência:** instalar `xlsx` (SheetJS) com `bun add xlsx`.
-
-**Novo arquivo `src/lib/fiscal-exports.ts`** com 4 funções:
-
-- `exportProductivity(tasks, profiles, ym)` → 1 aba.
-- `exportCompliance(tasks, contacts, catalog, ym)` → 1 aba.
-- `exportCriticalDueDates(tasks, contacts, catalog, today)` → filtra `due_date BETWEEN hoje e hoje+15` e `status != 'concluido'`.
-- `exportExecutive(tasks, profiles, contacts, catalog, ym)` → 2 abas (Resumo + Detalhamento).
-
-Cada função monta `worksheet` com `XLSX.utils.json_to_sheet`, cria workbook e dispara download via `XLSX.writeFile(wb, 'relatorio-xxx-MMYYYY.xlsx')`.
-
-**`src/pages/FiscalDashboard.tsx`**
-
-- Adicionar `DropdownMenu` no header (ao lado de "Atualizar") com botão "Exportar" (ícone `Download`) e 4 itens chamando os exports.
-- Buscar dados auxiliares (catálogo de obrigações, contatos) via novas queries simples reutilizando `useContacts` e uma query nova para o catálogo.
+`StatusBadge` da tabela "Próximos Vencimentos" passa a reconhecer os status reais (`a_fazer`, `em_progresso`, `aguardando_cliente`) em vez de `pendente`/`em_andamento`.
 
 ---
 
-## Detalhes técnicos
+## Perguntas antes de aplicar
 
-- **`allowed_modules` array cast no PostgREST:** usar `allowed_modules.cs.{fiscal}` (contains array literal).
-- **`fiscal_obligations_catalog` e `fiscal_calendar_effective`** já são acessados via `(supabase as any)` por não estarem em `types.ts` — manter padrão.
-- **Tipos:** novos status já estão no tipo `FiscalTask` (`'a_fazer' | 'aguardando_cliente' | 'em_progresso' | 'concluido'`).
-- **Realtime/migrations:** não há mudanças de schema.
-
----
-
-## Arquivos afetados
-
-Criar:
-- `src/lib/fiscal-exports.ts`
-
-Editar:
-- `src/components/auth/ModuleGuard.tsx`
-- `src/App.tsx`
-- `src/hooks/useFiscalCalendar.ts`
-- `src/pages/FiscalCalendar.tsx`
-- `src/components/fiscal/KanbanBoard.tsx`
-- `src/pages/FiscalTasks.tsx`
-- `src/hooks/useFiscalDashboard.ts`
-- `src/pages/FiscalDashboard.tsx`
-- `src/hooks/useCollaboratorCoverage.ts`
-- `src/pages/FiscalCollaborators.tsx`
-
-Dependência nova: `xlsx`.
+1. **Correção 1 — escopo do "Para:"**: o select destino deve listar **(a)** apenas colaboradores que já têm clientes atribuídos, ou **(b)** todos os colaboradores ativos com módulo fiscal (permitindo transferir para alguém que ainda não tem clientes)? O enunciado diz "todos os colaboradores ativos", então tendo a usar (b) — confirmar.
+2. **Correção 3 — KPI "Total"**: remover o card "Total de Tarefas" para dar lugar a "Em andamento", ou manter os 5 cards lado a lado?
