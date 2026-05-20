@@ -26,7 +26,6 @@ import { SearchableSelect } from '@/components/fiscal/SearchableSelect';
 import { toast } from 'sonner';
 
 type ViewMode = 'kanban' | 'list' | 'calendar';
-type SortOrder = 'desc' | 'asc';
 
 // DateInput: accepts DD/MM/YYYY typing + popover calendar
 function DateInput({
@@ -91,7 +90,6 @@ export default function FiscalTasks() {
   const [filterResponsible, setFilterResponsible] = useState('all');
   const [filterObligation, setFilterObligation] = useState('all');
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
   // Pre-populate responsible from URL (?responsible=<profileId>)
   const [searchParams, setSearchParams] = useSearchParams();
@@ -161,8 +159,7 @@ export default function FiscalTasks() {
     titleSearch: filterObligation !== 'all'
       ? (obligations.find((o) => o.id === filterObligation)?.name)
       : undefined,
-    sortOrder,
-  }), [startDate, endDate, filterContact, filterResponsible, filterObligation, obligations, sortOrder]);
+  }), [startDate, endDate, filterContact, filterResponsible, filterObligation, obligations]);
 
   const { tasks, isLoading, createTask, updateTask, deleteTask } = useFiscalTasks(filters);
 
@@ -288,20 +285,7 @@ export default function FiscalTasks() {
 
       {/* Filters Bar */}
       <div className="flex flex-wrap gap-3 items-center">
-        {/* Sort order */}
-        <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as SortOrder)}>
-          <SelectTrigger className="w-[200px] h-9 bg-background/50 border-border/50">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="desc">
-              <span className="inline-flex items-center gap-2"><ArrowDownNarrowWide className="h-3.5 w-3.5" /> Mais recente primeiro</span>
-            </SelectItem>
-            <SelectItem value="asc">
-              <span className="inline-flex items-center gap-2"><ArrowUpNarrowWide className="h-3.5 w-3.5" /> Mais antigo primeiro</span>
-            </SelectItem>
-          </SelectContent>
-        </Select>
+
 
         {/* Date Range */}
         <div className="flex items-center gap-2">
@@ -379,6 +363,8 @@ export default function FiscalTasks() {
           profilesMap={profilesMap}
           onStatusChange={handleStatusChange}
           onTaskClick={handleTaskClick}
+          onEdit={handleTaskClick}
+          onDelete={canDelete ? (id) => deleteTask.mutate(id) : undefined}
         />
       )}
 
