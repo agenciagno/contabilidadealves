@@ -1,72 +1,81 @@
+# Plano — 4 ajustes no módulo Fiscal
 
-## Correção 1 — Colaboradores apenas com clientes atribuídos
+## AJUSTE 1 — Excluir tarefa (Kanban + Lista)
 
-Criar um hook compartilhado `useCollaboratorsWithClients()` em `src/hooks/useCollaboratorCoverage.ts` (ou novo arquivo) que retorna apenas profiles cujo `id` aparece em `contacts.responsible_id` com `is_active = true`.
+**Lista (`TaskListView.tsx`)** — já existe ícone de lixeira; falta apenas o dialog de confirmação. Substituir o `onDelete` direto por `AlertDialog` que confirma antes de chamar a mutation.
 
-Implementação:
-1. Buscar `distinct responsible_id` de `contacts` (where `is_active = true` and `responsible_id is not null` and `company_id = X`).
-2. Buscar `profiles` `.in('id', distinctIds)` com `status_active = true`.
-3. Se a lista de IDs for vazia, retornar `[]` sem chamar o segundo query.
+**Card do Kanban (`TaskCard.tsx`)** — adicionar `DropdownMenu` no canto superior direito (botão ⋯ `MoreVertical`) com:
+- "Editar" → dispara um novo callback `onEdit` (abre `TaskDetailModal`, igual ao clique no card).
+- "Excluir" → abre `AlertDialog` com texto "Tem certeza que deseja excluir esta tarefa? Esta ação não pode ser desfeita.", botões Cancelar / Excluir (variant destructive).
 
-Aplicar em:
-- **`useCollaborators()`** (`src/hooks/useCollaboratorCoverage.ts`) — trocar implementação para usar o novo filtro. Reflete automaticamente em `FiscalCollaborators` (cards e modal) e em qualquer consumidor.
-- **`useFiscalCollaborators()`** (`src/hooks/useFiscalDashboard.ts`) — mesma lógica para gráfico "Tarefas por Colaborador" e cards "Progresso por Colaborador".
-- **`FiscalTasks.tsx`** — substituir a query `company-profiles-fiscal` pelo novo hook, alimentando o dropdown "Responsável" e o `BulkReassignModal`.
+Para evitar que o clique no menu dispare o `onClick` do card ou o drag, envolver com `stopPropagation` e `e.preventDefault()` em `onPointerDown`.
 
-Observação: o filtro `or(role.in.(...),allowed_modules.cs.{fiscal})` deixa de ser usado nesses pontos — o critério passa a ser "ter cliente atribuído".
+**Encadeamento**: `KanbanBoard` recebe novos props `onEdit(task)` e `onDelete(taskId)`; `FiscalTasks.tsx` passa `handleTaskClick` (para editar) e `deleteTask.mutate`. Toast já vem do hook (`'Tarefa excluída'`) — ajustar para "Tarefa excluída com sucesso". A UI atualiza sozinha via `invalidateQueries`.
 
 ---
 
-## Correção 2 — "Nova Cobertura" → "Transferir Clientes"
+## AJUSTE 2 — Ordenação por coluna no Kanban
 
-### `src/pages/FiscalCollaborators.tsx`
-- Renomear botão para **"Transferir Clientes"** (manter ícone Plus ou trocar por `ArrowRightLeft`).
-- Remover toda a seção `<section>` "Coberturas Programadas / Ativas" (tabela + uso de `useCoverages`, `endCoverage`, `REASON_LABELS`, `coverageStatus`, `statusByProfile`). Manter `useCoverages` removido do import.
-- Substituir `<CoverageCreateModal>` por novo `<TransferClientsModal>`.
-- Após confirmar, invalidar queries: `['collaborators']`, `['pending-tasks-by-profile']`, `['fiscal-tasks']`, `['fiscal-dashboard']`, `['contacts']`.
-- Os badges "Em férias"/"Cobrindo X" deixam de existir (sem coverages na UI) — todos os cards exibem "Ativo".
+**Em `FiscalTasks.tsx`**: remover o `<Select>` de sortOrder global (linhas 292–304) e o state `sortOrder`. Remover também `sortOrder` do objeto `filters` para que o hook `useFiscalTasks` ordene sempre `due_date ASC` (default já tratado).
 
-### Novo `src/components/fiscal/TransferClientsModal.tsx`
-Campos:
-- **De:** Select de colaboradores com `responsible_id` atribuído em `contacts` (usar `useCollaboratorsWithClients`).
-- **Para:** Select de colaboradores ativos (usar a mesma fonte, ou todos ativos com módulo fiscal — confirmar abaixo), excluindo o "De:".
-- Texto: `Todos os clientes e tarefas pendentes de {nomeDe} serão transferidos para {nomePara}.`
-- Botões: **Confirmar Transferência** (primário) + **Cancelar**.
-
-Ação ao confirmar (sequencial):
-1. `UPDATE contacts SET responsible_id = para WHERE responsible_id = de AND is_active = true AND company_id = X`
-2. `UPDATE fiscal_tasks SET responsible_id = para WHERE responsible_id = de AND status != 'concluido' AND company_id = X`
-
-Toast: `✅ Clientes e tarefas transferidos de {de} para {para}.`
-Invalidar queries listadas acima (efeito equivalente a recarregar a página).
-
-### Manter intocado
-- `CoverageCreateModal.tsx` e `useCoverages` permanecem no código (não removidos), apenas deixam de ser referenciados pela página.
+**Em `KanbanBoard.tsx`**:
+- Novo state interno `columnSort: Record<string, 'asc' | 'desc'>` inicializado com `'desc'` para todas as 4 colunas.
+- No cabeçalho de cada `DroppableColumn`, adicionar botão pequeno com ícone:
+  - `ArrowDown` quando `desc` (mais recente primeiro)
+  - `ArrowUp` quando `asc` (mais antigo primeiro)
+  - Tooltip explicando o estado atual.
+- Ao calcular `tasksByStatus`, aplicar `.sort()` por `due_date` usando a direção da coluna correspondente (client-side).
 
 ---
 
-## Correção 3 — KPIs do Dashboard
+## AJUSTE 3 — Drag-and-drop em todas as colunas
 
-Em `src/pages/FiscalDashboard.tsx`, ajustar o cálculo de `kpis` e do `chartData` para usar os status reais (`a_fazer`, `em_progresso`, `aguardando_cliente`, `concluido`):
+Causa provável atual: `closestCorners` combinado com `verticalListSortingStrategy` mede a partir dos itens existentes, então colunas vazias ou distantes (3ª, 4ª) raramente "ganham" a colisão, e o drop volta para perto da origem.
 
-```ts
-const isLate = (t) => t.status !== 'concluido' && t.due_date && t.due_date < today;
-const atrasadas   = tasks.filter(isLate).length;
-const pendentes   = tasks.filter(t => t.status === 'a_fazer' && (!t.due_date || t.due_date >= today)).length;
-const emAndamento = tasks.filter(t => t.status === 'em_progresso').length;
-const concluidas  = tasks.filter(t => t.status === 'concluido').length;
-```
+**Correção em `KanbanBoard.tsx`**:
+1. Trocar `collisionDetection={closestCorners}` por uma função custom que prioriza droppables de coluna: primeiro tenta `pointerWithin` contra os 4 IDs de coluna; se não houver, faz fallback para `closestCenter` entre as colunas (não entre tasks). Isso garante que o `over.id` seja sempre uma coluna válida (`a_fazer | em_progresso | aguardando_cliente | concluido`).
+2. Em `handleDragEnd`, simplificar: `targetStatus = over.id as string`; remover o lookup `overTask` que mascarava bugs em colunas vazias.
+3. Garantir que cada coluna mantenha `min-h` suficiente para receber o pointer mesmo vazia (já está `min-h-[200px]`, ok).
+4. Manter validação de "anexo obrigatório para concluir" e a mutation otimista existente em `useFiscalTasks.updateTask` — já cobre o UPDATE no Supabase.
 
-Mudanças visuais nos KPIs:
-- Trocar o KPI **"Total de Tarefas"** por **"Em andamento"** (laranja) — assim ficam os 4 status pedidos: Pendentes / Em andamento / Atrasadas / Concluídas. **Confirmar abaixo** se prefere manter "Total" e exibir os 5.
-
-No `chartData` (gráfico empilhado por colaborador), classificar cada tarefa em exatamente um bucket usando a mesma regra (late tem prioridade; senão segue o status), adicionando série "Em andamento".
-
-`StatusBadge` da tabela "Próximos Vencimentos" passa a reconhecer os status reais (`a_fazer`, `em_progresso`, `aguardando_cliente`) em vez de `pendente`/`em_andamento`.
+Teste mental: arrastar de "A Fazer" diretamente para "Aguardando Cliente" resolve `over.id = 'aguardando_cliente'` → UPDATE com esse status.
 
 ---
 
-## Perguntas antes de aplicar
+## AJUSTE 4 — Seletor de Obrigações em "Editar Dados Fiscais"
 
-1. **Correção 1 — escopo do "Para:"**: o select destino deve listar **(a)** apenas colaboradores que já têm clientes atribuídos, ou **(b)** todos os colaboradores ativos com módulo fiscal (permitindo transferir para alguém que ainda não tem clientes)? O enunciado diz "todos os colaboradores ativos", então tendo a usar (b) — confirmar.
-2. **Correção 3 — KPI "Total"**: remover o card "Total de Tarefas" para dar lugar a "Em andamento", ou manter os 5 cards lado a lado?
+**Em `ContactEditSheet.tsx`, bloco `section === 'fiscal'`**, adicionar abaixo de "Colaborador Responsável" um campo "Obrigações Fiscais".
+
+**Dados**:
+- Query nova `obligations-catalog` → `fiscal_obligations_catalog` (`id, name` ordenado por `name`).
+- Query nova `client-obligations-{contactId}` → `client_obligations` filtrado por `contact_id` (campos `obligation_id`).
+- Habilitadas só quando `section === 'fiscal'`.
+
+**State**: `selectedObligationIds: Set<string>` inicializado com os IDs retornados, e ressincronizado no `useEffect` de reset.
+
+**Componente visual**: `Popover` + `Command` (mesmo padrão de `SearchableSelect.tsx`):
+- Trigger: `<Button variant="outline">` com placeholder "Selecionar obrigações..." e contador `(N selecionada(s))`.
+- Conteúdo: `CommandInput` (busca) + `CommandList` com cada obrigação; clicar alterna seleção (mantém o popover aberto, mostra `Check` à esquerda quando marcada).
+- Abaixo do trigger: chips (`Badge` com `X`) para cada obrigação selecionada, com botão de remoção individual.
+
+**Persistência em `handleSave`** (apenas no ramo `section === 'fiscal'`, após o `updateContact.mutate`):
+1. Calcular `toDelete = original − selected` e `toInsert = selected − original`.
+2. Buscar `companyId` via `useCompany()` (hook já existe no projeto).
+3. `await supabase.from('client_obligations').delete().eq('contact_id', contact.id).in('obligation_id', toDelete)` se houver algum.
+4. `await supabase.from('client_obligations').insert(toInsert.map(id => ({ contact_id: contact.id, obligation_id: id, company_id })))` se houver algum.
+5. Invalidar `['client-obligations', contact.id]`.
+6. Toast: "Dados fiscais atualizados."
+
+Tabela `client_obligations` é acessada via cast `(supabase as any)` se ainda não estiver nos types — mesmo padrão usado em `FiscalTasks.tsx` para `fiscal_obligations_catalog`.
+
+---
+
+## Arquivos afetados
+
+- `src/components/fiscal/TaskCard.tsx` — menu ⋯ + dialog de exclusão.
+- `src/components/fiscal/KanbanBoard.tsx` — ordenação por coluna, collision detection, repassa `onEdit/onDelete`.
+- `src/components/fiscal/TaskListView.tsx` — envolver lixeira em AlertDialog.
+- `src/pages/FiscalTasks.tsx` — remover seletor global de sort, passar `onEdit`/`onDelete` ao Kanban.
+- `src/components/contacts/ContactEditSheet.tsx` — bloco fiscal recebe seletor de obrigações + sync no save.
+
+Nenhuma migração de banco necessária (todas as tabelas já existem).

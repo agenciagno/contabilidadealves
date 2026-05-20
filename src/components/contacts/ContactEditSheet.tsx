@@ -21,6 +21,9 @@ import {
 import { Contact, TaxRegime, useContacts } from '@/hooks/useContacts';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useCompany } from '@/hooks/useCompany';
+import { ContactObligationsSelector } from '@/components/fiscal/ContactObligationsSelector';
+import { toast } from 'sonner';
 
 type Section = 'contato' | 'endereco' | 'fiscal' | 'observacoes' | 'cobranca';
 
@@ -47,6 +50,7 @@ const BR_STATES = [
 
 export function ContactEditSheet({ contact, section, open, onOpenChange }: ContactEditSheetProps) {
   const { updateContact } = useContacts();
+  const { company } = useCompany();
 
   // Contato fields
   const [email, setEmail] = useState(contact.email || '');
@@ -67,6 +71,8 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
   const [taxRegime, setTaxRegime] = useState<TaxRegime | ''>(contact.tax_regime || '');
   const [isActive, setIsActive] = useState(contact.is_active);
   const [responsibleId, setResponsibleId] = useState<string>(contact.responsible_id || 'none');
+  const [selectedObligations, setSelectedObligations] = useState<Set<string>>(new Set());
+  const [obligationsInitialized, setObligationsInitialized] = useState(false);
 
   // Observações fields
   const [notes, setNotes] = useState(contact.notes || '');
@@ -97,6 +103,33 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
     enabled: section === 'fiscal',
   });
 
+  const { data: obligationsCatalog = [] } = useQuery({
+    queryKey: ['fiscal-obligations-catalog'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('fiscal_obligations_catalog')
+        .select('id, name')
+        .order('name', { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as { id: string; name: string }[];
+    },
+    enabled: section === 'fiscal',
+  });
+
+  const { data: contactObligations = [] } = useQuery({
+    queryKey: ['client-obligations', contact.id],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('client_obligations')
+        .select('obligation_id')
+        .eq('contact_id', contact.id);
+      if (error) throw error;
+      return (data ?? []) as { obligation_id: string }[];
+    },
+    enabled: section === 'fiscal',
+  });
+
+
   // Reset when contact or section changes
   useEffect(() => {
     setEmail(contact.email || '');
@@ -117,7 +150,16 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
     setBoletoDueDay(contact.boleto_due_day != null ? String(contact.boleto_due_day) : 'none');
     setCanalEntrega(contact.canal_entrega || 'none');
     setNumeroSicoob(contact.numero_cliente_sicoob != null ? String(contact.numero_cliente_sicoob) : '');
+    setObligationsInitialized(false);
   }, [contact, section]);
+
+  // Initialize selected obligations once the query resolves
+  useEffect(() => {
+    if (section === 'fiscal' && !obligationsInitialized) {
+      setSelectedObligations(new Set(contactObligations.map((o) => o.obligation_id)));
+      setObligationsInitialized(true);
+    }
+  }, [section, contactObligations, obligationsInitialized]);
 
   const handleCepBlur = async () => {
     const cleanCep = cep.replace(/\D/g, '');
@@ -139,7 +181,35 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
     }
   };
 
-  const handleSave = () => {
+  const syncObligations = async () => {
+    if (!company?.id) return;
+    const original = new Set(contactObligations.map((o) => o.obligation_id));
+    const toDelete: string[] = [];
+    const toInsert: string[] = [];
+    original.forEach((id) => { if (!selectedObligations.has(id)) toDelete.push(id); });
+    selectedObligations.forEach((id) => { if (!original.has(id)) toInsert.push(id); });
+
+    if (toDelete.length > 0) {
+      const { error } = await (supabase as any)
+        .from('client_obligations')
+        .delete()
+        .eq('contact_id', contact.id)
+        .in('obligation_id', toDelete);
+      if (error) throw error;
+    }
+    if (toInsert.length > 0) {
+      const { error } = await (supabase as any)
+        .from('client_obligations')
+        .insert(toInsert.map((obligation_id) => ({
+          contact_id: contact.id,
+          obligation_id,
+          company_id: company.id,
+        })));
+      if (error) throw error;
+    }
+  };
+
+  const handleSave = async () => {
     let updates: Partial<Contact> = {};
 
     if (section === 'contato') {
@@ -163,7 +233,19 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
 
     updateContact.mutate(
       { id: contact.id, originalContact: contact, ...updates },
-      { onSuccess: () => onOpenChange(false) }
+      {
+        onSuccess: async () => {
+          if (section === 'fiscal') {
+            try {
+              await syncObligations();
+              toast.success('Dados fiscais atualizados.');
+            } catch (e: any) {
+              toast.error(e?.message ?? 'Erro ao atualizar obrigações');
+            }
+          }
+          onOpenChange(false);
+        },
+      }
     );
   };
 
@@ -278,6 +360,14 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Obrigações Fiscais</Label>
+                <ContactObligationsSelector
+                  options={obligationsCatalog}
+                  selectedIds={selectedObligations}
+                  onChange={setSelectedObligations}
+                />
               </div>
             </>
           )}
