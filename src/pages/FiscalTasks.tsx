@@ -175,11 +175,17 @@ export default function FiscalTasks() {
 
   const { tasks, isLoading, createTask, updateTask, deleteTask } = useFiscalTasks(filters);
 
+  // Only contacts eligible for the Fiscal module (active + tax regime set)
+  const fiscalContacts = useMemo(
+    () => (contacts ?? []).filter((c: any) => isContactFiscalEligible(c)),
+    [contacts],
+  );
+
   const contactsMap = useMemo(() => {
     const map: Record<string, string> = {};
-    contacts.forEach(c => { map[c.id] = c.name; });
+    fiscalContacts.forEach((c: any) => { map[c.id] = c.name; });
     return map;
-  }, [contacts]);
+  }, [fiscalContacts]);
 
   const profilesMap = useMemo(() => {
     const map: Record<string, { name: string; initials: string }> = {};
@@ -236,7 +242,27 @@ export default function FiscalTasks() {
       return next;
     });
   };
+  const rangeSelect = (ids: string[]) => {
+    setSelectedTaskIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.add(id));
+      return next;
+    });
+  };
   const clearSelection = () => setSelectedTaskIds(new Set());
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedTaskIds);
+    if (ids.length === 0) return;
+    const { error } = await supabase.from('fiscal_tasks').delete().in('id', ids);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success(`✅ ${ids.length} tarefa${ids.length === 1 ? '' : 's'} excluída${ids.length === 1 ? '' : 's'} com sucesso`);
+    clearSelection();
+    queryClient.invalidateQueries({ queryKey: ['fiscal-tasks'] });
+  };
 
   const handleInlineReassign = async (taskId: string, newId: string) => {
     try {
