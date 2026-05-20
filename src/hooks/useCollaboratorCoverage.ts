@@ -36,11 +36,60 @@ export function useCollaborators() {
         .select('id, user_id, full_name, email, avatar_url, status_active')
         .eq('company_id', companyId)
         .eq('status_active', true)
+        .or('role.in.(admin,super_admin),allowed_modules.cs.{fiscal}')
         .order('full_name', { ascending: true });
       if (error) throw error;
       return (data ?? []) as Collaborator[];
     },
     enabled: !!companyId,
+  });
+}
+
+export interface CollaboratorDetailTask {
+  id: string;
+  title: string | null;
+  status: string;
+  due_date: string | null;
+  contacts: { name: string | null } | null;
+  fiscal_obligations_catalog: { name: string | null } | null;
+}
+
+export function useCollaboratorDetails(profileId: string | null, year: number, month: number) {
+  const { company } = useCompany();
+  const companyId = company?.id;
+  return useQuery({
+    queryKey: ['collaborator-details', companyId, profileId, year, month],
+    enabled: !!companyId && !!profileId,
+    queryFn: async () => {
+      const today = new Date().toISOString().slice(0, 10);
+      const { data: monthData, error: e1 } = await (supabase as any)
+        .from('fiscal_tasks')
+        .select('id, status')
+        .eq('company_id', companyId)
+        .eq('competence_year', year)
+        .eq('competence_month', month)
+        .eq('responsible_id', profileId);
+      if (e1) throw e1;
+      const total = (monthData ?? []).length;
+      const done = (monthData ?? []).filter((t: any) => t.status === 'concluido').length;
+
+      const { data: upcoming, error: e2 } = await (supabase as any)
+        .from('fiscal_tasks')
+        .select('id, title, status, due_date, contacts(name), fiscal_obligations_catalog(name)')
+        .eq('company_id', companyId)
+        .eq('responsible_id', profileId)
+        .neq('status', 'concluido')
+        .gte('due_date', today)
+        .order('due_date', { ascending: true })
+        .limit(5);
+      if (e2) throw e2;
+
+      return {
+        total,
+        done,
+        upcoming: (upcoming ?? []) as CollaboratorDetailTask[],
+      };
+    },
   });
 }
 
