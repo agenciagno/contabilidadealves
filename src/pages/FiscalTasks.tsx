@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { format, isValid, parse } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Plus, Kanban, List, CalendarDays, CalendarIcon, X, ArrowRightLeft, ArrowDownNarrowWide, ArrowUpNarrowWide } from 'lucide-react';
+import { Plus, Kanban, List, CalendarDays, CalendarIcon, X, ArrowRightLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
