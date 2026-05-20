@@ -152,7 +152,7 @@ export function useFiscalTasks(filters: FiscalTaskFilters = {}) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fiscal-tasks'] });
-      toast({ title: 'Tarefa excluída' });
+      toast({ title: 'Tarefa excluída com sucesso' });
     },
     onError: () => {
       toast({ title: 'Erro ao excluir tarefa', variant: 'destructive' });
