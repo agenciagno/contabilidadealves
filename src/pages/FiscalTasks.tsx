@@ -349,7 +349,7 @@ export default function FiscalTasks() {
         <SearchableSelect
           value={filterContact}
           onChange={setFilterContact}
-          options={contacts.map((c) => ({ value: c.id, label: c.name }))}
+          options={fiscalContacts.map((c: any) => ({ value: c.id, label: c.name }))}
           placeholder="Todos os clientes"
           allLabel="Todos os clientes"
           width="w-[200px]"
@@ -420,6 +420,32 @@ export default function FiscalTasks() {
                 <Button size="sm" onClick={() => setBulkOpen(true)} className="gap-1.5">
                   <ArrowRightLeft className="w-3.5 h-3.5" /> Transferir Responsabilidade
                 </Button>
+                {canDelete && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button size="sm" variant="destructive" className="gap-1.5">
+                        <Trash2 className="w-3.5 h-3.5" /> Excluir selecionados
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Excluir tarefas selecionadas</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Tem certeza que deseja excluir {selectedTaskIds.size} tarefa{selectedTaskIds.size === 1 ? '' : 's'} selecionada{selectedTaskIds.size === 1 ? '' : 's'}? Esta ação não pode ser desfeita.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          onClick={handleBulkDelete}
+                        >
+                          Excluir
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
               </div>
             </div>
           )}
@@ -433,6 +459,7 @@ export default function FiscalTasks() {
             selectedIds={selectedTaskIds}
             onToggleSelected={toggleSelected}
             onToggleAll={toggleAll}
+            onRangeSelect={rangeSelect}
             profileOptions={!isColaborador ? profileOptions : undefined}
             onReassign={!isColaborador ? handleInlineReassign : undefined}
           />
