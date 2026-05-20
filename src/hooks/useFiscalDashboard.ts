@@ -96,12 +96,21 @@ export function useFiscalCollaborators() {
     queryFn: async () => {
       const { data: contactRows, error: e1 } = await supabase
         .from('contacts')
-        .select('responsible_id')
+        .select('responsible_id, tax_regime')
         .eq('company_id', companyId)
         .eq('is_active', true)
-        .not('responsible_id', 'is', null);
+        .not('responsible_id', 'is', null)
+        .not('tax_regime', 'is', null);
       if (e1) throw e1;
-      const ids = Array.from(new Set((contactRows ?? []).map((r: any) => r.responsible_id).filter(Boolean)));
+      const ids = Array.from(new Set(
+        (contactRows ?? [])
+          .filter((r: any) => {
+            const v = (r.tax_regime ?? '').toString().trim();
+            return v !== '' && v.toLowerCase() !== 'nenhum';
+          })
+          .map((r: any) => r.responsible_id)
+          .filter(Boolean)
+      ));
       if (ids.length === 0) return [];
       const { data, error } = await supabase
         .from('profiles')
@@ -125,12 +134,15 @@ export function useUpcomingFiscalTasks() {
     queryKey: ['fiscal-dashboard', 'upcoming', companyId, isColaborador, profileId],
     enabled: !!companyId && (!isColaborador || !!profileId),
     queryFn: async () => {
+      const validContactIds = await fetchValidFiscalContactIds(companyId!);
+      if (validContactIds.length === 0) return [];
       let q = (supabase as any)
         .from('fiscal_tasks')
         .select(
           'id, title, status, due_date, fiscal_due_date, contacts(name), responsible:profiles!fiscal_tasks_responsible_id_fkey(full_name), fiscal_obligations_catalog(name)'
         )
         .eq('company_id', companyId)
+        .in('contact_id', validContactIds)
         .neq('status', 'concluido')
         .gte('due_date', today())
         .lte('due_date', inDays(7))
