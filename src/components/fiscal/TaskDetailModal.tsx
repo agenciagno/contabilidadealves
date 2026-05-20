@@ -160,7 +160,9 @@ export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, 
 
             <div>
               <Label>Obrigação</Label>
-              {canEdit ? (
+              {groupTasks && groupTasks.length > 1 ? (
+                <p className="text-sm text-foreground mt-1">{groupTasks.length} obrigações</p>
+              ) : canEdit ? (
                 <Input value={title} onChange={e => setTitle(e.target.value)} />
               ) : (
                 <p className="text-sm text-foreground mt-1">{title}</p>
