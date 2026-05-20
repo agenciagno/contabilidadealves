@@ -1,9 +1,9 @@
-import { useState, useMemo } from 'react';
-import { format, subDays } from 'date-fns';
+import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Plus, Kanban, List, CalendarDays, CalendarIcon, X, ArrowRightLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -36,8 +36,22 @@ export default function FiscalTasks() {
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [filterContact, setFilterContact] = useState('all');
   const [filterResponsible, setFilterResponsible] = useState('all');
-  const [filterTitle, setFilterTitle] = useState('');
+  const [filterObligation, setFilterObligation] = useState('all');
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
+
+  // Pre-populate responsible from URL (?responsible=<profileId>)
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const r = searchParams.get('responsible');
+    if (r && r !== filterResponsible) {
+      setFilterResponsible(r);
+      setViewMode('list');
+      const next = new URLSearchParams(searchParams);
+      next.delete('responsible');
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Modals
   const [createOpen, setCreateOpen] = useState(false);
@@ -47,18 +61,33 @@ export default function FiscalTasks() {
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
   const queryClient = useQueryClient();
 
-  // Fetch company profiles for responsible dropdown
+  // Profiles for responsible dropdown (filter: admin/super_admin or has fiscal module)
   const { data: companyProfiles = [] } = useQuery({
-    queryKey: ['company-profiles', companyId],
+    queryKey: ['company-profiles-fiscal', companyId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, email')
-        .eq('company_id', companyId!);
+        .eq('company_id', companyId!)
+        .eq('status_active', true)
+        .or('role.in.(admin,super_admin,colaborador),allowed_modules.cs.{fiscal}');
       if (error) throw error;
       return data;
     },
     enabled: !!companyId,
+  });
+
+  // Obligations catalog for dropdown
+  const { data: obligations = [] } = useQuery({
+    queryKey: ['fiscal-obligations-catalog'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('fiscal_obligations_catalog')
+        .select('id, name')
+        .order('name', { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as { id: string; name: string }[];
+    },
   });
 
   const filters = useMemo(() => ({
@@ -66,8 +95,10 @@ export default function FiscalTasks() {
     endDate: endDate ? format(endDate, 'yyyy-MM-dd') : undefined,
     contactId: filterContact !== 'all' ? filterContact : undefined,
     responsibleId: filterResponsible !== 'all' ? filterResponsible : undefined,
-    titleSearch: filterTitle || undefined,
-  }), [startDate, endDate, filterContact, filterResponsible, filterTitle]);
+    titleSearch: filterObligation !== 'all'
+      ? (obligations.find((o) => o.id === filterObligation)?.name)
+      : undefined,
+  }), [startDate, endDate, filterContact, filterResponsible, filterObligation, obligations]);
 
   const { tasks, isLoading, createTask, updateTask, deleteTask } = useFiscalTasks(filters);
 
