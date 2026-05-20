@@ -167,7 +167,16 @@ export default function FiscalCalendar() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
+            {phase === 'idle' ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-16 text-muted-foreground">
+                  <div className="flex flex-col items-center gap-3">
+                    <CalendarRange className="h-10 w-10 opacity-40" />
+                    <p>Clique em <strong>Calcular Calendário</strong> para visualizar as obrigações do período.</p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
                   {Array.from({ length: 7 }).map((_, j) => (
