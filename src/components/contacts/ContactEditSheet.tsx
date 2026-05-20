@@ -361,6 +361,14 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-1.5">
+                <Label>Obrigações Fiscais</Label>
+                <ContactObligationsSelector
+                  options={obligationsCatalog}
+                  selectedIds={selectedObligations}
+                  onChange={setSelectedObligations}
+                />
+              </div>
             </>
           )}
 
