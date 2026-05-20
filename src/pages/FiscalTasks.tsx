@@ -437,6 +437,7 @@ export default function FiscalTasks() {
           onEdit={handleTaskClick}
           onDelete={canDelete ? (id) => deleteTask.mutate(id) : undefined}
           onUploadAttachment={handleUploadAttachment}
+          onGroupClick={handleGroupClick}
         />
       )}
 
