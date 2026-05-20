@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import {
   AlertTriangle,
   CheckCircle2,
   Clock,
+  Download,
   ListChecks,
   RefreshCw,
 } from 'lucide-react';
@@ -25,6 +26,21 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
+import { supabase } from '@/integrations/supabase/client';
+import { useCompany } from '@/hooks/useCompany';
+import {
+  exportProductivity,
+  exportCompliance,
+  exportCriticalDueDates,
+  exportExecutive,
+  ExportTask,
+} from '@/lib/fiscal-exports';
 import {
   Select,
   SelectContent,
@@ -217,6 +233,27 @@ export default function FiscalDashboard() {
           <Button variant="outline" onClick={handleRefresh}>
             <RefreshCw className="h-4 w-4" /> Atualizar
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">
+                <Download className="h-4 w-4" /> Exportar
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuItem onClick={() => handleExport('productivity')}>
+                Produtividade da Equipe
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('compliance')}>
+                Compliance por Cliente
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('critical')}>
+                Vencimentos Críticos
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('executive')}>
+                Relatório Executivo do Mês
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
