@@ -27,12 +27,48 @@ export interface CoverageRow {
 async function fetchProfileIdsWithActiveClients(companyId: string): Promise<string[]> {
   const { data, error } = await supabase
     .from('contacts')
-    .select('responsible_id')
+    .select('responsible_id, tax_regime')
     .eq('company_id', companyId)
     .eq('is_active', true)
-    .not('responsible_id', 'is', null);
+    .not('responsible_id', 'is', null)
+    .not('tax_regime', 'is', null);
   if (error) throw error;
-  return Array.from(new Set((data ?? []).map((r: any) => r.responsible_id).filter(Boolean)));
+  return Array.from(new Set(
+    (data ?? [])
+      .filter((r: any) => {
+        const v = (r.tax_regime ?? '').toString().trim();
+        return v !== '' && v.toLowerCase() !== 'nenhum';
+      })
+      .map((r: any) => r.responsible_id)
+      .filter(Boolean)
+  ));
+}
+
+export function useClientCountByProfile() {
+  const { company } = useCompany();
+  const companyId = company?.id;
+  return useQuery<Record<string, number>>({
+    queryKey: ['client-count-by-profile', companyId],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('contacts')
+        .select('responsible_id, tax_regime')
+        .eq('company_id', companyId!)
+        .eq('is_active', true)
+        .not('responsible_id', 'is', null)
+        .not('tax_regime', 'is', null);
+      if (error) throw error;
+      const map: Record<string, number> = {};
+      (data ?? []).forEach((r: any) => {
+        const v = (r.tax_regime ?? '').toString().trim();
+        if (v === '' || v.toLowerCase() === 'nenhum') return;
+        if (!r.responsible_id) return;
+        map[r.responsible_id] = (map[r.responsible_id] ?? 0) + 1;
+      });
+      return map;
+    },
+  });
 }
 
 export function useCollaborators() {

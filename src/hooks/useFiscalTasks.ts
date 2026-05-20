@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCompany } from '@/hooks/useCompany';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useToast } from '@/hooks/use-toast';
+import { fetchValidFiscalContactIds } from '@/lib/fiscal-filters';
 
 export interface FiscalTask {
   id: string;
@@ -57,6 +58,9 @@ export function useFiscalTasks(filters: FiscalTaskFilters = {}) {
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ['fiscal-tasks', companyId, filters, isColaborador, currentProfile?.id],
     queryFn: async () => {
+      // Restrict to contacts with a tax regime defined
+      const validContactIds = companyId ? await fetchValidFiscalContactIds(companyId) : [];
+
       let query = supabase
         .from('fiscal_tasks')
         .select('*')
@@ -65,6 +69,11 @@ export function useFiscalTasks(filters: FiscalTaskFilters = {}) {
       if (companyId) {
         query = query.eq('company_id', companyId);
       }
+
+      if (validContactIds.length === 0) {
+        return [] as FiscalTask[];
+      }
+      query = query.in('contact_id', validContactIds);
 
       // RBAC: colaborador only sees their own tasks
       if (isColaborador && currentProfile?.id) {

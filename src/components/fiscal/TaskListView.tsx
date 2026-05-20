@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -53,6 +54,7 @@ interface TaskListViewProps {
   selectedIds?: Set<string>;
   onToggleSelected?: (id: string) => void;
   onToggleAll?: (ids: string[], allSelected: boolean) => void;
+  onRangeSelect?: (ids: string[]) => void;
   // Inline reassign
   profileOptions?: ProfileOption[];
   onReassign?: (taskId: string, newResponsibleId: string) => void;
@@ -60,8 +62,15 @@ interface TaskListViewProps {
 
 export function TaskListView({
   tasks, contactsMap, profilesMap, onTaskClick, onDelete, canDelete,
-  selectedIds, onToggleSelected, onToggleAll, profileOptions, onReassign,
+  selectedIds, onToggleSelected, onToggleAll, onRangeSelect, profileOptions, onReassign,
 }: TaskListViewProps) {
+  const lastIdxRef = useRef<number | null>(null);
+
+  // Reset anchor when selection cleared
+  useEffect(() => {
+    if (!selectedIds || selectedIds.size === 0) lastIdxRef.current = null;
+  }, [selectedIds]);
+
   if (tasks.length === 0) {
     return (
       <Card className="bg-card border-border/50">
@@ -74,6 +83,18 @@ export function TaskListView({
   const allIds = tasks.map((t) => t.id);
   const allSelected = showCheckbox && allIds.length > 0 && allIds.every((id) => selectedIds!.has(id));
   const someSelected = showCheckbox && allIds.some((id) => selectedIds!.has(id));
+
+  const handleCheckboxClick = (e: React.MouseEvent, idx: number, id: string) => {
+    e.stopPropagation();
+    if (e.shiftKey && lastIdxRef.current !== null && onRangeSelect) {
+      const [a, b] = [lastIdxRef.current, idx].sort((x, y) => x - y);
+      const rangeIds = tasks.slice(a, b + 1).map((t) => t.id);
+      onRangeSelect(rangeIds);
+    } else {
+      onToggleSelected!(id);
+    }
+    lastIdxRef.current = idx;
+  };
 
   return (
     <Card className="bg-card border-border/50">
@@ -92,13 +113,13 @@ export function TaskListView({
             <TableHead>Obrigação</TableHead>
             <TableHead>Responsável</TableHead>
             <TableHead>Vencimento</TableHead>
-            <TableHead>Status</TableHead>
+            <TableHead className="w-24">Status</TableHead>
             <TableHead className="w-10"></TableHead>
-            <TableHead className="text-right w-24">Ações</TableHead>
+            <TableHead className="text-left w-16">Ações</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {tasks.map(task => {
+          {tasks.map((task, idx) => {
             const profile = profilesMap[task.responsible_id || ''] || { name: '—', initials: '?' };
             const statusInfo = STATUS_LABELS[task.status] || STATUS_LABELS.a_fazer;
             const checked = !!selectedIds?.has(task.id);
@@ -106,7 +127,12 @@ export function TaskListView({
               <TableRow key={task.id} className="cursor-pointer" onClick={() => onTaskClick(task)}>
                 {showCheckbox && (
                   <TableCell onClick={(e) => e.stopPropagation()}>
-                    <Checkbox checked={checked} onCheckedChange={() => onToggleSelected!(task.id)} />
+                    <span
+                      onClick={(e) => handleCheckboxClick(e, idx, task.id)}
+                      className="inline-flex"
+                    >
+                      <Checkbox checked={checked} />
+                    </span>
                   </TableCell>
                 )}
                 <TableCell className="font-medium text-sm">{contactsMap[task.contact_id] || '—'}</TableCell>
@@ -148,14 +174,14 @@ export function TaskListView({
                 <TableCell className={cn('text-sm font-medium', getDueDateColor(task.due_date))}>
                   {format(parseISO(task.due_date), 'dd/MM/yyyy', { locale: ptBR })}
                 </TableCell>
-                <TableCell>
+                <TableCell className="w-24">
                   <Badge variant="outline" className={cn('text-xs', statusInfo.className)}>{statusInfo.label}</Badge>
                 </TableCell>
-                <TableCell>
+                <TableCell className="w-10">
                   {task.attachment_url && <Paperclip className="w-3.5 h-3.5 text-muted-foreground" />}
                 </TableCell>
-                <TableCell className="text-right" onClick={e => e.stopPropagation()}>
-                  <div className="flex gap-1 justify-end">
+                <TableCell className="text-left w-16" onClick={e => e.stopPropagation()}>
+                  <div className="flex gap-1 justify-start">
                     <Button variant="ghost" size="icon" onClick={() => onTaskClick(task)}><Eye className="h-4 w-4" /></Button>
                     {canDelete && (
                       <AlertDialog>

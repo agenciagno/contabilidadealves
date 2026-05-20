@@ -78,8 +78,9 @@ export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, 
         .getPublicUrl(path);
 
       setAttachmentUrl(urlData.publicUrl);
-      onUpdate(task.id, { attachment_url: urlData.publicUrl });
-      toast({ title: 'Anexo enviado com sucesso' });
+      setStatus('concluido');
+      onUpdate(task.id, { attachment_url: urlData.publicUrl, status: 'concluido' });
+      toast({ title: '✅ Anexo adicionado. Tarefa marcada como concluída.' });
     } catch {
       toast({ title: 'Erro ao enviar anexo', variant: 'destructive' });
     } finally {

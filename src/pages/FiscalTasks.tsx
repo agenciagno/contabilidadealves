@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { format, isValid, parse } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Plus, Kanban, List, CalendarDays, CalendarIcon, X, ArrowRightLeft } from 'lucide-react';
+import { Plus, Kanban, List, CalendarDays, CalendarIcon, X, ArrowRightLeft, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -23,6 +23,18 @@ import { TaskDetailModal } from '@/components/fiscal/TaskDetailModal';
 import { TaskCreateModal } from '@/components/fiscal/TaskCreateModal';
 import { BulkReassignModal } from '@/components/fiscal/BulkReassignModal';
 import { SearchableSelect } from '@/components/fiscal/SearchableSelect';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { isContactFiscalEligible } from '@/lib/fiscal-filters';
 import { toast } from 'sonner';
 
 type ViewMode = 'kanban' | 'list' | 'calendar';
@@ -163,11 +175,17 @@ export default function FiscalTasks() {
 
   const { tasks, isLoading, createTask, updateTask, deleteTask } = useFiscalTasks(filters);
 
+  // Only contacts eligible for the Fiscal module (active + tax regime set)
+  const fiscalContacts = useMemo(
+    () => (contacts ?? []).filter((c: any) => isContactFiscalEligible(c)),
+    [contacts],
+  );
+
   const contactsMap = useMemo(() => {
     const map: Record<string, string> = {};
-    contacts.forEach(c => { map[c.id] = c.name; });
+    fiscalContacts.forEach((c: any) => { map[c.id] = c.name; });
     return map;
-  }, [contacts]);
+  }, [fiscalContacts]);
 
   const profilesMap = useMemo(() => {
     const map: Record<string, { name: string; initials: string }> = {};
@@ -224,7 +242,27 @@ export default function FiscalTasks() {
       return next;
     });
   };
+  const rangeSelect = (ids: string[]) => {
+    setSelectedTaskIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.add(id));
+      return next;
+    });
+  };
   const clearSelection = () => setSelectedTaskIds(new Set());
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedTaskIds);
+    if (ids.length === 0) return;
+    const { error } = await supabase.from('fiscal_tasks').delete().in('id', ids);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success(`✅ ${ids.length} tarefa${ids.length === 1 ? '' : 's'} excluída${ids.length === 1 ? '' : 's'} com sucesso`);
+    clearSelection();
+    queryClient.invalidateQueries({ queryKey: ['fiscal-tasks'] });
+  };
 
   const handleInlineReassign = async (taskId: string, newId: string) => {
     try {
@@ -311,7 +349,7 @@ export default function FiscalTasks() {
         <SearchableSelect
           value={filterContact}
           onChange={setFilterContact}
-          options={contacts.map((c) => ({ value: c.id, label: c.name }))}
+          options={fiscalContacts.map((c: any) => ({ value: c.id, label: c.name }))}
           placeholder="Todos os clientes"
           allLabel="Todos os clientes"
           width="w-[200px]"
@@ -382,6 +420,32 @@ export default function FiscalTasks() {
                 <Button size="sm" onClick={() => setBulkOpen(true)} className="gap-1.5">
                   <ArrowRightLeft className="w-3.5 h-3.5" /> Transferir Responsabilidade
                 </Button>
+                {canDelete && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button size="sm" variant="destructive" className="gap-1.5">
+                        <Trash2 className="w-3.5 h-3.5" /> Excluir selecionados
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Excluir tarefas selecionadas</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Tem certeza que deseja excluir {selectedTaskIds.size} tarefa{selectedTaskIds.size === 1 ? '' : 's'} selecionada{selectedTaskIds.size === 1 ? '' : 's'}? Esta ação não pode ser desfeita.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          onClick={handleBulkDelete}
+                        >
+                          Excluir
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
               </div>
             </div>
           )}
@@ -395,6 +459,7 @@ export default function FiscalTasks() {
             selectedIds={selectedTaskIds}
             onToggleSelected={toggleSelected}
             onToggleAll={toggleAll}
+            onRangeSelect={rangeSelect}
             profileOptions={!isColaborador ? profileOptions : undefined}
             onReassign={!isColaborador ? handleInlineReassign : undefined}
           />
@@ -413,7 +478,7 @@ export default function FiscalTasks() {
       <TaskCreateModal
         open={createOpen}
         onOpenChange={setCreateOpen}
-        contacts={contacts.map(c => ({ id: c.id, name: c.name, responsible_id: (c as any).responsible_id }))}
+        contacts={fiscalContacts.map((c: any) => ({ id: c.id, name: c.name, responsible_id: c.responsible_id }))}
         profiles={companyProfiles}
         onSubmit={handleCreate}
         isLoading={createTask.isPending}
@@ -424,7 +489,7 @@ export default function FiscalTasks() {
         open={detailOpen}
         onOpenChange={setDetailOpen}
         task={selectedTask}
-        contacts={contacts.map(c => ({ id: c.id, name: c.name }))}
+        contacts={fiscalContacts.map((c: any) => ({ id: c.id, name: c.name }))}
         profiles={companyProfiles}
         onUpdate={(id, data) => updateTask.mutate({ id, ...data })}
         onDelete={id => deleteTask.mutate(id)}
