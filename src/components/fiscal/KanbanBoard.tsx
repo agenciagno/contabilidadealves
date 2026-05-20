@@ -140,11 +140,12 @@ function SortableSingle({ item, contactsMap, profilesMap, onTaskClick, onEdit, o
   );
 }
 
-function SortableGroup({ item, contactsMap, profilesMap, onUploadAttachment }: {
+function SortableGroup({ item, contactsMap, profilesMap, onUploadAttachment, onCardClick }: {
   item: GroupItem;
   contactsMap: Record<string, string>;
   profilesMap: Record<string, { name: string; initials: string }>;
   onUploadAttachment: (task: FiscalTask, file: File) => Promise<void>;
+  onCardClick?: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
@@ -164,6 +165,7 @@ function SortableGroup({ item, contactsMap, profilesMap, onUploadAttachment }: {
         responsibleName={profile.name}
         onUploadAttachment={onUploadAttachment}
         dragProps={{ ...attributes, ...listeners }}
+        onCardClick={onCardClick}
       />
     </div>
   );
