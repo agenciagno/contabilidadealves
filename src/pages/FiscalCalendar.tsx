@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
-import { Loader2, Pencil, Zap } from 'lucide-react';
+import { CheckCircle2, Info, Loader2, Pencil, Rocket, Zap } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +24,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useUserRole } from '@/hooks/useUserRole';
 import {
   useFiscalCalendar,
-  useGenerateMonthlyTasks,
+  useCalculateCalendar,
+  useConfirmMonthlyTasks,
   FiscalCalendarEffectiveRow,
 } from '@/hooks/useFiscalCalendar';
 import { FiscalObligationOverrideDialog } from '@/components/fiscal/FiscalObligationOverrideDialog';
@@ -35,6 +36,9 @@ const MONTHS = [
 ];
 const YEARS = [2025, 2026, 2027];
 
+type Phase = 'idle' | 'calculated' | 'launched';
+const phaseKey = (y: number, m: number) => `fiscal-calendar-phase:${y}-${m}`;
+
 export default function FiscalCalendar() {
   const { isAdmin, isSuperAdmin, isLoading: roleLoading } = useUserRole();
 
@@ -43,7 +47,26 @@ export default function FiscalCalendar() {
   const [month, setMonth] = useState<number>(now.getMonth() + 1);
 
   const { data: rows, isLoading } = useFiscalCalendar(year, month);
-  const generate = useGenerateMonthlyTasks();
+  const calculate = useCalculateCalendar();
+  const confirm = useConfirmMonthlyTasks();
+
+  const [phase, setPhase] = useState<Phase>('idle');
+
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem(phaseKey(year, month));
+      setPhase((stored as Phase) ?? 'idle');
+    } catch {
+      setPhase('idle');
+    }
+  }, [year, month]);
+
+  const setPhasePersist = (next: Phase) => {
+    setPhase(next);
+    try {
+      sessionStorage.setItem(phaseKey(year, month), next);
+    } catch {}
+  };
 
   const [editing, setEditing] = useState<FiscalCalendarEffectiveRow | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -54,6 +77,13 @@ export default function FiscalCalendar() {
   if (!isAdmin && !isSuperAdmin) return <Navigate to="/fiscal/tarefas" replace />;
 
   const fmt = (s: string | null) => (s ? format(parseISO(s), 'dd/MM/yyyy') : '—');
+
+  const handleCalculate = () => {
+    calculate.mutate({ year, month }, { onSuccess: () => setPhasePersist('calculated') });
+  };
+  const handleConfirm = () => {
+    confirm.mutate({ year, month }, { onSuccess: () => setPhasePersist('launched') });
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -76,18 +106,43 @@ export default function FiscalCalendar() {
               ))}
             </SelectContent>
           </Select>
-          <Button
-            onClick={() => generate.mutate({ year, month })}
-            disabled={generate.isPending}
-          >
-            {generate.isPending ? (
-              <><Loader2 className="h-4 w-4 animate-spin" /> Gerando...</>
-            ) : (
-              <><Zap className="h-4 w-4" /> Gerar Tarefas do Mês</>
-            )}
-          </Button>
+
+          {phase === 'idle' && (
+            <Button onClick={handleCalculate} disabled={calculate.isPending}>
+              {calculate.isPending ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Calculando...</>
+              ) : (
+                <><Zap className="h-4 w-4" /> Calcular Calendário</>
+              )}
+            </Button>
+          )}
+
+          {phase === 'calculated' && (
+            <Button onClick={handleConfirm} disabled={confirm.isPending} className="bg-emerald-600 hover:bg-emerald-700">
+              {confirm.isPending ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Lançando...</>
+              ) : (
+                <><Rocket className="h-4 w-4" /> Confirmar e Lançar Tarefas</>
+              )}
+            </Button>
+          )}
+
+          {phase === 'launched' && (
+            <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 gap-1.5 px-3 py-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5" /> Tarefas lançadas
+            </Badge>
+          )}
         </div>
       </div>
+
+      {phase === 'calculated' && (
+        <div className="flex items-start gap-3 rounded-lg border border-blue-500/30 bg-blue-500/10 p-4 text-sm">
+          <Info className="h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" />
+          <p className="text-foreground">
+            Calendário calculado. Revise as datas abaixo e clique em <strong>Confirmar e Lançar Tarefas</strong> para criar as tarefas no Kanban.
+          </p>
+        </div>
+      )}
 
       <Card className="overflow-hidden">
         <Table>

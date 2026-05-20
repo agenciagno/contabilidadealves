@@ -41,7 +41,7 @@ export function useFiscalCalendar(year: number, month: number) {
   });
 }
 
-export function useGenerateMonthlyTasks() {
+export function useCalculateCalendar() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ year, month }: { year: number; month: number }) => {
@@ -58,33 +58,41 @@ export function useGenerateMonthlyTasks() {
         const text = await res.text().catch(() => '');
         throw new Error(`calculate-fiscal-calendar falhou: ${res.status} ${text}`);
       }
+      return { year, month };
+    },
+    onSuccess: ({ year, month }) => {
+      toast.success('Calendário calculado. Revise as datas e confirme.');
+      qc.invalidateQueries({ queryKey: ['fiscal-calendar', year, month] });
+    },
+    onError: (err: any) => toast.error(err?.message ?? 'Erro ao calcular calendário'),
+  });
+}
 
+export function useConfirmMonthlyTasks() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ year, month }: { year: number; month: number }) => {
       const { data, error } = await (supabase as any).rpc('generate_monthly_fiscal_tasks', {
         p_year: year,
         p_month: month,
       });
       if (error) throw error;
-
       const tasksCreated: number =
         (data && typeof data === 'object' && 'tasks_created' in data
           ? (data as any).tasks_created
           : Array.isArray(data) && data[0]?.tasks_created) ?? 0;
-
       return { tasksCreated, year, month };
     },
     onSuccess: ({ tasksCreated, year, month }) => {
       const label = `${String(month).padStart(2, '0')}/${year}`;
       if (tasksCreated === 0) {
-        toast.info(`ℹ️ Todas as tarefas deste mês já foram geradas`);
+        toast.info(`ℹ️ Todas as tarefas deste mês já foram lançadas`);
       } else {
-        toast.success(`✅ ${tasksCreated} tarefas geradas para ${label}`);
+        toast.success(`✅ ${tasksCreated} tarefas lançadas para ${label}`);
       }
-      qc.invalidateQueries({ queryKey: ['fiscal-calendar', year, month] });
       qc.invalidateQueries({ queryKey: ['fiscal-tasks'] });
     },
-    onError: (err: any) => {
-      toast.error(err?.message ?? 'Erro ao gerar tarefas');
-    },
+    onError: (err: any) => toast.error(err?.message ?? 'Erro ao lançar tarefas'),
   });
 }
 
