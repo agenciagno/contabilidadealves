@@ -1,11 +1,49 @@
-Implementação dos 7 ajustes conforme detalhado na mensagem anterior.
+## Objetivo
+Criar uma página pública de newsletter acessível sem autenticação na rota `/newsletter/:slug`.
 
-1. **Dashboard** — remover botão "Exportar", DropdownMenu, handlePrint e blocos print-only em `FiscalDashboard.tsx`.
-2. **Lista Tarefas** — colunas Status (`w-24`) e Ações (`w-16`, alinhadas à esquerda) em `TaskListView.tsx`.
-3. **Excluir selecionados** — botão destrutivo + AlertDialog na barra de seleção em `FiscalTasks.tsx`, executando `DELETE ... WHERE id IN (...)`.
-4. **Shift+click** — seleção por intervalo em `TaskListView.tsx` com `lastClickedIndex` local, reset quando seleção zera.
-5. **Colaboradores** — substituir "tarefas pendentes" por "clientes vinculados" via novo hook `useClientCountByProfile` em `useCollaboratorCoverage.ts` e ajuste em `FiscalCollaborators.tsx`.
-6. **Upload anexo → concluído** — em `TaskDetailModal.tsx`, no `handleUpload` chamar `onUpdate(id, { attachment_url, status: 'concluido' })` com toast atualizado.
-7. **Filtro tax_regime** — novo helper `src/lib/fiscal-filters.ts` (`fetchValidFiscalContactIds`) usado em `useFiscalTasks.ts`, `useFiscalDashboard.ts` (mês + upcoming), `useCollaboratorCoverage.ts` (clients/pending counts) e filtro do dropdown de cliente em `FiscalTasks.tsx`. Excluir `tax_regime` null, vazio ou 'Nenhum'.
+## Arquivos a criar
 
-Sem migrações de banco.
+### 1. `src/pages/Newsletter.tsx`
+Página standalone (sem AppLayout) que busca dados da tabela `newsletters` no Supabase via slug.
+
+**Estrutura:**
+- **Header:** logo `/Contabilidade_Alves_Branco.svg`, título "Newsletter Contabilidade Alves", subtítulo com data formatada em português, badge colorido (Diária = azul, Semanal = verde).
+- **Corpo:** renderização do campo `content` com formatação:
+  - `*texto*` → `<strong>`
+  - `_texto_` → `<em>`
+  - Linha com `━━━━━━` ou similar → `<hr className="border-t border-gray-200 my-6">`
+  - Bullets (`•` ou `-` no início) → indentação suave
+  - Parágrafos respeitando `\n`
+  - Emojis naturais
+  - Fonte legível, ~16-17px, line-height 1.6, max-width 680px centralizado
+- **Footer:** "Contabilidade Alves • Juatuba, MG", link WhatsApp, texto pequeno de disclaimer.
+- **Loading:** skeleton loader com `animate-pulse` blocos cinza.
+- **Erro (slug não encontrado):** mensagem amigável + botão para o site.
+
+**Query Supabase:**
+```ts
+const { data, error } = await supabase
+  .from('newsletters')
+  .select('slug, type, title, content, items_count, created_at, sent_at')
+  .eq('slug', slug)
+  .single();
+```
+Como a tabela `newsletters` não está no `types.ts`, usar casting `(supabase as any).from(...)`.
+
+### 2. `src/App.tsx`
+Adicionar a rota pública fora do `AppLayout`:
+```tsx
+<Route path="/newsletter/:slug" element={<Newsletter />} />
+```
+Importar a nova página no topo do arquivo.
+
+## Estilo visual
+- Fundo: `#FAFAF8` (off-white)
+- Tipografia: Inter/System sans-serif
+- Separadores: linha fina cinza claro
+- Mobile-first, padding 16px em telas pequenas
+- Sem sidebar, nav ou login
+
+## Notas
+- A tabela `newsletters` já tem RLS para SELECT público (policy `newsletters_public_read`).
+- Não incluir botão de editar/aprovar, comentários, likes, lista de outras edições ou formulários.
