@@ -35,6 +35,7 @@ import Legalizacao from "@/pages/Legalizacao";
 import PessoalRH from "@/pages/PessoalRH";
 import NoAccess from "@/pages/NoAccess";
 import NotFound from "@/pages/NotFound";
+import Newsletter from "@/pages/Newsletter";
 
 const queryClient = new QueryClient();
 
@@ -51,6 +52,7 @@ const App = () => (
             <NotificationProvider>
               <Routes>
               <Route path="/auth" element={<Auth />} />
+              <Route path="/newsletter/:slug" element={<Newsletter />} />
               <Route path="/sem-acesso" element={<NoAccess />} />
               <Route path="/" element={<AppLayout><ModuleGuard moduleName="home"><Home /></ModuleGuard></AppLayout>} />
               <Route path="/painel-financeiro" element={<AppLayout><ModuleGuard moduleName="financeiro"><Dashboard /></ModuleGuard></AppLayout>} />
