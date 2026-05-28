@@ -490,11 +490,12 @@ function PartnerDialogV2({
     };
     try {
       if (partner?.id) {
-        await updatePartner.mutateAsync({ id: partner.id, ...payload });
+        await updatePartner.mutateAsync({ id: partner.id, ...payload } as any);
       } else {
-        await createPartner.mutateAsync({ ...payload, contact_id: contactId });
+        await createPartner.mutateAsync({ ...payload, contact_id: contactId } as any);
       }
       onOpenChange(false);
+    } catch {}
     } catch {}
   };
 
