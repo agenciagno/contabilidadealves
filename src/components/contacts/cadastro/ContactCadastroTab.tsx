@@ -207,7 +207,7 @@ export function ContactCadastroTab({ contactId }: Props) {
         </Card>
         <div className="flex justify-end">
           <Button onClick={() => saveSection([
-            'document', 'type', 'razao_social', 'nome_fantasia', 'natureza_juridica',
+            'document', 'razao_social', 'nome_fantasia', 'porte', 'natureza_juridica',
             'data_abertura_receita', 'situacao_cadastral', 'email', 'phone', 'whatsapp', 'notes',
             'cnae_principal', 'cnaes_secundarios',
           ])} disabled={updateSuperPerfil.isPending}>
