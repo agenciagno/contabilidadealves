@@ -25,6 +25,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { ContactBillingCard } from '../ContactBillingCard';
 import { ContactObligationsSelector } from '@/components/fiscal/ContactObligationsSelector';
 import { useCompany } from '@/hooks/useCompany';
+import { maskPhone } from '@/lib/utils';
 import { toast } from 'sonner';
 
 interface Props {
@@ -42,7 +43,6 @@ const TAX_REGIMES = [
 ];
 
 const STATUS_CLIENTE = ['Prospect', 'Ativo', 'Inativo', 'Suspenso', 'Encerrado'];
-const TIPO_PESSOA = [{ value: 'cliente', label: 'Cliente' }, { value: 'fornecedor', label: 'Fornecedor' }, { value: 'ambos', label: 'Ambos' }];
 const PORTE_OPTIONS = ['MEI', 'ME', 'EPP', 'Médio', 'Grande'];
 const BR_STATES = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
 
@@ -162,14 +162,6 @@ export function ContactCadastroTab({ contactId }: Props) {
                 </Button>
               </div>
             </Field>
-            <Field label="Tipo de Pessoa">
-              <Select value={form.type || ''} onValueChange={v => set('type', v)}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  {TIPO_PESSOA.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </Field>
             <Field label="Razão Social" autofill>
               <Input value={form.razao_social || ''} onChange={e => set('razao_social', e.target.value)} />
             </Field>
@@ -177,19 +169,12 @@ export function ContactCadastroTab({ contactId }: Props) {
               <Input value={form.nome_fantasia || ''} onChange={e => set('nome_fantasia', e.target.value)} />
             </Field>
             <Field label="Porte">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div>
-                      <Select disabled value="">
-                        <SelectTrigger><SelectValue placeholder="Em breve" /></SelectTrigger>
-                        <SelectContent>{PORTE_OPTIONS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>Disponível em breve</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <Select value={form.porte || ''} onValueChange={v => set('porte', v)}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {PORTE_OPTIONS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </Field>
             <Field label="Natureza Jurídica" autofill>
               <Input value={form.natureza_juridica || ''} onChange={e => set('natureza_juridica', e.target.value)} />
@@ -204,20 +189,14 @@ export function ContactCadastroTab({ contactId }: Props) {
               <Input type="email" value={form.email || ''} onChange={e => set('email', e.target.value)} />
             </Field>
             <Field label="Telefone">
-              <Input value={form.phone || ''} onChange={e => set('phone', e.target.value)} />
+              <Input value={form.phone || ''} onChange={e => set('phone', maskPhone(e.target.value))} />
             </Field>
             <Field label="WhatsApp">
-              <Input value={form.whatsapp || ''} onChange={e => set('whatsapp', e.target.value)} />
-            </Field>
-            <Field label="Site">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Input disabled placeholder="Em breve" />
-                  </TooltipTrigger>
-                  <TooltipContent>Disponível em breve</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <Input
+                value={form.whatsapp || ''}
+                onChange={e => set('whatsapp', maskPhone(e.target.value))}
+                placeholder="(XX) XXXXX-XXXX"
+              />
             </Field>
             <div className="md:col-span-2">
               <Field label="Observações Gerais">
