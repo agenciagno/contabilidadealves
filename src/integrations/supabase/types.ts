@@ -1369,6 +1369,10 @@ export type Database = {
         Args: { p_encrypted: string; p_key: string }
         Returns: string
       }
+      cofre_encrypt_internal: {
+        Args: { p_key: string; p_plaintext: string }
+        Returns: string
+      }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
       get_user_role: { Args: never; Returns: string }
       has_role: {
