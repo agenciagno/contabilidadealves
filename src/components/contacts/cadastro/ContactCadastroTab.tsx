@@ -25,6 +25,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { ContactBillingCard } from '../ContactBillingCard';
 import { ContactObligationsSelector } from '@/components/fiscal/ContactObligationsSelector';
 import { useCompany } from '@/hooks/useCompany';
+import { maskPhone } from '@/lib/utils';
 import { toast } from 'sonner';
 
 interface Props {
@@ -42,7 +43,6 @@ const TAX_REGIMES = [
 ];
 
 const STATUS_CLIENTE = ['Prospect', 'Ativo', 'Inativo', 'Suspenso', 'Encerrado'];
-const TIPO_PESSOA = [{ value: 'cliente', label: 'Cliente' }, { value: 'fornecedor', label: 'Fornecedor' }, { value: 'ambos', label: 'Ambos' }];
 const PORTE_OPTIONS = ['MEI', 'ME', 'EPP', 'Médio', 'Grande'];
 const BR_STATES = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
 
@@ -67,6 +67,23 @@ function Field({ label, children, autofill }: { label: string; children: React.R
         {autofill && <AutofillBadge />}
       </Label>
       {children}
+    </div>
+  );
+}
+
+function CnaeCard({ cnae }: { cnae: any }) {
+  if (!cnae) return null;
+  // BrasilAPI/cnpj.ws shape: { classe, subclasse, descricao } (sometimes 'codigo'/'text')
+  const subclasse = cnae.subclasse || cnae.codigo || cnae.code || '—';
+  const classe = cnae.classe || '—';
+  const descricao = cnae.descricao || cnae.text || cnae.description || '—';
+  return (
+    <div className="rounded-md border bg-card p-3">
+      <p className="text-sm font-semibold">{subclasse}</p>
+      <p className="text-sm text-foreground">{descricao}</p>
+      <p className="text-xs text-muted-foreground mt-1">
+        Classe: {classe} · Subclasse: {subclasse}
+      </p>
     </div>
   );
 }
@@ -162,14 +179,6 @@ export function ContactCadastroTab({ contactId }: Props) {
                 </Button>
               </div>
             </Field>
-            <Field label="Tipo de Pessoa">
-              <Select value={form.type || ''} onValueChange={v => set('type', v)}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  {TIPO_PESSOA.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </Field>
             <Field label="Razão Social" autofill>
               <Input value={form.razao_social || ''} onChange={e => set('razao_social', e.target.value)} />
             </Field>
@@ -177,19 +186,12 @@ export function ContactCadastroTab({ contactId }: Props) {
               <Input value={form.nome_fantasia || ''} onChange={e => set('nome_fantasia', e.target.value)} />
             </Field>
             <Field label="Porte">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div>
-                      <Select disabled value="">
-                        <SelectTrigger><SelectValue placeholder="Em breve" /></SelectTrigger>
-                        <SelectContent>{PORTE_OPTIONS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>Disponível em breve</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <Select value={form.porte || ''} onValueChange={v => set('porte', v)}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {PORTE_OPTIONS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </Field>
             <Field label="Natureza Jurídica" autofill>
               <Input value={form.natureza_juridica || ''} onChange={e => set('natureza_juridica', e.target.value)} />
@@ -204,20 +206,14 @@ export function ContactCadastroTab({ contactId }: Props) {
               <Input type="email" value={form.email || ''} onChange={e => set('email', e.target.value)} />
             </Field>
             <Field label="Telefone">
-              <Input value={form.phone || ''} onChange={e => set('phone', e.target.value)} />
+              <Input value={form.phone || ''} onChange={e => set('phone', maskPhone(e.target.value))} />
             </Field>
             <Field label="WhatsApp">
-              <Input value={form.whatsapp || ''} onChange={e => set('whatsapp', e.target.value)} />
-            </Field>
-            <Field label="Site">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Input disabled placeholder="Em breve" />
-                  </TooltipTrigger>
-                  <TooltipContent>Disponível em breve</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <Input
+                value={form.whatsapp || ''}
+                onChange={e => set('whatsapp', maskPhone(e.target.value))}
+                placeholder="(XX) XXXXX-XXXX"
+              />
             </Field>
             <div className="md:col-span-2">
               <Field label="Observações Gerais">
@@ -228,7 +224,7 @@ export function ContactCadastroTab({ contactId }: Props) {
         </Card>
         <div className="flex justify-end">
           <Button onClick={() => saveSection([
-            'document', 'type', 'razao_social', 'nome_fantasia', 'natureza_juridica',
+            'document', 'razao_social', 'nome_fantasia', 'porte', 'natureza_juridica',
             'data_abertura_receita', 'situacao_cadastral', 'email', 'phone', 'whatsapp', 'notes',
             'cnae_principal', 'cnaes_secundarios',
           ])} disabled={updateSuperPerfil.isPending}>
@@ -309,27 +305,29 @@ export function ContactCadastroTab({ contactId }: Props) {
 
         <Card>
           <CardHeader><CardTitle className="text-base">CNAE (Receita Federal)</CardTitle></CardHeader>
-          <CardContent>
-            <Accordion type="single" collapsible className="w-full">
-              <AccordionItem value="principal">
-                <AccordionTrigger>CNAE Principal</AccordionTrigger>
-                <AccordionContent>
-                  <pre className="text-xs bg-muted/40 rounded-md p-3 overflow-x-auto">
-                    {form.cnae_principal ? JSON.stringify(form.cnae_principal, null, 2) : '—'}
-                  </pre>
-                </AccordionContent>
-              </AccordionItem>
-              <AccordionItem value="secundarios">
-                <AccordionTrigger>
-                  CNAEs Secundários ({Array.isArray(form.cnaes_secundarios) ? form.cnaes_secundarios.length : 0})
-                </AccordionTrigger>
-                <AccordionContent>
-                  <pre className="text-xs bg-muted/40 rounded-md p-3 overflow-x-auto max-h-72">
-                    {form.cnaes_secundarios ? JSON.stringify(form.cnaes_secundarios, null, 2) : '—'}
-                  </pre>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2">CNAE Principal</p>
+              {form.cnae_principal ? (
+                <CnaeCard cnae={form.cnae_principal} />
+              ) : (
+                <p className="text-sm text-muted-foreground">—</p>
+              )}
+            </div>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2">
+                CNAEs Secundários ({Array.isArray(form.cnaes_secundarios) ? form.cnaes_secundarios.length : 0})
+              </p>
+              {Array.isArray(form.cnaes_secundarios) && form.cnaes_secundarios.length > 0 ? (
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                  {form.cnaes_secundarios.map((c: any, i: number) => (
+                    <CnaeCard key={i} cnae={c} />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">—</p>
+              )}
+            </div>
           </CardContent>
         </Card>
 

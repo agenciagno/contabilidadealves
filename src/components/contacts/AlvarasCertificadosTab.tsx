@@ -88,6 +88,7 @@ function CertificadosSection({ contactId }: Props) {
           onOpenChange={setDialogOpen}
           contactId={contactId}
           acesso={editing}
+          lockCertificado
         />
       </CardContent>
     </Card>
