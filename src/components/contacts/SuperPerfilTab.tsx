@@ -496,7 +496,6 @@ function PartnerDialogV2({
       }
       onOpenChange(false);
     } catch {}
-    } catch {}
   };
 
   return (
