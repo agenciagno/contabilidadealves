@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, User, DollarSign, MessageSquare, FileText, ClipboardList, Download, History, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, User, DollarSign, MessageSquare, FileText, ClipboardList, Download, History, ShieldCheck, IdCard } from 'lucide-react';
 import { useContacts } from '@/hooks/useContacts';
 import { useContactTransactions, useContactFinancialStatus } from '@/hooks/useContactTransactions';
 import { useContactDocuments, DOCUMENT_CATEGORIES } from '@/hooks/useContactDocuments';
@@ -14,6 +14,7 @@ import { ContactDocumentsTab } from '@/components/contacts/ContactDocumentsTab';
 import { ContactLogsTab } from '@/components/contacts/ContactLogsTab';
 import { ContactCertificatesTab } from '@/components/contacts/ContactCertificatesTab';
 import { generateContactReport } from '@/components/contacts/ContactReportPDF';
+import { SuperPerfilTab } from '@/components/contacts/SuperPerfilTab';
 
 
 const taxRegimeLabels: Record<string, string> = {
@@ -143,7 +144,7 @@ export default function ContactProfile() {
 
       {/* Tabs */}
       <Tabs defaultValue="financeiro" className="w-full">
-        <TabsList className="w-full sm:w-auto grid grid-cols-6 gap-1">
+        <TabsList className="w-full sm:w-auto grid grid-cols-7 gap-1">
           <TabsTrigger value="financeiro" className="flex items-center gap-1.5">
             <DollarSign className="h-4 w-4" />
             <span className="hidden sm:inline">Financeiro</span>
@@ -163,6 +164,10 @@ export default function ContactProfile() {
           <TabsTrigger value="dados" className="flex items-center gap-1.5">
             <ClipboardList className="h-4 w-4" />
             <span className="hidden sm:inline">Cadastro</span>
+          </TabsTrigger>
+          <TabsTrigger value="super-perfil" className="flex items-center gap-1.5">
+            <IdCard className="h-4 w-4" />
+            <span className="hidden sm:inline">Cadastro Completo</span>
           </TabsTrigger>
           <TabsTrigger value="logs" className="flex items-center gap-1.5">
             <History className="h-4 w-4" />
@@ -188,6 +193,10 @@ export default function ContactProfile() {
 
         <TabsContent value="dados" className="mt-6">
           <ContactDetailsTab contact={contact} />
+        </TabsContent>
+
+        <TabsContent value="super-perfil" className="mt-6">
+          <SuperPerfilTab contactId={contact.id} />
         </TabsContent>
 
         <TabsContent value="logs" className="mt-6">
