@@ -14,6 +14,80 @@ export type Database = {
   }
   public: {
     Tables: {
+      acessos_portais: {
+        Row: {
+          atualizado_por: string | null
+          company_id: string
+          contact_id: string
+          created_at: string
+          id: string
+          login: string | null
+          observacao: string | null
+          portal: Database["public"]["Enums"]["portal_tipo"]
+          portal_label: string | null
+          senha_encrypted: string | null
+          updated_at: string
+          validade_certificado: string | null
+        }
+        Insert: {
+          atualizado_por?: string | null
+          company_id: string
+          contact_id: string
+          created_at?: string
+          id?: string
+          login?: string | null
+          observacao?: string | null
+          portal: Database["public"]["Enums"]["portal_tipo"]
+          portal_label?: string | null
+          senha_encrypted?: string | null
+          updated_at?: string
+          validade_certificado?: string | null
+        }
+        Update: {
+          atualizado_por?: string | null
+          company_id?: string
+          contact_id?: string
+          created_at?: string
+          id?: string
+          login?: string | null
+          observacao?: string | null
+          portal?: Database["public"]["Enums"]["portal_tipo"]
+          portal_label?: string | null
+          senha_encrypted?: string | null
+          updated_at?: string
+          validade_certificado?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "acessos_portais_atualizado_por_fkey"
+            columns: ["atualizado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acessos_portais_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acessos_portais_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acessos_portais_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "vw_cofre_global"
+            referencedColumns: ["contact_id"]
+          },
+        ]
+      }
       active_sessions: {
         Row: {
           company_id: string
@@ -193,6 +267,51 @@ export type Database = {
           },
         ]
       }
+      cofre_acessos_log: {
+        Row: {
+          acao: string
+          acesso_id: string
+          created_at: string
+          id: string
+          ip_address: string | null
+          usuario_id: string | null
+          usuario_nome: string | null
+        }
+        Insert: {
+          acao: string
+          acesso_id: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          usuario_id?: string | null
+          usuario_nome?: string | null
+        }
+        Update: {
+          acao?: string
+          acesso_id?: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          usuario_id?: string | null
+          usuario_nome?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cofre_acessos_log_acesso_id_fkey"
+            columns: ["acesso_id"]
+            isOneToOne: false
+            referencedRelation: "acessos_portais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cofre_acessos_log_acesso_id_fkey"
+            columns: ["acesso_id"]
+            isOneToOne: false
+            referencedRelation: "vw_cofre_global"
+            referencedColumns: ["acesso_id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           cnpj: string
@@ -271,6 +390,13 @@ export type Database = {
             referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "contact_documents_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "vw_cofre_global"
+            referencedColumns: ["contact_id"]
+          },
         ]
       }
       contact_logs: {
@@ -319,6 +445,13 @@ export type Database = {
             referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "contact_logs_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "vw_cofre_global"
+            referencedColumns: ["contact_id"]
+          },
         ]
       }
       contact_messages: {
@@ -359,6 +492,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "contacts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_messages_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "vw_cofre_global"
+            referencedColumns: ["contact_id"]
           },
         ]
       }
@@ -408,41 +548,69 @@ export type Database = {
             referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "contact_notes_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "vw_cofre_global"
+            referencedColumns: ["contact_id"]
+          },
         ]
       }
       contact_partners: {
         Row: {
+          ativo: boolean | null
           company_id: string
           contact_id: string
           cpf: string | null
           created_at: string
+          created_by: string | null
+          data_entrada: string | null
+          data_saida: string | null
           email: string | null
+          endereco: string | null
           id: string
           name: string
           participation_percentage: number | null
+          rg: string | null
           updated_at: string
+          whatsapp: string | null
         }
         Insert: {
+          ativo?: boolean | null
           company_id: string
           contact_id: string
           cpf?: string | null
           created_at?: string
+          created_by?: string | null
+          data_entrada?: string | null
+          data_saida?: string | null
           email?: string | null
+          endereco?: string | null
           id?: string
           name: string
           participation_percentage?: number | null
+          rg?: string | null
           updated_at?: string
+          whatsapp?: string | null
         }
         Update: {
+          ativo?: boolean | null
           company_id?: string
           contact_id?: string
           cpf?: string | null
           created_at?: string
+          created_by?: string | null
+          data_entrada?: string | null
+          data_saida?: string | null
           email?: string | null
+          endereco?: string | null
           id?: string
           name?: string
           participation_percentage?: number | null
+          rg?: string | null
           updated_at?: string
+          whatsapp?: string | null
         }
         Relationships: [
           {
@@ -450,6 +618,20 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_partners_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "vw_cofre_global"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "contact_partners_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -463,27 +645,65 @@ export type Database = {
           boleto_start_date: string | null
           boleto_value: number | null
           canal_entrega: string | null
+          categorias: string[] | null
           cep: string | null
           city: string | null
+          cnae_principal: Json | null
+          cnaes_secundarios: Json | null
           company_id: string
+          complemento: string | null
           created_at: string
+          data_abertura_estado: string | null
+          data_abertura_junta: string | null
+          data_abertura_prefeitura: string | null
+          data_abertura_receita: string | null
+          data_abertura_rf: string | null
+          data_encerramento_estado: string | null
+          data_encerramento_junta: string | null
+          data_encerramento_prefeitura: string | null
+          data_encerramento_rf: string | null
+          data_inicio_contrato: string | null
           document: string | null
           email: string | null
           enviar_cobranca_auto: boolean
+          grupo_cipa: string | null
+          grupo_escritorio: string | null
           id: string
+          ie: string | null
+          im: string | null
+          inventario: boolean | null
           is_active: boolean
+          medicina_trabalho: boolean | null
           name: string
+          natureza_juridica: string | null
           neighborhood: string | null
+          nome_fantasia: string | null
           notes: string | null
+          numero_alvara: string | null
           numero_cliente_sicoob: number | null
+          numero_funcionarios: number | null
           origin: string
           phone: string | null
+          possui_funcionarios: boolean | null
+          razao_social: string | null
+          regime_apuracao: string | null
+          registro_entradas: boolean | null
+          registro_icms: boolean | null
+          registro_saidas: boolean | null
           representative_legal: string | null
           responsible_id: string | null
+          segundo_email_contato: string | null
+          siare_senha_encrypted: string | null
+          situacao_cadastral: string | null
           state: string | null
+          status_cliente: string | null
           tax_regime: string | null
+          tipo_cartao_ponto: string | null
+          tipo_cliente: string | null
+          tipo_estabelecimento: string | null
           type: string
           updated_at: string
+          validade_alvara: string | null
           whatsapp: string | null
         }
         Insert: {
@@ -494,27 +714,65 @@ export type Database = {
           boleto_start_date?: string | null
           boleto_value?: number | null
           canal_entrega?: string | null
+          categorias?: string[] | null
           cep?: string | null
           city?: string | null
+          cnae_principal?: Json | null
+          cnaes_secundarios?: Json | null
           company_id: string
+          complemento?: string | null
           created_at?: string
+          data_abertura_estado?: string | null
+          data_abertura_junta?: string | null
+          data_abertura_prefeitura?: string | null
+          data_abertura_receita?: string | null
+          data_abertura_rf?: string | null
+          data_encerramento_estado?: string | null
+          data_encerramento_junta?: string | null
+          data_encerramento_prefeitura?: string | null
+          data_encerramento_rf?: string | null
+          data_inicio_contrato?: string | null
           document?: string | null
           email?: string | null
           enviar_cobranca_auto?: boolean
+          grupo_cipa?: string | null
+          grupo_escritorio?: string | null
           id?: string
+          ie?: string | null
+          im?: string | null
+          inventario?: boolean | null
           is_active?: boolean
+          medicina_trabalho?: boolean | null
           name: string
+          natureza_juridica?: string | null
           neighborhood?: string | null
+          nome_fantasia?: string | null
           notes?: string | null
+          numero_alvara?: string | null
           numero_cliente_sicoob?: number | null
+          numero_funcionarios?: number | null
           origin?: string
           phone?: string | null
+          possui_funcionarios?: boolean | null
+          razao_social?: string | null
+          regime_apuracao?: string | null
+          registro_entradas?: boolean | null
+          registro_icms?: boolean | null
+          registro_saidas?: boolean | null
           representative_legal?: string | null
           responsible_id?: string | null
+          segundo_email_contato?: string | null
+          siare_senha_encrypted?: string | null
+          situacao_cadastral?: string | null
           state?: string | null
+          status_cliente?: string | null
           tax_regime?: string | null
+          tipo_cartao_ponto?: string | null
+          tipo_cliente?: string | null
+          tipo_estabelecimento?: string | null
           type: string
           updated_at?: string
+          validade_alvara?: string | null
           whatsapp?: string | null
         }
         Update: {
@@ -525,27 +783,65 @@ export type Database = {
           boleto_start_date?: string | null
           boleto_value?: number | null
           canal_entrega?: string | null
+          categorias?: string[] | null
           cep?: string | null
           city?: string | null
+          cnae_principal?: Json | null
+          cnaes_secundarios?: Json | null
           company_id?: string
+          complemento?: string | null
           created_at?: string
+          data_abertura_estado?: string | null
+          data_abertura_junta?: string | null
+          data_abertura_prefeitura?: string | null
+          data_abertura_receita?: string | null
+          data_abertura_rf?: string | null
+          data_encerramento_estado?: string | null
+          data_encerramento_junta?: string | null
+          data_encerramento_prefeitura?: string | null
+          data_encerramento_rf?: string | null
+          data_inicio_contrato?: string | null
           document?: string | null
           email?: string | null
           enviar_cobranca_auto?: boolean
+          grupo_cipa?: string | null
+          grupo_escritorio?: string | null
           id?: string
+          ie?: string | null
+          im?: string | null
+          inventario?: boolean | null
           is_active?: boolean
+          medicina_trabalho?: boolean | null
           name?: string
+          natureza_juridica?: string | null
           neighborhood?: string | null
+          nome_fantasia?: string | null
           notes?: string | null
+          numero_alvara?: string | null
           numero_cliente_sicoob?: number | null
+          numero_funcionarios?: number | null
           origin?: string
           phone?: string | null
+          possui_funcionarios?: boolean | null
+          razao_social?: string | null
+          regime_apuracao?: string | null
+          registro_entradas?: boolean | null
+          registro_icms?: boolean | null
+          registro_saidas?: boolean | null
           representative_legal?: string | null
           responsible_id?: string | null
+          segundo_email_contato?: string | null
+          siare_senha_encrypted?: string | null
+          situacao_cadastral?: string | null
           state?: string | null
+          status_cliente?: string | null
           tax_regime?: string | null
+          tipo_cartao_ponto?: string | null
+          tipo_cliente?: string | null
+          tipo_estabelecimento?: string | null
           type?: string
           updated_at?: string
+          validade_alvara?: string | null
           whatsapp?: string | null
         }
         Relationships: [
@@ -679,6 +975,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      historico_eventos: {
+        Row: {
+          campos_alterados: string[] | null
+          created_at: string
+          dados_anteriores: Json | null
+          dados_novos: Json | null
+          id: string
+          operacao: string
+          registro_id: string
+          tabela: string
+          usuario_id: string | null
+          usuario_nome: string | null
+        }
+        Insert: {
+          campos_alterados?: string[] | null
+          created_at?: string
+          dados_anteriores?: Json | null
+          dados_novos?: Json | null
+          id?: string
+          operacao: string
+          registro_id: string
+          tabela: string
+          usuario_id?: string | null
+          usuario_nome?: string | null
+        }
+        Update: {
+          campos_alterados?: string[] | null
+          created_at?: string
+          dados_anteriores?: Json | null
+          dados_novos?: Json | null
+          id?: string
+          operacao?: string
+          registro_id?: string
+          tabela?: string
+          usuario_id?: string | null
+          usuario_nome?: string | null
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -835,6 +1170,13 @@ export type Database = {
             referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "recurring_transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "vw_cofre_global"
+            referencedColumns: ["contact_id"]
+          },
         ]
       }
       transaction_attachments: {
@@ -968,6 +1310,13 @@ export type Database = {
             referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "vw_cofre_global"
+            referencedColumns: ["contact_id"]
+          },
         ]
       }
       user_roles: {
@@ -990,10 +1339,38 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      vw_cofre_global: {
+        Row: {
+          acesso_id: string | null
+          alerta_vencimento: boolean | null
+          company_id: string | null
+          contact_id: string | null
+          login: string | null
+          nome_cliente: string | null
+          observacao: string | null
+          portal: Database["public"]["Enums"]["portal_tipo"] | null
+          portal_label: string | null
+          senha_atualizada_em: string | null
+          validade_certificado: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
+      cofre_decrypt_internal: {
+        Args: { p_encrypted: string; p_key: string }
+        Returns: string
+      }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
+      get_user_role: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1005,6 +1382,16 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "colaborador" | "cliente"
+      portal_tipo:
+        | "gov_br"
+        | "siare"
+        | "certificado_digital"
+        | "ecac"
+        | "prefeitura_nfse"
+        | "sefaz_estadual"
+        | "esocial"
+        | "conectividade_social"
+        | "outros"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1133,6 +1520,17 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "colaborador", "cliente"],
+      portal_tipo: [
+        "gov_br",
+        "siare",
+        "certificado_digital",
+        "ecac",
+        "prefeitura_nfse",
+        "sefaz_estadual",
+        "esocial",
+        "conectividade_social",
+        "outros",
+      ],
     },
   },
 } as const
