@@ -203,16 +203,14 @@ export function ContactFinancialTab({ contactId, contactName }: ContactFinancial
                 })}
               </TableBody>
             </Table>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              Nenhuma transação encontrada para este cliente/fornecedor
+            </div>
+          )}
+        </CardContent>
       </Card>
     </div>
   );
 }
 
-        onOpenChange={setRecurringDialogOpen}
-        onSubmit={handleRecurringSubmit}
-        isLoading={createRecurring.isPending}
-        initialContactId={contactId}
-      />
-    </div>
-  );
-}
