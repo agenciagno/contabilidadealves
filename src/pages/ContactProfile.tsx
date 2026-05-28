@@ -208,8 +208,6 @@ export default function ContactProfile() {
           <SuperPerfilTab contactId={contact.id} />
         </TabsContent>
 
-        <TabsContent value="logs" className="mt-6">
-          <ContactLogsTab contactId={contact.id} />
         {canViewAcessos && (
           <TabsContent value="acessos" className="mt-6">
             <AcessosTab contactId={contact.id} />
@@ -220,5 +218,7 @@ export default function ContactProfile() {
           <ContactLogsTab contactId={contact.id} />
         </TabsContent>
       </Tabs>
+    </div>
   );
 }
+
