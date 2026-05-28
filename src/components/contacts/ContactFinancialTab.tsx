@@ -1,7 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -18,14 +17,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { TrendingUp, Clock, CalendarPlus, ArrowUpDown, AlertTriangle } from 'lucide-react';
+import { TrendingUp, Clock, ArrowUpDown, AlertTriangle } from 'lucide-react';
 import { useContactTransactions } from '@/hooks/useContactTransactions';
 import { useBanks } from '@/hooks/useBanks';
 import { ContactContractsCard } from './ContactContractsCard';
-import { RecurringFormDialog } from '@/components/recurring/RecurringFormDialog';
-import { useRecurringTransactions, RecurringTransactionInsert } from '@/hooks/useRecurringTransactions';
-import { createAuditLog } from '@/hooks/useAuditLog';
-import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -40,25 +35,8 @@ export function ContactFinancialTab({ contactId, contactName }: ContactFinancial
   const { banks } = useBanks();
   const invisibleBankIds = useMemo(() => banks.filter(b => b.is_invisible).map(b => b.id), [banks]);
   const { data: transactions, isLoading } = useContactTransactions(contactId, invisibleBankIds);
-  const { createRecurring } = useRecurringTransactions();
-  const queryClient = useQueryClient();
-  const [recurringDialogOpen, setRecurringDialogOpen] = useState(false);
   const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
 
-  const handleRecurringSubmit = async (data: RecurringTransactionInsert) => {
-    try {
-      await createRecurring.mutateAsync(data);
-      await createAuditLog({
-        contactId,
-        action: 'HONORARIO_GERADO',
-        description: `Recorrência criada: ${data.description} - R$ ${data.amount.toFixed(2).replace('.', ',')}`,
-      });
-      queryClient.invalidateQueries({ queryKey: ['contact-recurrings', contactId] });
-      setRecurringDialogOpen(false);
-    } catch (error) {
-      console.error('Erro ao criar recorrência:', error);
-    }
-  };
 
   const sortedTransactions = useMemo(() => {
     if (!transactions) return [];
