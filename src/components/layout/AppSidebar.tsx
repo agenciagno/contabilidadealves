@@ -20,6 +20,7 @@ import {
   Wallet,
   Scale,
   UsersRound,
+  LockKeyhole,
   type LucideIcon,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
@@ -346,8 +347,32 @@ export function AppSidebar() {
           )}
 
           {/* Menu entries */}
+          {/* Menu entries */}
           {visibleEntries.map(entry =>
             entry.kind === 'simple' ? renderSimpleEntry(entry) : renderCollapsibleEntry(entry)
+          )}
+
+          {/* Acessos (somente admin/super_admin) */}
+          {(isAdmin || isSuperAdmin) && (
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild tooltip="Acessos">
+                      <NavLink
+                        onClick={handleMobileNav}
+                        to="/acessos"
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+                        activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                      >
+                        <LockKeyhole className="w-[18px] h-[18px] shrink-0" strokeWidth={1.5} />
+                        {showLabels && <span>Acessos</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
           )}
         </SidebarContent>
 
