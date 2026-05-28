@@ -52,10 +52,10 @@ export function useAcessosCliente(contactId: string | undefined) {
       const { data, error } = await supabase
         .from('acessos_portais')
         .select(
-          'id, contact_id, company_id, portal, portal_label, login, validade_certificado, observacao, updated_at, atualizado_por'
-        .select(
           'id, contact_id, company_id, portal, portal_label, login, validade_certificado, observacao, anexo_url, updated_at, atualizado_por'
         )
+        .eq('contact_id', contactId)
+        .order('portal', { ascending: true });
       if (error) throw error;
       return (data ?? []) as AcessoPortal[];
     },
