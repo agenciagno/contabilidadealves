@@ -29,10 +29,10 @@ export interface AcessoPortal {
   login: string | null;
   validade_certificado: string | null;
   observacao: string | null;
+  anexo_url: string | null;
   updated_at: string;
   atualizado_por: string | null;
 }
-
 export interface SalvarAcessoInput {
   acesso_id?: string;
   contact_id: string;
@@ -53,9 +53,9 @@ export function useAcessosCliente(contactId: string | undefined) {
         .from('acessos_portais')
         .select(
           'id, contact_id, company_id, portal, portal_label, login, validade_certificado, observacao, updated_at, atualizado_por'
+        .select(
+          'id, contact_id, company_id, portal, portal_label, login, validade_certificado, observacao, anexo_url, updated_at, atualizado_por'
         )
-        .eq('contact_id', contactId)
-        .order('portal', { ascending: true });
       if (error) throw error;
       return (data ?? []) as AcessoPortal[];
     },
