@@ -71,6 +71,23 @@ function Field({ label, children, autofill }: { label: string; children: React.R
   );
 }
 
+function CnaeCard({ cnae }: { cnae: any }) {
+  if (!cnae) return null;
+  // BrasilAPI/cnpj.ws shape: { classe, subclasse, descricao } (sometimes 'codigo'/'text')
+  const subclasse = cnae.subclasse || cnae.codigo || cnae.code || '—';
+  const classe = cnae.classe || '—';
+  const descricao = cnae.descricao || cnae.text || cnae.description || '—';
+  return (
+    <div className="rounded-md border bg-card p-3">
+      <p className="text-sm font-semibold">{subclasse}</p>
+      <p className="text-sm text-foreground">{descricao}</p>
+      <p className="text-xs text-muted-foreground mt-1">
+        Classe: {classe} · Subclasse: {subclasse}
+      </p>
+    </div>
+  );
+}
+
 export function ContactCadastroTab({ contactId }: Props) {
   const { data, isLoading, updateSuperPerfil, lookupCnpj } = useSuperPerfil(contactId);
   const [form, setForm] = useState<Record<string, any>>({});
