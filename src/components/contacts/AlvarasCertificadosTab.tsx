@@ -88,12 +88,13 @@ function CertificadosSection({ contactId }: Props) {
           onOpenChange={setDialogOpen}
           contactId={contactId}
           acesso={editing}
+        <AcessoFormDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          contactId={contactId}
+          acesso={editing}
+          lockCertificado
         />
-      </CardContent>
-    </Card>
-  );
-}
-
 // ===================== ALVARÁS =====================
 interface Alvara {
   id: string;
