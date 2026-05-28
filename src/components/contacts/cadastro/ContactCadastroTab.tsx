@@ -288,27 +288,29 @@ export function ContactCadastroTab({ contactId }: Props) {
 
         <Card>
           <CardHeader><CardTitle className="text-base">CNAE (Receita Federal)</CardTitle></CardHeader>
-          <CardContent>
-            <Accordion type="single" collapsible className="w-full">
-              <AccordionItem value="principal">
-                <AccordionTrigger>CNAE Principal</AccordionTrigger>
-                <AccordionContent>
-                  <pre className="text-xs bg-muted/40 rounded-md p-3 overflow-x-auto">
-                    {form.cnae_principal ? JSON.stringify(form.cnae_principal, null, 2) : '—'}
-                  </pre>
-                </AccordionContent>
-              </AccordionItem>
-              <AccordionItem value="secundarios">
-                <AccordionTrigger>
-                  CNAEs Secundários ({Array.isArray(form.cnaes_secundarios) ? form.cnaes_secundarios.length : 0})
-                </AccordionTrigger>
-                <AccordionContent>
-                  <pre className="text-xs bg-muted/40 rounded-md p-3 overflow-x-auto max-h-72">
-                    {form.cnaes_secundarios ? JSON.stringify(form.cnaes_secundarios, null, 2) : '—'}
-                  </pre>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2">CNAE Principal</p>
+              {form.cnae_principal ? (
+                <CnaeCard cnae={form.cnae_principal} />
+              ) : (
+                <p className="text-sm text-muted-foreground">—</p>
+              )}
+            </div>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2">
+                CNAEs Secundários ({Array.isArray(form.cnaes_secundarios) ? form.cnaes_secundarios.length : 0})
+              </p>
+              {Array.isArray(form.cnaes_secundarios) && form.cnaes_secundarios.length > 0 ? (
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                  {form.cnaes_secundarios.map((c: any, i: number) => (
+                    <CnaeCard key={i} cnae={c} />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">—</p>
+              )}
+            </div>
           </CardContent>
         </Card>
 
