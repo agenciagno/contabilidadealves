@@ -1,49 +1,54 @@
-## Objetivo
-Criar uma página pública de newsletter acessível sem autenticação na rota `/newsletter/:slug`.
+## Plano — Aba "Acessos" (Cofre de senhas) no perfil do cliente
 
-## Arquivos a criar
+### Arquivos novos
+1. `src/hooks/useAcessosCliente.ts` — hook com React Query
+   - `useAcessosCliente(contactId)` — SELECT explícito de `id, portal, portal_label, login, validade_certificado, observacao, contact_id, company_id, updated_at, atualizado_por` (sem `senha_encrypted`)
+   - `useSalvarAcesso()` — mutation que invoca Edge Function `cofre-salvar`
+   - `useExcluirAcesso()` — mutation DELETE direto em `acessos_portais`
+   - `useRevelarSenha()` — invoca `cofre-revelar` com `{ acesso_id, acao }`
 
-### 1. `src/pages/Newsletter.tsx`
-Página standalone (sem AppLayout) que busca dados da tabela `newsletters` no Supabase via slug.
+2. `src/components/contacts/AcessosTab.tsx` — container da aba
+   - Loading: skeleton de linhas
+   - Vazio / erro: mensagens do briefing
+   - Botão "+ Adicionar acesso" → abre `AcessoFormDialog`
+   - Renderiza `AcessosTable`
 
-**Estrutura:**
-- **Header:** logo `/Contabilidade_Alves_Branco.svg`, título "Newsletter Contabilidade Alves", subtítulo com data formatada em português, badge colorido (Diária = azul, Semanal = verde).
-- **Corpo:** renderização do campo `content` com formatação:
-  - `*texto*` → `<strong>`
-  - `_texto_` → `<em>`
-  - Linha com `━━━━━━` ou similar → `<hr className="border-t border-gray-200 my-6">`
-  - Bullets (`•` ou `-` no início) → indentação suave
-  - Parágrafos respeitando `\n`
-  - Emojis naturais
-  - Fonte legível, ~16-17px, line-height 1.6, max-width 680px centralizado
-- **Footer:** "Contabilidade Alves • Juatuba, MG", link WhatsApp, texto pequeno de disclaimer.
-- **Loading:** skeleton loader com `animate-pulse` blocos cinza.
-- **Erro (slug não encontrado):** mensagem amigável + botão para o site.
+3. `src/components/contacts/AcessosTable.tsx` — tabela shadcn
+   - Colunas: Portal | Login | Senha | Validade | Obs | Ações
+   - Portal: badge com label do enum (mapa `PORTAL_LABELS`); usa `portal_label` se preenchido
+   - Senha: `••••••••` + botões 👁 Revelar e 📋 Copiar (lógica abaixo)
+   - Validade: badge verde/amarelo/vermelho só quando `portal === 'certificado_digital'` e `validade_certificado` definida (cálculo de dias com `date-fns`)
+   - Ações: ícones lápis (editar) e lixeira (excluir com `AlertDialog` de confirmação)
 
-**Query Supabase:**
-```ts
-const { data, error } = await supabase
-  .from('newsletters')
-  .select('slug, type, title, content, items_count, created_at, sent_at')
-  .eq('slug', slug)
-  .single();
-```
-Como a tabela `newsletters` não está no `types.ts`, usar casting `(supabase as any).from(...)`.
+4. `src/components/contacts/AcessoFormDialog.tsx` — Dialog criar/editar
+   - Campos: Portal (Select), portal_label (Input), login (Input), senha (Input password com toggle olho), validade_certificado (DatePicker shadcn — só visível se portal = certificado_digital), observacao (Textarea)
+   - No modo edição: campo senha começa vazio com placeholder "Deixe em branco para manter a atual"; backend só atualiza senha se vier preenchida
+   - Submit → `useSalvarAcesso` → toast "Acesso salvo com segurança"
 
-### 2. `src/App.tsx`
-Adicionar a rota pública fora do `AppLayout`:
-```tsx
-<Route path="/newsletter/:slug" element={<Newsletter />} />
-```
-Importar a nova página no topo do arquivo.
+### Edge Function (já existe)
+- `cofre-salvar` já foi criada e deployada. Ajuste pequeno se necessário: aceitar `senha` opcional no UPDATE (não sobrescrever quando vazia). Será confirmado ao abrir o arquivo em build mode.
+- `cofre-revelar` já existe e cobre as ações `REVELAR` e `COPIAR` (logando em `cofre_acessos_log`).
 
-## Estilo visual
-- Fundo: `#FAFAF8` (off-white)
-- Tipografia: Inter/System sans-serif
-- Separadores: linha fina cinza claro
-- Mobile-first, padding 16px em telas pequenas
-- Sem sidebar, nav ou login
+### Integração no perfil
+- `src/pages/ContactProfile.tsx`:
+  - Importar `AcessosTab` e `useAuth`/`useUserProfile` existente para checar `is_super_admin || role === 'admin'`
+  - Adicionar 6ª aba `acessos` (entre "Cadastro Completo" e "Logs", conforme briefing diz "após Sócios" — Sócios fica dentro de Cadastro Completo; vou inseri-la logo após "super-perfil" e ajustar `grid-cols-7` → `grid-cols-8`)
+  - Renderizar `<TabsTrigger value="acessos">` e `<TabsContent>` somente se usuário for admin/super admin
+  - Ícone: `KeyRound` do lucide-react
 
-## Notas
-- A tabela `newsletters` já tem RLS para SELECT público (policy `newsletters_public_read`).
-- Não incluir botão de editar/aprovar, comentários, likes, lista de outras edições ou formulários.
+### Comportamento Revelar / Copiar
+- Revelar: invoca função → exibe valor por 5s (setTimeout) → volta para `••••••••`. Erro → toast destrutivo "Sem permissão ou senha não cadastrada".
+- Copiar: invoca função com `acao: 'COPIAR'` → `navigator.clipboard.writeText` → toast "Senha copiada!". Nunca exibe na UI.
+- Estado local por linha (`revealedId`, `revealedValue`) para isolar.
+
+### Restrições respeitadas
+- Frontend nunca seleciona `senha_encrypted` nem envia senha em texto direto ao Supabase — só via Edge Functions.
+- RLS atual já permite admin gerenciar `acessos_portais`; visibilidade da aba é dupla (UI + RLS).
+- Reskin visual: não altero nenhuma aba/lógica existente, apenas adiciono a nova aba pedida.
+
+### Hook de permissão
+- Reusar a forma já existente no projeto. Em build mode confirmarei se há `useUserRole`/`useAuth` exportando `isAdmin`/`isSuperAdmin`; caso contrário, leio `profiles` via query simples por `user_id = auth.uid()`.
+
+### Pontos de confirmação rápida
+- OK inserir aba como 6ª posição visual (após "Cadastro Completo" no header atual, que já tem 7 abas). Grid passa para `grid-cols-8`.
+- OK manter Edge Functions já deployadas; só ajusto `cofre-salvar` se UPDATE sem senha não estiver previsto.

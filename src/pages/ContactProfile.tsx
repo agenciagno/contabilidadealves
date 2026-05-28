@@ -3,10 +3,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, User, DollarSign, MessageSquare, FileText, ClipboardList, Download, History, ShieldCheck, IdCard } from 'lucide-react';
+import { ArrowLeft, User, DollarSign, MessageSquare, FileText, ClipboardList, Download, History, ShieldCheck, IdCard, KeyRound } from 'lucide-react';
 import { useContacts } from '@/hooks/useContacts';
 import { useContactTransactions, useContactFinancialStatus } from '@/hooks/useContactTransactions';
 import { useContactDocuments, DOCUMENT_CATEGORIES } from '@/hooks/useContactDocuments';
+import { useUserRole } from '@/hooks/useUserRole';
 import { ContactFinancialTab } from '@/components/contacts/ContactFinancialTab';
 import { ContactDetailsTab } from '@/components/contacts/ContactDetailsTab';
 import { ContactCommunicationTab } from '@/components/contacts/ContactCommunicationTab';
@@ -15,6 +16,7 @@ import { ContactLogsTab } from '@/components/contacts/ContactLogsTab';
 import { ContactCertificatesTab } from '@/components/contacts/ContactCertificatesTab';
 import { generateContactReport } from '@/components/contacts/ContactReportPDF';
 import { SuperPerfilTab } from '@/components/contacts/SuperPerfilTab';
+import { AcessosTab } from '@/components/contacts/AcessosTab';
 
 
 const taxRegimeLabels: Record<string, string> = {
@@ -31,7 +33,8 @@ export default function ContactProfile() {
   const { contacts, isLoading: isLoadingContacts } = useContacts();
   const { data: transactions } = useContactTransactions(id);
   const { documents, getDocumentCounts } = useContactDocuments(id);
-  
+  const { isAdmin, isSuperAdmin } = useUserRole();
+  const canViewAcessos = isAdmin || isSuperAdmin;
   const contact = contacts.find(c => c.id === id);
   const { isInadimplente } = useContactFinancialStatus(id, transactions);
 
@@ -144,7 +147,7 @@ export default function ContactProfile() {
 
       {/* Tabs */}
       <Tabs defaultValue="financeiro" className="w-full">
-        <TabsList className="w-full sm:w-auto grid grid-cols-7 gap-1">
+        <TabsList className={`w-full sm:w-auto grid ${canViewAcessos ? 'grid-cols-8' : 'grid-cols-7'} gap-1`}>
           <TabsTrigger value="financeiro" className="flex items-center gap-1.5">
             <DollarSign className="h-4 w-4" />
             <span className="hidden sm:inline">Financeiro</span>
@@ -169,6 +172,12 @@ export default function ContactProfile() {
             <IdCard className="h-4 w-4" />
             <span className="hidden sm:inline">Cadastro Completo</span>
           </TabsTrigger>
+          {canViewAcessos && (
+            <TabsTrigger value="acessos" className="flex items-center gap-1.5">
+              <KeyRound className="h-4 w-4" />
+              <span className="hidden sm:inline">Acessos</span>
+            </TabsTrigger>
+          )}
           <TabsTrigger value="logs" className="flex items-center gap-1.5">
             <History className="h-4 w-4" />
             <span className="hidden sm:inline">Logs</span>
@@ -199,6 +208,12 @@ export default function ContactProfile() {
           <SuperPerfilTab contactId={contact.id} />
         </TabsContent>
 
+        {canViewAcessos && (
+          <TabsContent value="acessos" className="mt-6">
+            <AcessosTab contactId={contact.id} />
+          </TabsContent>
+        )}
+
         <TabsContent value="logs" className="mt-6">
           <ContactLogsTab contactId={contact.id} />
         </TabsContent>
@@ -206,3 +221,4 @@ export default function ContactProfile() {
     </div>
   );
 }
+
