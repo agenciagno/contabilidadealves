@@ -36,6 +36,7 @@ import PessoalRH from "@/pages/PessoalRH";
 import NoAccess from "@/pages/NoAccess";
 import NotFound from "@/pages/NotFound";
 import Newsletter from "@/pages/Newsletter";
+import CofreGlobal from "@/pages/CofreGlobal";
 
 const queryClient = new QueryClient();
 
@@ -75,6 +76,7 @@ const App = () => (
               <Route path="/fiscal/colaboradores" element={<AppLayout><ModuleGuard moduleName="fiscal" requireAdmin><FiscalCollaborators /></ModuleGuard></AppLayout>} />
               <Route path="/legalizacao" element={<AppLayout><ModuleGuard moduleName="legalizacao"><Legalizacao /></ModuleGuard></AppLayout>} />
               <Route path="/pessoal-rh" element={<AppLayout><ModuleGuard moduleName="pessoal_rh"><PessoalRH /></ModuleGuard></AppLayout>} />
+              <Route path="/acessos" element={<AppLayout><CofreGlobal /></AppLayout>} />
               <Route path="*" element={<NotFound />} />
               </Routes>
             </NotificationProvider>
