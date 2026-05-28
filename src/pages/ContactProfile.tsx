@@ -3,21 +3,18 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, User, DollarSign, MessageSquare, FileText, ClipboardList, Download, History, ShieldCheck, IdCard, KeyRound } from 'lucide-react';
+import { ArrowLeft, User, DollarSign, FileText, ClipboardList, Download, History, ShieldCheck, KeyRound } from 'lucide-react';
 import { useContacts } from '@/hooks/useContacts';
 import { useContactTransactions, useContactFinancialStatus } from '@/hooks/useContactTransactions';
 import { useContactDocuments, DOCUMENT_CATEGORIES } from '@/hooks/useContactDocuments';
 import { useUserRole } from '@/hooks/useUserRole';
 import { ContactFinancialTab } from '@/components/contacts/ContactFinancialTab';
-import { ContactDetailsTab } from '@/components/contacts/ContactDetailsTab';
-import { ContactCommunicationTab } from '@/components/contacts/ContactCommunicationTab';
 import { ContactDocumentsTab } from '@/components/contacts/ContactDocumentsTab';
-import { ContactLogsTab } from '@/components/contacts/ContactLogsTab';
-import { ContactCertificatesTab } from '@/components/contacts/ContactCertificatesTab';
 import { generateContactReport } from '@/components/contacts/ContactReportPDF';
-import { SuperPerfilTab } from '@/components/contacts/SuperPerfilTab';
 import { AcessosTab } from '@/components/contacts/AcessosTab';
-
+import { ContactCadastroTab } from '@/components/contacts/cadastro/ContactCadastroTab';
+import { AlvarasCertificadosTab } from '@/components/contacts/AlvarasCertificadosTab';
+import { ContactLogsWithComunicacaoTab } from '@/components/contacts/ContactLogsWithComunicacaoTab';
 
 const taxRegimeLabels: Record<string, string> = {
   mei: 'MEI',
@@ -86,6 +83,8 @@ export default function ContactProfile() {
     );
   }
 
+  const tabsColsClass = canViewAcessos ? 'grid-cols-3 md:grid-cols-6' : 'grid-cols-3 md:grid-cols-5';
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -94,12 +93,12 @@ export default function ContactProfile() {
           <ArrowLeft className="mr-2 h-4 w-4" />
           Voltar
         </Button>
-        
+
         <div className="flex items-center gap-4 flex-1">
           <div className="p-3 bg-primary/10 rounded-xl">
             <User className="h-6 w-6 text-primary" />
           </div>
-          
+
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-foreground">{contact.name}</h1>
             {contact.document && (
@@ -113,7 +112,7 @@ export default function ContactProfile() {
                   {taxRegimeLabels[contact.tax_regime]}
                 </Badge>
               )}
-              <Badge 
+              <Badge
                 variant={isInadimplente ? 'destructive' : 'secondary'}
                 className={!isInadimplente ? 'bg-emerald-500/10 text-emerald-500' : ''}
               >
@@ -122,8 +121,8 @@ export default function ContactProfile() {
             </div>
           </div>
 
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="sm"
             onClick={handleGenerateReport}
             className="hidden sm:flex"
@@ -135,8 +134,8 @@ export default function ContactProfile() {
       </div>
 
       {/* Mobile Report Button */}
-      <Button 
-        variant="outline" 
+      <Button
+        variant="outline"
         size="sm"
         onClick={handleGenerateReport}
         className="sm:hidden w-full"
@@ -146,31 +145,15 @@ export default function ContactProfile() {
       </Button>
 
       {/* Tabs */}
-      <Tabs defaultValue="financeiro" className="w-full">
-        <TabsList className={`w-full sm:w-auto grid ${canViewAcessos ? 'grid-cols-8' : 'grid-cols-7'} gap-1`}>
-          <TabsTrigger value="financeiro" className="flex items-center gap-1.5">
-            <DollarSign className="h-4 w-4" />
-            <span className="hidden sm:inline">Financeiro</span>
-          </TabsTrigger>
-          <TabsTrigger value="comunicacao" className="flex items-center gap-1.5">
-            <MessageSquare className="h-4 w-4" />
-            <span className="hidden sm:inline">Comunicação</span>
-          </TabsTrigger>
-          <TabsTrigger value="documentos" className="flex items-center gap-1.5">
-            <FileText className="h-4 w-4" />
-            <span className="hidden sm:inline">Documentos</span>
-          </TabsTrigger>
-          <TabsTrigger value="certificados" className="flex items-center gap-1.5">
-            <ShieldCheck className="h-4 w-4" />
-            <span className="hidden sm:inline">Certificados</span>
-          </TabsTrigger>
-          <TabsTrigger value="dados" className="flex items-center gap-1.5">
+      <Tabs defaultValue="cadastro" className="w-full">
+        <TabsList className={`w-full grid ${tabsColsClass} gap-1 h-auto`}>
+          <TabsTrigger value="cadastro" className="flex items-center gap-1.5">
             <ClipboardList className="h-4 w-4" />
             <span className="hidden sm:inline">Cadastro</span>
           </TabsTrigger>
-          <TabsTrigger value="super-perfil" className="flex items-center gap-1.5">
-            <IdCard className="h-4 w-4" />
-            <span className="hidden sm:inline">Cadastro Completo</span>
+          <TabsTrigger value="alvaras" className="flex items-center gap-1.5">
+            <ShieldCheck className="h-4 w-4" />
+            <span className="hidden sm:inline">Alvarás e Certificados</span>
           </TabsTrigger>
           {canViewAcessos && (
             <TabsTrigger value="acessos" className="flex items-center gap-1.5">
@@ -178,34 +161,26 @@ export default function ContactProfile() {
               <span className="hidden sm:inline">Acessos</span>
             </TabsTrigger>
           )}
+          <TabsTrigger value="documentos" className="flex items-center gap-1.5">
+            <FileText className="h-4 w-4" />
+            <span className="hidden sm:inline">Documentos</span>
+          </TabsTrigger>
+          <TabsTrigger value="financeiro" className="flex items-center gap-1.5">
+            <DollarSign className="h-4 w-4" />
+            <span className="hidden sm:inline">Financeiro</span>
+          </TabsTrigger>
           <TabsTrigger value="logs" className="flex items-center gap-1.5">
             <History className="h-4 w-4" />
             <span className="hidden sm:inline">Logs</span>
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="financeiro" className="mt-6">
-          <ContactFinancialTab contactId={contact.id} contactName={contact.name} />
+        <TabsContent value="cadastro" className="mt-6">
+          <ContactCadastroTab contactId={contact.id} />
         </TabsContent>
 
-        <TabsContent value="comunicacao" className="mt-6">
-          <ContactCommunicationTab contactId={contact.id} />
-        </TabsContent>
-
-        <TabsContent value="documentos" className="mt-6">
-          <ContactDocumentsTab contactId={contact.id} />
-        </TabsContent>
-
-        <TabsContent value="certificados" className="mt-6">
-          <ContactCertificatesTab />
-        </TabsContent>
-
-        <TabsContent value="dados" className="mt-6">
-          <ContactDetailsTab contact={contact} />
-        </TabsContent>
-
-        <TabsContent value="super-perfil" className="mt-6">
-          <SuperPerfilTab contactId={contact.id} />
+        <TabsContent value="alvaras" className="mt-6">
+          <AlvarasCertificadosTab contactId={contact.id} />
         </TabsContent>
 
         {canViewAcessos && (
@@ -214,11 +189,18 @@ export default function ContactProfile() {
           </TabsContent>
         )}
 
+        <TabsContent value="documentos" className="mt-6">
+          <ContactDocumentsTab contactId={contact.id} />
+        </TabsContent>
+
+        <TabsContent value="financeiro" className="mt-6">
+          <ContactFinancialTab contactId={contact.id} contactName={contact.name} />
+        </TabsContent>
+
         <TabsContent value="logs" className="mt-6">
-          <ContactLogsTab contactId={contact.id} />
+          <ContactLogsWithComunicacaoTab contactId={contact.id} />
         </TabsContent>
       </Tabs>
     </div>
   );
 }
-

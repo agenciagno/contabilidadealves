@@ -1,7 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -18,14 +17,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { TrendingUp, Clock, CalendarPlus, ArrowUpDown, AlertTriangle } from 'lucide-react';
+import { TrendingUp, Clock, ArrowUpDown, AlertTriangle } from 'lucide-react';
 import { useContactTransactions } from '@/hooks/useContactTransactions';
 import { useBanks } from '@/hooks/useBanks';
 import { ContactContractsCard } from './ContactContractsCard';
-import { RecurringFormDialog } from '@/components/recurring/RecurringFormDialog';
-import { useRecurringTransactions, RecurringTransactionInsert } from '@/hooks/useRecurringTransactions';
-import { createAuditLog } from '@/hooks/useAuditLog';
-import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -40,25 +35,8 @@ export function ContactFinancialTab({ contactId, contactName }: ContactFinancial
   const { banks } = useBanks();
   const invisibleBankIds = useMemo(() => banks.filter(b => b.is_invisible).map(b => b.id), [banks]);
   const { data: transactions, isLoading } = useContactTransactions(contactId, invisibleBankIds);
-  const { createRecurring } = useRecurringTransactions();
-  const queryClient = useQueryClient();
-  const [recurringDialogOpen, setRecurringDialogOpen] = useState(false);
   const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
 
-  const handleRecurringSubmit = async (data: RecurringTransactionInsert) => {
-    try {
-      await createRecurring.mutateAsync(data);
-      await createAuditLog({
-        contactId,
-        action: 'HONORARIO_GERADO',
-        description: `Recorrência criada: ${data.description} - R$ ${data.amount.toFixed(2).replace('.', ',')}`,
-      });
-      queryClient.invalidateQueries({ queryKey: ['contact-recurrings', contactId] });
-      setRecurringDialogOpen(false);
-    } catch (error) {
-      console.error('Erro ao criar recorrência:', error);
-    }
-  };
 
   const sortedTransactions = useMemo(() => {
     if (!transactions) return [];
@@ -105,57 +83,51 @@ export function ContactFinancialTab({ contactId, contactName }: ContactFinancial
 
   return (
     <div className="space-y-6">
-      {/* Summary Cards - With Generate Fees Button */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 flex-1">
-          <Card className="bg-card border-border/50">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 rounded-lg bg-emerald-500/10">
-                  <TrendingUp className="h-5 w-5 text-emerald-500" />
-                </div>
-                <span className="text-sm text-muted-foreground">Total Pago</span>
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card className="bg-card border-border/50">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 rounded-lg bg-emerald-500/10">
+                <TrendingUp className="h-5 w-5 text-emerald-500" />
               </div>
-              <p className="text-2xl font-bold text-emerald-500">
-                {formatCurrency(summary.totalPago)}
-              </p>
-            </CardContent>
-          </Card>
+              <span className="text-sm text-muted-foreground">Total Pago</span>
+            </div>
+            <p className="text-2xl font-bold text-emerald-500">
+              {formatCurrency(summary.totalPago)}
+            </p>
+          </CardContent>
+        </Card>
 
-          <Card className="bg-card border-border/50">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 rounded-lg bg-yellow-500/10">
-                  <Clock className="h-5 w-5 text-yellow-500" />
-                </div>
-                <span className="text-sm text-muted-foreground">Total Pendente</span>
+        <Card className="bg-card border-border/50">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 rounded-lg bg-yellow-500/10">
+                <Clock className="h-5 w-5 text-yellow-500" />
               </div>
-              <p className="text-2xl font-bold text-yellow-500">
-                {formatCurrency(summary.totalPendente)}
-              </p>
-            </CardContent>
-          </Card>
+              <span className="text-sm text-muted-foreground">Total Pendente</span>
+            </div>
+            <p className="text-2xl font-bold text-yellow-500">
+              {formatCurrency(summary.totalPendente)}
+            </p>
+          </CardContent>
+        </Card>
 
-          <Card className="bg-card border-border/50">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 rounded-lg bg-red-500/10">
-                  <AlertTriangle className="h-5 w-5 text-red-500" />
-                </div>
-                <span className="text-sm text-muted-foreground">Total Vencido</span>
+        <Card className="bg-card border-border/50">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 rounded-lg bg-red-500/10">
+                <AlertTriangle className="h-5 w-5 text-red-500" />
               </div>
-              <p className="text-2xl font-bold text-red-500">
-                {formatCurrency(summary.totalVencido)}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-        
-        <Button onClick={() => setRecurringDialogOpen(true)} className="gap-2">
-          <CalendarPlus className="h-4 w-4" />
-          Gerar Recorrência
-        </Button>
+              <span className="text-sm text-muted-foreground">Total Vencido</span>
+            </div>
+            <p className="text-2xl font-bold text-red-500">
+              {formatCurrency(summary.totalVencido)}
+            </p>
+          </CardContent>
+        </Card>
       </div>
+
 
       {/* Active Contracts */}
       <ContactContractsCard contactId={contactId} />
@@ -238,14 +210,7 @@ export function ContactFinancialTab({ contactId, contactName }: ContactFinancial
           )}
         </CardContent>
       </Card>
-
-      <RecurringFormDialog
-        open={recurringDialogOpen}
-        onOpenChange={setRecurringDialogOpen}
-        onSubmit={handleRecurringSubmit}
-        isLoading={createRecurring.isPending}
-        initialContactId={contactId}
-      />
     </div>
   );
 }
+
