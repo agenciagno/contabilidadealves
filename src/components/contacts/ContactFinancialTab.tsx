@@ -83,57 +83,51 @@ export function ContactFinancialTab({ contactId, contactName }: ContactFinancial
 
   return (
     <div className="space-y-6">
-      {/* Summary Cards - With Generate Fees Button */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 flex-1">
-          <Card className="bg-card border-border/50">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 rounded-lg bg-emerald-500/10">
-                  <TrendingUp className="h-5 w-5 text-emerald-500" />
-                </div>
-                <span className="text-sm text-muted-foreground">Total Pago</span>
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card className="bg-card border-border/50">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 rounded-lg bg-emerald-500/10">
+                <TrendingUp className="h-5 w-5 text-emerald-500" />
               </div>
-              <p className="text-2xl font-bold text-emerald-500">
-                {formatCurrency(summary.totalPago)}
-              </p>
-            </CardContent>
-          </Card>
+              <span className="text-sm text-muted-foreground">Total Pago</span>
+            </div>
+            <p className="text-2xl font-bold text-emerald-500">
+              {formatCurrency(summary.totalPago)}
+            </p>
+          </CardContent>
+        </Card>
 
-          <Card className="bg-card border-border/50">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 rounded-lg bg-yellow-500/10">
-                  <Clock className="h-5 w-5 text-yellow-500" />
-                </div>
-                <span className="text-sm text-muted-foreground">Total Pendente</span>
+        <Card className="bg-card border-border/50">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 rounded-lg bg-yellow-500/10">
+                <Clock className="h-5 w-5 text-yellow-500" />
               </div>
-              <p className="text-2xl font-bold text-yellow-500">
-                {formatCurrency(summary.totalPendente)}
-              </p>
-            </CardContent>
-          </Card>
+              <span className="text-sm text-muted-foreground">Total Pendente</span>
+            </div>
+            <p className="text-2xl font-bold text-yellow-500">
+              {formatCurrency(summary.totalPendente)}
+            </p>
+          </CardContent>
+        </Card>
 
-          <Card className="bg-card border-border/50">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 rounded-lg bg-red-500/10">
-                  <AlertTriangle className="h-5 w-5 text-red-500" />
-                </div>
-                <span className="text-sm text-muted-foreground">Total Vencido</span>
+        <Card className="bg-card border-border/50">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 rounded-lg bg-red-500/10">
+                <AlertTriangle className="h-5 w-5 text-red-500" />
               </div>
-              <p className="text-2xl font-bold text-red-500">
-                {formatCurrency(summary.totalVencido)}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-        
-        <Button onClick={() => setRecurringDialogOpen(true)} className="gap-2">
-          <CalendarPlus className="h-4 w-4" />
-          Gerar Recorrência
-        </Button>
+              <span className="text-sm text-muted-foreground">Total Vencido</span>
+            </div>
+            <p className="text-2xl font-bold text-red-500">
+              {formatCurrency(summary.totalVencido)}
+            </p>
+          </CardContent>
+        </Card>
       </div>
+
 
       {/* Active Contracts */}
       <ContactContractsCard contactId={contactId} />
@@ -209,16 +203,11 @@ export function ContactFinancialTab({ contactId, contactName }: ContactFinancial
                 })}
               </TableBody>
             </Table>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              Nenhuma transação encontrada para este cliente/fornecedor
-            </div>
-          )}
-        </CardContent>
       </Card>
+    </div>
+  );
+}
 
-      <RecurringFormDialog
-        open={recurringDialogOpen}
         onOpenChange={setRecurringDialogOpen}
         onSubmit={handleRecurringSubmit}
         isLoading={createRecurring.isPending}
