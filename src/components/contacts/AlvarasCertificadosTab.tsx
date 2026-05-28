@@ -96,7 +96,6 @@ function CertificadosSection({ contactId }: Props) {
 }
 
 // ===================== ALVARÁS =====================
-// ===================== ALVARÁS =====================
 interface Alvara {
   id: string;
   file_name: string;
