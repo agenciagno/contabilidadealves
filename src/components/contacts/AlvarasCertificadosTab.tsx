@@ -132,8 +132,10 @@ function AlvarasSection({ contactId }: Props) {
   const upload = useMutation({
     mutationFn: async () => {
       if (!form.file) throw new Error('Selecione um arquivo');
+      const { data: { user } } = await supabase.auth.getUser();
       const { data: profile } = await supabase
-        .from('profiles').select('company_id').single();
+        .from('profiles').select('company_id')
+        .eq('user_id', user!.id).single();
       if (!profile?.company_id) throw new Error('Empresa não encontrada');
 
       const fileName = `${contactId}/alvara-${Date.now()}-${form.file.name}`;

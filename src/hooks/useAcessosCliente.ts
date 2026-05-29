@@ -70,7 +70,12 @@ export function useSalvarAcesso() {
       const { data, error } = await supabase.functions.invoke('cofre-salvar', {
         body: input,
       });
-      if (error) throw error;
+      if (error) {
+        const mensagem = (error as any)?.context?.json?.error
+          ?? (error as any)?.message
+          ?? 'Falha ao chamar Edge Function cofre-salvar.';
+        throw new Error(mensagem);
+      }
       if (!data?.success) throw new Error(data?.error ?? 'Falha ao salvar acesso.');
       return data;
     },
