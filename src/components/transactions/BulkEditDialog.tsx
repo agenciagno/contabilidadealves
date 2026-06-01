@@ -157,6 +157,35 @@ export function BulkEditDialog({
               </Select>
             </div>
           )}
+
+          {(field === 'due_date' || field === 'expected_date') && (
+            <div className="space-y-2">
+              <Label>{field === 'due_date' ? 'Nova Data de Vencimento' : 'Nova Data Prevista'}</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      'w-full justify-start text-left font-normal',
+                      !newValue && 'text-muted-foreground',
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {newValue ? format(new Date(`${newValue}T00:00:00`), 'dd/MM/yyyy') : 'Selecione a data'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={newValue ? new Date(`${newValue}T00:00:00`) : undefined}
+                    onSelect={(d) => d && setNewValue(toISO(d))}
+                    initialFocus
+                    className={cn('p-3 pointer-events-auto')}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
         </div>
 
         <DialogFooter>
