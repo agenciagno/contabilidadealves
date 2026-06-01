@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
@@ -10,9 +11,15 @@ import { Label } from '@/components/ui/label';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from '@/components/ui/select';
-import { Loader2 } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { Loader2, CalendarIcon } from 'lucide-react';
 
-type FieldOption = 'contact_id' | 'category_id' | 'bank_id';
+type FieldOption = 'contact_id' | 'category_id' | 'bank_id' | 'due_date' | 'expected_date';
+
+const toISO = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 interface BulkEditDialogProps {
   open: boolean;
@@ -94,6 +101,8 @@ export function BulkEditDialog({
                 <SelectItem value="contact_id">Cliente / Fornecedor</SelectItem>
                 <SelectItem value="category_id">Evento Contábil</SelectItem>
                 <SelectItem value="bank_id">Conta / Banco</SelectItem>
+                <SelectItem value="due_date">Data de Vencimento</SelectItem>
+                <SelectItem value="expected_date">Data Prevista</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -146,6 +155,35 @@ export function BulkEditDialog({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+          )}
+
+          {(field === 'due_date' || field === 'expected_date') && (
+            <div className="space-y-2">
+              <Label>{field === 'due_date' ? 'Nova Data de Vencimento' : 'Nova Data Prevista'}</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      'w-full justify-start text-left font-normal',
+                      !newValue && 'text-muted-foreground',
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {newValue ? format(new Date(`${newValue}T00:00:00`), 'dd/MM/yyyy') : 'Selecione a data'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={newValue ? new Date(`${newValue}T00:00:00`) : undefined}
+                    onSelect={(d) => d && setNewValue(toISO(d))}
+                    initialFocus
+                    className={cn('p-3 pointer-events-auto')}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           )}
         </div>
