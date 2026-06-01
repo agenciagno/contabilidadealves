@@ -101,6 +101,8 @@ export function BulkEditDialog({
                 <SelectItem value="contact_id">Cliente / Fornecedor</SelectItem>
                 <SelectItem value="category_id">Evento Contábil</SelectItem>
                 <SelectItem value="bank_id">Conta / Banco</SelectItem>
+                <SelectItem value="due_date">Data de Vencimento</SelectItem>
+                <SelectItem value="expected_date">Data Prevista</SelectItem>
               </SelectContent>
             </Select>
           </div>
