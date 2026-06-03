@@ -839,6 +839,7 @@ export function CashFlowReportModal({
       headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold', halign: 'center', valign: 'middle', overflow: 'visible' },
       footStyles: { fillColor: [230, 230, 230], textColor: 0, fontStyle: 'bold', overflow: 'visible' },
       alternateRowStyles: { fillColor: [248, 248, 248] },
+      rowPageBreak: 'avoid',
       columnStyles: colStyles,
       didDrawCell: monthlyVersion === 'completa' ? (data) => {
         if (data.section !== 'body') return;
