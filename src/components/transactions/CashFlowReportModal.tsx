@@ -542,25 +542,26 @@ export function CashFlowReportModal({
           formatCurrency(g.saldo),
         ]),
         foot: [[
-          { content: 'TOTAL', styles: { halign: 'left' } },
+          { content: 'TOTAL', styles: { halign: 'center' } },
           { content: String(eventTotals.qty), styles: { halign: 'center' } },
-          { content: formatCurrency(eventTotals.receber), styles: { halign: 'right' } },
-          { content: formatCurrency(eventTotals.pagar), styles: { halign: 'right' } },
-          { content: formatCurrency(eventTotals.saldo), styles: { halign: 'right' } },
+          { content: formatCurrency(eventTotals.receber), styles: { halign: 'center' } },
+          { content: formatCurrency(eventTotals.pagar), styles: { halign: 'center' } },
+          { content: formatCurrency(eventTotals.saldo), styles: { halign: 'center' } },
         ]],
         theme: 'striped',
-        styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+        styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak', halign: 'center' },
         headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold', halign: 'center', valign: 'middle' },
-        footStyles: { fillColor: [230, 230, 230], textColor: 0, fontStyle: 'bold' },
+        footStyles: { fillColor: [230, 230, 230], textColor: 0, fontStyle: 'bold', halign: 'center' },
         alternateRowStyles: { fillColor: [248, 248, 248] },
         rowPageBreak: 'avoid',
         columnStyles: {
-          0: { cellWidth: 95, halign: 'left' },
+          0: { cellWidth: 95, halign: 'center' },
           1: { cellWidth: 20, halign: 'center' },
-          2: { cellWidth: 38, halign: 'right', textColor: [22, 163, 74] },
-          3: { cellWidth: 38, halign: 'right', textColor: [239, 68, 68] },
-          4: { cellWidth: 40, halign: 'right', fontStyle: 'bold' },
+          2: { cellWidth: 38, halign: 'center', textColor: [22, 163, 74] },
+          3: { cellWidth: 38, halign: 'center', textColor: [239, 68, 68] },
+          4: { cellWidth: 40, halign: 'center', fontStyle: 'bold' },
         },
+
         didDrawPage: (data) => {
           const pageCount = (doc as any).internal.getNumberOfPages();
           const pageHeight = doc.internal.pageSize.height;
