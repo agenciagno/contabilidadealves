@@ -826,12 +826,13 @@ export function CashFlowReportModal({
     }
 
     const colStyles: Record<number, any> = {
-      0: { cellWidth: eventW, halign: 'left', overflow: 'linebreak' },
+      0: { cellWidth: eventW, halign: 'center', overflow: 'linebreak' },
     };
     for (let i = 1; i <= monthsCount; i++) {
-      colStyles[i] = { cellWidth: monthW, halign: 'right', overflow: 'visible' };
+      colStyles[i] = { cellWidth: monthW, halign: 'center', overflow: 'visible' };
     }
-    colStyles[monthsCount + 1] = { cellWidth: totalW, halign: 'right', fontStyle: 'bold', overflow: 'visible' };
+    colStyles[monthsCount + 1] = { cellWidth: totalW, halign: 'center', fontStyle: 'bold', overflow: 'visible' };
+
 
     autoTable(doc, {
       startY: tableStartY,
