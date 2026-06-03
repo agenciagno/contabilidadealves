@@ -719,22 +719,11 @@ export function CashFlowReportModal({
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const emittedAt = `Emitido em ${pad2(today.getDate())}/${pad2(today.getMonth() + 1)}/${today.getFullYear()} às ${pad2(today.getHours())}:${pad2(today.getMinutes())}`;
 
-    doc.setFontSize(14); doc.setFont('helvetica', 'bold');
-    doc.text(company?.name || 'Empresa', 14, 18);
-    if (company?.cnpj) {
-      doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-      doc.text(`CNPJ: ${company.cnpj}`, 14, 24);
-    }
-    doc.setFontSize(11); doc.setFont('helvetica', 'bold');
-    doc.text('Consulta Mensal — Pagar/Receber', 14, 34);
+    doc.setFontSize(13); doc.setFont('helvetica', 'bold');
+    doc.text('Consulta Mensal — Pagar/Receber', 14, 18);
     doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-    doc.text(`Ano: ${monthlyYear}`, 14, 40);
-    doc.text(`Status: ${monthlyStatusLabel}`, 14, 45);
-    const catLines = doc.splitTextToSize(`Evento Contábil: ${monthlyCategoryLabel}`, 297 - 28);
-    doc.text(catLines, 14, 50);
-    const afterCatY = 50 + (catLines.length - 1) * 4;
-    doc.text(`Meses: ${monthlyMonthsLabel}`, 14, afterCatY + 5);
-    const tableStartY = afterCatY + 12;
+    doc.text(`Período: ${monthlyMonthsLabel} / ${monthlyYear} • ${monthlyStatusLabel}`, 14, 25);
+    const tableStartY = 32;
 
     const monthsCount = sortedSelectedMonths.length || 1;
     const pageW = 297 - 28;
