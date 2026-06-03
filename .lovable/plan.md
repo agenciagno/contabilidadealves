@@ -1,25 +1,35 @@
 ## Objetivo
 
-Adicionar as opções **Data de Vencimento** e **Data Prevista** ao diálogo de edição em lote de lançamentos (`BulkEditDialog`), mantendo o mesmo padrão visual e funcional dos campos existentes (Cliente/Fornecedor, Evento Contábil, Conta/Banco).
+Alinhar ao centro **todas as colunas** (cabeçalho, conteúdo e linha TOTAL) em todas as tabelas dos PDFs gerados na rota Pagar/Receber, eliminando o desalinhamento da linha de totais.
 
-## Arquivo afetado
+## Escopo
 
-- `src/components/transactions/BulkEditDialog.tsx` (único arquivo alterado)
+Arquivo único: `src/components/transactions/CashFlowReportModal.tsx`
 
-## Mudanças
+Aplica-se a:
+- **Relatório Geral** (`exportPDF`) — tabela principal de lançamentos + "Resumo por Evento Contábil"
+- **Consulta Mensal — Versão Resumida** (`exportMonthlyPDF`)
+- **Consulta Mensal — Versão Completa** (`exportMonthlyPDF` com Macro → Sub Eventos)
 
-1. Expandir o tipo `FieldOption` para incluir `'due_date' | 'expected_date'`.
-2. Adicionar dois novos itens no `Select` "Qual campo deseja alterar?":
-   - **Data de Vencimento** (`due_date`)
-   - **Data Prevista** (`expected_date`)
-3. Quando um desses campos for selecionado, renderizar um **DatePicker** (Popover + Calendar do shadcn, mesmo padrão já usado em `BulkEditCalendarDialog.tsx`) com label apropriado.
-4. Converter a data escolhida para formato `YYYY-MM-DD` antes de enviar no `update({ [field]: value })`.
-5. Nenhuma alteração em lógica, queries, mutations, RLS, schema ou nas invalidações já existentes — apenas adição dos dois campos.
+Sem alteração em XLS, CSV, JPEG, lógica, cálculos, colunas, ordem ou dados.
 
-## Fora de escopo
+## Alterações
 
-- Não alterar `data` (data do pagamento), `is_paid`, valores ou qualquer outro campo.
-- Não mexer em filtros, tabela, ordenação ou demais componentes.
-- Sem migrations.
+### 1. exportPDF — Tabela principal (linhas ~483-493)
+Já está com `halign: 'center'` em todas as colunas. Sem mudança.
 
-Posso prosseguir?
+### 2. exportPDF — "Resumo por Evento Contábil" (linhas ~544-563)
+- `foot[]`: trocar `halign` de cada célula para `'center'` (TOTAL, Qtd, A Receber, A Pagar, Saldo).
+- `columnStyles`: trocar `halign: 'left'` (col 0) e `halign: 'right'` (cols 2,3,4) para `'center'`. Coluna 1 já é center. Manter cores (verde/vermelho) e `fontStyle: 'bold'` da coluna Saldo.
+
+### 3. exportMonthlyPDF (linhas ~827-833 e didDrawCell ~845-874)
+- `colStyles[0]` (Evento): `halign: 'left'` → `'center'`.
+- `colStyles[1..monthsCount]` (meses): `halign: 'right'` → `'center'`.
+- `colStyles[monthsCount+1]` (TOTAL): `halign: 'right'` → `'center'` (mantém `fontStyle: 'bold'`).
+- `didDrawCell` (versão Completa, linhas Macro e Child): trocar posicionamento manual do texto para centralizado (`textX = data.cell.x + data.cell.width / 2`, `align: 'center'`) em todas as colunas. Manter cores, negrito do Macro, recuo via fonte menor do Child, fundo cinza do Macro.
+
+## Garantias
+
+- Nenhuma mudança em queries, hooks, filtros, totais calculados, ordem das linhas/colunas, ou tamanhos de coluna.
+- Cabeçalhos já estão centralizados; apenas conteúdo e rodapé passam a herdar o mesmo alinhamento.
+- "Imprimir" (`window.print()`) usa a renderização HTML da modal, que não é alterada por este plano. Se desejar, posso aplicar o mesmo `text-align: center` ao bloco impresso em uma rodada separada.

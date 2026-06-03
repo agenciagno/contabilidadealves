@@ -542,25 +542,26 @@ export function CashFlowReportModal({
           formatCurrency(g.saldo),
         ]),
         foot: [[
-          { content: 'TOTAL', styles: { halign: 'left' } },
+          { content: 'TOTAL', styles: { halign: 'center' } },
           { content: String(eventTotals.qty), styles: { halign: 'center' } },
-          { content: formatCurrency(eventTotals.receber), styles: { halign: 'right' } },
-          { content: formatCurrency(eventTotals.pagar), styles: { halign: 'right' } },
-          { content: formatCurrency(eventTotals.saldo), styles: { halign: 'right' } },
+          { content: formatCurrency(eventTotals.receber), styles: { halign: 'center' } },
+          { content: formatCurrency(eventTotals.pagar), styles: { halign: 'center' } },
+          { content: formatCurrency(eventTotals.saldo), styles: { halign: 'center' } },
         ]],
         theme: 'striped',
-        styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+        styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak', halign: 'center' },
         headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold', halign: 'center', valign: 'middle' },
-        footStyles: { fillColor: [230, 230, 230], textColor: 0, fontStyle: 'bold' },
+        footStyles: { fillColor: [230, 230, 230], textColor: 0, fontStyle: 'bold', halign: 'center' },
         alternateRowStyles: { fillColor: [248, 248, 248] },
         rowPageBreak: 'avoid',
         columnStyles: {
-          0: { cellWidth: 95, halign: 'left' },
+          0: { cellWidth: 95, halign: 'center' },
           1: { cellWidth: 20, halign: 'center' },
-          2: { cellWidth: 38, halign: 'right', textColor: [22, 163, 74] },
-          3: { cellWidth: 38, halign: 'right', textColor: [239, 68, 68] },
-          4: { cellWidth: 40, halign: 'right', fontStyle: 'bold' },
+          2: { cellWidth: 38, halign: 'center', textColor: [22, 163, 74] },
+          3: { cellWidth: 38, halign: 'center', textColor: [239, 68, 68] },
+          4: { cellWidth: 40, halign: 'center', fontStyle: 'bold' },
         },
+
         didDrawPage: (data) => {
           const pageCount = (doc as any).internal.getNumberOfPages();
           const pageHeight = doc.internal.pageSize.height;
@@ -825,20 +826,22 @@ export function CashFlowReportModal({
     }
 
     const colStyles: Record<number, any> = {
-      0: { cellWidth: eventW, halign: 'left', overflow: 'linebreak' },
+      0: { cellWidth: eventW, halign: 'center', overflow: 'linebreak' },
     };
     for (let i = 1; i <= monthsCount; i++) {
-      colStyles[i] = { cellWidth: monthW, halign: 'right', overflow: 'visible' };
+      colStyles[i] = { cellWidth: monthW, halign: 'center', overflow: 'visible' };
     }
-    colStyles[monthsCount + 1] = { cellWidth: totalW, halign: 'right', fontStyle: 'bold', overflow: 'visible' };
+    colStyles[monthsCount + 1] = { cellWidth: totalW, halign: 'center', fontStyle: 'bold', overflow: 'visible' };
+
 
     autoTable(doc, {
       startY: tableStartY,
       head, body, foot,
       theme: 'striped',
-      styles: { fontSize: chosenFont, cellPadding: 1.8, overflow: 'visible', valign: 'middle' },
+      styles: { fontSize: chosenFont, cellPadding: 1.8, overflow: 'visible', valign: 'middle', halign: 'center' },
       headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold', halign: 'center', valign: 'middle', overflow: 'visible' },
-      footStyles: { fillColor: [230, 230, 230], textColor: 0, fontStyle: 'bold', overflow: 'visible' },
+      footStyles: { fillColor: [230, 230, 230], textColor: 0, fontStyle: 'bold', halign: 'center', overflow: 'visible' },
+
       alternateRowStyles: { fillColor: [248, 248, 248] },
       rowPageBreak: 'avoid',
       columnStyles: colStyles,
@@ -852,9 +855,7 @@ export function CashFlowReportModal({
           doc.setTextColor(40, 40, 40);
           doc.setFontSize(chosenFont);
           const text = String(data.cell.raw || '');
-          const textX = data.column.index === 0 ? data.cell.x + 2 : data.cell.x + data.cell.width - 2;
-          const textAlign = data.column.index === 0 ? 'left' : 'right';
-          doc.text(text, textX, data.cell.y + data.cell.height / 2 + 1, { align: textAlign as any });
+          doc.text(text, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 + 1, { align: 'center' });
         } else if (meta?.isChild) {
           doc.setFillColor(255, 255, 255);
           doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
@@ -863,15 +864,11 @@ export function CashFlowReportModal({
           (doc as any).setCharSpace?.(0);
           const text = String(data.cell.raw || '');
           const yPos = data.cell.y + data.cell.height / 2 + 1;
-          if (data.column.index === 0) {
-            doc.setTextColor(100, 100, 100);
-            doc.text(text, data.cell.x + 6, yPos);
-          } else {
-            doc.setTextColor(80, 80, 80);
-            doc.text(text, data.cell.x + data.cell.width - 2, yPos, { align: 'right' });
-          }
+          doc.setTextColor(data.column.index === 0 ? 100 : 80, data.column.index === 0 ? 100 : 80, data.column.index === 0 ? 100 : 80);
+          doc.text(text, data.cell.x + data.cell.width / 2, yPos, { align: 'center' });
         }
       } : undefined,
+
       didDrawPage: (data) => {
         const pageCount = (doc as any).internal.getNumberOfPages();
         const pageHeight = doc.internal.pageSize.height;
