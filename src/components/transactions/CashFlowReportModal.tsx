@@ -399,31 +399,18 @@ export function CashFlowReportModal({
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const emittedAt = `Emitido em ${pad2(today.getDate())}/${pad2(today.getMonth() + 1)}/${today.getFullYear()} às ${pad2(today.getHours())}:${pad2(today.getMinutes())}`;
 
-    doc.setFontSize(14);
+    doc.setFontSize(13);
     doc.setFont('helvetica', 'bold');
-    doc.text(company?.name || 'Empresa', 14, 18);
-
-    if (company?.cnpj) {
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`CNPJ: ${company.cnpj}`, 14, 24);
-    }
-
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Relatório de Contas a Pagar/Receber', 14, 34);
+    doc.text('Relatório de Contas a Pagar/Receber', 14, 18);
 
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Período: ${periodLabel}`, 14, 40);
-    doc.text(`Evento Contábil: ${categoryLabel}`, 14, 45);
-    doc.text(`Cliente/Fornecedor: ${contactLabel}`, 14, 50);
-    doc.text(`Tipo: ${typeLabel}`, 14, 55);
+    doc.text(`Período: ${periodLabel}`, 14, 25);
 
     // 4 KPI cards
     const cardW = 63;
     const cardH = 14;
-    const cardY = 61;
+    const cardY = 32;
     const gap = 2;
     const padX = 3;
     const labelOffsetY = 6;
