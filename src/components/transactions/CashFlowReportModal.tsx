@@ -855,9 +855,7 @@ export function CashFlowReportModal({
           doc.setTextColor(40, 40, 40);
           doc.setFontSize(chosenFont);
           const text = String(data.cell.raw || '');
-          const textX = data.column.index === 0 ? data.cell.x + 2 : data.cell.x + data.cell.width - 2;
-          const textAlign = data.column.index === 0 ? 'left' : 'right';
-          doc.text(text, textX, data.cell.y + data.cell.height / 2 + 1, { align: textAlign as any });
+          doc.text(text, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 + 1, { align: 'center' });
         } else if (meta?.isChild) {
           doc.setFillColor(255, 255, 255);
           doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
@@ -866,15 +864,11 @@ export function CashFlowReportModal({
           (doc as any).setCharSpace?.(0);
           const text = String(data.cell.raw || '');
           const yPos = data.cell.y + data.cell.height / 2 + 1;
-          if (data.column.index === 0) {
-            doc.setTextColor(100, 100, 100);
-            doc.text(text, data.cell.x + 6, yPos);
-          } else {
-            doc.setTextColor(80, 80, 80);
-            doc.text(text, data.cell.x + data.cell.width - 2, yPos, { align: 'right' });
-          }
+          doc.setTextColor(data.column.index === 0 ? 100 : 80, data.column.index === 0 ? 100 : 80, data.column.index === 0 ? 100 : 80);
+          doc.text(text, data.cell.x + data.cell.width / 2, yPos, { align: 'center' });
         }
       } : undefined,
+
       didDrawPage: (data) => {
         const pageCount = (doc as any).internal.getNumberOfPages();
         const pageHeight = doc.internal.pageSize.height;
