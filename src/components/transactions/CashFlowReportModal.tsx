@@ -399,31 +399,18 @@ export function CashFlowReportModal({
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const emittedAt = `Emitido em ${pad2(today.getDate())}/${pad2(today.getMonth() + 1)}/${today.getFullYear()} às ${pad2(today.getHours())}:${pad2(today.getMinutes())}`;
 
-    doc.setFontSize(14);
+    doc.setFontSize(13);
     doc.setFont('helvetica', 'bold');
-    doc.text(company?.name || 'Empresa', 14, 18);
-
-    if (company?.cnpj) {
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`CNPJ: ${company.cnpj}`, 14, 24);
-    }
-
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Relatório de Contas a Pagar/Receber', 14, 34);
+    doc.text('Relatório de Contas a Pagar/Receber', 14, 18);
 
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Período: ${periodLabel}`, 14, 40);
-    doc.text(`Evento Contábil: ${categoryLabel}`, 14, 45);
-    doc.text(`Cliente/Fornecedor: ${contactLabel}`, 14, 50);
-    doc.text(`Tipo: ${typeLabel}`, 14, 55);
+    doc.text(`Período: ${periodLabel}`, 14, 25);
 
     // 4 KPI cards
     const cardW = 63;
     const cardH = 14;
-    const cardY = 61;
+    const cardY = 32;
     const gap = 2;
     const padX = 3;
     const labelOffsetY = 6;
@@ -492,6 +479,7 @@ export function CashFlowReportModal({
       styles: { fontSize: 7, cellPadding: 1.5, halign: 'center' },
       headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold', fontSize: 6.5, halign: 'center' },
       alternateRowStyles: { fillColor: [248, 248, 248] },
+      rowPageBreak: 'avoid',
       columnStyles: {
         0: { cellWidth: 22, halign: 'center' },
         1: { cellWidth: 40, halign: 'center' },
@@ -526,7 +514,18 @@ export function CashFlowReportModal({
     );
 
     if (eventSummary.length > 0) {
-      const startY = (doc as any).lastAutoTable.finalY + 8;
+      const pageHeight = doc.internal.pageSize.height;
+      const finalY = (doc as any).lastAutoTable.finalY;
+      const remaining = pageHeight - finalY;
+      // Need title + table header + at least 2 rows together (~40mm)
+      let startY: number;
+      if (remaining < 40) {
+        doc.addPage();
+        startY = 18;
+      } else {
+        startY = finalY + 8;
+      }
+
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(40, 40, 40);
@@ -543,17 +542,18 @@ export function CashFlowReportModal({
           formatCurrency(g.saldo),
         ]),
         foot: [[
-          'TOTAL',
-          String(eventTotals.qty),
-          formatCurrency(eventTotals.receber),
-          formatCurrency(eventTotals.pagar),
-          formatCurrency(eventTotals.saldo),
+          { content: 'TOTAL', styles: { halign: 'left' } },
+          { content: String(eventTotals.qty), styles: { halign: 'center' } },
+          { content: formatCurrency(eventTotals.receber), styles: { halign: 'right' } },
+          { content: formatCurrency(eventTotals.pagar), styles: { halign: 'right' } },
+          { content: formatCurrency(eventTotals.saldo), styles: { halign: 'right' } },
         ]],
         theme: 'striped',
         styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
         headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold', halign: 'center', valign: 'middle' },
         footStyles: { fillColor: [230, 230, 230], textColor: 0, fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [248, 248, 248] },
+        rowPageBreak: 'avoid',
         columnStyles: {
           0: { cellWidth: 95, halign: 'left' },
           1: { cellWidth: 20, halign: 'center' },
@@ -720,22 +720,11 @@ export function CashFlowReportModal({
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const emittedAt = `Emitido em ${pad2(today.getDate())}/${pad2(today.getMonth() + 1)}/${today.getFullYear()} às ${pad2(today.getHours())}:${pad2(today.getMinutes())}`;
 
-    doc.setFontSize(14); doc.setFont('helvetica', 'bold');
-    doc.text(company?.name || 'Empresa', 14, 18);
-    if (company?.cnpj) {
-      doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-      doc.text(`CNPJ: ${company.cnpj}`, 14, 24);
-    }
-    doc.setFontSize(11); doc.setFont('helvetica', 'bold');
-    doc.text('Consulta Mensal — Pagar/Receber', 14, 34);
+    doc.setFontSize(13); doc.setFont('helvetica', 'bold');
+    doc.text('Consulta Mensal — Pagar/Receber', 14, 18);
     doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-    doc.text(`Ano: ${monthlyYear}`, 14, 40);
-    doc.text(`Status: ${monthlyStatusLabel}`, 14, 45);
-    const catLines = doc.splitTextToSize(`Evento Contábil: ${monthlyCategoryLabel}`, 297 - 28);
-    doc.text(catLines, 14, 50);
-    const afterCatY = 50 + (catLines.length - 1) * 4;
-    doc.text(`Meses: ${monthlyMonthsLabel}`, 14, afterCatY + 5);
-    const tableStartY = afterCatY + 12;
+    doc.text(`Período: ${monthlyMonthsLabel} / ${monthlyYear} • ${monthlyStatusLabel}`, 14, 25);
+    const tableStartY = 32;
 
     const monthsCount = sortedSelectedMonths.length || 1;
     const pageW = 297 - 28;
@@ -851,6 +840,7 @@ export function CashFlowReportModal({
       headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold', halign: 'center', valign: 'middle', overflow: 'visible' },
       footStyles: { fillColor: [230, 230, 230], textColor: 0, fontStyle: 'bold', overflow: 'visible' },
       alternateRowStyles: { fillColor: [248, 248, 248] },
+      rowPageBreak: 'avoid',
       columnStyles: colStyles,
       didDrawCell: monthlyVersion === 'completa' ? (data) => {
         if (data.section !== 'body') return;
@@ -1093,8 +1083,8 @@ export function CashFlowReportModal({
               style={{ fontFamily: 'sans-serif' }}
             >
               <div>
-                <h3 className="font-bold text-gray-900 text-sm">{company?.name || 'Contas a Pagar/Receber'}</h3>
-                <p className="text-[10px] text-gray-500">Período: {periodLabel} • Tipo: {typeLabel} • Evento: {categoryLabel} • Cliente: {contactLabel}</p>
+                <h3 className="font-bold text-gray-900 text-sm">Relatório de Contas a Pagar/Receber</h3>
+                <p className="text-[10px] text-gray-500">Período: {periodLabel}</p>
               </div>
               <div className="grid grid-cols-4 gap-1.5">
                 <div className="bg-blue-50 rounded p-1.5 border-l-2 border-l-blue-500">
