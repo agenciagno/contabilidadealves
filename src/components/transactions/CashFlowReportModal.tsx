@@ -479,6 +479,7 @@ export function CashFlowReportModal({
       styles: { fontSize: 7, cellPadding: 1.5, halign: 'center' },
       headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold', fontSize: 6.5, halign: 'center' },
       alternateRowStyles: { fillColor: [248, 248, 248] },
+      rowPageBreak: 'avoid',
       columnStyles: {
         0: { cellWidth: 22, halign: 'center' },
         1: { cellWidth: 40, halign: 'center' },
