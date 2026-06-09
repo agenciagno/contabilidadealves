@@ -122,6 +122,48 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
 
   const catMap = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories]);
 
+  // Apply filters at transaction level (totals recalculate from filtered set)
+  const filteredTxns = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    return txns.filter(t => {
+      // type
+      if (typeFilter !== 'all' && t.type !== typeFilter) return false;
+      // status
+      if (statusFilter === 'paid' && !t.is_paid) return false;
+      if (statusFilter === 'pending' && t.is_paid) return false;
+      // cash marker
+      if (cashFilter === 'cash' && !t.is_cash) return false;
+      if (cashFilter === 'term' && t.is_cash) return false;
+      // contact
+      if (contactFilter !== 'all' && t.contact_id !== contactFilter) return false;
+      // bank
+      if (bankFilter !== 'all' && t.bank_id !== bankFilter) return false;
+      // macro
+      if (macroFilter !== 'all') {
+        const cat = t.category_id ? catMap.get(t.category_id) : null;
+        const macro = cat?.parent_id ? catMap.get(cat.parent_id) : cat;
+        const macroId = macro?.id || '__sem__';
+        if (macroId !== macroFilter) return false;
+      }
+      // search
+      if (term) {
+        const cat = t.category_id ? catMap.get(t.category_id) : null;
+        const macro = cat?.parent_id ? catMap.get(cat.parent_id) : cat;
+        const contactN = t.contact_id ? (contacts.find(c => c.id === t.contact_id)?.name || '') : '';
+        const bankN = t.bank_id ? (banks.find(b => b.id === t.bank_id)?.name || '') : '';
+        const hay = [
+          t.description,
+          contactN,
+          bankN,
+          cat?.name || '',
+          macro?.name || '',
+        ].join(' ').toLowerCase();
+        if (!hay.includes(term)) return false;
+      }
+      return true;
+    });
+  }, [txns, searchTerm, macroFilter, contactFilter, bankFilter, statusFilter, typeFilter, cashFilter, catMap, contacts, banks]);
+
   const grouped = useMemo(() => {
     type Group = {
       key: string;
@@ -135,7 +177,7 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
     };
     const map = new Map<string, Group>();
 
-    for (const t of txns) {
+    for (const t of filteredTxns) {
       const cat = t.category_id ? catMap.get(t.category_id) : null;
       const macro = cat?.parent_id ? catMap.get(cat.parent_id) : cat;
       const key = macro?.id || '__sem__';
@@ -156,6 +198,19 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
     }
 
     return Array.from(map.values()).sort((a, b) => b.previstoDRE - a.previstoDRE);
+  }, [filteredTxns, catMap]);
+
+  // Macro list for filter dropdown (from full txns set, not filtered, to allow re-filtering)
+  const macroOptions = useMemo(() => {
+    const set = new Map<string, string>();
+    for (const t of txns) {
+      const cat = t.category_id ? catMap.get(t.category_id) : null;
+      const macro = cat?.parent_id ? catMap.get(cat.parent_id) : cat;
+      const id = macro?.id || '__sem__';
+      const name = macro?.name || '(Sem evento contábil)';
+      if (!set.has(id)) set.set(id, name);
+    }
+    return Array.from(set.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
   }, [txns, catMap]);
 
   const totals = useMemo(() => {
