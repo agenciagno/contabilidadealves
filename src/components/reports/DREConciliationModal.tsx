@@ -281,7 +281,7 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
                         </TableCell>
                       </TableRow>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
               <TableRow className="bg-muted/50 font-bold">
