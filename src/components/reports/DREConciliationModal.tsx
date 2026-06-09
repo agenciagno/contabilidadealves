@@ -72,12 +72,39 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [clearing, setClearing] = useState(false);
 
+  // ---------- Filters (padrão dos demais relatórios) ----------
+  const [searchTerm, setSearchTerm] = useState('');
+  const [macroFilter, setMacroFilter] = useState('all');
+  const [contactFilter, setContactFilter] = useState('all');
+  const [bankFilter, setBankFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'pending'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'receita' | 'despesa'>('all');
+  const [cashFilter, setCashFilter] = useState<'all' | 'cash' | 'term'>('all');
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setMacroFilter('all');
+    setContactFilter('all');
+    setBankFilter('all');
+    setStatusFilter('all');
+    setTypeFilter('all');
+    setCashFilter('all');
+  };
+  const hasActiveFilters =
+    searchTerm !== '' ||
+    macroFilter !== 'all' ||
+    contactFilter !== 'all' ||
+    bankFilter !== 'all' ||
+    statusFilter !== 'all' ||
+    typeFilter !== 'all' ||
+    cashFilter !== 'all';
+
   const { data: txns = [], isLoading } = useQuery({
     queryKey: ['dre-conciliation', startDate, endDate],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('transactions')
-        .select('id, description, amount, paid_amount, is_paid, expected_date, date, category_id, contact_id, bank_id')
+        .select('id, description, type, amount, paid_amount, is_paid, is_cash, expected_date, date, category_id, contact_id, bank_id')
         .is('deleted_at', null)
         .not('expected_date', 'is', null)
         .gte('expected_date', startDate)
