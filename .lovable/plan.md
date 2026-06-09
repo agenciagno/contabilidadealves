@@ -1,77 +1,39 @@
-## 1. Concilação retornando vazio — corrigir + ampliar
+## Reverter regra "À Vista" — manter apenas indicador visual
 
-### O bug
-Hoje a Conciliação só busca transações com **`expected_date` dentro do período**. Isso deixa de fora:
-- Transações **À Vista** pagas no período (têm `expected_date = NULL` desde a última mudança).
-- Transações pagas no período cuja Data Prevista caiu em outro mês — elas compõem o Realizado da DRE mas não aparecem na Conciliação atual.
+### Contexto
+A introdução de `is_cash` + `expected_date` na lógica da Conciliação quebrou o relatório (volta vazio). Vamos remover essas regras do back de cálculo e deixar a marcação À Vista somente como um detalhe visual nos Lançamentos.
 
-Resultado: períodos com 244 lançamentos mostram "Nenhuma transação no período" porque nenhum bate exatamente na regra estreita.
+### O que muda
 
-### O que muda (só na Conciliação — DRE e Pagar/Receber intocados)
+**1. Conciliação (`DREConciliationModal.tsx`)**
+- Voltar à query original baseada apenas em `date` (data de pagamento/competência) dentro do período, como antes da mudança — sem `expected_date`, sem `is_cash`, sem OR ampliado.
+- Remover a coluna "À Vista / Possível À Vista" e a coluna "Realizado fora do Previsto".
+- Remover qualquer classificação (`Previsto` / `Realizado fora do Previsto` / `Ambos`) — volta ao formato simples anterior.
+- DRE (`useDREData`) e Pagar/Receber permanecem intocados.
 
-**Query**: passa a buscar transações onde **`expected_date` OU `date` (pagamento) caia no período**:
+**2. Lançamentos (`Transactions.tsx`)**
+- Remover a coluna "À Vista / Possível À Vista" da tabela e qualquer filtro relacionado.
+- Manter um indicador visual sutil (badge pequeno "À Vista" ou ícone) ao lado do valor/descrição, exibido somente quando a transação atender à condição visual de À Vista (mesma data de emissão, vencimento e pagamento, e `is_paid = true`) — derivado em runtime, sem depender da coluna `is_cash`.
+- Esse badge é puramente decorativo. Não filtra, não soma, não afeta KPIs, DRE ou Conciliação.
 
-```ts
-.or(`and(expected_date.gte.${start},expected_date.lte.${end}),and(date.gte.${start},date.lte.${end},is_paid.eq.true)`)
-```
+**3. Form de Transação (`TransactionFormDialog.tsx`)**
+- Remover qualquer campo/toggle ligado a `is_cash` ou marcação manual de À Vista. O form volta ao estado anterior à mudança.
 
-Mantém `deleted_at is null`. Scoping de `company_id` já vem da RLS.
+**4. Banco de dados**
+- A coluna `is_cash` (e `expected_date`, se criada junto) deixa de ser usada pelo app. Posso:
+  - **(a)** Deixar a coluna no schema, sem uso — zero risco, fica como legado.
+  - **(b)** Criar migração para dropar `is_cash` (e `expected_date` se aplicável).
+  
+  Preciso da sua confirmação antes de dropar qualquer coluna.
 
-**Classificação por linha** (nova coluna lógica, exibida nos detalhes do grupo):
-- `Previsto` → tem `expected_date` no período (pago ou não).
-- `Realizado fora do Previsto` → pago no período mas `expected_date` fora ou null (caso típico de À Vista).
-- `Ambos` → `expected_date` e `date` no período.
+### Filtros da Conciliação
+Os filtros nos cabeçalhos das colunas (padrão Lançamentos) que acabamos de implementar **continuam**. Só somem os filtros das colunas que estão sendo removidas ("À Vista", "Realizado fora do Previsto").
 
-**Totalizadores por macro-evento** (linha principal da tabela):
-- `Previsto DRE` (inalterado conceitualmente — só conta linhas com `expected_date` no período).
-- `Em Aberto`, `Pagas c/ Prevista`, `À Vista`, `Diferença` (inalterados).
-- **Nova coluna**: `Realizado fora do Previsto` — soma das transações pagas no período sem `expected_date` no período. Ajuda a explicar por que o Realizado da DRE pode divergir do Previsto.
+### Arquivos a alterar
+- `src/components/reports/DREConciliationModal.tsx` — query e colunas voltam ao formato pré-mudança; mantém filtros nos cabeçalhos.
+- `src/pages/Transactions.tsx` — remove coluna À Vista, adiciona badge visual derivado.
+- `src/components/transactions/TransactionFormDialog.tsx` — remove campo `is_cash`.
+- (Opcional) Migração para dropar `is_cash` / `expected_date`.
 
-**Nenhum cálculo da DRE muda.** A Conciliação passa a ser um diagnóstico mais amplo, mas as regras da DRE (`useDREData`) continuam idênticas.
-
----
-
-## 2. Filtros nos cabeçalhos das colunas (padrão Lançamentos)
-
-Hoje a Conciliação tem uma barra de Selects acima da tabela. Vou substituir por **filtros nos próprios cabeçalhos**, replicando o padrão e os componentes já usados em `Transactions.tsx` (popover com ícone de funil, ordenação, opção `(Vazio)`, intervalo numérico/data e seleção múltipla).
-
-### Tabela principal (linhas por Evento Contábil macro)
-
-| Coluna | Filtro |
-|---|---|
-| Evento Contábil | Texto + multi-seleção de eventos (igual filtro de "Evento Contábil" em Lançamentos) + (Vazio) |
-| Previsto DRE | Intervalo numérico (de/até) + ordenação asc/desc |
-| Em Aberto | Intervalo numérico + ordenação |
-| Pagas c/ Prevista | Intervalo numérico + ordenação |
-| À Vista | Intervalo numérico + ordenação |
-| Realizado fora do Previsto *(nova)* | Intervalo numérico + ordenação |
-| Diferença | Intervalo numérico + ordenação |
-
-### Tabela de detalhe (ao expandir um grupo)
-
-| Coluna | Filtro |
-|---|---|
-| Data Prevista | Intervalo de datas + (Vazio) + ordenação |
-| Data Pagto. | Intervalo de datas + (Vazio) + ordenação |
-| Cliente/Fornecedor | Multi-seleção + (Vazio) |
-| Evento Contábil (sub) | Multi-seleção + (Vazio) |
-| Conta Corrente | Multi-seleção + (Vazio) |
-| Valor | Intervalo numérico + ordenação |
-| Status | Multi-seleção (Pago, Em aberto, À Vista) |
-
-### Regras
-- Componentes reaproveitados do `Transactions.tsx`: `DateColumnFilter`, ColumnFilter popovers, `ArrowUpDown`/`Filter` icons, `(Vazio)`.
-- Combinação **AND** entre filtros, como em Lançamentos.
-- Filtros do detalhe **propagam para os totais** do grupo e gerais (mesma lógica atual).
-- Botão "Limpar filtros" continua no topo, agora atuando sobre todos os filtros de coluna.
-- A busca textual e o filtro de período do modal continuam onde estão (não são por coluna).
-
----
-
-## Arquivos a alterar
-
-- `src/components/reports/DREConciliationModal.tsx` — query ampliada (or de `expected_date`/`date`), classificação por linha, nova coluna "Realizado fora do Previsto", substituição da barra de Selects por filtros nos cabeçalhos das colunas (padrão Lançamentos).
-
-Não mexe em: `useDREData`, `DRE.tsx`, `PagarReceber.tsx`, schema, RLS, fórmulas, qualquer outro relatório.
-
-Posso seguir?
+### Pergunta antes de executar
+A coluna `is_cash` no banco: **dropar** ou **deixar como legado sem uso**?

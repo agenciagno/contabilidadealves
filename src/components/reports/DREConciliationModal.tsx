@@ -53,16 +53,19 @@ interface ConciliationTxn {
   amount: number;
   paid_amount: number | null;
   is_paid: boolean;
-  is_cash: boolean;
   expected_date: string | null;
   date: string | null;
+  issue_date: string | null;
+  due_date: string | null;
   category_id: string | null;
   contact_id: string | null;
   bank_id: string | null;
 }
 
-function isAVistaTxn(t: ConciliationTxn) {
-  return t.is_cash === true;
+// Visual-only À Vista detection: paid + issue=due=date (all filled and equal).
+function isVisualAVista(t: ConciliationTxn) {
+  return !!t.is_paid && !!t.date && !!t.due_date && !!t.issue_date
+    && t.date === t.due_date && t.due_date === t.issue_date;
 }
 
 // ---------- Shared filter UI bits ----------
@@ -303,7 +306,7 @@ function DateRangeFilter({
 }
 
 // ---------- Modal ----------
-interface MainSort { col: 'previstoDRE' | 'emAberto' | 'pagasComPrevista' | 'suspeitasAVista' | 'realizadoFora' | 'diferenca' | null; order: SortOrder }
+interface MainSort { col: 'previstoDRE' | 'emAberto' | 'pagasComPrevista' | 'diferenca' | null; order: SortOrder }
 interface DetailSort { col: 'expected_date' | 'date' | 'amount' | null; order: SortOrder }
 
 interface MainColFilters {
@@ -311,8 +314,6 @@ interface MainColFilters {
   previstoDRE?: { min?: number; max?: number };
   emAberto?: { min?: number; max?: number };
   pagasComPrevista?: { min?: number; max?: number };
-  suspeitasAVista?: { min?: number; max?: number };
-  realizadoFora?: { min?: number; max?: number };
   diferenca?: { min?: number; max?: number };
 }
 
@@ -325,7 +326,7 @@ interface DetailColFilters {
   subEventIds: string[];
   bankIds: string[];
   amount?: { min?: number; max?: number };
-  statusIds: string[]; // 'paid' | 'pending' | 'cash' | 'term'
+  statusIds: string[]; // 'paid' | 'pending'
 }
 
 const emptyMain: MainColFilters = { macroIds: [] };
@@ -367,8 +368,6 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
     !!mainFilters.previstoDRE ||
     !!mainFilters.emAberto ||
     !!mainFilters.pagasComPrevista ||
-    !!mainFilters.suspeitasAVista ||
-    !!mainFilters.realizadoFora ||
     !!mainFilters.diferenca ||
     !!detailFilters.expected_date ||
     detailFilters.expected_date_empty ||
@@ -380,37 +379,23 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
     !!detailFilters.amount ||
     detailFilters.statusIds.length > 0;
 
-  // ---------- Query: expected_date in period OR (date in period AND is_paid) ----------
+  // ---------- Query: expected_date in period (matches DRE Previsto rule) ----------
   const { data: txns = [], isLoading } = useQuery({
     queryKey: ['dre-conciliation-v2', startDate, endDate],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('transactions')
-        .select('id, description, type, amount, paid_amount, is_paid, is_cash, expected_date, date, category_id, contact_id, bank_id')
+        .select('id, description, type, amount, paid_amount, is_paid, expected_date, date, issue_date, due_date, category_id, contact_id, bank_id')
         .is('deleted_at', null)
-        .or(
-          `and(expected_date.gte.${startDate},expected_date.lte.${endDate}),` +
-          `and(date.gte.${startDate},date.lte.${endDate},is_paid.eq.true)`
-        );
+        .gte('expected_date', startDate)
+        .lte('expected_date', endDate);
       if (error) throw error;
-      return (data || []) as ConciliationTxn[];
+      return (data || []) as unknown as ConciliationTxn[];
     },
     enabled: open && !!startDate && !!endDate,
   });
 
   const catMap = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories]);
-
-  const inPeriod = (d: string | null) => !!d && d >= startDate && d <= endDate;
-
-  // Classify each transaction
-  type TxnClass = 'previsto' | 'realizado_fora' | 'ambos';
-  const classify = (t: ConciliationTxn): TxnClass => {
-    const expIn = inPeriod(t.expected_date);
-    const dateIn = inPeriod(t.date) && t.is_paid;
-    if (expIn && dateIn) return 'ambos';
-    if (expIn) return 'previsto';
-    return 'realizado_fora';
-  };
 
   // Helpers
   const macroOf = (categoryId: string | null) => {
@@ -480,11 +465,10 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
         if (detailFilters.amount.min !== undefined && a < detailFilters.amount.min) return false;
         if (detailFilters.amount.max !== undefined && a > detailFilters.amount.max) return false;
       }
-      // status: tokens 'paid' | 'pending' | 'cash' | 'term'
+      // status: tokens 'paid' | 'pending'
       if (detailFilters.statusIds.length > 0) {
         const tokens = new Set<string>();
         tokens.add(t.is_paid ? 'paid' : 'pending');
-        tokens.add(t.is_cash ? 'cash' : 'term');
         const ok = detailFilters.statusIds.some(s => tokens.has(s));
         if (!ok) return false;
       }
@@ -515,8 +499,6 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
     previstoDRE: number;
     emAberto: number;
     pagasComPrevista: number;
-    suspeitasAVista: number;
-    realizadoFora: number;
     txns: ConciliationTxn[];
   }
 
@@ -530,20 +512,13 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
 
       let g = map.get(key);
       if (!g) {
-        g = { key, macroName, showInDre, previstoDRE: 0, emAberto: 0, pagasComPrevista: 0, suspeitasAVista: 0, realizadoFora: 0, txns: [] };
+        g = { key, macroName, showInDre, previstoDRE: 0, emAberto: 0, pagasComPrevista: 0, txns: [] };
         map.set(key, g);
       }
       const amt = Number(t.amount);
-      const cls = classify(t);
-      if (cls === 'previsto' || cls === 'ambos') {
-        g.previstoDRE += amt;
-        if (!t.is_paid) g.emAberto += amt;
-        else g.pagasComPrevista += amt;
-      }
-      if (cls === 'realizado_fora') {
-        g.realizadoFora += amt;
-      }
-      if (isAVistaTxn(t)) g.suspeitasAVista += amt;
+      g.previstoDRE += amt;
+      if (!t.is_paid) g.emAberto += amt;
+      else g.pagasComPrevista += amt;
       g.txns.push(t);
     }
 
@@ -555,8 +530,6 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
         [g.previstoDRE, mainFilters.previstoDRE],
         [g.emAberto, mainFilters.emAberto],
         [g.pagasComPrevista, mainFilters.pagasComPrevista],
-        [g.suspeitasAVista, mainFilters.suspeitasAVista],
-        [g.realizadoFora, mainFilters.realizadoFora],
         [g.previstoDRE - g.emAberto - g.pagasComPrevista, mainFilters.diferenca],
       ];
       for (const [val, r] of ranges) {
@@ -576,8 +549,6 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
           case 'previstoDRE': return g.previstoDRE;
           case 'emAberto': return g.emAberto;
           case 'pagasComPrevista': return g.pagasComPrevista;
-          case 'suspeitasAVista': return g.suspeitasAVista;
-          case 'realizadoFora': return g.realizadoFora;
           case 'diferenca': return g.previstoDRE - g.emAberto - g.pagasComPrevista;
           default: return 0;
         }
@@ -592,10 +563,8 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
       acc.previstoDRE += g.previstoDRE;
       acc.emAberto += g.emAberto;
       acc.pagasComPrevista += g.pagasComPrevista;
-      acc.suspeitasAVista += g.suspeitasAVista;
-      acc.realizadoFora += g.realizadoFora;
       return acc;
-    }, { previstoDRE: 0, emAberto: 0, pagasComPrevista: 0, suspeitasAVista: 0, realizadoFora: 0 });
+    }, { previstoDRE: 0, emAberto: 0, pagasComPrevista: 0 });
   }, [grouped]);
 
   // Options for header filters (built from all loaded txns, not the filtered set)
@@ -644,8 +613,6 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
   const statusOptions = [
     { id: 'paid', name: 'Pago' },
     { id: 'pending', name: 'Em aberto' },
-    { id: 'cash', name: 'À Vista' },
-    { id: 'term', name: 'À Prazo' },
   ];
 
   // ---------- Selection / actions ----------
@@ -661,13 +628,6 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
     setSelected(prev => {
       const next = new Set(prev);
       txnIds.forEach(id => checked ? next.add(id) : next.delete(id));
-      return next;
-    });
-  };
-  const selectSuspeitas = (txnsArr: ConciliationTxn[]) => {
-    setSelected(prev => {
-      const next = new Set(prev);
-      txnsArr.filter(isAVistaTxn).forEach(t => next.add(t.id));
       return next;
     });
   };
@@ -713,23 +673,19 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
         formatCurrency(g.previstoDRE),
         formatCurrency(g.emAberto),
         formatCurrency(g.pagasComPrevista),
-        formatCurrency(g.suspeitasAVista),
-        formatCurrency(g.realizadoFora),
         formatCurrency(diff),
       ];
     });
 
     autoTable(doc, {
       startY: 26,
-      head: [['Evento Contábil', 'Previsto DRE', 'Em Aberto', 'Pagas c/ Prevista', 'À Vista', 'Realizado fora do Previsto', 'Diferença']],
+      head: [['Evento Contábil', 'Previsto DRE', 'Em Aberto', 'Pagas c/ Prevista', 'Diferença']],
       body,
       foot: [[
         'TOTAL',
         formatCurrency(totals.previstoDRE),
         formatCurrency(totals.emAberto),
         formatCurrency(totals.pagasComPrevista),
-        formatCurrency(totals.suspeitasAVista),
-        formatCurrency(totals.realizadoFora),
         formatCurrency(totals.previstoDRE - totals.emAberto - totals.pagasComPrevista),
       ]],
       styles: { fontSize: 8, halign: 'center' },
@@ -777,14 +733,12 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
         <div className="text-xs text-muted-foreground mb-2 leading-relaxed">
           <p>
             Período: <strong>{formatDateBR(startDate)} a {formatDateBR(endDate)}</strong>.
-            Diagnóstico ampliado: lista transações com <strong>Data Prevista</strong> OU <strong>Data de Pagamento</strong> dentro do período.
+            Lista transações com <strong>Data Prevista</strong> dentro do período (mesmo critério do Previsto da DRE).
           </p>
           <ul className="list-disc pl-5 mt-1 space-y-0.5">
             <li><strong>Previsto DRE</strong>: linhas com Data Prevista no período (pagas + em aberto). Idêntico à coluna Previsto da DRE.</li>
             <li><strong>Em Aberto</strong>: parcela ainda não liquidada — é o que aparece em Pagar/Receber.</li>
             <li><strong>Pagas c/ Prevista</strong>: já liquidadas, mas continuam compondo o Previsto da DRE.</li>
-            <li><strong>À Vista</strong>: transações marcadas como À Vista no lançamento (campo registrado no banco).</li>
-            <li><strong>Realizado fora do Previsto</strong>: pagas no período mas com Data Prevista vazia ou fora — compõem o Realizado da DRE, não o Previsto. À Vista normalmente caem aqui.</li>
             <li><strong>Diferença</strong>: Previsto DRE − (Em Aberto + Pagas c/ Prevista). Deve ser zero.</li>
           </ul>
         </div>
@@ -830,7 +784,7 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
           </div>
         ) : grouped.length === 0 ? (
           <div className="text-sm text-muted-foreground py-8 text-center">
-            Nenhuma transação no período (Data Prevista ou Pagamento).
+            Nenhuma transação com Data Prevista no período.
           </div>
         ) : (
           <Table>
@@ -876,24 +830,6 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
                 </TableHead>
                 <TableHead className="text-right">
                   <NumericRangeFilter
-                    label="À Vista"
-                    value={mainFilters.suspeitasAVista}
-                    onChange={v => setMainFilters(p => ({ ...p, suspeitasAVista: v }))}
-                    sortOrder={mainSort.col === 'suspeitasAVista' ? mainSort.order : null}
-                    onSort={o => setMainSort({ col: 'suspeitasAVista', order: o })}
-                  />
-                </TableHead>
-                <TableHead className="text-right">
-                  <NumericRangeFilter
-                    label="Realizado fora"
-                    value={mainFilters.realizadoFora}
-                    onChange={v => setMainFilters(p => ({ ...p, realizadoFora: v }))}
-                    sortOrder={mainSort.col === 'realizadoFora' ? mainSort.order : null}
-                    onSort={o => setMainSort({ col: 'realizadoFora', order: o })}
-                  />
-                </TableHead>
-                <TableHead className="text-right">
-                  <NumericRangeFilter
                     label="Diferença"
                     value={mainFilters.diferenca}
                     onChange={v => setMainFilters(p => ({ ...p, diferenca: v }))}
@@ -909,7 +845,6 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
                 const isOpen = !!expanded[g.key];
                 const allIds = g.txns.map(t => t.id);
                 const allSelected = allIds.length > 0 && allIds.every(id => selected.has(id));
-                const hasSuspeitas = g.txns.some(isAVistaTxn);
                 return (
                   <Fragment key={g.key}>
                     <TableRow className="cursor-pointer hover:bg-muted/40" onClick={() => toggle(g.key)}>
@@ -929,32 +864,14 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
                       <TableCell className="text-right">{formatCurrency(g.previstoDRE)}</TableCell>
                       <TableCell className="text-right">{formatCurrency(g.emAberto)}</TableCell>
                       <TableCell className="text-right">{formatCurrency(g.pagasComPrevista)}</TableCell>
-                      <TableCell className={cn('text-right', g.suspeitasAVista > 0 ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-muted-foreground')}>
-                        {formatCurrency(g.suspeitasAVista)}
-                      </TableCell>
-                      <TableCell className={cn('text-right', g.realizadoFora > 0 ? 'text-amber-600 dark:text-amber-400 font-semibold' : 'text-muted-foreground')}>
-                        {formatCurrency(g.realizadoFora)}
-                      </TableCell>
                       <TableCell className={cn('text-right font-semibold', Math.abs(diff) > 0.001 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground')}>
                         {formatCurrency(diff)}
                       </TableCell>
                     </TableRow>
                     {isOpen && (
                       <TableRow key={g.key + '-detail'}>
-                        <TableCell colSpan={8} className="bg-muted/20 p-0">
+                        <TableCell colSpan={6} className="bg-muted/20 p-0">
                           <div className="p-3 space-y-2">
-                            {hasSuspeitas && (
-                              <div className="flex justify-end">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="gap-1.5 h-7 text-xs border-blue-500/40 text-blue-600 dark:text-blue-400"
-                                  onClick={(e) => { e.stopPropagation(); selectSuspeitas(g.txns); }}
-                                >
-                                  Selecionar À Vista do grupo
-                                </Button>
-                              </div>
-                            )}
                             <Table>
                               <TableHeader>
                                 <TableRow>
@@ -1037,10 +954,9 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
                               </TableHeader>
                               <TableBody>
                                 {sortDetail(g.txns).map(t => {
-                                  const suspect = isAVistaTxn(t);
-                                  const cls = classify(t);
+                                  const suspect = isVisualAVista(t);
                                   return (
-                                    <TableRow key={t.id} className={cn(suspect && 'bg-blue-500/5', cls === 'realizado_fora' && 'bg-amber-500/5')}>
+                                    <TableRow key={t.id} className={cn(suspect && 'bg-blue-500/5')}>
                                       <TableCell>
                                         <Checkbox
                                           checked={selected.has(t.id)}
@@ -1065,11 +981,6 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
                                               À Vista
                                             </Badge>
                                           )}
-                                          {cls === 'realizado_fora' && (
-                                            <Badge variant="outline" className="text-[10px] border-amber-500/60 text-amber-600 dark:text-amber-400 bg-amber-500/10">
-                                              Fora do Previsto
-                                            </Badge>
-                                          )}
                                         </div>
                                       </TableCell>
                                     </TableRow>
@@ -1090,12 +1001,6 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
                 <TableCell className="text-right">{formatCurrency(totals.previstoDRE)}</TableCell>
                 <TableCell className="text-right">{formatCurrency(totals.emAberto)}</TableCell>
                 <TableCell className="text-right">{formatCurrency(totals.pagasComPrevista)}</TableCell>
-                <TableCell className={cn('text-right', totals.suspeitasAVista > 0 && 'text-blue-600 dark:text-blue-400')}>
-                  {formatCurrency(totals.suspeitasAVista)}
-                </TableCell>
-                <TableCell className={cn('text-right', totals.realizadoFora > 0 && 'text-amber-600 dark:text-amber-400')}>
-                  {formatCurrency(totals.realizadoFora)}
-                </TableCell>
                 <TableCell className="text-right">
                   {formatCurrency(totals.previstoDRE - totals.emAberto - totals.pagasComPrevista)}
                 </TableCell>
