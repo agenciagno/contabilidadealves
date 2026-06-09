@@ -733,14 +733,12 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
         <div className="text-xs text-muted-foreground mb-2 leading-relaxed">
           <p>
             Período: <strong>{formatDateBR(startDate)} a {formatDateBR(endDate)}</strong>.
-            Diagnóstico ampliado: lista transações com <strong>Data Prevista</strong> OU <strong>Data de Pagamento</strong> dentro do período.
+            Lista transações com <strong>Data Prevista</strong> dentro do período (mesmo critério do Previsto da DRE).
           </p>
           <ul className="list-disc pl-5 mt-1 space-y-0.5">
             <li><strong>Previsto DRE</strong>: linhas com Data Prevista no período (pagas + em aberto). Idêntico à coluna Previsto da DRE.</li>
             <li><strong>Em Aberto</strong>: parcela ainda não liquidada — é o que aparece em Pagar/Receber.</li>
             <li><strong>Pagas c/ Prevista</strong>: já liquidadas, mas continuam compondo o Previsto da DRE.</li>
-            <li><strong>À Vista</strong>: transações marcadas como À Vista no lançamento (campo registrado no banco).</li>
-            <li><strong>Realizado fora do Previsto</strong>: pagas no período mas com Data Prevista vazia ou fora — compõem o Realizado da DRE, não o Previsto. À Vista normalmente caem aqui.</li>
             <li><strong>Diferença</strong>: Previsto DRE − (Em Aberto + Pagas c/ Prevista). Deve ser zero.</li>
           </ul>
         </div>
