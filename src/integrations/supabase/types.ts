@@ -1240,6 +1240,7 @@ export type Database = {
           due_date: string | null
           expected_date: string | null
           id: string
+          is_cash: boolean
           is_paid: boolean
           issue_date: string | null
           notes: string | null
@@ -1260,6 +1261,7 @@ export type Database = {
           due_date?: string | null
           expected_date?: string | null
           id?: string
+          is_cash?: boolean
           is_paid?: boolean
           issue_date?: string | null
           notes?: string | null
@@ -1280,6 +1282,7 @@ export type Database = {
           due_date?: string | null
           expected_date?: string | null
           id?: string
+          is_cash?: boolean
           is_paid?: boolean
           issue_date?: string | null
           notes?: string | null

@@ -8,9 +8,11 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ChevronDown, ChevronRight, FileText, AlertCircle, Eraser, Pencil, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, FileText, AlertCircle, Eraser, Pencil, Loader2, Search, X } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useCategories } from '@/hooks/useCategories';
@@ -41,9 +43,11 @@ function formatDateBR(d: string | null) {
 interface ConciliationTxn {
   id: string;
   description: string;
+  type: 'receita' | 'despesa';
   amount: number;
   paid_amount: number | null;
   is_paid: boolean;
+  is_cash: boolean;
   expected_date: string | null;
   date: string | null;
   category_id: string | null;
@@ -51,9 +55,9 @@ interface ConciliationTxn {
   bank_id: string | null;
 }
 
-// Heuristic: paid AND expected_date filled AND expected_date === payment date → likely À Vista legacy
-function isSuspectAVista(t: ConciliationTxn) {
-  return t.is_paid && !!t.expected_date && !!t.date && t.expected_date === t.date;
+// À Vista is now a real flag in DB (transactions.is_cash)
+function isAVistaTxn(t: ConciliationTxn) {
+  return t.is_cash === true;
 }
 
 export function DREConciliationModal({ open, onOpenChange, startDate, endDate }: Props) {
@@ -68,12 +72,39 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [clearing, setClearing] = useState(false);
 
+  // ---------- Filters (padrão dos demais relatórios) ----------
+  const [searchTerm, setSearchTerm] = useState('');
+  const [macroFilter, setMacroFilter] = useState('all');
+  const [contactFilter, setContactFilter] = useState('all');
+  const [bankFilter, setBankFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'pending'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'receita' | 'despesa'>('all');
+  const [cashFilter, setCashFilter] = useState<'all' | 'cash' | 'term'>('all');
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setMacroFilter('all');
+    setContactFilter('all');
+    setBankFilter('all');
+    setStatusFilter('all');
+    setTypeFilter('all');
+    setCashFilter('all');
+  };
+  const hasActiveFilters =
+    searchTerm !== '' ||
+    macroFilter !== 'all' ||
+    contactFilter !== 'all' ||
+    bankFilter !== 'all' ||
+    statusFilter !== 'all' ||
+    typeFilter !== 'all' ||
+    cashFilter !== 'all';
+
   const { data: txns = [], isLoading } = useQuery({
     queryKey: ['dre-conciliation', startDate, endDate],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('transactions')
-        .select('id, description, amount, paid_amount, is_paid, expected_date, date, category_id, contact_id, bank_id')
+        .select('id, description, type, amount, paid_amount, is_paid, is_cash, expected_date, date, category_id, contact_id, bank_id')
         .is('deleted_at', null)
         .not('expected_date', 'is', null)
         .gte('expected_date', startDate)
@@ -91,6 +122,48 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
 
   const catMap = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories]);
 
+  // Apply filters at transaction level (totals recalculate from filtered set)
+  const filteredTxns = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    return txns.filter(t => {
+      // type
+      if (typeFilter !== 'all' && t.type !== typeFilter) return false;
+      // status
+      if (statusFilter === 'paid' && !t.is_paid) return false;
+      if (statusFilter === 'pending' && t.is_paid) return false;
+      // cash marker
+      if (cashFilter === 'cash' && !t.is_cash) return false;
+      if (cashFilter === 'term' && t.is_cash) return false;
+      // contact
+      if (contactFilter !== 'all' && t.contact_id !== contactFilter) return false;
+      // bank
+      if (bankFilter !== 'all' && t.bank_id !== bankFilter) return false;
+      // macro
+      if (macroFilter !== 'all') {
+        const cat = t.category_id ? catMap.get(t.category_id) : null;
+        const macro = cat?.parent_id ? catMap.get(cat.parent_id) : cat;
+        const macroId = macro?.id || '__sem__';
+        if (macroId !== macroFilter) return false;
+      }
+      // search
+      if (term) {
+        const cat = t.category_id ? catMap.get(t.category_id) : null;
+        const macro = cat?.parent_id ? catMap.get(cat.parent_id) : cat;
+        const contactN = t.contact_id ? (contacts.find(c => c.id === t.contact_id)?.name || '') : '';
+        const bankN = t.bank_id ? (banks.find(b => b.id === t.bank_id)?.name || '') : '';
+        const hay = [
+          t.description,
+          contactN,
+          bankN,
+          cat?.name || '',
+          macro?.name || '',
+        ].join(' ').toLowerCase();
+        if (!hay.includes(term)) return false;
+      }
+      return true;
+    });
+  }, [txns, searchTerm, macroFilter, contactFilter, bankFilter, statusFilter, typeFilter, cashFilter, catMap, contacts, banks]);
+
   const grouped = useMemo(() => {
     type Group = {
       key: string;
@@ -104,7 +177,7 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
     };
     const map = new Map<string, Group>();
 
-    for (const t of txns) {
+    for (const t of filteredTxns) {
       const cat = t.category_id ? catMap.get(t.category_id) : null;
       const macro = cat?.parent_id ? catMap.get(cat.parent_id) : cat;
       const key = macro?.id || '__sem__';
@@ -120,11 +193,24 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
       g.previstoDRE += amt;
       if (!t.is_paid) g.emAberto += amt;
       else g.pagasComPrevista += amt;
-      if (isSuspectAVista(t)) g.suspeitasAVista += amt;
+      if (isAVistaTxn(t)) g.suspeitasAVista += amt;
       g.txns.push(t);
     }
 
     return Array.from(map.values()).sort((a, b) => b.previstoDRE - a.previstoDRE);
+  }, [filteredTxns, catMap]);
+
+  // Macro list for filter dropdown (from full txns set, not filtered, to allow re-filtering)
+  const macroOptions = useMemo(() => {
+    const set = new Map<string, string>();
+    for (const t of txns) {
+      const cat = t.category_id ? catMap.get(t.category_id) : null;
+      const macro = cat?.parent_id ? catMap.get(cat.parent_id) : cat;
+      const id = macro?.id || '__sem__';
+      const name = macro?.name || '(Sem evento contábil)';
+      if (!set.has(id)) set.set(id, name);
+    }
+    return Array.from(set.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
   }, [txns, catMap]);
 
   const totals = useMemo(() => {
@@ -171,7 +257,7 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
   const selectSuspeitas = (txnsArr: ConciliationTxn[]) => {
     setSelected(prev => {
       const next = new Set(prev);
-      txnsArr.filter(isSuspectAVista).forEach(t => next.add(t.id));
+      txnsArr.filter(isAVistaTxn).forEach(t => next.add(t.id));
       return next;
     });
   };
@@ -231,7 +317,7 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
 
     autoTable(doc, {
       startY: 26,
-      head: [['Evento Contábil', 'Previsto DRE', 'Em Aberto', 'Pagas c/ Prevista', 'Suspeitas À Vista', 'Diferença']],
+      head: [['Evento Contábil', 'Previsto DRE', 'Em Aberto', 'Pagas c/ Prevista', 'À Vista', 'Diferença']],
       body,
       foot: [[
         'TOTAL',
@@ -272,10 +358,85 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
             <li><strong>Previsto DRE</strong>: tudo com data prevista no período (pagas + em aberto).</li>
             <li><strong>Em Aberto</strong>: parcela ainda não liquidada — é o que aparece em Pagar/Receber.</li>
             <li><strong>Pagas c/ Prevista</strong>: já liquidadas, mas continuam compondo o Previsto da DRE.</li>
-            <li><strong>Suspeitas À Vista</strong>: pagas em que <em>Data Prevista = Data de Pagamento</em> — provável lançamento À Vista antigo com Data Prevista preenchida indevidamente.</li>
+            <li><strong>À Vista</strong>: transações marcadas como À Vista no lançamento (campo registrado no banco).</li>
             <li><strong>Diferença</strong>: deve ser zero. Se não for, indica banco invisível ou categoria fora da DRE.</li>
           </ul>
         </div>
+
+        {/* Filtros (padrão dos demais relatórios) */}
+        <div className="rounded-md border border-border/50 bg-card p-3 space-y-3 mb-3">
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Buscar por descrição, cliente/fornecedor, conta, evento..."
+                className="pl-9 h-9"
+              />
+            </div>
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1 text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" /> Limpar filtros
+              </Button>
+            )}
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+            <Select value={macroFilter} onValueChange={setMacroFilter}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Evento Contábil" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Eventos</SelectItem>
+                {macroOptions.map(o => (
+                  <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={contactFilter} onValueChange={setContactFilter}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Cliente/Fornecedor" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Participantes</SelectItem>
+                {contacts.filter(c => c.is_active).map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={bankFilter} onValueChange={setBankFilter}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Conta Corrente" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as Contas</SelectItem>
+                {banks.filter(b => b.is_active).map(b => (
+                  <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Status</SelectItem>
+                <SelectItem value="paid">Pago</SelectItem>
+                <SelectItem value="pending">Em aberto</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as any)}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Tipo" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Tipos</SelectItem>
+                <SelectItem value="receita">Receitas</SelectItem>
+                <SelectItem value="despesa">Despesas</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={cashFilter} onValueChange={(v) => setCashFilter(v as any)}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="À Vista / À Prazo" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas</SelectItem>
+                <SelectItem value="cash">Só À Vista</SelectItem>
+                <SelectItem value="term">Só À Prazo</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+
 
         {selected.size > 0 && (
           <div className="sticky top-0 z-10 flex items-center justify-between gap-3 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 mb-2">
@@ -316,11 +477,11 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <span className="inline-flex items-center gap-1 cursor-help">
-                          Suspeitas À Vista <AlertCircle className="h-3 w-3 text-amber-500" />
+                          À Vista
                         </span>
                       </TooltipTrigger>
                       <TooltipContent className="max-w-xs text-xs">
-                        Pagas onde Data Prevista = Data de Pagamento. Provável À Vista legado com data prevista preenchida indevidamente.
+                        Total das transações marcadas como À Vista no lançamento.
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -334,7 +495,7 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
                 const isOpen = !!expanded[g.key];
                 const allIds = g.txns.map(t => t.id);
                 const allSelected = allIds.length > 0 && allIds.every(id => selected.has(id));
-                const hasSuspeitas = g.txns.some(isSuspectAVista);
+                const hasSuspeitas = g.txns.some(isAVistaTxn);
                 return (
                   <Fragment key={g.key}>
                     <TableRow className="cursor-pointer hover:bg-muted/40" onClick={() => toggle(g.key)}>
@@ -370,11 +531,10 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  className="gap-1.5 h-7 text-xs border-amber-500/50 text-amber-700 dark:text-amber-400"
+                                  className="gap-1.5 h-7 text-xs border-blue-500/40 text-blue-600 dark:text-blue-400"
                                   onClick={(e) => { e.stopPropagation(); selectSuspeitas(g.txns); }}
                                 >
-                                  <AlertCircle className="h-3 w-3" />
-                                  Selecionar suspeitas À Vista
+                                  Selecionar À Vista do grupo
                                 </Button>
                               </div>
                             )}
@@ -402,9 +562,9 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
                                   .slice()
                                   .sort((a, b) => (a.expected_date || '').localeCompare(b.expected_date || ''))
                                   .map(t => {
-                                    const suspect = isSuspectAVista(t);
+                                    const suspect = isAVistaTxn(t);
                                     return (
-                                      <TableRow key={t.id} className={cn(suspect && 'bg-amber-500/5')}>
+                                      <TableRow key={t.id} className={cn(suspect && 'bg-blue-500/5')}>
                                         <TableCell>
                                           <Checkbox
                                             checked={selected.has(t.id)}
@@ -425,8 +585,8 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
                                               <Badge variant="outline" className="text-[10px] border-amber-500/50 text-amber-600">Em aberto</Badge>
                                             )}
                                             {suspect && (
-                                              <Badge variant="outline" className="text-[10px] border-amber-500/60 text-amber-700 dark:text-amber-400 bg-amber-500/10">
-                                                Provável À Vista
+                                              <Badge variant="outline" className="text-[10px] border-blue-500/60 text-blue-600 dark:text-blue-400 bg-blue-500/10">
+                                                À Vista
                                               </Badge>
                                             )}
                                           </div>

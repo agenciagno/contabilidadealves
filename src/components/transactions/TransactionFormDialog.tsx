@@ -320,6 +320,7 @@ export function TransactionFormDialog({
         bank_id: bankId || null,
         contact_id: contactId || null,
         is_paid: true,
+        is_cash: (transaction as any)?.is_cash ?? false,
         notes: notes || null,
       } as TransactionInsert;
       checkYearAndSubmit(payload, pendingFiles, true);
@@ -342,6 +343,7 @@ export function TransactionFormDialog({
         bank_id: bankId || null,
         contact_id: contactId || null,
         is_paid: false,
+        is_cash: false,
         notes: notes || null,
       } as TransactionInsert;
       checkYearAndSubmit(payload, pendingFiles, shouldClose);
@@ -365,6 +367,7 @@ export function TransactionFormDialog({
         bank_id: bankId || null,
         contact_id: contactId || null,
         is_paid: transaction?.is_paid ?? false,
+        is_cash: (transaction as any)?.is_cash ?? false,
         notes: notes || null,
       } as TransactionInsert;
       checkYearAndSubmit(payload, pendingFiles, shouldClose);
@@ -390,6 +393,7 @@ export function TransactionFormDialog({
       bank_id: bankId || null,
       contact_id: contactId || null,
       is_paid: true,
+      is_cash: true,
       notes: notes || null,
     } as TransactionInsert;
 
