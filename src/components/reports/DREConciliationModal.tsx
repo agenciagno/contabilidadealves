@@ -358,7 +358,7 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
             <li><strong>Previsto DRE</strong>: tudo com data prevista no período (pagas + em aberto).</li>
             <li><strong>Em Aberto</strong>: parcela ainda não liquidada — é o que aparece em Pagar/Receber.</li>
             <li><strong>Pagas c/ Prevista</strong>: já liquidadas, mas continuam compondo o Previsto da DRE.</li>
-            <li><strong>Suspeitas À Vista</strong>: pagas em que <em>Data Prevista = Data de Pagamento</em> — provável lançamento À Vista antigo com Data Prevista preenchida indevidamente.</li>
+            <li><strong>À Vista</strong>: transações marcadas como À Vista no lançamento (campo registrado no banco).</li>
             <li><strong>Diferença</strong>: deve ser zero. Se não for, indica banco invisível ou categoria fora da DRE.</li>
           </ul>
         </div>
