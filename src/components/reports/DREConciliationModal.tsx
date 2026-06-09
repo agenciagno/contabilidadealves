@@ -613,8 +613,6 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
   const statusOptions = [
     { id: 'paid', name: 'Pago' },
     { id: 'pending', name: 'Em aberto' },
-    { id: 'cash', name: 'À Vista' },
-    { id: 'term', name: 'À Prazo' },
   ];
 
   // ---------- Selection / actions ----------
