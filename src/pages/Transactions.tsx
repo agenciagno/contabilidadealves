@@ -1115,7 +1115,10 @@ export default function Transactions() {
                           <div className="flex items-center gap-2">
                             <Tooltip><TooltipTrigger asChild><span className="truncate text-sm font-semibold text-foreground">{transaction.contact?.name ?? transaction.description}</span></TooltipTrigger><TooltipContent side="top" className="apple-tooltip"><p>{transaction.contact?.name ?? transaction.description}</p></TooltipContent></Tooltip>
                             {isOverdue && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-500 border border-red-500/40 whitespace-nowrap shrink-0">Vencido</span>}
-                            {(transaction as any).is_cash && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-500 border border-blue-500/30 whitespace-nowrap shrink-0">À Vista</span>}
+                            {(() => {
+                              const isVisualCash = transaction.is_paid && !!transaction.date && !!transaction.due_date && !!transaction.issue_date && transaction.date === transaction.due_date && transaction.due_date === transaction.issue_date;
+                              return isVisualCash ? <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-500 border border-blue-500/30 whitespace-nowrap shrink-0">À Vista</span> : null;
+                            })()}
                           </div>
                         </div>
                         <div className="min-w-0 flex items-center gap-1.5 text-xs text-muted-foreground">
