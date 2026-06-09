@@ -368,8 +368,6 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
     !!mainFilters.previstoDRE ||
     !!mainFilters.emAberto ||
     !!mainFilters.pagasComPrevista ||
-    !!mainFilters.suspeitasAVista ||
-    !!mainFilters.realizadoFora ||
     !!mainFilters.diferenca ||
     !!detailFilters.expected_date ||
     detailFilters.expected_date_empty ||
@@ -381,20 +379,18 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
     !!detailFilters.amount ||
     detailFilters.statusIds.length > 0;
 
-  // ---------- Query: expected_date in period OR (date in period AND is_paid) ----------
+  // ---------- Query: expected_date in period (matches DRE Previsto rule) ----------
   const { data: txns = [], isLoading } = useQuery({
     queryKey: ['dre-conciliation-v2', startDate, endDate],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('transactions')
-        .select('id, description, type, amount, paid_amount, is_paid, is_cash, expected_date, date, category_id, contact_id, bank_id')
+        .select('id, description, type, amount, paid_amount, is_paid, expected_date, date, issue_date, due_date, category_id, contact_id, bank_id')
         .is('deleted_at', null)
-        .or(
-          `and(expected_date.gte.${startDate},expected_date.lte.${endDate}),` +
-          `and(date.gte.${startDate},date.lte.${endDate},is_paid.eq.true)`
-        );
+        .gte('expected_date', startDate)
+        .lte('expected_date', endDate);
       if (error) throw error;
-      return (data || []) as ConciliationTxn[];
+      return (data || []) as unknown as ConciliationTxn[];
     },
     enabled: open && !!startDate && !!endDate,
   });
