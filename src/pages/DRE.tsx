@@ -131,6 +131,7 @@ export default function DRE() {
   const [startDate, setStartDate] = useState(() => format(startOfMonth(now), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(() => format(endOfMonth(now), 'yyyy-MM-dd'));
   const [reportOpen, setReportOpen] = useState(false);
+  const [conciliationOpen, setConciliationOpen] = useState(false);
   const { dreRows, summary } = useDREData(startDate, endDate);
 
   const handleClear = () => {
