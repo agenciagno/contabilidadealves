@@ -43,9 +43,11 @@ function formatDateBR(d: string | null) {
 interface ConciliationTxn {
   id: string;
   description: string;
+  type: 'receita' | 'despesa';
   amount: number;
   paid_amount: number | null;
   is_paid: boolean;
+  is_cash: boolean;
   expected_date: string | null;
   date: string | null;
   category_id: string | null;
@@ -53,9 +55,9 @@ interface ConciliationTxn {
   bank_id: string | null;
 }
 
-// Heuristic: paid AND expected_date filled AND expected_date === payment date → likely À Vista legacy
-function isSuspectAVista(t: ConciliationTxn) {
-  return t.is_paid && !!t.expected_date && !!t.date && t.expected_date === t.date;
+// À Vista is now a real flag in DB (transactions.is_cash)
+function isAVistaTxn(t: ConciliationTxn) {
+  return t.is_cash === true;
 }
 
 export function DREConciliationModal({ open, onOpenChange, startDate, endDate }: Props) {
