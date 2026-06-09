@@ -151,7 +151,7 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
       g.previstoDRE += amt;
       if (!t.is_paid) g.emAberto += amt;
       else g.pagasComPrevista += amt;
-      if (isSuspectAVista(t)) g.suspeitasAVista += amt;
+      if (isAVistaTxn(t)) g.suspeitasAVista += amt;
       g.txns.push(t);
     }
 
@@ -202,7 +202,7 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
   const selectSuspeitas = (txnsArr: ConciliationTxn[]) => {
     setSelected(prev => {
       const next = new Set(prev);
-      txnsArr.filter(isSuspectAVista).forEach(t => next.add(t.id));
+      txnsArr.filter(isAVistaTxn).forEach(t => next.add(t.id));
       return next;
     });
   };
@@ -365,7 +365,7 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
                 const isOpen = !!expanded[g.key];
                 const allIds = g.txns.map(t => t.id);
                 const allSelected = allIds.length > 0 && allIds.every(id => selected.has(id));
-                const hasSuspeitas = g.txns.some(isSuspectAVista);
+                const hasSuspeitas = g.txns.some(isAVistaTxn);
                 return (
                   <Fragment key={g.key}>
                     <TableRow className="cursor-pointer hover:bg-muted/40" onClick={() => toggle(g.key)}>
@@ -433,7 +433,7 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
                                   .slice()
                                   .sort((a, b) => (a.expected_date || '').localeCompare(b.expected_date || ''))
                                   .map(t => {
-                                    const suspect = isSuspectAVista(t);
+                                    const suspect = isAVistaTxn(t);
                                     return (
                                       <TableRow key={t.id} className={cn(suspect && 'bg-amber-500/5')}>
                                         <TableCell>
