@@ -363,6 +363,81 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
           </ul>
         </div>
 
+        {/* Filtros (padrão dos demais relatórios) */}
+        <div className="rounded-md border border-border/50 bg-card p-3 space-y-3 mb-3">
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Buscar por descrição, cliente/fornecedor, conta, evento..."
+                className="pl-9 h-9"
+              />
+            </div>
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1 text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" /> Limpar filtros
+              </Button>
+            )}
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+            <Select value={macroFilter} onValueChange={setMacroFilter}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Evento Contábil" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Eventos</SelectItem>
+                {macroOptions.map(o => (
+                  <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={contactFilter} onValueChange={setContactFilter}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Cliente/Fornecedor" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Participantes</SelectItem>
+                {contacts.filter(c => c.is_active).map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={bankFilter} onValueChange={setBankFilter}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Conta Corrente" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as Contas</SelectItem>
+                {banks.filter(b => b.is_active).map(b => (
+                  <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Status</SelectItem>
+                <SelectItem value="paid">Pago</SelectItem>
+                <SelectItem value="pending">Em aberto</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as any)}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Tipo" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Tipos</SelectItem>
+                <SelectItem value="receita">Receitas</SelectItem>
+                <SelectItem value="despesa">Despesas</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={cashFilter} onValueChange={(v) => setCashFilter(v as any)}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="À Vista / À Prazo" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas</SelectItem>
+                <SelectItem value="cash">Só À Vista</SelectItem>
+                <SelectItem value="term">Só À Prazo</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+
+
         {selected.size > 0 && (
           <div className="sticky top-0 z-10 flex items-center justify-between gap-3 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 mb-2">
             <span className="text-sm font-medium">{selected.size} transação(ões) selecionada(s)</span>
