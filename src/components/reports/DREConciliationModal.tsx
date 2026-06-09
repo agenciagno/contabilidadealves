@@ -397,18 +397,6 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
 
   const catMap = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories]);
 
-  const inPeriod = (d: string | null) => !!d && d >= startDate && d <= endDate;
-
-  // Classify each transaction
-  type TxnClass = 'previsto' | 'realizado_fora' | 'ambos';
-  const classify = (t: ConciliationTxn): TxnClass => {
-    const expIn = inPeriod(t.expected_date);
-    const dateIn = inPeriod(t.date) && t.is_paid;
-    if (expIn && dateIn) return 'ambos';
-    if (expIn) return 'previsto';
-    return 'realizado_fora';
-  };
-
   // Helpers
   const macroOf = (categoryId: string | null) => {
     const cat = categoryId ? catMap.get(categoryId) : null;
