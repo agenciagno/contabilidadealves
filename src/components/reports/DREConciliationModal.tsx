@@ -784,7 +784,7 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
           </div>
         ) : grouped.length === 0 ? (
           <div className="text-sm text-muted-foreground py-8 text-center">
-            Nenhuma transação no período (Data Prevista ou Pagamento).
+            Nenhuma transação com Data Prevista no período.
           </div>
         ) : (
           <Table>
