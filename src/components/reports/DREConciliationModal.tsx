@@ -633,13 +633,6 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
       return next;
     });
   };
-  const selectSuspeitas = (txnsArr: ConciliationTxn[]) => {
-    setSelected(prev => {
-      const next = new Set(prev);
-      txnsArr.filter(isAVistaTxn).forEach(t => next.add(t.id));
-      return next;
-    });
-  };
   const clearSelection = () => setSelected(new Set());
 
   const selectedTxns = useMemo(() => txns.filter(t => selected.has(t.id)), [txns, selected]);
@@ -682,23 +675,19 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
         formatCurrency(g.previstoDRE),
         formatCurrency(g.emAberto),
         formatCurrency(g.pagasComPrevista),
-        formatCurrency(g.suspeitasAVista),
-        formatCurrency(g.realizadoFora),
         formatCurrency(diff),
       ];
     });
 
     autoTable(doc, {
       startY: 26,
-      head: [['Evento Contábil', 'Previsto DRE', 'Em Aberto', 'Pagas c/ Prevista', 'À Vista', 'Realizado fora do Previsto', 'Diferença']],
+      head: [['Evento Contábil', 'Previsto DRE', 'Em Aberto', 'Pagas c/ Prevista', 'Diferença']],
       body,
       foot: [[
         'TOTAL',
         formatCurrency(totals.previstoDRE),
         formatCurrency(totals.emAberto),
         formatCurrency(totals.pagasComPrevista),
-        formatCurrency(totals.suspeitasAVista),
-        formatCurrency(totals.realizadoFora),
         formatCurrency(totals.previstoDRE - totals.emAberto - totals.pagasComPrevista),
       ]],
       styles: { fontSize: 8, halign: 'center' },
