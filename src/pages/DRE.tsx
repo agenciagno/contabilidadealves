@@ -3,11 +3,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { CalendarDays, X, TrendingUp, TrendingDown, DollarSign, Wallet, Building2, FileText } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { CalendarDays, X, TrendingUp, TrendingDown, DollarSign, Wallet, Building2, FileText, GitCompare, Info } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useDREData, DRESectionRow, DRECalculatedRow, DRERowResult } from '@/hooks/useDREData';
 import { DREReportModal } from '@/components/reports/DREReportModal';
+import { DREConciliationModal } from '@/components/reports/DREConciliationModal';
 import { cn } from '@/lib/utils';
 
 function formatCurrency(value: number) {
