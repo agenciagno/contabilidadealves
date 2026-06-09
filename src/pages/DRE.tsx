@@ -222,7 +222,21 @@ export default function DRE() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[34%]">Evento Contábil</TableHead>
-                <TableHead className="text-right w-[14%]">Previsto (R$)</TableHead>
+                <TableHead className="text-right w-[14%]">
+                  <span className="inline-flex items-center gap-1 justify-end">
+                    Previsto (R$)
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs text-xs">
+                          Inclui transações pagas cuja data prevista está no período. Use "Conciliação" para detalhar.
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </span>
+                </TableHead>
                 <TableHead className="text-right w-[14%]">Realizado (R$)</TableHead>
                 <TableHead className="text-right w-[14%]">RXP (R$)</TableHead>
                 <TableHead className="text-right w-[12%]">% Prev.</TableHead>
