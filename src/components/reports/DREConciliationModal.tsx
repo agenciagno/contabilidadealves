@@ -499,8 +499,6 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
     previstoDRE: number;
     emAberto: number;
     pagasComPrevista: number;
-    suspeitasAVista: number;
-    realizadoFora: number;
     txns: ConciliationTxn[];
   }
 
@@ -514,20 +512,13 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
 
       let g = map.get(key);
       if (!g) {
-        g = { key, macroName, showInDre, previstoDRE: 0, emAberto: 0, pagasComPrevista: 0, suspeitasAVista: 0, realizadoFora: 0, txns: [] };
+        g = { key, macroName, showInDre, previstoDRE: 0, emAberto: 0, pagasComPrevista: 0, txns: [] };
         map.set(key, g);
       }
       const amt = Number(t.amount);
-      const cls = classify(t);
-      if (cls === 'previsto' || cls === 'ambos') {
-        g.previstoDRE += amt;
-        if (!t.is_paid) g.emAberto += amt;
-        else g.pagasComPrevista += amt;
-      }
-      if (cls === 'realizado_fora') {
-        g.realizadoFora += amt;
-      }
-      if (isAVistaTxn(t)) g.suspeitasAVista += amt;
+      g.previstoDRE += amt;
+      if (!t.is_paid) g.emAberto += amt;
+      else g.pagasComPrevista += amt;
       g.txns.push(t);
     }
 
@@ -539,8 +530,6 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
         [g.previstoDRE, mainFilters.previstoDRE],
         [g.emAberto, mainFilters.emAberto],
         [g.pagasComPrevista, mainFilters.pagasComPrevista],
-        [g.suspeitasAVista, mainFilters.suspeitasAVista],
-        [g.realizadoFora, mainFilters.realizadoFora],
         [g.previstoDRE - g.emAberto - g.pagasComPrevista, mainFilters.diferenca],
       ];
       for (const [val, r] of ranges) {
@@ -560,8 +549,6 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
           case 'previstoDRE': return g.previstoDRE;
           case 'emAberto': return g.emAberto;
           case 'pagasComPrevista': return g.pagasComPrevista;
-          case 'suspeitasAVista': return g.suspeitasAVista;
-          case 'realizadoFora': return g.realizadoFora;
           case 'diferenca': return g.previstoDRE - g.emAberto - g.pagasComPrevista;
           default: return 0;
         }
@@ -576,10 +563,8 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
       acc.previstoDRE += g.previstoDRE;
       acc.emAberto += g.emAberto;
       acc.pagasComPrevista += g.pagasComPrevista;
-      acc.suspeitasAVista += g.suspeitasAVista;
-      acc.realizadoFora += g.realizadoFora;
       return acc;
-    }, { previstoDRE: 0, emAberto: 0, pagasComPrevista: 0, suspeitasAVista: 0, realizadoFora: 0 });
+    }, { previstoDRE: 0, emAberto: 0, pagasComPrevista: 0 });
   }, [grouped]);
 
   // Options for header filters (built from all loaded txns, not the filtered set)
