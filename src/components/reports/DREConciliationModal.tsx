@@ -53,16 +53,19 @@ interface ConciliationTxn {
   amount: number;
   paid_amount: number | null;
   is_paid: boolean;
-  is_cash: boolean;
   expected_date: string | null;
   date: string | null;
+  issue_date: string | null;
+  due_date: string | null;
   category_id: string | null;
   contact_id: string | null;
   bank_id: string | null;
 }
 
-function isAVistaTxn(t: ConciliationTxn) {
-  return t.is_cash === true;
+// Visual-only À Vista detection: paid + issue=due=date (all filled and equal).
+function isVisualAVista(t: ConciliationTxn) {
+  return !!t.is_paid && !!t.date && !!t.due_date && !!t.issue_date
+    && t.date === t.due_date && t.due_date === t.issue_date;
 }
 
 // ---------- Shared filter UI bits ----------
@@ -303,7 +306,7 @@ function DateRangeFilter({
 }
 
 // ---------- Modal ----------
-interface MainSort { col: 'previstoDRE' | 'emAberto' | 'pagasComPrevista' | 'suspeitasAVista' | 'realizadoFora' | 'diferenca' | null; order: SortOrder }
+interface MainSort { col: 'previstoDRE' | 'emAberto' | 'pagasComPrevista' | 'diferenca' | null; order: SortOrder }
 interface DetailSort { col: 'expected_date' | 'date' | 'amount' | null; order: SortOrder }
 
 interface MainColFilters {
@@ -311,8 +314,6 @@ interface MainColFilters {
   previstoDRE?: { min?: number; max?: number };
   emAberto?: { min?: number; max?: number };
   pagasComPrevista?: { min?: number; max?: number };
-  suspeitasAVista?: { min?: number; max?: number };
-  realizadoFora?: { min?: number; max?: number };
   diferenca?: { min?: number; max?: number };
 }
 
@@ -325,7 +326,7 @@ interface DetailColFilters {
   subEventIds: string[];
   bankIds: string[];
   amount?: { min?: number; max?: number };
-  statusIds: string[]; // 'paid' | 'pending' | 'cash' | 'term'
+  statusIds: string[]; // 'paid' | 'pending'
 }
 
 const emptyMain: MainColFilters = { macroIds: [] };
