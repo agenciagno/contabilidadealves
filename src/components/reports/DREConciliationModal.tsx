@@ -834,24 +834,6 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
                 </TableHead>
                 <TableHead className="text-right">
                   <NumericRangeFilter
-                    label="À Vista"
-                    value={mainFilters.suspeitasAVista}
-                    onChange={v => setMainFilters(p => ({ ...p, suspeitasAVista: v }))}
-                    sortOrder={mainSort.col === 'suspeitasAVista' ? mainSort.order : null}
-                    onSort={o => setMainSort({ col: 'suspeitasAVista', order: o })}
-                  />
-                </TableHead>
-                <TableHead className="text-right">
-                  <NumericRangeFilter
-                    label="Realizado fora"
-                    value={mainFilters.realizadoFora}
-                    onChange={v => setMainFilters(p => ({ ...p, realizadoFora: v }))}
-                    sortOrder={mainSort.col === 'realizadoFora' ? mainSort.order : null}
-                    onSort={o => setMainSort({ col: 'realizadoFora', order: o })}
-                  />
-                </TableHead>
-                <TableHead className="text-right">
-                  <NumericRangeFilter
                     label="Diferença"
                     value={mainFilters.diferenca}
                     onChange={v => setMainFilters(p => ({ ...p, diferenca: v }))}
@@ -867,7 +849,6 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
                 const isOpen = !!expanded[g.key];
                 const allIds = g.txns.map(t => t.id);
                 const allSelected = allIds.length > 0 && allIds.every(id => selected.has(id));
-                const hasSuspeitas = g.txns.some(isAVistaTxn);
                 return (
                   <Fragment key={g.key}>
                     <TableRow className="cursor-pointer hover:bg-muted/40" onClick={() => toggle(g.key)}>
@@ -887,32 +868,14 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
                       <TableCell className="text-right">{formatCurrency(g.previstoDRE)}</TableCell>
                       <TableCell className="text-right">{formatCurrency(g.emAberto)}</TableCell>
                       <TableCell className="text-right">{formatCurrency(g.pagasComPrevista)}</TableCell>
-                      <TableCell className={cn('text-right', g.suspeitasAVista > 0 ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-muted-foreground')}>
-                        {formatCurrency(g.suspeitasAVista)}
-                      </TableCell>
-                      <TableCell className={cn('text-right', g.realizadoFora > 0 ? 'text-amber-600 dark:text-amber-400 font-semibold' : 'text-muted-foreground')}>
-                        {formatCurrency(g.realizadoFora)}
-                      </TableCell>
                       <TableCell className={cn('text-right font-semibold', Math.abs(diff) > 0.001 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground')}>
                         {formatCurrency(diff)}
                       </TableCell>
                     </TableRow>
                     {isOpen && (
                       <TableRow key={g.key + '-detail'}>
-                        <TableCell colSpan={8} className="bg-muted/20 p-0">
+                        <TableCell colSpan={6} className="bg-muted/20 p-0">
                           <div className="p-3 space-y-2">
-                            {hasSuspeitas && (
-                              <div className="flex justify-end">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="gap-1.5 h-7 text-xs border-blue-500/40 text-blue-600 dark:text-blue-400"
-                                  onClick={(e) => { e.stopPropagation(); selectSuspeitas(g.txns); }}
-                                >
-                                  Selecionar À Vista do grupo
-                                </Button>
-                              </div>
-                            )}
                             <Table>
                               <TableHeader>
                                 <TableRow>
