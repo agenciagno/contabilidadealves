@@ -317,7 +317,7 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
 
     autoTable(doc, {
       startY: 26,
-      head: [['Evento Contábil', 'Previsto DRE', 'Em Aberto', 'Pagas c/ Prevista', 'Suspeitas À Vista', 'Diferença']],
+      head: [['Evento Contábil', 'Previsto DRE', 'Em Aberto', 'Pagas c/ Prevista', 'À Vista', 'Diferença']],
       body,
       foot: [[
         'TOTAL',
