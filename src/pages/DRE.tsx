@@ -268,6 +268,13 @@ export default function DRE() {
         startDate={startDate}
         endDate={endDate}
       />
+
+      <DREConciliationModal
+        open={conciliationOpen}
+        onOpenChange={setConciliationOpen}
+        startDate={startDate}
+        endDate={endDate}
+      />
     </div>
   );
 }
