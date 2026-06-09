@@ -1,76 +1,77 @@
-# Plano: Identificação À Vista + Filtros na Conciliação
+## 1. Concilação retornando vazio — corrigir + ampliar
 
-## 1. Identificação de transações À Vista
+### O bug
+Hoje a Conciliação só busca transações com **`expected_date` dentro do período**. Isso deixa de fora:
+- Transações **À Vista** pagas no período (têm `expected_date = NULL` desde a última mudança).
+- Transações pagas no período cuja Data Prevista caiu em outro mês — elas compõem o Realizado da DRE mas não aparecem na Conciliação atual.
 
-Hoje o sistema **não guarda** se uma transação foi lançada como "À Vista" — essa escolha existe só no formulário, no momento do lançamento, e some depois. Por isso a Conciliação precisa usar uma heurística ("Provável À Vista") para tentar adivinhar.
+Resultado: períodos com 244 lançamentos mostram "Nenhuma transação no período" porque nenhum bate exatamente na regra estreita.
 
-A correção é simples: passar a **gravar** essa marcação no banco.
+### O que muda (só na Conciliação — DRE e Pagar/Receber intocados)
 
-### O que muda
+**Query**: passa a buscar transações onde **`expected_date` OU `date` (pagamento) caia no período**:
 
-**Banco de dados (`transactions`)**
-- Nova coluna `is_cash` (boolean, default `false`).
-- Migration retroativa: marcar `is_cash = true` em transações antigas que batam na heurística atual (pagas, com data prevista preenchida, e `expected_date = date`). Isso transforma a "suspeita" em fato registrado, de uma vez. Transações que não batam ficam como À Prazo (`false`) — exatamente como hoje.
+```ts
+.or(`and(expected_date.gte.${start},expected_date.lte.${end}),and(date.gte.${start},date.lte.${end},is_paid.eq.true)`)
+```
 
-**Formulário (`TransactionFormDialog.tsx`)**
-- Ao salvar com a aba **À Vista**, grava `is_cash = true`.
-- Ao salvar com **À Prazo**, grava `is_cash = false`.
-- Ao editar, o formulário lê `is_cash` e abre na aba correspondente (hoje ele sempre cai em À Prazo na edição).
+Mantém `deleted_at is null`. Scoping de `company_id` já vem da RLS.
 
-**Identificação visual (simples, conforme pedido — só para À Vista)**
-- Pequeno selo **"À Vista"** nas linhas onde `is_cash = true`, exibido em:
-  - Tabela principal de Transações (`Transactions.tsx`).
-  - Tabela do Pagar/Receber (`PagarReceber.tsx`).
-  - Detalhe expandido da Conciliação DRE.
-- À Prazo continua **sem** selo (visual idêntico ao atual).
+**Classificação por linha** (nova coluna lógica, exibida nos detalhes do grupo):
+- `Previsto` → tem `expected_date` no período (pago ou não).
+- `Realizado fora do Previsto` → pago no período mas `expected_date` fora ou null (caso típico de À Vista).
+- `Ambos` → `expected_date` e `date` no período.
 
-**Conciliação DRE**
-- A coluna "Suspeitas À Vista" e o selo "Provável À Vista" passam a usar **`is_cash = true`** como fonte da verdade (em vez da heurística). O nome da coluna muda para **"À Vista"** (não é mais "suspeita" — é fato).
-- A regra de cálculo da DRE e do Pagar/Receber **não muda**. À Vista continua: zera `expected_date`, não compõe Previsto, compõe Realizado.
+**Totalizadores por macro-evento** (linha principal da tabela):
+- `Previsto DRE` (inalterado conceitualmente — só conta linhas com `expected_date` no período).
+- `Em Aberto`, `Pagas c/ Prevista`, `À Vista`, `Diferença` (inalterados).
+- **Nova coluna**: `Realizado fora do Previsto` — soma das transações pagas no período sem `expected_date` no período. Ajuda a explicar por que o Realizado da DRE pode divergir do Previsto.
 
-### Não muda
-- Nenhuma fórmula de DRE, Pagar/Receber ou KPI.
-- Nenhuma RLS, política ou estrutura de outra tabela.
-- Filtros, paginação, ordenação existentes.
+**Nenhum cálculo da DRE muda.** A Conciliação passa a ser um diagnóstico mais amplo, mas as regras da DRE (`useDREData`) continuam idênticas.
 
 ---
 
-## 2. Filtros na Conciliação DRE
+## 2. Filtros nos cabeçalhos das colunas (padrão Lançamentos)
 
-A Conciliação hoje só tem o filtro de período do modal. Vou adicionar filtros por coluna no padrão dos demais relatórios do sistema (mesmo visual do `UnifiedFilterBox`: linha de filtros acima da tabela, com `Select` para dimensões e busca por texto).
+Hoje a Conciliação tem uma barra de Selects acima da tabela. Vou substituir por **filtros nos próprios cabeçalhos**, replicando o padrão e os componentes já usados em `Transactions.tsx` (popover com ícone de funil, ordenação, opção `(Vazio)`, intervalo numérico/data e seleção múltipla).
 
-### Filtros adicionados (no topo do modal, acima da tabela principal)
+### Tabela principal (linhas por Evento Contábil macro)
 
-| Filtro | Tipo | Aplica em |
-|---|---|---|
-| Busca | texto | Descrição, contato, banco, evento (filtra os detalhes; grupos sem match somem) |
-| Evento Contábil (macro) | select | Linha da tabela principal |
-| Cliente/Fornecedor | select | Transações no detalhe |
-| Conta Corrente | select | Transações no detalhe |
-| Status | select (Todos / Pago / Em aberto) | Transações no detalhe |
-| Tipo | select (Todos / Receita / Despesa) | Transações no detalhe |
-| Marcador À Vista | select (Todos / Só À Vista / Só À Prazo) | Transações no detalhe |
+| Coluna | Filtro |
+|---|---|
+| Evento Contábil | Texto + multi-seleção de eventos (igual filtro de "Evento Contábil" em Lançamentos) + (Vazio) |
+| Previsto DRE | Intervalo numérico (de/até) + ordenação asc/desc |
+| Em Aberto | Intervalo numérico + ordenação |
+| Pagas c/ Prevista | Intervalo numérico + ordenação |
+| À Vista | Intervalo numérico + ordenação |
+| Realizado fora do Previsto *(nova)* | Intervalo numérico + ordenação |
+| Diferença | Intervalo numérico + ordenação |
 
-Regras:
-- Filtros são **combinados** (AND), como nos outros relatórios.
-- Quando um filtro de detalhe (ex.: contato, banco) é aplicado, os **totais por grupo** e os **totais gerais** são recalculados considerando só as transações que sobreviveram ao filtro — assim a Conciliação continua batendo com o que está visível.
-- Grupos que ficam vazios após filtro são ocultados.
-- Botão **"Limpar filtros"** restaura o estado inicial, igual aos outros filtros do sistema.
-- Padrão visual: reuso dos componentes `Select`, `Input`, `Button` já usados no `UnifiedFilterBox`. Não vou criar um novo design.
+### Tabela de detalhe (ao expandir um grupo)
 
-### Não muda
-- O período continua vindo do filtro existente do modal.
-- Lógica de comparação (Previsto DRE × Em Aberto × Pagas c/ Prevista × Diferença) intocada — só passa a operar sobre o subconjunto filtrado.
-- Ações em massa (Limpar Data Prevista, Editar em massa) continuam funcionando sobre o que está selecionado.
+| Coluna | Filtro |
+|---|---|
+| Data Prevista | Intervalo de datas + (Vazio) + ordenação |
+| Data Pagto. | Intervalo de datas + (Vazio) + ordenação |
+| Cliente/Fornecedor | Multi-seleção + (Vazio) |
+| Evento Contábil (sub) | Multi-seleção + (Vazio) |
+| Conta Corrente | Multi-seleção + (Vazio) |
+| Valor | Intervalo numérico + ordenação |
+| Status | Multi-seleção (Pago, Em aberto, À Vista) |
+
+### Regras
+- Componentes reaproveitados do `Transactions.tsx`: `DateColumnFilter`, ColumnFilter popovers, `ArrowUpDown`/`Filter` icons, `(Vazio)`.
+- Combinação **AND** entre filtros, como em Lançamentos.
+- Filtros do detalhe **propagam para os totais** do grupo e gerais (mesma lógica atual).
+- Botão "Limpar filtros" continua no topo, agora atuando sobre todos os filtros de coluna.
+- A busca textual e o filtro de período do modal continuam onde estão (não são por coluna).
 
 ---
 
 ## Arquivos a alterar
 
-- **Migration**: nova coluna `transactions.is_cash` + backfill via heurística.
-- `src/components/transactions/TransactionFormDialog.tsx` — gravar/ler `is_cash`.
-- `src/components/reports/DREConciliationModal.tsx` — usar `is_cash`, adicionar barra de filtros, recalcular totais filtrados.
-- `src/pages/Transactions.tsx`, `src/pages/PagarReceber.tsx` — exibir selo "À Vista".
-- `src/integrations/supabase/types.ts` — regenerado automaticamente após a migration.
+- `src/components/reports/DREConciliationModal.tsx` — query ampliada (or de `expected_date`/`date`), classificação por linha, nova coluna "Realizado fora do Previsto", substituição da barra de Selects por filtros nos cabeçalhos das colunas (padrão Lançamentos).
+
+Não mexe em: `useDREData`, `DRE.tsx`, `PagarReceber.tsx`, schema, RLS, fórmulas, qualquer outro relatório.
 
 Posso seguir?
