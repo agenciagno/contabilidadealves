@@ -207,6 +207,9 @@ export function TransactionFormDialog({
     if (v === 'a_prazo') {
       setPaidAmount('');
       setDate('');
+    } else if (v === 'a_vista') {
+      // À Vista não compõe Previsto da DRE — limpa data prevista
+      setExpectedDate('');
     }
   };
 
@@ -563,7 +566,20 @@ export function TransactionFormDialog({
 <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5">
                 <Label className="text-xs">Prevista {!isAVista && <span className="text-destructive">*</span>}</Label>
-                <Input type="date" value={expectedDate} onChange={e => setExpectedDate(e.target.value)} className="h-8 text-xs" disabled={isSettleMode} min="1900-01-01" max="9999-12-31" />
+                <Input
+                  type="date"
+                  value={isAVista ? '' : expectedDate}
+                  onChange={e => setExpectedDate(e.target.value)}
+                  className="h-8 text-xs"
+                  disabled={isSettleMode || isAVista}
+                  min="1900-01-01"
+                  max="9999-12-31"
+                />
+                {isAVista && (
+                  <p className="text-[10px] text-muted-foreground leading-tight">
+                    Transações À Vista não compõem o Previsto da DRE — apenas o Realizado.
+                  </p>
+                )}
               </div>
               {!isAPrazo && (
                 <div className="space-y-1.5">
@@ -575,6 +591,7 @@ export function TransactionFormDialog({
                 </div>
               )}
             </div>
+
 
             {/* Recurring Toggle — only for new transactions */}
             {!isEditing && !isSettleMode && (

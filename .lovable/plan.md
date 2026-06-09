@@ -1,35 +1,52 @@
-## Objetivo
+# Plano aprovado (com ajuste na Alteração 1)
 
-Alinhar ao centro **todas as colunas** (cabeçalho, conteúdo e linha TOTAL) em todas as tabelas dos PDFs gerados na rota Pagar/Receber, eliminando o desalinhamento da linha de totais.
+## Alteração 1 — "Data Prevista" em transações À Vista (AJUSTADA)
 
-## Escopo
+**Onde:** `src/components/transactions/TransactionFormDialog.tsx`
 
-Arquivo único: `src/components/transactions/CashFlowReportModal.tsx`
+**Comportamento novo (apenas em NOVAS transações À Vista):**
+- O campo "Data Prevista" fica **desabilitado** e **vazio**.
+- Ao salvar, `expected_date` é gravado como **`null`** (não recebe nenhum valor automático).
+- Texto explicativo abaixo do campo: *"Transações À Vista não compõem o Previsto da DRE — apenas o Realizado."*
+- Em **À Prazo**, **edição de transação existente** e **liquidação**, nada muda.
 
-Aplica-se a:
-- **Relatório Geral** (`exportPDF`) — tabela principal de lançamentos + "Resumo por Evento Contábil"
-- **Consulta Mensal — Versão Resumida** (`exportMonthlyPDF`)
-- **Consulta Mensal — Versão Completa** (`exportMonthlyPDF` com Macro → Sub Eventos)
+**Efeito na DRE:** essas transações deixam de aparecer na coluna **Previsto** (porque a query `dre-previsto` exige `expected_date NOT NULL`) e continuam aparecendo normalmente em **Realizado** (pela data de pagamento).
 
-Sem alteração em XLS, CSV, JPEG, lógica, cálculos, colunas, ordem ou dados.
+## Alteração 2 — Relatório de Conciliação DRE × Pagar/Receber (APROVADA)
 
-## Alterações
+Botão novo **"Conciliação"** na tela DRE. Modal + PDF, agrupado por Evento Contábil, mostrando para o período selecionado:
 
-### 1. exportPDF — Tabela principal (linhas ~483-493)
-Já está com `halign: 'center'` em todas as colunas. Sem mudança.
+```text
+Evento | Previsto DRE | Em Aberto (Pagar/Receber) | Pagas c/ Data Prevista no período | Diferença
+```
 
-### 2. exportPDF — "Resumo por Evento Contábil" (linhas ~544-563)
-- `foot[]`: trocar `halign` de cada célula para `'center'` (TOTAL, Qtd, A Receber, A Pagar, Saldo).
-- `columnStyles`: trocar `halign: 'left'` (col 0) e `halign: 'right'` (cols 2,3,4) para `'center'`. Coluna 1 já é center. Manter cores (verde/vermelho) e `fontStyle: 'bold'` da coluna Saldo.
+- **Previsto DRE** = soma `amount` com `expected_date` no período (pagas + não pagas).
+- **Em Aberto** = mesma soma, `is_paid = false`.
+- **Pagas c/ Data Prevista no período** = mesma soma, `is_paid = true` — parte que "some" do Pagar/Receber mas continua no Previsto.
+- **Diferença** = Previsto − (Em Aberto + Pagas) → deve ser zero; se não, indica banco invisível ou categoria sem `show_in_dre`.
 
-### 3. exportMonthlyPDF (linhas ~827-833 e didDrawCell ~845-874)
-- `colStyles[0]` (Evento): `halign: 'left'` → `'center'`.
-- `colStyles[1..monthsCount]` (meses): `halign: 'right'` → `'center'`.
-- `colStyles[monthsCount+1]` (TOTAL): `halign: 'right'` → `'center'` (mantém `fontStyle: 'bold'`).
-- `didDrawCell` (versão Completa, linhas Macro e Child): trocar posicionamento manual do texto para centralizado (`textX = data.cell.x + data.cell.width / 2`, `align: 'center'`) em todas as colunas. Manter cores, negrito do Macro, recuo via fonte menor do Child, fundo cinza do Macro.
+Cada linha tem botão **"Ver transações"** que expande lista detalhada (Data Prevista, Data de Pagamento, Cliente, Valor, Status).
 
-## Garantias
+Nenhuma lógica de cálculo da DRE ou do Pagar/Receber é alterada — somente leitura.
 
-- Nenhuma mudança em queries, hooks, filtros, totais calculados, ordem das linhas/colunas, ou tamanhos de coluna.
-- Cabeçalhos já estão centralizados; apenas conteúdo e rodapé passam a herdar o mesmo alinhamento.
-- "Imprimir" (`window.print()`) usa a renderização HTML da modal, que não é alterada por este plano. Se desejar, posso aplicar o mesmo `text-align: center` ao bloco impresso em uma rodada separada.
+## Alteração 3 — Tooltips informativos (APROVADA)
+
+- **DRE → coluna Previsto (ⓘ):** *"Inclui transações pagas cuja data prevista está no período."*
+- **Pagar/Receber → cabeçalho (ⓘ):** *"Mostra apenas transações em aberto. Use a Conciliação na DRE para ver tudo que compõe o Previsto."*
+
+---
+
+## Resumo de impacto
+
+| Item | Muda? |
+|---|---|
+| Cálculo da DRE | Não |
+| Cálculo do Pagar/Receber | Não |
+| Saldo de bancos | Não |
+| Transações já existentes | Não |
+| Nova À Vista | `expected_date = null` (campo travado e vazio) |
+| Nova À Prazo / Edição / Liquidação | Não muda |
+| Nova tela | Botão "Conciliação" na DRE (modal + PDF) |
+| Tooltips | DRE + Pagar/Receber |
+
+Pronto para implementar. Posso seguir?

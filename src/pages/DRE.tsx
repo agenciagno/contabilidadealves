@@ -3,11 +3,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { CalendarDays, X, TrendingUp, TrendingDown, DollarSign, Wallet, Building2, FileText } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { CalendarDays, X, TrendingUp, TrendingDown, DollarSign, Wallet, Building2, FileText, GitCompare, Info } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useDREData, DRESectionRow, DRECalculatedRow, DRERowResult } from '@/hooks/useDREData';
 import { DREReportModal } from '@/components/reports/DREReportModal';
+import { DREConciliationModal } from '@/components/reports/DREConciliationModal';
 import { cn } from '@/lib/utils';
 
 function formatCurrency(value: number) {
@@ -129,6 +131,7 @@ export default function DRE() {
   const [startDate, setStartDate] = useState(() => format(startOfMonth(now), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(() => format(endOfMonth(now), 'yyyy-MM-dd'));
   const [reportOpen, setReportOpen] = useState(false);
+  const [conciliationOpen, setConciliationOpen] = useState(false);
   const { dreRows, summary } = useDREData(startDate, endDate);
 
   const handleClear = () => {
@@ -161,6 +164,10 @@ export default function DRE() {
           <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="h-9 w-[150px] text-sm" />
           <Button variant="ghost" size="icon" className="h-9 w-9" onClick={handleClear} title="Limpar filtro">
             <X className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="sm" className="h-9 gap-1.5" onClick={() => setConciliationOpen(true)}>
+            <GitCompare className="h-4 w-4" />
+            Conciliação
           </Button>
           <Button variant="outline" size="sm" className="h-9 gap-1.5" onClick={() => setReportOpen(true)}>
             <FileText className="h-4 w-4" />
@@ -215,7 +222,21 @@ export default function DRE() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[34%]">Evento Contábil</TableHead>
-                <TableHead className="text-right w-[14%]">Previsto (R$)</TableHead>
+                <TableHead className="text-right w-[14%]">
+                  <span className="inline-flex items-center gap-1 justify-end">
+                    Previsto (R$)
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs text-xs">
+                          Inclui transações pagas cuja data prevista está no período. Use "Conciliação" para detalhar.
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </span>
+                </TableHead>
                 <TableHead className="text-right w-[14%]">Realizado (R$)</TableHead>
                 <TableHead className="text-right w-[14%]">RXP (R$)</TableHead>
                 <TableHead className="text-right w-[12%]">% Prev.</TableHead>
@@ -244,6 +265,13 @@ export default function DRE() {
       <DREReportModal
         open={reportOpen}
         onOpenChange={setReportOpen}
+        startDate={startDate}
+        endDate={endDate}
+      />
+
+      <DREConciliationModal
+        open={conciliationOpen}
+        onOpenChange={setConciliationOpen}
         startDate={startDate}
         endDate={endDate}
       />
