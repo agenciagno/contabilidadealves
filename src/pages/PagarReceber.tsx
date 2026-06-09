@@ -35,7 +35,19 @@ export default function PagarReceber() {
     <div className="space-y-5">
       <div className="flex items-center justify-between py-4 flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Pagar / Receber</h1>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            Pagar / Receber
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs text-xs">
+                  Mostra apenas transações em aberto. Para ver tudo que compõe o Previsto da DRE (incluindo as já pagas), use a Conciliação na tela DRE.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </h1>
           <p className="text-muted-foreground text-sm mt-1">Fluxo de caixa com projeção de saldo linha a linha</p>
         </div>
       </div>
