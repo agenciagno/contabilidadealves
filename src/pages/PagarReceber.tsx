@@ -4,6 +4,8 @@ import { useBanks } from '@/hooks/useBanks';
 import { useContacts } from '@/hooks/useContacts';
 import { CashFlowTab } from '@/components/transactions/CashFlowTab';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Info } from 'lucide-react';
 
 export default function PagarReceber() {
   const { transactions: allTransactions, isLoading, togglePaid } = useTransactions();
