@@ -218,8 +218,8 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
                 const diff = g.previstoDRE - (g.emAberto + g.pagasComPrevista);
                 const isOpen = !!expanded[g.key];
                 return (
-                  <>
-                    <TableRow key={g.key} className="cursor-pointer hover:bg-muted/40" onClick={() => toggle(g.key)}>
+                  <Fragment key={g.key}>
+                    <TableRow className="cursor-pointer hover:bg-muted/40" onClick={() => toggle(g.key)}>
                       <TableCell className="px-2">
                         {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                       </TableCell>
