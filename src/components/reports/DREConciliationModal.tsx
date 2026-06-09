@@ -402,11 +402,11 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <span className="inline-flex items-center gap-1 cursor-help">
-                          Suspeitas À Vista <AlertCircle className="h-3 w-3 text-amber-500" />
+                          À Vista
                         </span>
                       </TooltipTrigger>
                       <TooltipContent className="max-w-xs text-xs">
-                        Pagas onde Data Prevista = Data de Pagamento. Provável À Vista legado com data prevista preenchida indevidamente.
+                        Total das transações marcadas como À Vista no lançamento.
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
