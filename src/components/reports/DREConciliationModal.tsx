@@ -456,11 +456,10 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  className="gap-1.5 h-7 text-xs border-amber-500/50 text-amber-700 dark:text-amber-400"
+                                  className="gap-1.5 h-7 text-xs border-blue-500/40 text-blue-600 dark:text-blue-400"
                                   onClick={(e) => { e.stopPropagation(); selectSuspeitas(g.txns); }}
                                 >
-                                  <AlertCircle className="h-3 w-3" />
-                                  Selecionar suspeitas À Vista
+                                  Selecionar À Vista do grupo
                                 </Button>
                               </div>
                             )}
