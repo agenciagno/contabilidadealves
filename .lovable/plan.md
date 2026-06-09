@@ -1,75 +1,76 @@
-# Ajustes na Conciliação DRE × Pagar/Receber
+# Plano: Identificação À Vista + Filtros na Conciliação
 
-Três melhorias na tela **Conciliação** (modal `DREConciliationModal.tsx`). Nenhuma lógica da DRE ou do Pagar/Receber é alterada — só ferramentas de inspeção e correção.
+## 1. Identificação de transações À Vista
 
----
+Hoje o sistema **não guarda** se uma transação foi lançada como "À Vista" — essa escolha existe só no formulário, no momento do lançamento, e some depois. Por isso a Conciliação precisa usar uma heurística ("Provável À Vista") para tentar adivinhar.
 
-## 1. Detectar transações "suspeitas" (provável À Vista com data prevista preenchida)
+A correção é simples: passar a **gravar** essa marcação no banco.
 
-**O problema:** o sistema não guarda um campo "à vista / à prazo" — isso é só uma escolha no formulário no momento do lançamento. Por isso não dá pra saber com 100% de certeza quais transações antigas foram lançadas como À Vista. O que dá pra fazer é usar uma **heurística** muito segura:
+### O que muda
 
-> Uma transação é considerada **provável À Vista** quando: está **paga** (`is_paid = true`) **E** tem `expected_date` preenchido **E** `expected_date = date` (foi paga exatamente no dia previsto).
+**Banco de dados (`transactions`)**
+- Nova coluna `is_cash` (boolean, default `false`).
+- Migration retroativa: marcar `is_cash = true` em transações antigas que batam na heurística atual (pagas, com data prevista preenchida, e `expected_date = date`). Isso transforma a "suspeita" em fato registrado, de uma vez. Transações que não batam ficam como À Prazo (`false`) — exatamente como hoje.
 
-Esse é justamente o padrão que o formulário antigo gerava ao marcar À Vista: data prevista = data de pagamento. Em transações À Prazo reais, o normal é a data de pagamento ser diferente da prevista (atraso, antecipação, etc.).
+**Formulário (`TransactionFormDialog.tsx`)**
+- Ao salvar com a aba **À Vista**, grava `is_cash = true`.
+- Ao salvar com **À Prazo**, grava `is_cash = false`.
+- Ao editar, o formulário lê `is_cash` e abre na aba correspondente (hoje ele sempre cai em À Prazo na edição).
 
-**O que muda visualmente na Conciliação:**
+**Identificação visual (simples, conforme pedido — só para À Vista)**
+- Pequeno selo **"À Vista"** nas linhas onde `is_cash = true`, exibido em:
+  - Tabela principal de Transações (`Transactions.tsx`).
+  - Tabela do Pagar/Receber (`PagarReceber.tsx`).
+  - Detalhe expandido da Conciliação DRE.
+- À Prazo continua **sem** selo (visual idêntico ao atual).
 
-- Nova coluna na tabela principal: **"Suspeitas À Vista"** (soma do `amount` das transações que batem na heurística, dentro do grupo).
-- Linhas de detalhe ganham um **selo amarelo "Provável À Vista"** ao lado do status, quando a transação bate na heurística.
-- Tooltip explicando a regra exata, para o usuário entender que é uma sugestão de revisão, não uma afirmação.
+**Conciliação DRE**
+- A coluna "Suspeitas À Vista" e o selo "Provável À Vista" passam a usar **`is_cash = true`** como fonte da verdade (em vez da heurística). O nome da coluna muda para **"À Vista"** (não é mais "suspeita" — é fato).
+- A regra de cálculo da DRE e do Pagar/Receber **não muda**. À Vista continua: zera `expected_date`, não compõe Previsto, compõe Realizado.
 
-Nenhuma transação é alterada automaticamente — só sinalizada.
-
----
-
-## 2. Ações em massa dentro da Conciliação
-
-Atualmente o detalhe é só leitura. Vou adicionar:
-
-- **Checkbox** em cada linha de transação detalhada.
-- **Checkbox "selecionar tudo"** no cabeçalho do detalhe de cada grupo.
-- **Botão "Selecionar todas as suspeitas À Vista"** (atalho) no topo do detalhe.
-- Barra de ação flutuante quando há seleção, com os botões:
-  - **"Limpar Data Prevista"** → grava `expected_date = null` nas selecionadas (resolve o problema raiz: essas transações somem do Previsto da DRE e o número fica igual ao Pagar/Receber).
-  - **"Editar em massa…"** → abre o `BulkEditDialog` existente (já suporta alterar categoria, conta corrente, datas, etc.).
-
-Após qualquer ação em massa, a Conciliação recarrega automaticamente para refletir os novos números.
-
-Confirmação antes de aplicar: modal "Confirmar limpeza de Data Prevista em X transações?" com a lista das descrições afetadas.
+### Não muda
+- Nenhuma fórmula de DRE, Pagar/Receber ou KPI.
+- Nenhuma RLS, política ou estrutura de outra tabela.
+- Filtros, paginação, ordenação existentes.
 
 ---
 
-## 3. Coluna "Evento Contábil (subevento)" nos detalhes
+## 2. Filtros na Conciliação DRE
 
-Hoje o detalhe mostra: Data Prevista | Data Pagto. | Cliente/Fornecedor | Conta Corrente | Valor | Status.
+A Conciliação hoje só tem o filtro de período do modal. Vou adicionar filtros por coluna no padrão dos demais relatórios do sistema (mesmo visual do `UnifiedFilterBox`: linha de filtros acima da tabela, com `Select` para dimensões e busca por texto).
 
-Vou inserir, **logo depois do Cliente/Fornecedor**, a coluna:
+### Filtros adicionados (no topo do modal, acima da tabela principal)
 
-- **Evento Contábil** → nome do **subevento** (categoria filha) da transação, ex.: `Honorários - IRPF`.
+| Filtro | Tipo | Aplica em |
+|---|---|---|
+| Busca | texto | Descrição, contato, banco, evento (filtra os detalhes; grupos sem match somem) |
+| Evento Contábil (macro) | select | Linha da tabela principal |
+| Cliente/Fornecedor | select | Transações no detalhe |
+| Conta Corrente | select | Transações no detalhe |
+| Status | select (Todos / Pago / Em aberto) | Transações no detalhe |
+| Tipo | select (Todos / Receita / Despesa) | Transações no detalhe |
+| Marcador À Vista | select (Todos / Só À Vista / Só À Prazo) | Transações no detalhe |
 
-O grupo principal continua sendo o **macro evento** (`Receitas Operacionais`), como na DRE — sem alterar a lógica de agrupamento. Quando a transação está vinculada direto ao macro (sem subevento), a coluna mostra um "—".
+Regras:
+- Filtros são **combinados** (AND), como nos outros relatórios.
+- Quando um filtro de detalhe (ex.: contato, banco) é aplicado, os **totais por grupo** e os **totais gerais** são recalculados considerando só as transações que sobreviveram ao filtro — assim a Conciliação continua batendo com o que está visível.
+- Grupos que ficam vazios após filtro são ocultados.
+- Botão **"Limpar filtros"** restaura o estado inicial, igual aos outros filtros do sistema.
+- Padrão visual: reuso dos componentes `Select`, `Input`, `Button` já usados no `UnifiedFilterBox`. Não vou criar um novo design.
 
-A coluna também é incluída no **PDF exportado** quando o usuário expande grupos (mantemos o PDF resumido atual; subevento entra na exportação detalhada se você quiser — me avise).
+### Não muda
+- O período continua vindo do filtro existente do modal.
+- Lógica de comparação (Previsto DRE × Em Aberto × Pagas c/ Prevista × Diferença) intocada — só passa a operar sobre o subconjunto filtrado.
+- Ações em massa (Limpar Data Prevista, Editar em massa) continuam funcionando sobre o que está selecionado.
 
 ---
 
-## Onde mudar
+## Arquivos a alterar
 
-Apenas: `src/components/reports/DREConciliationModal.tsx`.
+- **Migration**: nova coluna `transactions.is_cash` + backfill via heurística.
+- `src/components/transactions/TransactionFormDialog.tsx` — gravar/ler `is_cash`.
+- `src/components/reports/DREConciliationModal.tsx` — usar `is_cash`, adicionar barra de filtros, recalcular totais filtrados.
+- `src/pages/Transactions.tsx`, `src/pages/PagarReceber.tsx` — exibir selo "À Vista".
+- `src/integrations/supabase/types.ts` — regenerado automaticamente após a migration.
 
-Eventual ajuste pequeno no `BulkEditDialog.tsx` só para garantir que aceita "limpar" (null) em `expected_date`, caso ainda não permita.
-
----
-
-## Resumo
-
-| Item | Muda? |
-|---|---|
-| Cálculo da DRE | Não |
-| Cálculo do Pagar/Receber | Não |
-| Agrupamento por macro evento | Não (continua igual à DRE) |
-| Tabela principal | + coluna "Suspeitas À Vista" |
-| Detalhe expandido | + coluna "Evento Contábil (subevento)", + checkboxes, + selo "Provável À Vista" |
-| Ações em massa | "Limpar Data Prevista" e "Editar em massa…" |
-
-Posso seguir com essa implementação?
+Posso seguir?
