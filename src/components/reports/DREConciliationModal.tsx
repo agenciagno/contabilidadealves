@@ -489,7 +489,7 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
                                   .map(t => {
                                     const suspect = isAVistaTxn(t);
                                     return (
-                                      <TableRow key={t.id} className={cn(suspect && 'bg-amber-500/5')}>
+                                      <TableRow key={t.id} className={cn(suspect && 'bg-blue-500/5')}>
                                         <TableCell>
                                           <Checkbox
                                             checked={selected.has(t.id)}
@@ -510,8 +510,8 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
                                               <Badge variant="outline" className="text-[10px] border-amber-500/50 text-amber-600">Em aberto</Badge>
                                             )}
                                             {suspect && (
-                                              <Badge variant="outline" className="text-[10px] border-amber-500/60 text-amber-700 dark:text-amber-400 bg-amber-500/10">
-                                                Provável À Vista
+                                              <Badge variant="outline" className="text-[10px] border-blue-500/60 text-blue-600 dark:text-blue-400 bg-blue-500/10">
+                                                À Vista
                                               </Badge>
                                             )}
                                           </div>
