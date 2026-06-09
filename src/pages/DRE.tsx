@@ -165,6 +165,10 @@ export default function DRE() {
           <Button variant="ghost" size="icon" className="h-9 w-9" onClick={handleClear} title="Limpar filtro">
             <X className="h-4 w-4" />
           </Button>
+          <Button variant="outline" size="sm" className="h-9 gap-1.5" onClick={() => setConciliationOpen(true)}>
+            <GitCompare className="h-4 w-4" />
+            Conciliação
+          </Button>
           <Button variant="outline" size="sm" className="h-9 gap-1.5" onClick={() => setReportOpen(true)}>
             <FileText className="h-4 w-4" />
             Gerar Relatório
