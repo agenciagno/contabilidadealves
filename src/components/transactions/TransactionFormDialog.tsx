@@ -207,6 +207,9 @@ export function TransactionFormDialog({
     if (v === 'a_prazo') {
       setPaidAmount('');
       setDate('');
+    } else if (v === 'a_vista') {
+      // À Vista não compõe Previsto da DRE — limpa data prevista
+      setExpectedDate('');
     }
   };
 
