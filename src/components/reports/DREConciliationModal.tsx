@@ -958,10 +958,9 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
                               </TableHeader>
                               <TableBody>
                                 {sortDetail(g.txns).map(t => {
-                                  const suspect = isAVistaTxn(t);
-                                  const cls = classify(t);
+                                  const suspect = isVisualAVista(t);
                                   return (
-                                    <TableRow key={t.id} className={cn(suspect && 'bg-blue-500/5', cls === 'realizado_fora' && 'bg-amber-500/5')}>
+                                    <TableRow key={t.id} className={cn(suspect && 'bg-blue-500/5')}>
                                       <TableCell>
                                         <Checkbox
                                           checked={selected.has(t.id)}
@@ -986,11 +985,6 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
                                               À Vista
                                             </Badge>
                                           )}
-                                          {cls === 'realizado_fora' && (
-                                            <Badge variant="outline" className="text-[10px] border-amber-500/60 text-amber-600 dark:text-amber-400 bg-amber-500/10">
-                                              Fora do Previsto
-                                            </Badge>
-                                          )}
                                         </div>
                                       </TableCell>
                                     </TableRow>
@@ -1011,12 +1005,6 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
                 <TableCell className="text-right">{formatCurrency(totals.previstoDRE)}</TableCell>
                 <TableCell className="text-right">{formatCurrency(totals.emAberto)}</TableCell>
                 <TableCell className="text-right">{formatCurrency(totals.pagasComPrevista)}</TableCell>
-                <TableCell className={cn('text-right', totals.suspeitasAVista > 0 && 'text-blue-600 dark:text-blue-400')}>
-                  {formatCurrency(totals.suspeitasAVista)}
-                </TableCell>
-                <TableCell className={cn('text-right', totals.realizadoFora > 0 && 'text-amber-600 dark:text-amber-400')}>
-                  {formatCurrency(totals.realizadoFora)}
-                </TableCell>
                 <TableCell className="text-right">
                   {formatCurrency(totals.previstoDRE - totals.emAberto - totals.pagasComPrevista)}
                 </TableCell>
