@@ -465,11 +465,10 @@ export function DREConciliationModal({ open, onOpenChange, startDate, endDate }:
         if (detailFilters.amount.min !== undefined && a < detailFilters.amount.min) return false;
         if (detailFilters.amount.max !== undefined && a > detailFilters.amount.max) return false;
       }
-      // status: tokens 'paid' | 'pending' | 'cash' | 'term'
+      // status: tokens 'paid' | 'pending'
       if (detailFilters.statusIds.length > 0) {
         const tokens = new Set<string>();
         tokens.add(t.is_paid ? 'paid' : 'pending');
-        tokens.add(t.is_cash ? 'cash' : 'term');
         const ok = detailFilters.statusIds.some(s => tokens.has(s));
         if (!ok) return false;
       }
