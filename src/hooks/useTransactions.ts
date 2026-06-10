@@ -254,57 +254,6 @@ export function useTransactions() {
     },
   });
 
-  const bulkTogglePaid = useMutation({
-    mutationFn: async ({ ids, is_paid }: { ids: string[]; is_paid: boolean }) => {
-      if (is_paid) {
-        const { data: txns, error: fetchErr } = await supabase
-          .from('transactions')
-          .select('id, amount, paid_amount, date')
-          .in('id', ids);
-        if (fetchErr) throw fetchErr;
-
-        let blocked = 0;
-        for (const txn of (txns || [])) {
-          if (!txn.date) {
-            blocked++;
-            continue;
-          }
-          const paid_amount = txn.paid_amount ?? txn.amount;
-          const { error } = await supabase
-            .from('transactions')
-            .update({ is_paid: true, paid_amount })
-            .eq('id', txn.id);
-          if (error) throw error;
-        }
-        if (blocked > 0) {
-          throw new Error(`BULK_BLOCKED:${blocked}`);
-        }
-      } else {
-        const { error } = await supabase
-          .from('transactions')
-          .update({ is_paid: false, paid_amount: null })
-          .in('id', ids);
-        if (error) throw error;
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['server-transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['transaction-kpis'] });
-      queryClient.invalidateQueries({ queryKey: ['bank-transactions-prior'] });
-      queryClient.invalidateQueries({ queryKey: ['bank-transactions-period'] });
-      queryClient.invalidateQueries({ queryKey: ['banks'] });
-      queryClient.invalidateQueries({ queryKey: ['contacts'] });
-      queryClient.invalidateQueries({ queryKey: ['dre-previsto'] });
-      queryClient.invalidateQueries({ queryKey: ['dre-realizado'] });
-    },
-    onError: (error: Error) => {
-      if (error.message.startsWith('BULK_BLOCKED:')) {
-        const count = error.message.split(':')[1];
-        toast({ title: `${count} transação(ões) ignoradas: Data de Pagamento ausente.`, variant: 'destructive' });
-      }
-    },
-  });
 
   const bulkSettleWithDate = useMutation({
     mutationFn: async ({ ids, paymentDate }: { ids: string[]; paymentDate: string }) => {

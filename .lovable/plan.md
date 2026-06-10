@@ -1,88 +1,35 @@
-# Correções de Lançamentos
+Investiguei o código e o banco. Encontrei dois pontos a corrigir.
 
-## 1. Planilha modelo de importação — sem alteração
+## 1. Mensagem "X transação(ões) ignoradas: Data de Pagamento ausente"
 
-Após revisar `ImportSpreadsheetDialog.tsx`, o cabeçalho atual já contempla todos os campos exigidos pelas regras recentes (À Vista virou apenas visual; PREVISTO da DRE usa `expected_date` + `date` no mesmo mês — ambos já existem no modelo). **Nenhuma alteração na planilha modelo será feita.**
+Essa mensagem só existe na mutação antiga `bulkTogglePaid` (em `useTransactions.ts`). Já não há nenhum botão chamando ela (a "Pagar X" agora chama `bulkSettleWithDate` via `BulkSettleDialog`). Mas a mutação continua exportada e pode estar sendo disparada por código antigo em cache ou por engano.
 
-Cabeçalho atual (mantido):
-`Data Emissão | Cliente/Fornecedor | Tipo (Receita ou Despesa) | Valor | Status (Pendente ou Pago) | Valor Pago/Recebido | Data Vencimento | Data Prevista | Data Pagamento | Conta Bancária | Evento Contábil | Histórico`
+**Ação:** remover por completo `bulkTogglePaid` para garantir que essa toast nunca mais apareça.
 
----
+- Em `src/hooks/useTransactions.ts`: deletar o bloco `bulkTogglePaid` (≈ linhas 257–306) e a entrada `bulkTogglePaid,` no return.
+- Em `src/pages/Transactions.tsx`: remover `bulkTogglePaid` da desestruturação na linha 636.
 
-## 2. Evento Contábil "some" ao salvar (À Vista e À Prazo)
+## 2. Evento Contábil sumindo após liquidar
 
-### Diagnóstico
+Verifiquei direto no banco: há transações pagas com `category_id = NULL` (ex.: `1eda8d42-…`, 642,00, 22/04/26, contato GABRIEL WENDERSON). Isso confirma que em algum momento o payload de liquidação salvou `category_id: null`.
 
-Em `src/components/transactions/TransactionFormDialog.tsx` há um `useEffect` que zera `categoryId` e `contactId` sempre que o `type` (Receita/Despesa) muda em transações novas:
+O caminho do botão verde "$" abre o `TransactionFormDialog` em modo Liquidar. Hoje o payload faz `category_id: categoryId || null`. Se por qualquer razão (race entre `setCategoryId(transaction.category_id)` e renderização, refetch de `categories` ainda vazio, etc.) o estado `categoryId` estiver vazio no momento do submit, ele sobrescreve com `null` o valor que existia.
 
-```ts
-useEffect(() => {
-  if (!transaction) { setCategoryId(''); setContactId(''); }
-}, [type, transaction]);
-```
+**Ação defensiva:** nos payloads que NÃO são para criar uma transação nova, usar fallback para o valor original da transação quando o estado local estiver vazio. Isso preserva 100% da regra (usuário pode trocar o evento normalmente — só não permite "perder" silenciosamente).
 
-Esse efeito também roda no **mount inicial** do dialog. Em certos fluxos de re-render do React (ex.: o `categories` prop sendo recomputado pelo pai logo após o usuário escolher o evento, ou um leve atraso no `setState` de `type` em relação a `defaultType`), o efeito dispara *depois* do usuário preencher o evento e zera o estado pouco antes do submit. Resultado: o `payload.category_id` vira `null`.
+Em `src/components/transactions/TransactionFormDialog.tsx`, nos branches:
 
-### Correção
+- **isSettleMode** (linha 323): `category_id: categoryId || transaction?.category_id || null` — idem `bank_id`, `contact_id`.
+- **isAPrazo + isEditing** (linha 345): mesmo fallback (só quando `isEditing`, para não afetar criação nova).
+- **Edit não-settle** (linha 368): mesmo fallback.
+- **Nova à vista** (linha 393): mantém como está (não há `transaction`).
 
-Substituir o efeito por uma lógica não destrutiva: em vez de zerar cego, **só limpa** se o `categoryId`/`contactId` atualmente selecionado **não pertence mais** ao `type` atual (regra real — categorias são filtradas por tipo).
+Nada mais é alterado — nenhuma lógica de negócio, validação ou UI.
 
-```ts
-useEffect(() => {
-  if (transaction) return;
-  // Limpa categoria apenas se a selecionada não pertence ao tipo atual
-  if (categoryId && !categories.some(c => c.id === categoryId && c.type === type)) {
-    setCategoryId('');
-  }
-}, [type, transaction, categories, categoryId]);
-```
+## Resumo dos arquivos
 
-Contatos não dependem de `type`, então o `setContactId('')` é removido desse efeito (contatos só são limpos no reset explícito do form).
+- `src/hooks/useTransactions.ts` — remover `bulkTogglePaid`.
+- `src/pages/Transactions.tsx` — remover `bulkTogglePaid` da desestruturação.
+- `src/components/transactions/TransactionFormDialog.tsx` — fallback em `category_id`/`bank_id`/`contact_id` nos 3 branches que envolvem uma transação existente.
 
-Isso preserva o evento quando o usuário escolhe corretamente e ainda limpa quando ele troca a aba Receita↔Despesa e a categoria não é mais válida.
-
-### Verificação
-- Criar transação À Vista com evento selecionado → salvar → reabrir → evento deve estar lá.
-- Criar À Prazo com evento → salvar → idem.
-- Trocar aba Receita/Despesa após selecionar evento daquela aba antiga → evento limpa (correto).
-
----
-
-## 3. Liquidação em massa — pedir Data de Pagamento única
-
-### Diagnóstico
-
-Em `useTransactions.ts → bulkTogglePaid`: hoje, para cada transação selecionada sem `date`, o sistema marca como "bloqueada" e pula. Se todas (ou quase todas) são À Prazo, só liquida as raras que já tinham `date`, dando a sensação de "uma por vez".
-
-### Correção (UX nova)
-
-Criar um pequeno modal `BulkSettleDialog` que:
-1. Lista quantidade selecionada.
-2. Pede **Data de Pagamento** única (default = hoje).
-3. Ao confirmar, aplica em todas: `is_paid = true`, `date = <data informada>`, `paid_amount = paid_amount ?? amount`.
-
-Fluxo:
-- Em `Transactions.tsx`, o botão "Liquidar selecionadas" abre o `BulkSettleDialog` em vez de chamar `bulkTogglePaid` direto.
-- O dialog chama uma nova mutation `bulkSettleWithDate({ ids, paymentDate })` em `useTransactions.ts` que:
-  - Faz um único `UPDATE` filtrado por `.in('id', ids)` setando `is_paid=true`, `date=paymentDate`, e usa subquery/loop apenas para `paid_amount` (uma `select` antes, um `update` por chunk).
-  - Invalida as queries normais (transactions, server-transactions, kpis, bank-transactions, banks, dre-previsto, dre-realizado).
-- Mantém `bulkTogglePaid` para o caso de **desmarcar em massa** (is_paid=false), que continua funcionando como hoje.
-
-### Verificação
-- Selecionar 5 À Prazo, clicar Liquidar → modal pede data → confirma → todas 5 ficam pagas com a mesma data.
-- Selecionar mistas (algumas já pagas, outras pendentes) → todas recebem a data informada (sobrescreve), is_paid=true.
-- Desmarcar em massa continua funcionando (sem prompt).
-
----
-
-## Arquivos afetados
-
-- `src/components/transactions/TransactionFormDialog.tsx` — ajuste do `useEffect` de limpeza.
-- `src/hooks/useTransactions.ts` — adicionar mutation `bulkSettleWithDate`.
-- `src/components/transactions/BulkSettleDialog.tsx` — **novo** (modal com input de data).
-- `src/pages/Transactions.tsx` — trocar `handleBulkPay` para abrir o `BulkSettleDialog`.
-
-## Fora de escopo
-
-- Planilha modelo: sem mudança (item 1).
-- Nenhuma alteração em DRE, Conciliação, Fluxo de Caixa, banco de dados ou regras de cálculo.
+Pronto para aplicar?
