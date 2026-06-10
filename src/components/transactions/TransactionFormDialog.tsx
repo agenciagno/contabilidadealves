@@ -365,9 +365,9 @@ export function TransactionFormDialog({
         issue_date: issueDate || null,
         due_date: dueDate || null,
         expected_date: expectedDate || null,
-        category_id: categoryId || null,
-        bank_id: bankId || null,
-        contact_id: contactId || null,
+        category_id: categoryId || transaction?.category_id || null,
+        bank_id: bankId || transaction?.bank_id || null,
+        contact_id: contactId || transaction?.contact_id || null,
         is_paid: transaction?.is_paid ?? false,
         notes: notes || null,
       } as TransactionInsert;
