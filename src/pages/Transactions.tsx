@@ -632,7 +632,7 @@ export default function Transactions() {
   // Keep useTransactions for mutations only
   const {
     createTransaction, updateTransaction, deleteTransaction,
-    togglePaid, bulkTogglePaid, bulkCreateTransactions
+    togglePaid, bulkTogglePaid, bulkSettleWithDate, bulkCreateTransactions
   } = useTransactions();
 
   const { categories, createCategory } = useCategories();
