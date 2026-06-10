@@ -1,50 +1,88 @@
-## Alteração: regra do PREVISTO na DRE
+# Correções de Lançamentos
 
-### Regra atual
-Na coluna **Previsto**, são somadas todas as transações cuja `expected_date` (data prevista) cai no período — independentemente de estarem pagas ou em aberto, e sem olhar a data de pagamento.
+## 1. Planilha modelo de importação — sem alteração
 
-### Nova regra
-Na coluna **Previsto** entra a transação quando:
+Após revisar `ImportSpreadsheetDialog.tsx`, o cabeçalho atual já contempla todos os campos exigidos pelas regras recentes (À Vista virou apenas visual; PREVISTO da DRE usa `expected_date` + `date` no mesmo mês — ambos já existem no modelo). **Nenhuma alteração na planilha modelo será feita.**
 
-- `expected_date` está dentro do período selecionado **E**
-- Uma das condições abaixo é verdadeira:
-  - A transação está **em aberto** (`is_paid = false`), **ou**
-  - A transação está **liquidada** (`is_paid = true`) **e** a data de pagamento (`date`) também está dentro do mesmo período.
+Cabeçalho atual (mantido):
+`Data Emissão | Cliente/Fornecedor | Tipo (Receita ou Despesa) | Valor | Status (Pendente ou Pago) | Valor Pago/Recebido | Data Vencimento | Data Prevista | Data Pagamento | Conta Bancária | Evento Contábil | Histórico`
 
-Ou seja: se foi paga em mês diferente do previsto, sai do Previsto. Se ainda não foi paga, continua no Previsto.
+---
 
-Exemplos (período = junho/2026):
-- Prevista 20/06, paga 10/06 → entra no Previsto. ✅
-- Prevista 20/06, paga 20/05 → sai do Previsto. ❌
-- Prevista 20/06, em aberto → entra no Previsto. ✅
-- Prevista 20/05, paga 10/06 → não entra no Previsto de junho (já era assim). ✅
+## 2. Evento Contábil "some" ao salvar (À Vista e À Prazo)
 
-### O que NÃO muda
-- Coluna **Realizado**: continua somando `is_paid = true` com `date` no período.
-- **Fluxo de Caixa**: continua igual.
-- **RXP, % Previsto, % Realizado**: continuam usando as mesmas bases, só recalculadas com o novo Previsto.
-- **DRE Conciliação**: não tocar.
-- Estrutura, ordem, cards, filtros, formato visual da DRE: **inalterados**.
+### Diagnóstico
 
-### Implementação técnica
-Arquivo único: `src/hooks/useDREData.ts`.
-
-Na query `dre-previsto` (linhas 101–115), trocar o filtro para retornar também `is_paid` e `date`, e aplicar a regra em memória:
+Em `src/components/transactions/TransactionFormDialog.tsx` há um `useEffect` que zera `categoryId` e `contactId` sempre que o `type` (Receita/Despesa) muda em transações novas:
 
 ```ts
-// query: traz expected_date no período + campos extras
-.select('category_id, amount, type, is_paid, date')
-.not('expected_date', 'is', null)
-.gte('expected_date', startDate)
-.lte('expected_date', endDate);
-
-// filtro em memória antes de usar em sumPrevisto:
-const previstoTxnsFiltered = previstoTxns.filter(t =>
-  !t.is_paid || (t.date && t.date >= startDate && t.date <= endDate)
-);
+useEffect(() => {
+  if (!transaction) { setCategoryId(''); setContactId(''); }
+}, [type, transaction]);
 ```
 
-`sumPrevisto` passa a iterar sobre `previstoTxnsFiltered`.
+Esse efeito também roda no **mount inicial** do dialog. Em certos fluxos de re-render do React (ex.: o `categories` prop sendo recomputado pelo pai logo após o usuário escolher o evento, ou um leve atraso no `setState` de `type` em relação a `defaultType`), o efeito dispara *depois* do usuário preencher o evento e zera o estado pouco antes do submit. Resultado: o `payload.category_id` vira `null`.
 
-### Arquivos alterados
-- `src/hooks/useDREData.ts` — apenas a query do Previsto e o filtro em memória.
+### Correção
+
+Substituir o efeito por uma lógica não destrutiva: em vez de zerar cego, **só limpa** se o `categoryId`/`contactId` atualmente selecionado **não pertence mais** ao `type` atual (regra real — categorias são filtradas por tipo).
+
+```ts
+useEffect(() => {
+  if (transaction) return;
+  // Limpa categoria apenas se a selecionada não pertence ao tipo atual
+  if (categoryId && !categories.some(c => c.id === categoryId && c.type === type)) {
+    setCategoryId('');
+  }
+}, [type, transaction, categories, categoryId]);
+```
+
+Contatos não dependem de `type`, então o `setContactId('')` é removido desse efeito (contatos só são limpos no reset explícito do form).
+
+Isso preserva o evento quando o usuário escolhe corretamente e ainda limpa quando ele troca a aba Receita↔Despesa e a categoria não é mais válida.
+
+### Verificação
+- Criar transação À Vista com evento selecionado → salvar → reabrir → evento deve estar lá.
+- Criar À Prazo com evento → salvar → idem.
+- Trocar aba Receita/Despesa após selecionar evento daquela aba antiga → evento limpa (correto).
+
+---
+
+## 3. Liquidação em massa — pedir Data de Pagamento única
+
+### Diagnóstico
+
+Em `useTransactions.ts → bulkTogglePaid`: hoje, para cada transação selecionada sem `date`, o sistema marca como "bloqueada" e pula. Se todas (ou quase todas) são À Prazo, só liquida as raras que já tinham `date`, dando a sensação de "uma por vez".
+
+### Correção (UX nova)
+
+Criar um pequeno modal `BulkSettleDialog` que:
+1. Lista quantidade selecionada.
+2. Pede **Data de Pagamento** única (default = hoje).
+3. Ao confirmar, aplica em todas: `is_paid = true`, `date = <data informada>`, `paid_amount = paid_amount ?? amount`.
+
+Fluxo:
+- Em `Transactions.tsx`, o botão "Liquidar selecionadas" abre o `BulkSettleDialog` em vez de chamar `bulkTogglePaid` direto.
+- O dialog chama uma nova mutation `bulkSettleWithDate({ ids, paymentDate })` em `useTransactions.ts` que:
+  - Faz um único `UPDATE` filtrado por `.in('id', ids)` setando `is_paid=true`, `date=paymentDate`, e usa subquery/loop apenas para `paid_amount` (uma `select` antes, um `update` por chunk).
+  - Invalida as queries normais (transactions, server-transactions, kpis, bank-transactions, banks, dre-previsto, dre-realizado).
+- Mantém `bulkTogglePaid` para o caso de **desmarcar em massa** (is_paid=false), que continua funcionando como hoje.
+
+### Verificação
+- Selecionar 5 À Prazo, clicar Liquidar → modal pede data → confirma → todas 5 ficam pagas com a mesma data.
+- Selecionar mistas (algumas já pagas, outras pendentes) → todas recebem a data informada (sobrescreve), is_paid=true.
+- Desmarcar em massa continua funcionando (sem prompt).
+
+---
+
+## Arquivos afetados
+
+- `src/components/transactions/TransactionFormDialog.tsx` — ajuste do `useEffect` de limpeza.
+- `src/hooks/useTransactions.ts` — adicionar mutation `bulkSettleWithDate`.
+- `src/components/transactions/BulkSettleDialog.tsx` — **novo** (modal com input de data).
+- `src/pages/Transactions.tsx` — trocar `handleBulkPay` para abrir o `BulkSettleDialog`.
+
+## Fora de escopo
+
+- Planilha modelo: sem mudança (item 1).
+- Nenhuma alteração em DRE, Conciliação, Fluxo de Caixa, banco de dados ou regras de cálculo.
