@@ -33,6 +33,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BulkEditDialog } from '@/components/transactions/BulkEditDialog';
+import { BulkSettleDialog } from '@/components/transactions/BulkSettleDialog';
 import {
   startOfMonth, endOfMonth, isWithinInterval, parseISO, format
 } from 'date-fns';
