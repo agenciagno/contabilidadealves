@@ -419,6 +419,7 @@ export function useTransactions() {
     deleteTransaction,
     togglePaid,
     bulkTogglePaid,
+    bulkSettleWithDate,
     bulkCreateTransactions,
   };
 }
