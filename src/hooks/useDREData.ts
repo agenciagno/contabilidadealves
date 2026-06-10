@@ -98,12 +98,12 @@ export function useDREData(startDate: string, endDate: string) {
     enabled: !!startDate && !!endDate,
   });
 
-  const { data: previstoTxns = [] } = useQuery({
+  const { data: previstoTxnsRaw = [] } = useQuery({
     queryKey: ['dre-previsto', startDate, endDate],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('transactions')
-        .select('category_id, amount, type')
+        .select('category_id, amount, type, is_paid, date')
         .is('deleted_at', null)
         .not('expected_date', 'is', null)
         .gte('expected_date', startDate)
@@ -113,6 +113,12 @@ export function useDREData(startDate: string, endDate: string) {
     },
     enabled: !!startDate && !!endDate,
   });
+
+  // Nova regra do Previsto: se a transação está liquidada, a data de pagamento
+  // também precisa estar dentro do período. Em aberto continua entrando normal.
+  const previstoTxns = previstoTxnsRaw.filter(t =>
+    !t.is_paid || (t.date && t.date >= startDate && t.date <= endDate)
+  );
 
   const { data: realizadoTxns = [] } = useQuery({
     queryKey: ['dre-realizado', startDate, endDate],

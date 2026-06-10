@@ -1,39 +1,50 @@
-## Reverter regra "À Vista" — manter apenas indicador visual
+## Alteração: regra do PREVISTO na DRE
 
-### Contexto
-A introdução de `is_cash` + `expected_date` na lógica da Conciliação quebrou o relatório (volta vazio). Vamos remover essas regras do back de cálculo e deixar a marcação À Vista somente como um detalhe visual nos Lançamentos.
+### Regra atual
+Na coluna **Previsto**, são somadas todas as transações cuja `expected_date` (data prevista) cai no período — independentemente de estarem pagas ou em aberto, e sem olhar a data de pagamento.
 
-### O que muda
+### Nova regra
+Na coluna **Previsto** entra a transação quando:
 
-**1. Conciliação (`DREConciliationModal.tsx`)**
-- Voltar à query original baseada apenas em `date` (data de pagamento/competência) dentro do período, como antes da mudança — sem `expected_date`, sem `is_cash`, sem OR ampliado.
-- Remover a coluna "À Vista / Possível À Vista" e a coluna "Realizado fora do Previsto".
-- Remover qualquer classificação (`Previsto` / `Realizado fora do Previsto` / `Ambos`) — volta ao formato simples anterior.
-- DRE (`useDREData`) e Pagar/Receber permanecem intocados.
+- `expected_date` está dentro do período selecionado **E**
+- Uma das condições abaixo é verdadeira:
+  - A transação está **em aberto** (`is_paid = false`), **ou**
+  - A transação está **liquidada** (`is_paid = true`) **e** a data de pagamento (`date`) também está dentro do mesmo período.
 
-**2. Lançamentos (`Transactions.tsx`)**
-- Remover a coluna "À Vista / Possível À Vista" da tabela e qualquer filtro relacionado.
-- Manter um indicador visual sutil (badge pequeno "À Vista" ou ícone) ao lado do valor/descrição, exibido somente quando a transação atender à condição visual de À Vista (mesma data de emissão, vencimento e pagamento, e `is_paid = true`) — derivado em runtime, sem depender da coluna `is_cash`.
-- Esse badge é puramente decorativo. Não filtra, não soma, não afeta KPIs, DRE ou Conciliação.
+Ou seja: se foi paga em mês diferente do previsto, sai do Previsto. Se ainda não foi paga, continua no Previsto.
 
-**3. Form de Transação (`TransactionFormDialog.tsx`)**
-- Remover qualquer campo/toggle ligado a `is_cash` ou marcação manual de À Vista. O form volta ao estado anterior à mudança.
+Exemplos (período = junho/2026):
+- Prevista 20/06, paga 10/06 → entra no Previsto. ✅
+- Prevista 20/06, paga 20/05 → sai do Previsto. ❌
+- Prevista 20/06, em aberto → entra no Previsto. ✅
+- Prevista 20/05, paga 10/06 → não entra no Previsto de junho (já era assim). ✅
 
-**4. Banco de dados**
-- A coluna `is_cash` (e `expected_date`, se criada junto) deixa de ser usada pelo app. Posso:
-  - **(a)** Deixar a coluna no schema, sem uso — zero risco, fica como legado.
-  - **(b)** Criar migração para dropar `is_cash` (e `expected_date` se aplicável).
-  
-  Preciso da sua confirmação antes de dropar qualquer coluna.
+### O que NÃO muda
+- Coluna **Realizado**: continua somando `is_paid = true` com `date` no período.
+- **Fluxo de Caixa**: continua igual.
+- **RXP, % Previsto, % Realizado**: continuam usando as mesmas bases, só recalculadas com o novo Previsto.
+- **DRE Conciliação**: não tocar.
+- Estrutura, ordem, cards, filtros, formato visual da DRE: **inalterados**.
 
-### Filtros da Conciliação
-Os filtros nos cabeçalhos das colunas (padrão Lançamentos) que acabamos de implementar **continuam**. Só somem os filtros das colunas que estão sendo removidas ("À Vista", "Realizado fora do Previsto").
+### Implementação técnica
+Arquivo único: `src/hooks/useDREData.ts`.
 
-### Arquivos a alterar
-- `src/components/reports/DREConciliationModal.tsx` — query e colunas voltam ao formato pré-mudança; mantém filtros nos cabeçalhos.
-- `src/pages/Transactions.tsx` — remove coluna À Vista, adiciona badge visual derivado.
-- `src/components/transactions/TransactionFormDialog.tsx` — remove campo `is_cash`.
-- (Opcional) Migração para dropar `is_cash` / `expected_date`.
+Na query `dre-previsto` (linhas 101–115), trocar o filtro para retornar também `is_paid` e `date`, e aplicar a regra em memória:
 
-### Pergunta antes de executar
-A coluna `is_cash` no banco: **dropar** ou **deixar como legado sem uso**?
+```ts
+// query: traz expected_date no período + campos extras
+.select('category_id, amount, type, is_paid, date')
+.not('expected_date', 'is', null)
+.gte('expected_date', startDate)
+.lte('expected_date', endDate);
+
+// filtro em memória antes de usar em sumPrevisto:
+const previstoTxnsFiltered = previstoTxns.filter(t =>
+  !t.is_paid || (t.date && t.date >= startDate && t.date <= endDate)
+);
+```
+
+`sumPrevisto` passa a iterar sobre `previstoTxnsFiltered`.
+
+### Arquivos alterados
+- `src/hooks/useDREData.ts` — apenas a query do Previsto e o filtro em memória.
