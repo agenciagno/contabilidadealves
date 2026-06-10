@@ -1252,6 +1252,14 @@ export default function Transactions() {
         banks={banks}
         onSuccess={() => setSelectedIds(new Set())}
       />
+
+      <BulkSettleDialog
+        open={bulkSettleOpen}
+        onOpenChange={setBulkSettleOpen}
+        count={selectedIds.size}
+        onConfirm={handleBulkSettleConfirm}
+        isLoading={bulkSettleWithDate.isPending}
+      />
     </div>
   );
 }
