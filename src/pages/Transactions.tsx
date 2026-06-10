@@ -33,6 +33,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BulkEditDialog } from '@/components/transactions/BulkEditDialog';
+import { BulkSettleDialog } from '@/components/transactions/BulkSettleDialog';
 import {
   startOfMonth, endOfMonth, isWithinInterval, parseISO, format
 } from 'date-fns';
@@ -632,7 +633,7 @@ export default function Transactions() {
   // Keep useTransactions for mutations only
   const {
     createTransaction, updateTransaction, deleteTransaction,
-    togglePaid, bulkTogglePaid, bulkCreateTransactions
+    togglePaid, bulkTogglePaid, bulkSettleWithDate, bulkCreateTransactions
   } = useTransactions();
 
   const { categories, createCategory } = useCategories();
@@ -672,6 +673,7 @@ export default function Transactions() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [bulkSettleOpen, setBulkSettleOpen] = useState(false);
   const [defaultType, setDefaultType] = useState<'receita' | 'despesa'>('receita');
   const [importOpen, setImportOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -771,7 +773,14 @@ export default function Transactions() {
   };
   const handleBulkPay = () => {
     if (selectedIds.size === 0) return;
-    bulkTogglePaid.mutate({ ids: Array.from(selectedIds), is_paid: true }, { onSuccess: () => setSelectedIds(new Set()) });
+    setBulkSettleOpen(true);
+  };
+  const handleBulkSettleConfirm = async (paymentDate: string) => {
+    await bulkSettleWithDate.mutateAsync(
+      { ids: Array.from(selectedIds), paymentDate },
+    );
+    setSelectedIds(new Set());
+    setBulkSettleOpen(false);
   };
   const handleBulkDelete = async () => {
     for (const id of selectedIds) await deleteTransaction.mutateAsync(id);
@@ -1242,6 +1251,14 @@ export default function Transactions() {
         categories={categories}
         banks={banks}
         onSuccess={() => setSelectedIds(new Set())}
+      />
+
+      <BulkSettleDialog
+        open={bulkSettleOpen}
+        onOpenChange={setBulkSettleOpen}
+        count={selectedIds.size}
+        onConfirm={handleBulkSettleConfirm}
+        isLoading={bulkSettleWithDate.isPending}
       />
     </div>
   );

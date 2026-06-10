@@ -180,8 +180,12 @@ export function TransactionFormDialog({
   }, [open]);
 
   useEffect(() => {
-    if (!transaction) { setCategoryId(''); setContactId(''); }
-  }, [type, transaction]);
+    if (transaction) return;
+    // Limpa categoria apenas se a selecionada não pertence mais ao tipo atual
+    if (categoryId && !categories.some(c => c.id === categoryId && c.type === type)) {
+      setCategoryId('');
+    }
+  }, [type, transaction, categories, categoryId]);
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => setAmount(formatCurrencyInput(e.target.value));
   const handlePaidAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => setPaidAmount(formatCurrencyInput(e.target.value));

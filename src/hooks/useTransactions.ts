@@ -306,6 +306,42 @@ export function useTransactions() {
     },
   });
 
+  const bulkSettleWithDate = useMutation({
+    mutationFn: async ({ ids, paymentDate }: { ids: string[]; paymentDate: string }) => {
+      const { data: txns, error: fetchErr } = await supabase
+        .from('transactions')
+        .select('id, amount, paid_amount')
+        .in('id', ids);
+      if (fetchErr) throw fetchErr;
+
+      for (const txn of (txns || [])) {
+        const paid_amount = txn.paid_amount ?? txn.amount;
+        const { error } = await supabase
+          .from('transactions')
+          .update({ is_paid: true, date: paymentDate, paid_amount })
+          .eq('id', txn.id);
+        if (error) throw error;
+      }
+    },
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['server-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['transaction-kpis'] });
+      queryClient.invalidateQueries({ queryKey: ['bank-transactions-prior'] });
+      queryClient.invalidateQueries({ queryKey: ['bank-transactions-period'] });
+      queryClient.invalidateQueries({ queryKey: ['banks'] });
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['dre-previsto'] });
+      queryClient.invalidateQueries({ queryKey: ['dre-realizado'] });
+      toast({ title: `${vars.ids.length} transação(ões) liquidada(s) com sucesso!` });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Erro ao liquidar em massa', description: error.message, variant: 'destructive' });
+    },
+  });
+
+
+
   const bulkCreateTransactions = useMutation({
     mutationFn: async (transactions: TransactionInsert[]) => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -383,6 +419,7 @@ export function useTransactions() {
     deleteTransaction,
     togglePaid,
     bulkTogglePaid,
+    bulkSettleWithDate,
     bulkCreateTransactions,
   };
 }
