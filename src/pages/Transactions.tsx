@@ -772,7 +772,14 @@ export default function Transactions() {
   };
   const handleBulkPay = () => {
     if (selectedIds.size === 0) return;
-    bulkTogglePaid.mutate({ ids: Array.from(selectedIds), is_paid: true }, { onSuccess: () => setSelectedIds(new Set()) });
+    setBulkSettleOpen(true);
+  };
+  const handleBulkSettleConfirm = async (paymentDate: string) => {
+    await bulkSettleWithDate.mutateAsync(
+      { ids: Array.from(selectedIds), paymentDate },
+    );
+    setSelectedIds(new Set());
+    setBulkSettleOpen(false);
   };
   const handleBulkDelete = async () => {
     for (const id of selectedIds) await deleteTransaction.mutateAsync(id);
