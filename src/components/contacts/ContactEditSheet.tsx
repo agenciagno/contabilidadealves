@@ -24,6 +24,8 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useCompany } from '@/hooks/useCompany';
 import { ContactObligationsSelector } from '@/components/fiscal/ContactObligationsSelector';
+import { lookupCnpj, pickEmptyFields } from '@/lib/cnpj-lookup';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 type Section = 'contato' | 'endereco' | 'fiscal' | 'empresariais' | 'datas-esfera' | 'departamento-pessoal' | 'observacoes' | 'cobranca';
