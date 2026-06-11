@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 import { Plus, Search, Edit2, Trash2, User, Mail, Phone, Copy, Eye, Users, AlertTriangle, X, FileText, RefreshCw, LayoutGrid, List, Pencil } from 'lucide-react';
 import { useContacts, Contact, ContactInsert } from '@/hooks/useContacts';
 import { useTransactions } from '@/hooks/useTransactions';
