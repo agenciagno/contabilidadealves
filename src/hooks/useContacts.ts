@@ -190,6 +190,23 @@ export function useContacts() {
           representative_legal: 'Representante Legal',
           type: 'Tipo',
           is_active: 'Status',
+          razao_social: 'Razão Social',
+          nome_fantasia: 'Nome Fantasia',
+          cnae_principal: 'CNAE Principal',
+          natureza_juridica: 'Natureza Jurídica',
+          situacao_cadastral: 'Situação Cadastral',
+          ie: 'Inscrição Estadual',
+          im: 'Inscrição Municipal',
+          regime_apuracao: 'Regime de Apuração',
+          tipo_estabelecimento: 'Tipo de Estabelecimento',
+          grupo_escritorio: 'Grupo do Escritório',
+          data_inicio_contrato: 'Data Início Contrato',
+          status_cliente: 'Status do Cliente',
+          tipo_cliente: 'Tipo de Cliente',
+          possui_funcionarios: 'Possui Funcionários',
+          numero_funcionarios: 'Nº Funcionários',
+          tipo_cartao_ponto: 'Tipo Cartão Ponto',
+          medicina_trabalho: 'Medicina do Trabalho',
         };
 
         const taxRegimeLabels: Record<string, string> = {
