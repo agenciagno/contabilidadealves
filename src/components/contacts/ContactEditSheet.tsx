@@ -306,6 +306,49 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
         canal_entrega: canalEntrega === 'none' ? null : (canalEntrega as 'whatsapp' | 'email' | 'impresso' | 'whatsapp_email'),
         numero_cliente_sicoob: parsedSicoob !== null && !isNaN(parsedSicoob) ? parsedSicoob : null,
       };
+    } else if (section === 'empresariais') {
+      updates = {
+        razao_social: razaoSocial || null,
+        nome_fantasia: nomeFantasia || null,
+        natureza_juridica: naturezaJuridica || null,
+        situacao_cadastral: situacaoCadastral === 'none' ? null : situacaoCadastral,
+        tipo_estabelecimento: tipoEstabelecimento === 'none' ? null : tipoEstabelecimento,
+        status_cliente: statusCliente === 'none' ? null : statusCliente,
+        tipo_cliente: tipoCliente === 'none' ? null : tipoCliente,
+        grupo_escritorio: grupoEscritorio || null,
+        data_inicio_contrato: dataInicioContrato || null,
+        segundo_email_contato: segundoEmailContato || null,
+        complemento: complemento || null,
+      };
+    } else if (section === 'datas-esfera') {
+      updates = {
+        data_abertura_junta: dataAberturaJunta || null,
+        data_encerramento_junta: dataEncerramentoJunta || null,
+        data_abertura_rf: dataAberturaRf || null,
+        data_encerramento_rf: dataEncerramentoRf || null,
+        data_abertura_prefeitura: dataAberturaPrefeitura || null,
+        data_encerramento_prefeitura: dataEncerramentoPrefeitura || null,
+        data_abertura_estado: dataAberturaEstado || null,
+        data_encerramento_estado: dataEncerramentoEstado || null,
+      };
+    } else if (section === 'departamento-pessoal') {
+      const parsedNumFunc = numeroFuncionarios.trim() === '' ? null : parseInt(numeroFuncionarios, 10);
+      updates = {
+        possui_funcionarios: possuiFuncionarios,
+        numero_funcionarios: possuiFuncionarios && parsedNumFunc !== null && !isNaN(parsedNumFunc) ? parsedNumFunc : null,
+        tipo_cartao_ponto: tipoCartaoPonto === 'none' ? null : tipoCartaoPonto,
+        medicina_trabalho: medicinaTrabalho,
+        grupo_cipa: grupoCipa || null,
+        registro_entradas: registroEntradas,
+        registro_saidas: registroSaidas,
+        registro_icms: registroIcms,
+        inventario: inventario,
+        ie: ie || null,
+        im: im || null,
+        regime_apuracao: regimeApuracao === 'none' ? null : regimeApuracao,
+        numero_alvara: numeroAlvara || null,
+        validade_alvara: validadeAlvara || null,
+      };
     }
 
     updateContact.mutate(
