@@ -206,6 +206,7 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
     setDataInicioContrato((contact.data_inicio_contrato || '').slice(0, 10));
     setSegundoEmailContato(contact.segundo_email_contato || '');
     setComplemento(contact.complemento || '');
+    setCategorias(Array.isArray(contact.categorias) ? contact.categorias : []);
     setDataAberturaJunta((contact.data_abertura_junta || '').slice(0, 10));
     setDataEncerramentoJunta((contact.data_encerramento_junta || '').slice(0, 10));
     setDataAberturaRf((contact.data_abertura_rf || '').slice(0, 10));
