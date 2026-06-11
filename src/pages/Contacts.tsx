@@ -210,6 +210,7 @@ export default function Contacts() {
                 <h3 className="font-semibold text-foreground truncate">{contact.name}</h3>
                 <Copy className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground flex-shrink-0" />
               </button>
+              <CategoryBadges contact={contact} />
             </div>
             <div
               className={`h-2.5 w-2.5 rounded-full flex-shrink-0 mt-1 ml-2 ${isInadimplente ? 'bg-destructive' : 'bg-emerald-500'}`}
