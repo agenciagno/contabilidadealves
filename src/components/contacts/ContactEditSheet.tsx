@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -104,6 +105,7 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
   const [dataInicioContrato, setDataInicioContrato] = useState((contact.data_inicio_contrato || '').slice(0, 10));
   const [segundoEmailContato, setSegundoEmailContato] = useState(contact.segundo_email_contato || '');
   const [complemento, setComplemento] = useState(contact.complemento || '');
+  const [categorias, setCategorias] = useState<string[]>(Array.isArray(contact.categorias) ? contact.categorias : []);
 
   // Datas por Esfera
   const [dataAberturaJunta, setDataAberturaJunta] = useState((contact.data_abertura_junta || '').slice(0, 10));
@@ -205,6 +207,7 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
     setDataInicioContrato((contact.data_inicio_contrato || '').slice(0, 10));
     setSegundoEmailContato(contact.segundo_email_contato || '');
     setComplemento(contact.complemento || '');
+    setCategorias(Array.isArray(contact.categorias) ? contact.categorias : []);
     setDataAberturaJunta((contact.data_abertura_junta || '').slice(0, 10));
     setDataEncerramentoJunta((contact.data_encerramento_junta || '').slice(0, 10));
     setDataAberturaRf((contact.data_abertura_rf || '').slice(0, 10));
@@ -319,6 +322,7 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
         data_inicio_contrato: dataInicioContrato || null,
         segundo_email_contato: segundoEmailContato || null,
         complemento: complemento || null,
+        categorias: categorias,
       };
     } else if (section === 'datas-esfera') {
       updates = {
@@ -570,6 +574,32 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
               <div className="space-y-1.5">
                 <Label>Complemento (endereço)</Label>
                 <Input value={complemento} onChange={e => setComplemento(e.target.value)} placeholder="Complemento" />
+              </div>
+              <div className="space-y-2">
+                <Label>Categorias</Label>
+                <div className="grid grid-cols-2 gap-2 rounded-lg border border-border/50 p-3">
+                  {[
+                    { value: 'cliente', label: 'Cliente' },
+                    { value: 'fornecedor', label: 'Fornecedor' },
+                    { value: 'colaborador', label: 'Colaborador' },
+                    { value: 'outros', label: 'Outros' },
+                  ].map(opt => {
+                    const checked = categorias.includes(opt.value);
+                    return (
+                      <label key={opt.value} className="flex items-center gap-2 cursor-pointer text-sm">
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(v) => {
+                            setCategorias(prev =>
+                              v ? Array.from(new Set([...prev, opt.value])) : prev.filter(c => c !== opt.value)
+                            );
+                          }}
+                        />
+                        <span>{opt.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
             </>
           )}

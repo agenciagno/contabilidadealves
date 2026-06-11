@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 import { Plus, Search, Edit2, Trash2, User, Mail, Phone, Copy, Eye, Users, AlertTriangle, X, FileText, RefreshCw, LayoutGrid, List, Pencil } from 'lucide-react';
 import { useContacts, Contact, ContactInsert } from '@/hooks/useContacts';
 import { useTransactions } from '@/hooks/useTransactions';
@@ -34,6 +35,7 @@ export default function Contacts() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterFinancialStatus, setFilterFinancialStatus] = useState('all');
+  const [filterCategoria, setFilterCategoria] = useState('all');
   const [viewMode, setViewMode] = useState<ViewMode>('card');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
@@ -76,17 +78,23 @@ export default function Contacts() {
         const { isInadimplente } = getFinancialStatus(c.id);
         matchesFinancialStatus = filterFinancialStatus === 'inadimplente' ? isInadimplente : !isInadimplente;
       }
-      return matchesSearch && matchesFinancialStatus;
+      let matchesCategoria = true;
+      if (filterCategoria !== 'all') {
+        const cats = (c.categorias || []).map(x => (x || '').toLowerCase());
+        matchesCategoria = cats.includes(filterCategoria);
+      }
+      return matchesSearch && matchesFinancialStatus && matchesCategoria;
     });
-  }, [contacts, searchTerm, filterFinancialStatus, transactions]);
+  }, [contacts, searchTerm, filterFinancialStatus, filterCategoria, transactions]);
 
   const activeContacts = filteredContacts.filter(c => c.is_active);
   const inactiveContacts = filteredContacts.filter(c => !c.is_active);
-  const hasActiveFilters = searchTerm || filterFinancialStatus !== 'all';
+  const hasActiveFilters = searchTerm || filterFinancialStatus !== 'all' || filterCategoria !== 'all';
 
   const clearFilters = () => {
     setSearchTerm('');
     setFilterFinancialStatus('all');
+    setFilterCategoria('all');
   };
 
   const toggleSelectContact = (id: string) => {
@@ -144,6 +152,33 @@ export default function Contacts() {
     </div>;
   }
 
+  const categoriaBadgeClass: Record<string, string> = {
+    cliente: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 hover:bg-blue-500/15',
+    fornecedor: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20 hover:bg-purple-500/15',
+    colaborador: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/15',
+    outros: 'bg-muted text-muted-foreground border-border hover:bg-muted/80',
+  };
+  const categoriaLabel: Record<string, string> = {
+    cliente: 'Cliente',
+    fornecedor: 'Fornecedor',
+    colaborador: 'Colaborador',
+    outros: 'Outros',
+  };
+
+  const CategoryBadges = ({ contact }: { contact: Contact }) => {
+    const cats = (contact.categorias || []).map(x => (x || '').toLowerCase()).filter(c => categoriaLabel[c]);
+    if (cats.length === 0) return null;
+    return (
+      <div className="flex flex-wrap gap-1">
+        {cats.map(c => (
+          <Badge key={c} variant="outline" className={`text-[10px] px-1.5 py-0 h-4 font-medium ${categoriaBadgeClass[c]}`}>
+            {categoriaLabel[c]}
+          </Badge>
+        ))}
+      </div>
+    );
+  };
+
   const ActionButtons = ({ contact }: { contact: Contact }) => (
     <div className="flex gap-1 justify-end">
       <Button variant="ghost" size="icon" title="Ver Perfil" onClick={() => navigate(`/crm/cliente/${contact.id}`)}>
@@ -175,6 +210,7 @@ export default function Contacts() {
                 <h3 className="font-semibold text-foreground truncate">{contact.name}</h3>
                 <Copy className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground flex-shrink-0" />
               </button>
+              <CategoryBadges contact={contact} />
             </div>
             <div
               className={`h-2.5 w-2.5 rounded-full flex-shrink-0 mt-1 ml-2 ${isInadimplente ? 'bg-destructive' : 'bg-emerald-500'}`}
@@ -260,13 +296,16 @@ export default function Contacts() {
               </TableCell>
             )}
             <TableCell className="font-medium">
-              <button
-                onClick={() => copyToClipboard(contact.name, 'Nome')}
-                className="group flex items-center gap-2 hover:text-primary transition-colors text-left"
-              >
-                <span>{contact.name}</span>
-                <Copy className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground" />
-              </button>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={() => copyToClipboard(contact.name, 'Nome')}
+                  className="group flex items-center gap-2 hover:text-primary transition-colors text-left"
+                >
+                  <span>{contact.name}</span>
+                  <Copy className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground" />
+                </button>
+                <CategoryBadges contact={contact} />
+              </div>
             </TableCell>
             <TableCell className="font-mono text-xs text-muted-foreground">
               {contact.document ? (
@@ -355,6 +394,18 @@ export default function Contacts() {
                   <SelectItem value="all">Todos</SelectItem>
                   <SelectItem value="adimplente">Adimplentes</SelectItem>
                   <SelectItem value="inadimplente">Inadimplentes</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filterCategoria} onValueChange={setFilterCategoria}>
+                <SelectTrigger className="w-[160px] h-9 bg-background/50 border-border/50">
+                  <SelectValue placeholder="Categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas categorias</SelectItem>
+                  <SelectItem value="cliente">Clientes</SelectItem>
+                  <SelectItem value="fornecedor">Fornecedores</SelectItem>
+                  <SelectItem value="colaborador">Colaboradores</SelectItem>
+                  <SelectItem value="outros">Outros</SelectItem>
                 </SelectContent>
               </Select>
               {hasActiveFilters && (
