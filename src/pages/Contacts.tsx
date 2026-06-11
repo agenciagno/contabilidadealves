@@ -152,6 +152,33 @@ export default function Contacts() {
     </div>;
   }
 
+  const categoriaBadgeClass: Record<string, string> = {
+    cliente: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 hover:bg-blue-500/15',
+    fornecedor: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20 hover:bg-purple-500/15',
+    colaborador: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/15',
+    outros: 'bg-muted text-muted-foreground border-border hover:bg-muted/80',
+  };
+  const categoriaLabel: Record<string, string> = {
+    cliente: 'Cliente',
+    fornecedor: 'Fornecedor',
+    colaborador: 'Colaborador',
+    outros: 'Outros',
+  };
+
+  const CategoryBadges = ({ contact }: { contact: Contact }) => {
+    const cats = (contact.categorias || []).map(x => (x || '').toLowerCase()).filter(c => categoriaLabel[c]);
+    if (cats.length === 0) return null;
+    return (
+      <div className="flex flex-wrap gap-1">
+        {cats.map(c => (
+          <Badge key={c} variant="outline" className={`text-[10px] px-1.5 py-0 h-4 font-medium ${categoriaBadgeClass[c]}`}>
+            {categoriaLabel[c]}
+          </Badge>
+        ))}
+      </div>
+    );
+  };
+
   const ActionButtons = ({ contact }: { contact: Contact }) => (
     <div className="flex gap-1 justify-end">
       <Button variant="ghost" size="icon" title="Ver Perfil" onClick={() => navigate(`/crm/cliente/${contact.id}`)}>
