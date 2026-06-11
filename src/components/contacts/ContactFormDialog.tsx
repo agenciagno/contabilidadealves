@@ -67,6 +67,7 @@ export function ContactFormDialog({
       setCep(contact.cep || '');
       setAddress(contact.address || '');
       setAddressNumber(contact.address_number || '');
+      setComplemento((contact as any).complemento || '');
       setNeighborhood(contact.neighborhood || '');
       setCity(contact.city || '');
       setState(contact.state || '');
@@ -80,11 +81,13 @@ export function ContactFormDialog({
       setCep('');
       setAddress('');
       setAddressNumber('');
+      setComplemento('');
       setNeighborhood('');
       setCity('');
       setState('');
       setNotes('');
     }
+    setCnpjExtras({});
   }, [contact, open]);
 
   const runCnpjLookup = async (opts: { silentIfShort?: boolean } = {}) => {
