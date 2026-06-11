@@ -36,7 +36,66 @@ export interface Contact {
   responsible_id: string | null;
   created_at: string;
   updated_at: string;
+  // Dados empresariais
+  razao_social: string | null;
+  nome_fantasia: string | null;
+  cnae_principal: any | null;
+  cnaes_secundarios: any | null;
+  natureza_juridica: string | null;
+  situacao_cadastral: string | null;
+  data_abertura_receita: string | null;
+  // Endereço
+  complemento: string | null;
+  // Contato adicional
+  segundo_email_contato: string | null;
+  // Dados fiscais adicionais
+  ie: string | null;
+  im: string | null;
+  regime_apuracao: string | null;
+  numero_alvara: string | null;
+  validade_alvara: string | null;
+  // Status e classificação
+  status_cliente: string | null;
+  tipo_cliente: string | null;
+  tipo_estabelecimento: string | null;
+  grupo_escritorio: string | null;
+  data_inicio_contrato: string | null;
+  categorias: string[];
+  // Datas por esfera
+  data_abertura_junta: string | null;
+  data_abertura_rf: string | null;
+  data_abertura_prefeitura: string | null;
+  data_abertura_estado: string | null;
+  data_encerramento_junta: string | null;
+  data_encerramento_rf: string | null;
+  data_encerramento_prefeitura: string | null;
+  data_encerramento_estado: string | null;
+  // Departamento Pessoal
+  possui_funcionarios: boolean;
+  numero_funcionarios: number | null;
+  tipo_cartao_ponto: string | null;
+  medicina_trabalho: boolean;
+  grupo_cipa: string | null;
+  registro_entradas: boolean;
+  registro_saidas: boolean;
+  registro_icms: boolean;
+  inventario: boolean;
+  // Criptografado
+  siare_senha_encrypted: any | null;
 }
+
+type ContactOptionalKeys =
+  | 'razao_social' | 'nome_fantasia' | 'cnae_principal' | 'cnaes_secundarios'
+  | 'natureza_juridica' | 'situacao_cadastral' | 'data_abertura_receita'
+  | 'complemento' | 'segundo_email_contato'
+  | 'ie' | 'im' | 'regime_apuracao' | 'numero_alvara' | 'validade_alvara'
+  | 'status_cliente' | 'tipo_cliente' | 'tipo_estabelecimento' | 'grupo_escritorio'
+  | 'data_inicio_contrato' | 'categorias'
+  | 'data_abertura_junta' | 'data_abertura_rf' | 'data_abertura_prefeitura' | 'data_abertura_estado'
+  | 'data_encerramento_junta' | 'data_encerramento_rf' | 'data_encerramento_prefeitura' | 'data_encerramento_estado'
+  | 'possui_funcionarios' | 'numero_funcionarios' | 'tipo_cartao_ponto' | 'medicina_trabalho'
+  | 'grupo_cipa' | 'registro_entradas' | 'registro_saidas' | 'registro_icms' | 'inventario'
+  | 'siare_senha_encrypted';
 
 export type ContactInsert = Omit<Contact, 'id' | 'company_id' | 'created_at' | 'updated_at' | 'origin' | 'whatsapp' | 'responsible_id' | 'canal_entrega' | 'numero_cliente_sicoob' | 'enviar_cobranca_auto'> & { origin?: string; whatsapp?: string | null; responsible_id?: string | null; canal_entrega?: string | null; numero_cliente_sicoob?: number | null; enviar_cobranca_auto?: boolean };
 export type ContactUpdate = Partial<ContactInsert>;

@@ -1,35 +1,34 @@
-Investiguei o código e o banco. Encontrei dois pontos a corrigir.
+## Objetivo
+Expandir tipos TypeScript em `src/hooks/useContacts.ts` para refletir os campos já existentes na tabela `contacts` do Supabase. Sem mudanças de lógica, queries, mutations ou UI.
 
-## 1. Mensagem "X transação(ões) ignoradas: Data de Pagamento ausente"
+## Arquivo único alterado
+`src/hooks/useContacts.ts`
 
-Essa mensagem só existe na mutação antiga `bulkTogglePaid` (em `useTransactions.ts`). Já não há nenhum botão chamando ela (a "Pagar X" agora chama `bulkSettleWithDate` via `BulkSettleDialog`). Mas a mutação continua exportada e pode estar sendo disparada por código antigo em cache ou por engano.
+## Mudanças
 
-**Ação:** remover por completo `bulkTogglePaid` para garantir que essa toast nunca mais apareça.
+### 1. Interface `Contact`
+Adicionar os campos listados pelo usuário, agrupados por seção:
+- Dados empresariais: `razao_social`, `nome_fantasia`, `cnae_principal`, `cnaes_secundarios`, `natureza_juridica`, `situacao_cadastral`, `data_abertura_receita`
+- Endereço: `complemento`
+- Contato: `segundo_email_contato`
+- Fiscais: `ie`, `im`, `regime_apuracao`, `numero_alvara`, `validade_alvara`
+- Status/Classificação: `status_cliente`, `tipo_cliente`, `tipo_estabelecimento`, `grupo_escritorio`, `data_inicio_contrato`, `categorias`
+- Datas por esfera (8 campos abertura/encerramento)
+- Departamento Pessoal: `possui_funcionarios`, `numero_funcionarios`, `tipo_cartao_ponto`, `medicina_trabalho`, `grupo_cipa`, `registro_entradas`, `registro_saidas`, `registro_icms`, `inventario`
+- Criptografado: `siare_senha_encrypted`
 
-- Em `src/hooks/useTransactions.ts`: deletar o bloco `bulkTogglePaid` (≈ linhas 257–306) e a entrada `bulkTogglePaid,` no return.
-- Em `src/pages/Transactions.tsx`: remover `bulkTogglePaid` da desestruturação na linha 636.
+Tipos conforme especificação do usuário.
 
-## 2. Evento Contábil sumindo após liquidar
+### 2. `ContactInsert`
+Continua sendo derivado de `Contact` via `Omit`. Como todos os novos campos são opcionais no banco, marcá-los como opcionais na interseção do type (mantendo o padrão atual que já estende com `& { ... }` para campos opcionais). Para simplificar e seguir o padrão existente, manter `Omit<Contact, ...>` e adicionar uma cláusula `& Partial<Pick<Contact, '<novos_campos>'>>` para tornar os novos opcionais no insert.
 
-Verifiquei direto no banco: há transações pagas com `category_id = NULL` (ex.: `1eda8d42-…`, 642,00, 22/04/26, contato GABRIEL WENDERSON). Isso confirma que em algum momento o payload de liquidação salvou `category_id: null`.
+### 3. `ContactUpdate`
+Sem alteração — `Partial<ContactInsert>` propaga automaticamente.
 
-O caminho do botão verde "$" abre o `TransactionFormDialog` em modo Liquidar. Hoje o payload faz `category_id: categoryId || null`. Se por qualquer razão (race entre `setCategoryId(transaction.category_id)` e renderização, refetch de `categories` ainda vazio, etc.) o estado `categoryId` estiver vazio no momento do submit, ele sobrescreve com `null` o valor que existia.
+### 4. `fieldLabels` em `updateContact.mutationFn`
+Adicionar as 17 labels em português listadas pelo usuário (Razão Social, Nome Fantasia, CNAE Principal, etc.) ao objeto `fieldLabels` existente.
 
-**Ação defensiva:** nos payloads que NÃO são para criar uma transação nova, usar fallback para o valor original da transação quando o estado local estiver vazio. Isso preserva 100% da regra (usuário pode trocar o evento normalmente — só não permite "perder" silenciosamente).
-
-Em `src/components/transactions/TransactionFormDialog.tsx`, nos branches:
-
-- **isSettleMode** (linha 323): `category_id: categoryId || transaction?.category_id || null` — idem `bank_id`, `contact_id`.
-- **isAPrazo + isEditing** (linha 345): mesmo fallback (só quando `isEditing`, para não afetar criação nova).
-- **Edit não-settle** (linha 368): mesmo fallback.
-- **Nova à vista** (linha 393): mantém como está (não há `transaction`).
-
-Nada mais é alterado — nenhuma lógica de negócio, validação ou UI.
-
-## Resumo dos arquivos
-
-- `src/hooks/useTransactions.ts` — remover `bulkTogglePaid`.
-- `src/pages/Transactions.tsx` — remover `bulkTogglePaid` da desestruturação.
-- `src/components/transactions/TransactionFormDialog.tsx` — fallback em `category_id`/`bank_id`/`contact_id` nos 3 branches que envolvem uma transação existente.
-
-Pronto para aplicar?
+## O que NÃO muda
+- Query `select('*')` — já traz tudo
+- Nenhuma mutation, hook ou componente visual
+- Mapeamentos especiais (`tax_regime`, `is_active`) permanecem como estão
