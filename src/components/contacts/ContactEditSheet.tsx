@@ -263,6 +263,50 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
     }
   };
 
+  const [loadingCnpj, setLoadingCnpj] = useState(false);
+  const handleDocumentBlur = async () => {
+    const digits = document.replace(/\D/g, '');
+    if (digits.length !== 14) return;
+    setLoadingCnpj(true);
+    try {
+      const data = await lookupCnpj(digits);
+
+      // Editable fields in this section: only email/phone are visible here.
+      // Fill any empty visible fields from this section first.
+      if (!email && data.email) setEmail(data.email);
+      if (!phone && data.phone) setPhone(data.phone);
+
+      // Persist other empty server-side fields directly (not displayed in this section)
+      const candidate = {
+        razao_social: data.razao_social,
+        nome_fantasia: data.nome_fantasia,
+        address: data.address,
+        address_number: data.address_number,
+        complemento: data.complemento,
+        neighborhood: data.neighborhood,
+        city: data.city,
+        state: data.state,
+        cep: data.cep,
+        cnae_principal: data.cnae_principal,
+        cnaes_secundarios: data.cnaes_secundarios,
+        natureza_juridica: data.natureza_juridica,
+        situacao_cadastral: data.situacao_cadastral,
+        data_abertura_receita: data.data_abertura_receita,
+      };
+      const toPersist = pickEmptyFields(candidate, contact as any);
+      if (Object.keys(toPersist).length > 0) {
+        await updateContact.mutateAsync({ id: contact.id, ...toPersist } as any);
+      }
+
+      toast.success('Dados preenchidos automaticamente');
+    } catch (e) {
+      toast.error('CNPJ não encontrado', { description: (e as Error).message });
+    } finally {
+      setLoadingCnpj(false);
+    }
+  };
+
+
   const syncObligations = async () => {
     if (!company?.id) return;
     const original = new Set(contactObligations.map((o) => o.obligation_id));
