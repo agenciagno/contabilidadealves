@@ -104,6 +104,7 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
   const [dataInicioContrato, setDataInicioContrato] = useState((contact.data_inicio_contrato || '').slice(0, 10));
   const [segundoEmailContato, setSegundoEmailContato] = useState(contact.segundo_email_contato || '');
   const [complemento, setComplemento] = useState(contact.complemento || '');
+  const [categorias, setCategorias] = useState<string[]>(Array.isArray(contact.categorias) ? contact.categorias : []);
 
   // Datas por Esfera
   const [dataAberturaJunta, setDataAberturaJunta] = useState((contact.data_abertura_junta || '').slice(0, 10));
