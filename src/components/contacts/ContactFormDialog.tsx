@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Contact, ContactInsert } from '@/hooks/useContacts';
 import { maskCPFCNPJ, maskPhone } from '@/lib/utils';
 import { Search, Loader2 } from 'lucide-react';
-import { fetchCnpjData } from '@/lib/cnpj-api';
+import { lookupCnpj, pickEmptyFields } from '@/lib/cnpj-lookup';
 import { useToast } from '@/hooks/use-toast';
 
 interface ContactFormDialogProps {
