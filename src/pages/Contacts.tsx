@@ -78,17 +78,23 @@ export default function Contacts() {
         const { isInadimplente } = getFinancialStatus(c.id);
         matchesFinancialStatus = filterFinancialStatus === 'inadimplente' ? isInadimplente : !isInadimplente;
       }
-      return matchesSearch && matchesFinancialStatus;
+      let matchesCategoria = true;
+      if (filterCategoria !== 'all') {
+        const cats = (c.categorias || []).map(x => (x || '').toLowerCase());
+        matchesCategoria = cats.includes(filterCategoria);
+      }
+      return matchesSearch && matchesFinancialStatus && matchesCategoria;
     });
-  }, [contacts, searchTerm, filterFinancialStatus, transactions]);
+  }, [contacts, searchTerm, filterFinancialStatus, filterCategoria, transactions]);
 
   const activeContacts = filteredContacts.filter(c => c.is_active);
   const inactiveContacts = filteredContacts.filter(c => !c.is_active);
-  const hasActiveFilters = searchTerm || filterFinancialStatus !== 'all';
+  const hasActiveFilters = searchTerm || filterFinancialStatus !== 'all' || filterCategoria !== 'all';
 
   const clearFilters = () => {
     setSearchTerm('');
     setFilterFinancialStatus('all');
+    setFilterCategoria('all');
   };
 
   const toggleSelectContact = (id: string) => {
