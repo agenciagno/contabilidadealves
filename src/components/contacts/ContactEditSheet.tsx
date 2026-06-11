@@ -38,6 +38,9 @@ const sectionTitles: Record<Section, string> = {
   contato: 'Editar Informações de Contato',
   endereco: 'Editar Endereço',
   fiscal: 'Editar Dados Fiscais',
+  empresariais: 'Editar Dados Empresariais',
+  'datas-esfera': 'Editar Datas por Esfera',
+  'departamento-pessoal': 'Editar Departamento Pessoal',
   observacoes: 'Editar Observações',
   cobranca: 'Editar Configurações de Cobrança',
 };
