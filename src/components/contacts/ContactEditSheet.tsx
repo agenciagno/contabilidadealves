@@ -24,6 +24,8 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useCompany } from '@/hooks/useCompany';
 import { ContactObligationsSelector } from '@/components/fiscal/ContactObligationsSelector';
+import { lookupCnpj, pickEmptyFields } from '@/lib/cnpj-lookup';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 type Section = 'contato' | 'endereco' | 'fiscal' | 'empresariais' | 'datas-esfera' | 'departamento-pessoal' | 'observacoes' | 'cobranca';
@@ -261,6 +263,50 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
     }
   };
 
+  const [loadingCnpj, setLoadingCnpj] = useState(false);
+  const handleDocumentBlur = async () => {
+    const digits = document.replace(/\D/g, '');
+    if (digits.length !== 14) return;
+    setLoadingCnpj(true);
+    try {
+      const data = await lookupCnpj(digits);
+
+      // Editable fields in this section: only email/phone are visible here.
+      // Fill any empty visible fields from this section first.
+      if (!email && data.email) setEmail(data.email);
+      if (!phone && data.phone) setPhone(data.phone);
+
+      // Persist other empty server-side fields directly (not displayed in this section)
+      const candidate = {
+        razao_social: data.razao_social,
+        nome_fantasia: data.nome_fantasia,
+        address: data.address,
+        address_number: data.address_number,
+        complemento: data.complemento,
+        neighborhood: data.neighborhood,
+        city: data.city,
+        state: data.state,
+        cep: data.cep,
+        cnae_principal: data.cnae_principal,
+        cnaes_secundarios: data.cnaes_secundarios,
+        natureza_juridica: data.natureza_juridica,
+        situacao_cadastral: data.situacao_cadastral,
+        data_abertura_receita: data.data_abertura_receita,
+      };
+      const toPersist = pickEmptyFields(candidate, contact as any);
+      if (Object.keys(toPersist).length > 0) {
+        await updateContact.mutateAsync({ id: contact.id, ...toPersist } as any);
+      }
+
+      toast.success('Dados preenchidos automaticamente');
+    } catch (e) {
+      toast.error('CNPJ não encontrado', { description: (e as Error).message });
+    } finally {
+      setLoadingCnpj(false);
+    }
+  };
+
+
   const syncObligations = async () => {
     if (!company?.id) return;
     const original = new Set(contactObligations.map((o) => o.obligation_id));
@@ -393,7 +439,19 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
               </div>
               <div className="space-y-1.5">
                 <Label>CPF/CNPJ</Label>
-                <Input value={document} onChange={e => setDocument(e.target.value)} placeholder="000.000.000-00" />
+                <div className="relative">
+                  <Input
+                    value={document}
+                    onChange={e => setDocument(e.target.value)}
+                    onBlur={handleDocumentBlur}
+                    placeholder="000.000.000-00"
+                    disabled={loadingCnpj}
+                    className={loadingCnpj ? 'pr-9' : ''}
+                  />
+                  {loadingCnpj && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label>Representante Legal</Label>

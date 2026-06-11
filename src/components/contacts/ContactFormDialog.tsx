@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Contact, ContactInsert } from '@/hooks/useContacts';
 import { maskCPFCNPJ, maskPhone } from '@/lib/utils';
 import { Search, Loader2 } from 'lucide-react';
-import { fetchCnpjData } from '@/lib/cnpj-api';
+import { lookupCnpj, pickEmptyFields } from '@/lib/cnpj-lookup';
 import { useToast } from '@/hooks/use-toast';
 
 interface ContactFormDialogProps {
@@ -53,6 +53,8 @@ export function ContactFormDialog({
   const [isFetchingCnpj, setIsFetchingCnpj] = useState(false);
   const [isLoadingCep, setIsLoadingCep] = useState(false);
   const [addressFieldsLocked, setAddressFieldsLocked] = useState(false);
+  const [complemento, setComplemento] = useState('');
+  const [cnpjExtras, setCnpjExtras] = useState<Record<string, any>>({});
   const { toast } = useToast();
 
   useEffect(() => {
@@ -65,6 +67,7 @@ export function ContactFormDialog({
       setCep(contact.cep || '');
       setAddress(contact.address || '');
       setAddressNumber(contact.address_number || '');
+      setComplemento((contact as any).complemento || '');
       setNeighborhood(contact.neighborhood || '');
       setCity(contact.city || '');
       setState(contact.state || '');
@@ -78,17 +81,20 @@ export function ContactFormDialog({
       setCep('');
       setAddress('');
       setAddressNumber('');
+      setComplemento('');
       setNeighborhood('');
       setCity('');
       setState('');
       setNotes('');
     }
+    setCnpjExtras({});
   }, [contact, open]);
 
-  const handleFetchCnpj = async () => {
+  const runCnpjLookup = async (opts: { silentIfShort?: boolean } = {}) => {
     const cleanDoc = document.replace(/\D/g, '');
 
     if (cleanDoc.length !== 14) {
+      if (opts.silentIfShort) return;
       toast({
         title: 'CNPJ inválido',
         description: 'Digite um CNPJ completo (14 dígitos) para buscar',
@@ -101,28 +107,55 @@ export function ContactFormDialog({
     setAddressFieldsLocked(true);
 
     try {
-      const data = await fetchCnpjData(cleanDoc);
+      const data = await lookupCnpj(cleanDoc);
 
-      setName(data.nome_fantasia || data.razao_social);
-      setCep(data.cep ? maskCep(data.cep) : '');
-      setAddress(data.logradouro || '');
-      setAddressNumber(data.numero || '');
-      setNeighborhood(data.bairro || '');
-      setCity(data.municipio || '');
-      setState(data.uf || '');
+      const current = {
+        name, email, phone, cep, address, address_number: addressNumber,
+        complemento, neighborhood, city, state,
+      };
+      const incoming = {
+        name: data.nome_fantasia || data.razao_social || '',
+        email: data.email || '',
+        phone: data.phone || '',
+        cep: data.cep || '',
+        address: data.address || '',
+        address_number: data.address_number || '',
+        complemento: data.complemento || '',
+        neighborhood: data.neighborhood || '',
+        city: data.city || '',
+        state: data.state || '',
+      };
+      const fill = pickEmptyFields(incoming, current);
 
-      if (data.ddd_telefone_1) {
-        const phoneClean = data.ddd_telefone_1.replace(/\D/g, '');
-        setPhone(maskPhone(phoneClean));
-      }
+      if (fill.name) setName(fill.name);
+      if (fill.email) setEmail(fill.email);
+      if (fill.phone) setPhone(maskPhone(fill.phone));
+      if (fill.cep) setCep(maskCep(fill.cep));
+      if (fill.address) setAddress(fill.address);
+      if (fill.address_number) setAddressNumber(fill.address_number);
+      if (fill.complemento) setComplemento(fill.complemento);
+      if (fill.neighborhood) setNeighborhood(fill.neighborhood);
+      if (fill.city) setCity(fill.city);
+      if (fill.state) setState(fill.state);
+
+      // Structured fields not bound to inputs — keep them for the submit payload
+      setCnpjExtras({
+        razao_social: data.razao_social,
+        nome_fantasia: data.nome_fantasia,
+        cnae_principal: data.cnae_principal,
+        cnaes_secundarios: data.cnaes_secundarios,
+        natureza_juridica: data.natureza_juridica,
+        situacao_cadastral: data.situacao_cadastral,
+        data_abertura_receita: data.data_abertura_receita,
+      });
 
       toast({
-        title: 'Dados carregados!',
+        title: 'Dados preenchidos automaticamente',
         description: 'Confira as informações e complete os campos restantes.',
       });
     } catch (error) {
       toast({
-        title: 'Erro na consulta',
+        title: 'CNPJ não encontrado',
         description: error instanceof Error ? error.message : 'Erro desconhecido',
         variant: 'destructive',
       });
@@ -131,6 +164,11 @@ export function ContactFormDialog({
       setAddressFieldsLocked(false);
     }
   };
+
+  const handleFetchCnpj = () => runCnpjLookup();
+  const handleDocumentBlur = () => runCnpjLookup({ silentIfShort: true });
+
+
 
   const handleFetchCep = async () => {
     const cleanCep = cep.replace(/\D/g, '');
@@ -180,12 +218,14 @@ export function ContactFormDialog({
       cep: cep.trim() || null,
       address: address.trim() || null,
       address_number: addressNumber.trim() || null,
+      complemento: complemento.trim() || null,
       neighborhood: neighborhood.trim() || null,
       city: city.trim() || null,
       state: state || null,
       notes: notes.trim() || null,
       is_active: true,
       representative_legal: null,
+      ...cnpjExtras,
     } as any);
   };
 
@@ -203,14 +243,20 @@ export function ContactFormDialog({
             <div className="col-span-3">
               <Label htmlFor="document">CPF/CNPJ</Label>
               <div className="flex gap-2">
-                <Input
-                  id="document"
-                  value={document}
-                  onChange={(e) => setDocument(maskCPFCNPJ(e.target.value))}
-                  placeholder="00.000.000/0000-00"
-                  maxLength={18}
-                  className="flex-1"
-                />
+                <div className="relative flex-1">
+                  <Input
+                    id="document"
+                    value={document}
+                    onChange={(e) => setDocument(maskCPFCNPJ(e.target.value))}
+                    onBlur={handleDocumentBlur}
+                    placeholder="00.000.000/0000-00"
+                    maxLength={18}
+                    className={isFetchingCnpj ? 'pr-9' : ''}
+                  />
+                  {isFetchingCnpj && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                </div>
                 <Button
                   type="button"
                   variant="outline"
