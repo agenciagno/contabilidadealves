@@ -321,6 +321,7 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
         data_inicio_contrato: dataInicioContrato || null,
         segundo_email_contato: segundoEmailContato || null,
         complemento: complemento || null,
+        categorias: categorias,
       };
     } else if (section === 'datas-esfera') {
       updates = {
