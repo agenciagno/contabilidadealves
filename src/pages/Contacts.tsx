@@ -296,13 +296,16 @@ export default function Contacts() {
               </TableCell>
             )}
             <TableCell className="font-medium">
-              <button
-                onClick={() => copyToClipboard(contact.name, 'Nome')}
-                className="group flex items-center gap-2 hover:text-primary transition-colors text-left"
-              >
-                <span>{contact.name}</span>
-                <Copy className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground" />
-              </button>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={() => copyToClipboard(contact.name, 'Nome')}
+                  className="group flex items-center gap-2 hover:text-primary transition-colors text-left"
+                >
+                  <span>{contact.name}</span>
+                  <Copy className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground" />
+                </button>
+                <CategoryBadges contact={contact} />
+              </div>
             </TableCell>
             <TableCell className="font-mono text-xs text-muted-foreground">
               {contact.document ? (
