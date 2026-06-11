@@ -92,6 +92,47 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
     contact.numero_cliente_sicoob != null ? String(contact.numero_cliente_sicoob) : ''
   );
 
+  // Dados Empresariais
+  const [razaoSocial, setRazaoSocial] = useState(contact.razao_social || '');
+  const [nomeFantasia, setNomeFantasia] = useState(contact.nome_fantasia || '');
+  const [naturezaJuridica, setNaturezaJuridica] = useState(contact.natureza_juridica || '');
+  const [situacaoCadastral, setSituacaoCadastral] = useState(contact.situacao_cadastral || 'none');
+  const [tipoEstabelecimento, setTipoEstabelecimento] = useState(contact.tipo_estabelecimento || 'none');
+  const [statusCliente, setStatusCliente] = useState(contact.status_cliente || 'none');
+  const [tipoCliente, setTipoCliente] = useState(contact.tipo_cliente || 'none');
+  const [grupoEscritorio, setGrupoEscritorio] = useState(contact.grupo_escritorio || '');
+  const [dataInicioContrato, setDataInicioContrato] = useState((contact.data_inicio_contrato || '').slice(0, 10));
+  const [segundoEmailContato, setSegundoEmailContato] = useState(contact.segundo_email_contato || '');
+  const [complemento, setComplemento] = useState(contact.complemento || '');
+
+  // Datas por Esfera
+  const [dataAberturaJunta, setDataAberturaJunta] = useState((contact.data_abertura_junta || '').slice(0, 10));
+  const [dataEncerramentoJunta, setDataEncerramentoJunta] = useState((contact.data_encerramento_junta || '').slice(0, 10));
+  const [dataAberturaRf, setDataAberturaRf] = useState((contact.data_abertura_rf || '').slice(0, 10));
+  const [dataEncerramentoRf, setDataEncerramentoRf] = useState((contact.data_encerramento_rf || '').slice(0, 10));
+  const [dataAberturaPrefeitura, setDataAberturaPrefeitura] = useState((contact.data_abertura_prefeitura || '').slice(0, 10));
+  const [dataEncerramentoPrefeitura, setDataEncerramentoPrefeitura] = useState((contact.data_encerramento_prefeitura || '').slice(0, 10));
+  const [dataAberturaEstado, setDataAberturaEstado] = useState((contact.data_abertura_estado || '').slice(0, 10));
+  const [dataEncerramentoEstado, setDataEncerramentoEstado] = useState((contact.data_encerramento_estado || '').slice(0, 10));
+
+  // Departamento Pessoal
+  const [possuiFuncionarios, setPossuiFuncionarios] = useState(!!contact.possui_funcionarios);
+  const [numeroFuncionarios, setNumeroFuncionarios] = useState<string>(
+    contact.numero_funcionarios != null ? String(contact.numero_funcionarios) : ''
+  );
+  const [tipoCartaoPonto, setTipoCartaoPonto] = useState(contact.tipo_cartao_ponto || 'none');
+  const [medicinaTrabalho, setMedicinaTrabalho] = useState(!!contact.medicina_trabalho);
+  const [grupoCipa, setGrupoCipa] = useState(contact.grupo_cipa || '');
+  const [registroEntradas, setRegistroEntradas] = useState(!!contact.registro_entradas);
+  const [registroSaidas, setRegistroSaidas] = useState(!!contact.registro_saidas);
+  const [registroIcms, setRegistroIcms] = useState(!!contact.registro_icms);
+  const [inventario, setInventario] = useState(!!contact.inventario);
+  const [ie, setIe] = useState(contact.ie || '');
+  const [im, setIm] = useState(contact.im || '');
+  const [regimeApuracao, setRegimeApuracao] = useState(contact.regime_apuracao || 'none');
+  const [numeroAlvara, setNumeroAlvara] = useState(contact.numero_alvara || '');
+  const [validadeAlvara, setValidadeAlvara] = useState((contact.validade_alvara || '').slice(0, 10));
+
   const { data: profiles } = useQuery({
     queryKey: ['profiles-active-for-contact-edit'],
     queryFn: async () => {
