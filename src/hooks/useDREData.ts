@@ -77,6 +77,28 @@ export interface DRESummary {
   fluxoCaixa: number;
 }
 
+// Paginated fetch to bypass PostgREST's 1000-row default limit.
+// Uses iterative .range() with stable ordering by id.
+async function fetchAllPaged<T>(
+  buildQuery: () => any
+): Promise<T[]> {
+  const pageSize = 1000;
+  let from = 0;
+  const all: T[] = [];
+  // Hard safety cap to avoid runaway loops
+  for (let i = 0; i < 1000; i++) {
+    const { data, error } = await buildQuery()
+      .order('id', { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    const batch = (data as T[]) || [];
+    all.push(...batch);
+    if (batch.length < pageSize) break;
+    from += pageSize;
+  }
+  return all;
+}
+
 export function useDREData(startDate: string, endDate: string) {
   const { categories } = useCategories();
 
@@ -84,16 +106,16 @@ export function useDREData(startDate: string, endDate: string) {
   const { data: allPaidTxns = [] } = useQuery({
     queryKey: ['dre-fluxo-caixa', startDate, endDate],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('paid_amount, amount, type')
-        .is('deleted_at', null)
-        .eq('is_paid', true)
-        .not('date', 'is', null)
-        .gte('date', startDate)
-        .lte('date', endDate);
-      if (error) throw error;
-      return data || [];
+      return await fetchAllPaged<{ paid_amount: number | null; amount: number; type: string }>(() =>
+        supabase
+          .from('transactions')
+          .select('id, paid_amount, amount, type')
+          .is('deleted_at', null)
+          .eq('is_paid', true)
+          .not('date', 'is', null)
+          .gte('date', startDate)
+          .lte('date', endDate)
+      );
     },
     enabled: !!startDate && !!endDate,
   });
@@ -101,15 +123,15 @@ export function useDREData(startDate: string, endDate: string) {
   const { data: previstoTxnsRaw = [] } = useQuery({
     queryKey: ['dre-previsto', startDate, endDate],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('category_id, amount, type, is_paid, date')
-        .is('deleted_at', null)
-        .not('expected_date', 'is', null)
-        .gte('expected_date', startDate)
-        .lte('expected_date', endDate);
-      if (error) throw error;
-      return data || [];
+      return await fetchAllPaged<{ category_id: string | null; amount: number; type: string; is_paid: boolean; date: string | null }>(() =>
+        supabase
+          .from('transactions')
+          .select('id, category_id, amount, type, is_paid, date')
+          .is('deleted_at', null)
+          .not('expected_date', 'is', null)
+          .gte('expected_date', startDate)
+          .lte('expected_date', endDate)
+      );
     },
     enabled: !!startDate && !!endDate,
   });
@@ -123,19 +145,20 @@ export function useDREData(startDate: string, endDate: string) {
   const { data: realizadoTxns = [] } = useQuery({
     queryKey: ['dre-realizado', startDate, endDate],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('category_id, paid_amount, amount, type')
-        .is('deleted_at', null)
-        .eq('is_paid', true)
-        .not('date', 'is', null)
-        .gte('date', startDate)
-        .lte('date', endDate);
-      if (error) throw error;
-      return data || [];
+      return await fetchAllPaged<{ category_id: string | null; paid_amount: number | null; amount: number; type: string }>(() =>
+        supabase
+          .from('transactions')
+          .select('id, category_id, paid_amount, amount, type')
+          .is('deleted_at', null)
+          .eq('is_paid', true)
+          .not('date', 'is', null)
+          .gte('date', startDate)
+          .lte('date', endDate)
+      );
     },
     enabled: !!startDate && !!endDate,
   });
+
 
   // Helper: find macro category by name (case-insensitive)
   // Only categories visible in DRE

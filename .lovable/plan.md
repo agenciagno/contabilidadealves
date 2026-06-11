@@ -1,46 +1,43 @@
-## Objetivo
-Reorganizar `src/components/contacts/ContactDetailsTab.tsx` de 4 cards para 7 cards, exibindo todos os campos novos da interface `Contact`. Nenhum outro arquivo será alterado.
+## Diagnóstico
 
-## Estrutura final
+A divergência **não é um erro de cálculo**, é **truncamento silencioso de dados** na consulta ao banco.
 
-| # | Card | Ícone | Campos |
-|---|---|---|---|
-| 1 | Dados Empresariais | `Building2` | razao_social, nome_fantasia, document, cnae_principal, natureza_juridica, situacao_cadastral, data_abertura_receita, tipo_estabelecimento, status_cliente (badge), tipo_cliente, grupo_escritorio, data_inicio_contrato, categorias (badges) |
-| 2 | Contato | `Mail` | name, email, segundo_email_contato, phone, whatsapp, representative_legal |
-| 3 | Endereço | `MapPin` | cep, address, address_number, complemento, neighborhood, city, state |
-| 4 | Dados Fiscais | `FileText` | tax_regime, ie, im, regime_apuracao, numero_alvara, validade_alvara, registro_entradas, registro_saidas, registro_icms, inventario |
-| 5 | Datas por Esfera | `Calendar` | tabela 4 linhas × 3 colunas (Esfera / Abertura / Encerramento) — Junta, RF, Prefeitura, Estado |
-| 6 | Departamento Pessoal | `Users` | possui_funcionarios, numero_funcionarios (condicional), tipo_cartao_ponto, medicina_trabalho, grupo_cipa |
-| 7 | Observações | `FileText` | notes |
+O Supabase/PostgREST tem um teto padrão de **1000 linhas por request**. As três queries em `src/hooks/useDREData.ts` (`dre-previsto`, `dre-realizado`, `dre-fluxo-caixa`) usam `.select(...).gte().lte()` direto, sem paginação.
 
-Layout: mantém `grid md:grid-cols-2 gap-6`. Card 5 (tabela) e Card 7 (observações) podem usar `md:col-span-2` para melhor leitura.
+Conferi no banco para o período 01/01/2026 → 30/06/2026:
 
-## Helpers locais (dentro do componente)
+- Transações com `expected_date` no período (base do **Previsto**): **2.099 linhas** → vêm só **1.000**, faltam ~1.099.
+- Transações pagas com `date` no período (base do **Realizado** e **Fluxo de Caixa**): **1.827 linhas** → vêm só **1.000**, faltam ~827.
 
-```ts
-const fmt = (v: any) => (v === null || v === undefined || v === '') ? '—' : v;
-const fmtDate = (d: string | null) => d ? new Date(d + 'T00:00:00').toLocaleDateString('pt-BR') : '—';
-const fmtBool = (b: boolean | null | undefined) => b ? 'Sim' : 'Não';
-const fmtCnae = (c: any) => !c ? '—' : typeof c === 'string' ? c : `${c.codigo ?? ''} ${c.descricao ?? ''}`.trim() || '—';
-```
+Quando você filtra mês a mês, cada mês tem menos de 1000 linhas, então a soma vem completa. Quando filtra 6 meses, o backend devolve apenas as 1000 primeiras e o restante é descartado — por isso o semestre fica **menor** que a soma dos meses individuais. Isso afeta **todas as linhas da DRE** (Receitas, Custo com Pessoal, Despesas, Receita Líquida, Lucro Bruto, Fluxo de Caixa, etc.), não só Receitas Operacionais.
 
-Badge de `status_cliente`:
-- Ativo → `bg-green-500/15 text-green-600`
-- Inativo → `bg-red-500/15 text-red-600`
-- Prospect → `bg-yellow-500/15 text-yellow-600`
-- Em Processo de Abertura → `bg-blue-500/15 text-blue-600`
+Esse padrão já está documentado na memória do projeto (`Query Pagination Pattern` — iterar com `.range()` para ultrapassar o limite de 1000). A DRE foi escrita antes dessa regra e ficou de fora.
 
-`categorias`: render via `Badge` shadcn em linha.
+## Correção
 
-## Botões de edição
-`ContactEditSheet` só aceita as 4 sections atuais (`contato`, `endereco`, `fiscal`, `observacoes`) e o usuário pediu para não alterar outros arquivos. Solução:
-- Cards 2, 3, 4, 7 mantêm o ícone `Pencil` mapeado para as sections existentes.
-- Cards 1, 5, 6 (sem section equivalente) ficam **sem botão de edição** nesta entrega — read-only. Quando o sheet ganhar novas seções, plugamos os botões.
+Em `src/hooks/useDREData.ts`, substituir as três `useQuery` por buscas paginadas via `.range(from, to)` em loop até esgotar (mesmo padrão usado nos hooks de transações/relatórios).
 
-## Manter sem alterar
-- `responsibleName` lookup (movido para o Card 1 ou 4? → fica no Card 4 "Dados Fiscais" como já está).
-- `<ContactBillingCard />` continua sendo renderizado, posicionado após o Card 4 ou 6 (mantém grid de 2 colunas).
-- Não tocar em `ContactEditSheet`, `useContacts`, ou tipos.
+Passos:
 
-## Arquivo alterado
-`src/components/contacts/ContactDetailsTab.tsx` (reescrita completa do JSX e adição dos helpers).
+1. Criar um helper local `fetchAllPaged<T>(buildQuery)` que:
+   - Executa `buildQuery().range(from, from + 999)` em loop.
+   - Concatena resultados.
+   - Para quando o último lote vier com menos de 1000 linhas.
+   - Adiciona `.order('id', { ascending: true })` para paginação estável (alinhado com a memória `Stable Pagination`).
+2. Reescrever as três queries (`dre-fluxo-caixa`, `dre-previsto`, `dre-realizado`) para usar esse helper.
+3. Manter exatamente os mesmos `select`, filtros (`deleted_at is null`, `is_paid`, `date`/`expected_date`), e a regra extra de Previsto (`!is_paid || date no período`) intacta.
+4. Não mexer em nada de cálculo, estrutura, UI, `DRECard`, página `DRE.tsx`, RLS, etc.
+
+## Validação após implementação
+
+- Conferir no preview que, com filtro 01/01/2026 → 30/06/2026, `Receitas Operacionais` bate com a soma mês a mês:
+  - Previsto ≈ R$ 348.596,35
+  - Realizado ≈ R$ 516.946,14
+  - RxP ≈ R$ 168.349,79
+- Conferir uma segunda seção (ex.: `Custo com Pessoal` ou `Despesas Fixas`) para garantir que o efeito cascata também sumiu nas linhas calculadas (Receita Líquida, Lucro Bruto, Lucro Líquido, Fluxo de Caixa).
+
+## Arquivos alterados
+
+- `src/hooks/useDREData.ts` (único arquivo).
+
+Nenhuma migração de banco, nenhuma mudança em RLS, regra de negócio, estrutura da DRE ou UI.
