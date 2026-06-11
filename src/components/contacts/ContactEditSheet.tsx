@@ -25,7 +25,7 @@ import { useCompany } from '@/hooks/useCompany';
 import { ContactObligationsSelector } from '@/components/fiscal/ContactObligationsSelector';
 import { toast } from 'sonner';
 
-type Section = 'contato' | 'endereco' | 'fiscal' | 'observacoes' | 'cobranca';
+type Section = 'contato' | 'endereco' | 'fiscal' | 'empresariais' | 'datas-esfera' | 'departamento-pessoal' | 'observacoes' | 'cobranca';
 
 interface ContactEditSheetProps {
   contact: Contact;
