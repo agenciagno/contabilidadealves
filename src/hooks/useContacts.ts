@@ -97,7 +97,7 @@ type ContactOptionalKeys =
   | 'grupo_cipa' | 'registro_entradas' | 'registro_saidas' | 'registro_icms' | 'inventario'
   | 'siare_senha_encrypted';
 
-export type ContactInsert = Omit<Contact, 'id' | 'company_id' | 'created_at' | 'updated_at' | 'origin' | 'whatsapp' | 'responsible_id' | 'canal_entrega' | 'numero_cliente_sicoob' | 'enviar_cobranca_auto'> & { origin?: string; whatsapp?: string | null; responsible_id?: string | null; canal_entrega?: string | null; numero_cliente_sicoob?: number | null; enviar_cobranca_auto?: boolean };
+export type ContactInsert = Omit<Contact, 'id' | 'company_id' | 'created_at' | 'updated_at' | 'origin' | 'whatsapp' | 'responsible_id' | 'canal_entrega' | 'numero_cliente_sicoob' | 'enviar_cobranca_auto' | ContactOptionalKeys> & { origin?: string; whatsapp?: string | null; responsible_id?: string | null; canal_entrega?: string | null; numero_cliente_sicoob?: number | null; enviar_cobranca_auto?: boolean } & Partial<Pick<Contact, ContactOptionalKeys>>;
 export type ContactUpdate = Partial<ContactInsert>;
 
 export function useContacts() {
