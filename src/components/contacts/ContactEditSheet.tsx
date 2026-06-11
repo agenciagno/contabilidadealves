@@ -439,7 +439,19 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
               </div>
               <div className="space-y-1.5">
                 <Label>CPF/CNPJ</Label>
-                <Input value={document} onChange={e => setDocument(e.target.value)} placeholder="000.000.000-00" />
+                <div className="relative">
+                  <Input
+                    value={document}
+                    onChange={e => setDocument(e.target.value)}
+                    onBlur={handleDocumentBlur}
+                    placeholder="000.000.000-00"
+                    disabled={loadingCnpj}
+                    className={loadingCnpj ? 'pr-9' : ''}
+                  />
+                  {loadingCnpj && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label>Representante Legal</Label>
