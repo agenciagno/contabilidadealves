@@ -575,6 +575,32 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
                 <Label>Complemento (endereço)</Label>
                 <Input value={complemento} onChange={e => setComplemento(e.target.value)} placeholder="Complemento" />
               </div>
+              <div className="space-y-2">
+                <Label>Categorias</Label>
+                <div className="grid grid-cols-2 gap-2 rounded-lg border border-border/50 p-3">
+                  {[
+                    { value: 'cliente', label: 'Cliente' },
+                    { value: 'fornecedor', label: 'Fornecedor' },
+                    { value: 'colaborador', label: 'Colaborador' },
+                    { value: 'outros', label: 'Outros' },
+                  ].map(opt => {
+                    const checked = categorias.includes(opt.value);
+                    return (
+                      <label key={opt.value} className="flex items-center gap-2 cursor-pointer text-sm">
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(v) => {
+                            setCategorias(prev =>
+                              v ? Array.from(new Set([...prev, opt.value])) : prev.filter(c => c !== opt.value)
+                            );
+                          }}
+                        />
+                        <span>{opt.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
             </>
           )}
 
