@@ -238,14 +238,20 @@ export function ContactFormDialog({
             <div className="col-span-3">
               <Label htmlFor="document">CPF/CNPJ</Label>
               <div className="flex gap-2">
-                <Input
-                  id="document"
-                  value={document}
-                  onChange={(e) => setDocument(maskCPFCNPJ(e.target.value))}
-                  placeholder="00.000.000/0000-00"
-                  maxLength={18}
-                  className="flex-1"
-                />
+                <div className="relative flex-1">
+                  <Input
+                    id="document"
+                    value={document}
+                    onChange={(e) => setDocument(maskCPFCNPJ(e.target.value))}
+                    onBlur={handleDocumentBlur}
+                    placeholder="00.000.000/0000-00"
+                    maxLength={18}
+                    className={isFetchingCnpj ? 'pr-9' : ''}
+                  />
+                  {isFetchingCnpj && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                </div>
                 <Button
                   type="button"
                   variant="outline"
