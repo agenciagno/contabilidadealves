@@ -35,6 +35,7 @@ export default function Contacts() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterFinancialStatus, setFilterFinancialStatus] = useState('all');
+  const [filterCategoria, setFilterCategoria] = useState('all');
   const [viewMode, setViewMode] = useState<ViewMode>('card');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
