@@ -53,6 +53,8 @@ export function ContactFormDialog({
   const [isFetchingCnpj, setIsFetchingCnpj] = useState(false);
   const [isLoadingCep, setIsLoadingCep] = useState(false);
   const [addressFieldsLocked, setAddressFieldsLocked] = useState(false);
+  const [complemento, setComplemento] = useState('');
+  const [cnpjExtras, setCnpjExtras] = useState<Record<string, any>>({});
   const { toast } = useToast();
 
   useEffect(() => {
