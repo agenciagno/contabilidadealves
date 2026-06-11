@@ -215,12 +215,14 @@ export function ContactFormDialog({
       cep: cep.trim() || null,
       address: address.trim() || null,
       address_number: addressNumber.trim() || null,
+      complemento: complemento.trim() || null,
       neighborhood: neighborhood.trim() || null,
       city: city.trim() || null,
       state: state || null,
       notes: notes.trim() || null,
       is_active: true,
       representative_legal: null,
+      ...cnpjExtras,
     } as any);
   };
 
