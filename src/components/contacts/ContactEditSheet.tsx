@@ -492,6 +492,212 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
             </>
           )}
 
+          {section === 'empresariais' && (
+            <>
+              <div className="space-y-1.5">
+                <Label>Razão Social</Label>
+                <Input value={razaoSocial} onChange={e => setRazaoSocial(e.target.value)} placeholder="Razão social" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Nome Fantasia</Label>
+                <Input value={nomeFantasia} onChange={e => setNomeFantasia(e.target.value)} placeholder="Nome fantasia" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Natureza Jurídica</Label>
+                <Input value={naturezaJuridica} onChange={e => setNaturezaJuridica(e.target.value)} placeholder="Natureza jurídica" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Situação Cadastral</Label>
+                <Select value={situacaoCadastral} onValueChange={setSituacaoCadastral}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Não informada</SelectItem>
+                    <SelectItem value="Ativa">Ativa</SelectItem>
+                    <SelectItem value="Baixada">Baixada</SelectItem>
+                    <SelectItem value="Inapta">Inapta</SelectItem>
+                    <SelectItem value="Suspensa">Suspensa</SelectItem>
+                    <SelectItem value="Nula">Nula</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Tipo Estabelecimento</Label>
+                <Select value={tipoEstabelecimento} onValueChange={setTipoEstabelecimento}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Não informado</SelectItem>
+                    <SelectItem value="Matriz">Matriz</SelectItem>
+                    <SelectItem value="Filial">Filial</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Status do Cliente</Label>
+                <Select value={statusCliente} onValueChange={setStatusCliente}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Não informado</SelectItem>
+                    <SelectItem value="Ativo">Ativo</SelectItem>
+                    <SelectItem value="Inativo">Inativo</SelectItem>
+                    <SelectItem value="Prospect">Prospect</SelectItem>
+                    <SelectItem value="Em Processo de Abertura">Em Processo de Abertura</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Tipo de Cliente</Label>
+                <Select value={tipoCliente} onValueChange={setTipoCliente}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Não informado</SelectItem>
+                    <SelectItem value="Empresa existente">Empresa existente</SelectItem>
+                    <SelectItem value="Em processo de abertura">Em processo de abertura</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Grupo do Escritório</Label>
+                <Input value={grupoEscritorio} onChange={e => setGrupoEscritorio(e.target.value)} placeholder="Grupo" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Data Início Contrato</Label>
+                <Input type="date" value={dataInicioContrato} onChange={e => setDataInicioContrato(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Segundo E-mail de Contato</Label>
+                <Input type="email" value={segundoEmailContato} onChange={e => setSegundoEmailContato(e.target.value)} placeholder="email@exemplo.com" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Complemento (endereço)</Label>
+                <Input value={complemento} onChange={e => setComplemento(e.target.value)} placeholder="Complemento" />
+              </div>
+            </>
+          )}
+
+          {section === 'datas-esfera' && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Abertura Junta</Label>
+                <Input type="date" value={dataAberturaJunta} onChange={e => setDataAberturaJunta(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Encerramento Junta</Label>
+                <Input type="date" value={dataEncerramentoJunta} onChange={e => setDataEncerramentoJunta(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Abertura RF</Label>
+                <Input type="date" value={dataAberturaRf} onChange={e => setDataAberturaRf(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Encerramento RF</Label>
+                <Input type="date" value={dataEncerramentoRf} onChange={e => setDataEncerramentoRf(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Abertura Prefeitura</Label>
+                <Input type="date" value={dataAberturaPrefeitura} onChange={e => setDataAberturaPrefeitura(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Encerramento Prefeitura</Label>
+                <Input type="date" value={dataEncerramentoPrefeitura} onChange={e => setDataEncerramentoPrefeitura(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Abertura Estado</Label>
+                <Input type="date" value={dataAberturaEstado} onChange={e => setDataAberturaEstado(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Encerramento Estado</Label>
+                <Input type="date" value={dataEncerramentoEstado} onChange={e => setDataEncerramentoEstado(e.target.value)} />
+              </div>
+            </div>
+          )}
+
+          {section === 'departamento-pessoal' && (
+            <>
+              <div className="flex items-center justify-between rounded-lg border border-border/50 p-4">
+                <Label>Possui Funcionários</Label>
+                <Switch checked={possuiFuncionarios} onCheckedChange={setPossuiFuncionarios} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Nº Funcionários</Label>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min="0"
+                  value={numeroFuncionarios}
+                  onChange={e => setNumeroFuncionarios(e.target.value)}
+                  disabled={!possuiFuncionarios}
+                  placeholder="0"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Tipo Cartão Ponto</Label>
+                <Select value={tipoCartaoPonto} onValueChange={setTipoCartaoPonto}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Não informado</SelectItem>
+                    <SelectItem value="Central">Central</SelectItem>
+                    <SelectItem value="Convencional">Convencional</SelectItem>
+                    <SelectItem value="Eletrônico">Eletrônico</SelectItem>
+                    <SelectItem value="Espelho">Espelho</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center justify-between rounded-lg border border-border/50 p-4">
+                <Label>Medicina do Trabalho</Label>
+                <Switch checked={medicinaTrabalho} onCheckedChange={setMedicinaTrabalho} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Grupo CIPA</Label>
+                <Input value={grupoCipa} onChange={e => setGrupoCipa(e.target.value)} placeholder="Grupo CIPA" />
+              </div>
+              <div className="flex items-center justify-between rounded-lg border border-border/50 p-4">
+                <Label>Registro de Entradas</Label>
+                <Switch checked={registroEntradas} onCheckedChange={setRegistroEntradas} />
+              </div>
+              <div className="flex items-center justify-between rounded-lg border border-border/50 p-4">
+                <Label>Registro de Saídas</Label>
+                <Switch checked={registroSaidas} onCheckedChange={setRegistroSaidas} />
+              </div>
+              <div className="flex items-center justify-between rounded-lg border border-border/50 p-4">
+                <Label>Registro ICMS</Label>
+                <Switch checked={registroIcms} onCheckedChange={setRegistroIcms} />
+              </div>
+              <div className="flex items-center justify-between rounded-lg border border-border/50 p-4">
+                <Label>Inventário</Label>
+                <Switch checked={inventario} onCheckedChange={setInventario} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Inscrição Estadual (IE)</Label>
+                <Input value={ie} onChange={e => setIe(e.target.value)} placeholder="IE" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Inscrição Municipal (IM)</Label>
+                <Input value={im} onChange={e => setIm(e.target.value)} placeholder="IM" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Regime de Apuração</Label>
+                <Select value={regimeApuracao} onValueChange={setRegimeApuracao}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Não informado</SelectItem>
+                    <SelectItem value="Mensal">Mensal</SelectItem>
+                    <SelectItem value="Trimestral">Trimestral</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Nº Alvará</Label>
+                <Input value={numeroAlvara} onChange={e => setNumeroAlvara(e.target.value)} placeholder="Número do alvará" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Validade Alvará</Label>
+                <Input type="date" value={validadeAlvara} onChange={e => setValidadeAlvara(e.target.value)} />
+              </div>
+            </>
+          )}
+
+
+
           {section === 'observacoes' && (
             <div className="space-y-1.5">
               <Label>Observações</Label>
