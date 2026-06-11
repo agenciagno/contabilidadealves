@@ -396,6 +396,18 @@ export default function Contacts() {
                   <SelectItem value="inadimplente">Inadimplentes</SelectItem>
                 </SelectContent>
               </Select>
+              <Select value={filterCategoria} onValueChange={setFilterCategoria}>
+                <SelectTrigger className="w-[160px] h-9 bg-background/50 border-border/50">
+                  <SelectValue placeholder="Categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas categorias</SelectItem>
+                  <SelectItem value="cliente">Clientes</SelectItem>
+                  <SelectItem value="fornecedor">Fornecedores</SelectItem>
+                  <SelectItem value="colaborador">Colaboradores</SelectItem>
+                  <SelectItem value="outros">Outros</SelectItem>
+                </SelectContent>
+              </Select>
               {hasActiveFilters && (
                 <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 gap-1.5 text-muted-foreground">
                   <X className="h-3.5 w-3.5" />
