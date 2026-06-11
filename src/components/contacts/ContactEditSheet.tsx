@@ -25,7 +25,7 @@ import { useCompany } from '@/hooks/useCompany';
 import { ContactObligationsSelector } from '@/components/fiscal/ContactObligationsSelector';
 import { toast } from 'sonner';
 
-type Section = 'contato' | 'endereco' | 'fiscal' | 'observacoes' | 'cobranca';
+type Section = 'contato' | 'endereco' | 'fiscal' | 'empresariais' | 'datas-esfera' | 'departamento-pessoal' | 'observacoes' | 'cobranca';
 
 interface ContactEditSheetProps {
   contact: Contact;
@@ -38,6 +38,9 @@ const sectionTitles: Record<Section, string> = {
   contato: 'Editar Informações de Contato',
   endereco: 'Editar Endereço',
   fiscal: 'Editar Dados Fiscais',
+  empresariais: 'Editar Dados Empresariais',
+  'datas-esfera': 'Editar Datas por Esfera',
+  'departamento-pessoal': 'Editar Departamento Pessoal',
   observacoes: 'Editar Observações',
   cobranca: 'Editar Configurações de Cobrança',
 };
@@ -88,6 +91,47 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
   const [numeroSicoob, setNumeroSicoob] = useState<string>(
     contact.numero_cliente_sicoob != null ? String(contact.numero_cliente_sicoob) : ''
   );
+
+  // Dados Empresariais
+  const [razaoSocial, setRazaoSocial] = useState(contact.razao_social || '');
+  const [nomeFantasia, setNomeFantasia] = useState(contact.nome_fantasia || '');
+  const [naturezaJuridica, setNaturezaJuridica] = useState(contact.natureza_juridica || '');
+  const [situacaoCadastral, setSituacaoCadastral] = useState(contact.situacao_cadastral || 'none');
+  const [tipoEstabelecimento, setTipoEstabelecimento] = useState(contact.tipo_estabelecimento || 'none');
+  const [statusCliente, setStatusCliente] = useState(contact.status_cliente || 'none');
+  const [tipoCliente, setTipoCliente] = useState(contact.tipo_cliente || 'none');
+  const [grupoEscritorio, setGrupoEscritorio] = useState(contact.grupo_escritorio || '');
+  const [dataInicioContrato, setDataInicioContrato] = useState((contact.data_inicio_contrato || '').slice(0, 10));
+  const [segundoEmailContato, setSegundoEmailContato] = useState(contact.segundo_email_contato || '');
+  const [complemento, setComplemento] = useState(contact.complemento || '');
+
+  // Datas por Esfera
+  const [dataAberturaJunta, setDataAberturaJunta] = useState((contact.data_abertura_junta || '').slice(0, 10));
+  const [dataEncerramentoJunta, setDataEncerramentoJunta] = useState((contact.data_encerramento_junta || '').slice(0, 10));
+  const [dataAberturaRf, setDataAberturaRf] = useState((contact.data_abertura_rf || '').slice(0, 10));
+  const [dataEncerramentoRf, setDataEncerramentoRf] = useState((contact.data_encerramento_rf || '').slice(0, 10));
+  const [dataAberturaPrefeitura, setDataAberturaPrefeitura] = useState((contact.data_abertura_prefeitura || '').slice(0, 10));
+  const [dataEncerramentoPrefeitura, setDataEncerramentoPrefeitura] = useState((contact.data_encerramento_prefeitura || '').slice(0, 10));
+  const [dataAberturaEstado, setDataAberturaEstado] = useState((contact.data_abertura_estado || '').slice(0, 10));
+  const [dataEncerramentoEstado, setDataEncerramentoEstado] = useState((contact.data_encerramento_estado || '').slice(0, 10));
+
+  // Departamento Pessoal
+  const [possuiFuncionarios, setPossuiFuncionarios] = useState(!!contact.possui_funcionarios);
+  const [numeroFuncionarios, setNumeroFuncionarios] = useState<string>(
+    contact.numero_funcionarios != null ? String(contact.numero_funcionarios) : ''
+  );
+  const [tipoCartaoPonto, setTipoCartaoPonto] = useState(contact.tipo_cartao_ponto || 'none');
+  const [medicinaTrabalho, setMedicinaTrabalho] = useState(!!contact.medicina_trabalho);
+  const [grupoCipa, setGrupoCipa] = useState(contact.grupo_cipa || '');
+  const [registroEntradas, setRegistroEntradas] = useState(!!contact.registro_entradas);
+  const [registroSaidas, setRegistroSaidas] = useState(!!contact.registro_saidas);
+  const [registroIcms, setRegistroIcms] = useState(!!contact.registro_icms);
+  const [inventario, setInventario] = useState(!!contact.inventario);
+  const [ie, setIe] = useState(contact.ie || '');
+  const [im, setIm] = useState(contact.im || '');
+  const [regimeApuracao, setRegimeApuracao] = useState(contact.regime_apuracao || 'none');
+  const [numeroAlvara, setNumeroAlvara] = useState(contact.numero_alvara || '');
+  const [validadeAlvara, setValidadeAlvara] = useState((contact.validade_alvara || '').slice(0, 10));
 
   const { data: profiles } = useQuery({
     queryKey: ['profiles-active-for-contact-edit'],
@@ -150,6 +194,39 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
     setBoletoDueDay(contact.boleto_due_day != null ? String(contact.boleto_due_day) : 'none');
     setCanalEntrega(contact.canal_entrega || 'none');
     setNumeroSicoob(contact.numero_cliente_sicoob != null ? String(contact.numero_cliente_sicoob) : '');
+    setRazaoSocial(contact.razao_social || '');
+    setNomeFantasia(contact.nome_fantasia || '');
+    setNaturezaJuridica(contact.natureza_juridica || '');
+    setSituacaoCadastral(contact.situacao_cadastral || 'none');
+    setTipoEstabelecimento(contact.tipo_estabelecimento || 'none');
+    setStatusCliente(contact.status_cliente || 'none');
+    setTipoCliente(contact.tipo_cliente || 'none');
+    setGrupoEscritorio(contact.grupo_escritorio || '');
+    setDataInicioContrato((contact.data_inicio_contrato || '').slice(0, 10));
+    setSegundoEmailContato(contact.segundo_email_contato || '');
+    setComplemento(contact.complemento || '');
+    setDataAberturaJunta((contact.data_abertura_junta || '').slice(0, 10));
+    setDataEncerramentoJunta((contact.data_encerramento_junta || '').slice(0, 10));
+    setDataAberturaRf((contact.data_abertura_rf || '').slice(0, 10));
+    setDataEncerramentoRf((contact.data_encerramento_rf || '').slice(0, 10));
+    setDataAberturaPrefeitura((contact.data_abertura_prefeitura || '').slice(0, 10));
+    setDataEncerramentoPrefeitura((contact.data_encerramento_prefeitura || '').slice(0, 10));
+    setDataAberturaEstado((contact.data_abertura_estado || '').slice(0, 10));
+    setDataEncerramentoEstado((contact.data_encerramento_estado || '').slice(0, 10));
+    setPossuiFuncionarios(!!contact.possui_funcionarios);
+    setNumeroFuncionarios(contact.numero_funcionarios != null ? String(contact.numero_funcionarios) : '');
+    setTipoCartaoPonto(contact.tipo_cartao_ponto || 'none');
+    setMedicinaTrabalho(!!contact.medicina_trabalho);
+    setGrupoCipa(contact.grupo_cipa || '');
+    setRegistroEntradas(!!contact.registro_entradas);
+    setRegistroSaidas(!!contact.registro_saidas);
+    setRegistroIcms(!!contact.registro_icms);
+    setInventario(!!contact.inventario);
+    setIe(contact.ie || '');
+    setIm(contact.im || '');
+    setRegimeApuracao(contact.regime_apuracao || 'none');
+    setNumeroAlvara(contact.numero_alvara || '');
+    setValidadeAlvara((contact.validade_alvara || '').slice(0, 10));
     setObligationsInitialized(false);
   }, [contact, section]);
 
@@ -228,6 +305,49 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
         boleto_due_day: boletoDueDay === 'none' ? null : parseInt(boletoDueDay, 10),
         canal_entrega: canalEntrega === 'none' ? null : (canalEntrega as 'whatsapp' | 'email' | 'impresso' | 'whatsapp_email'),
         numero_cliente_sicoob: parsedSicoob !== null && !isNaN(parsedSicoob) ? parsedSicoob : null,
+      };
+    } else if (section === 'empresariais') {
+      updates = {
+        razao_social: razaoSocial || null,
+        nome_fantasia: nomeFantasia || null,
+        natureza_juridica: naturezaJuridica || null,
+        situacao_cadastral: situacaoCadastral === 'none' ? null : situacaoCadastral,
+        tipo_estabelecimento: tipoEstabelecimento === 'none' ? null : tipoEstabelecimento,
+        status_cliente: statusCliente === 'none' ? null : statusCliente,
+        tipo_cliente: tipoCliente === 'none' ? null : tipoCliente,
+        grupo_escritorio: grupoEscritorio || null,
+        data_inicio_contrato: dataInicioContrato || null,
+        segundo_email_contato: segundoEmailContato || null,
+        complemento: complemento || null,
+      };
+    } else if (section === 'datas-esfera') {
+      updates = {
+        data_abertura_junta: dataAberturaJunta || null,
+        data_encerramento_junta: dataEncerramentoJunta || null,
+        data_abertura_rf: dataAberturaRf || null,
+        data_encerramento_rf: dataEncerramentoRf || null,
+        data_abertura_prefeitura: dataAberturaPrefeitura || null,
+        data_encerramento_prefeitura: dataEncerramentoPrefeitura || null,
+        data_abertura_estado: dataAberturaEstado || null,
+        data_encerramento_estado: dataEncerramentoEstado || null,
+      };
+    } else if (section === 'departamento-pessoal') {
+      const parsedNumFunc = numeroFuncionarios.trim() === '' ? null : parseInt(numeroFuncionarios, 10);
+      updates = {
+        possui_funcionarios: possuiFuncionarios,
+        numero_funcionarios: possuiFuncionarios && parsedNumFunc !== null && !isNaN(parsedNumFunc) ? parsedNumFunc : null,
+        tipo_cartao_ponto: tipoCartaoPonto === 'none' ? null : tipoCartaoPonto,
+        medicina_trabalho: medicinaTrabalho,
+        grupo_cipa: grupoCipa || null,
+        registro_entradas: registroEntradas,
+        registro_saidas: registroSaidas,
+        registro_icms: registroIcms,
+        inventario: inventario,
+        ie: ie || null,
+        im: im || null,
+        regime_apuracao: regimeApuracao === 'none' ? null : regimeApuracao,
+        numero_alvara: numeroAlvara || null,
+        validade_alvara: validadeAlvara || null,
       };
     }
 
@@ -371,6 +491,212 @@ export function ContactEditSheet({ contact, section, open, onOpenChange }: Conta
               </div>
             </>
           )}
+
+          {section === 'empresariais' && (
+            <>
+              <div className="space-y-1.5">
+                <Label>Razão Social</Label>
+                <Input value={razaoSocial} onChange={e => setRazaoSocial(e.target.value)} placeholder="Razão social" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Nome Fantasia</Label>
+                <Input value={nomeFantasia} onChange={e => setNomeFantasia(e.target.value)} placeholder="Nome fantasia" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Natureza Jurídica</Label>
+                <Input value={naturezaJuridica} onChange={e => setNaturezaJuridica(e.target.value)} placeholder="Natureza jurídica" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Situação Cadastral</Label>
+                <Select value={situacaoCadastral} onValueChange={setSituacaoCadastral}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Não informada</SelectItem>
+                    <SelectItem value="Ativa">Ativa</SelectItem>
+                    <SelectItem value="Baixada">Baixada</SelectItem>
+                    <SelectItem value="Inapta">Inapta</SelectItem>
+                    <SelectItem value="Suspensa">Suspensa</SelectItem>
+                    <SelectItem value="Nula">Nula</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Tipo Estabelecimento</Label>
+                <Select value={tipoEstabelecimento} onValueChange={setTipoEstabelecimento}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Não informado</SelectItem>
+                    <SelectItem value="Matriz">Matriz</SelectItem>
+                    <SelectItem value="Filial">Filial</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Status do Cliente</Label>
+                <Select value={statusCliente} onValueChange={setStatusCliente}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Não informado</SelectItem>
+                    <SelectItem value="Ativo">Ativo</SelectItem>
+                    <SelectItem value="Inativo">Inativo</SelectItem>
+                    <SelectItem value="Prospect">Prospect</SelectItem>
+                    <SelectItem value="Em Processo de Abertura">Em Processo de Abertura</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Tipo de Cliente</Label>
+                <Select value={tipoCliente} onValueChange={setTipoCliente}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Não informado</SelectItem>
+                    <SelectItem value="Empresa existente">Empresa existente</SelectItem>
+                    <SelectItem value="Em processo de abertura">Em processo de abertura</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Grupo do Escritório</Label>
+                <Input value={grupoEscritorio} onChange={e => setGrupoEscritorio(e.target.value)} placeholder="Grupo" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Data Início Contrato</Label>
+                <Input type="date" value={dataInicioContrato} onChange={e => setDataInicioContrato(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Segundo E-mail de Contato</Label>
+                <Input type="email" value={segundoEmailContato} onChange={e => setSegundoEmailContato(e.target.value)} placeholder="email@exemplo.com" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Complemento (endereço)</Label>
+                <Input value={complemento} onChange={e => setComplemento(e.target.value)} placeholder="Complemento" />
+              </div>
+            </>
+          )}
+
+          {section === 'datas-esfera' && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Abertura Junta</Label>
+                <Input type="date" value={dataAberturaJunta} onChange={e => setDataAberturaJunta(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Encerramento Junta</Label>
+                <Input type="date" value={dataEncerramentoJunta} onChange={e => setDataEncerramentoJunta(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Abertura RF</Label>
+                <Input type="date" value={dataAberturaRf} onChange={e => setDataAberturaRf(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Encerramento RF</Label>
+                <Input type="date" value={dataEncerramentoRf} onChange={e => setDataEncerramentoRf(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Abertura Prefeitura</Label>
+                <Input type="date" value={dataAberturaPrefeitura} onChange={e => setDataAberturaPrefeitura(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Encerramento Prefeitura</Label>
+                <Input type="date" value={dataEncerramentoPrefeitura} onChange={e => setDataEncerramentoPrefeitura(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Abertura Estado</Label>
+                <Input type="date" value={dataAberturaEstado} onChange={e => setDataAberturaEstado(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Encerramento Estado</Label>
+                <Input type="date" value={dataEncerramentoEstado} onChange={e => setDataEncerramentoEstado(e.target.value)} />
+              </div>
+            </div>
+          )}
+
+          {section === 'departamento-pessoal' && (
+            <>
+              <div className="flex items-center justify-between rounded-lg border border-border/50 p-4">
+                <Label>Possui Funcionários</Label>
+                <Switch checked={possuiFuncionarios} onCheckedChange={setPossuiFuncionarios} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Nº Funcionários</Label>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min="0"
+                  value={numeroFuncionarios}
+                  onChange={e => setNumeroFuncionarios(e.target.value)}
+                  disabled={!possuiFuncionarios}
+                  placeholder="0"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Tipo Cartão Ponto</Label>
+                <Select value={tipoCartaoPonto} onValueChange={setTipoCartaoPonto}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Não informado</SelectItem>
+                    <SelectItem value="Central">Central</SelectItem>
+                    <SelectItem value="Convencional">Convencional</SelectItem>
+                    <SelectItem value="Eletrônico">Eletrônico</SelectItem>
+                    <SelectItem value="Espelho">Espelho</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center justify-between rounded-lg border border-border/50 p-4">
+                <Label>Medicina do Trabalho</Label>
+                <Switch checked={medicinaTrabalho} onCheckedChange={setMedicinaTrabalho} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Grupo CIPA</Label>
+                <Input value={grupoCipa} onChange={e => setGrupoCipa(e.target.value)} placeholder="Grupo CIPA" />
+              </div>
+              <div className="flex items-center justify-between rounded-lg border border-border/50 p-4">
+                <Label>Registro de Entradas</Label>
+                <Switch checked={registroEntradas} onCheckedChange={setRegistroEntradas} />
+              </div>
+              <div className="flex items-center justify-between rounded-lg border border-border/50 p-4">
+                <Label>Registro de Saídas</Label>
+                <Switch checked={registroSaidas} onCheckedChange={setRegistroSaidas} />
+              </div>
+              <div className="flex items-center justify-between rounded-lg border border-border/50 p-4">
+                <Label>Registro ICMS</Label>
+                <Switch checked={registroIcms} onCheckedChange={setRegistroIcms} />
+              </div>
+              <div className="flex items-center justify-between rounded-lg border border-border/50 p-4">
+                <Label>Inventário</Label>
+                <Switch checked={inventario} onCheckedChange={setInventario} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Inscrição Estadual (IE)</Label>
+                <Input value={ie} onChange={e => setIe(e.target.value)} placeholder="IE" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Inscrição Municipal (IM)</Label>
+                <Input value={im} onChange={e => setIm(e.target.value)} placeholder="IM" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Regime de Apuração</Label>
+                <Select value={regimeApuracao} onValueChange={setRegimeApuracao}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Não informado</SelectItem>
+                    <SelectItem value="Mensal">Mensal</SelectItem>
+                    <SelectItem value="Trimestral">Trimestral</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Nº Alvará</Label>
+                <Input value={numeroAlvara} onChange={e => setNumeroAlvara(e.target.value)} placeholder="Número do alvará" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Validade Alvará</Label>
+                <Input type="date" value={validadeAlvara} onChange={e => setValidadeAlvara(e.target.value)} />
+              </div>
+            </>
+          )}
+
+
 
           {section === 'observacoes' && (
             <div className="space-y-1.5">
