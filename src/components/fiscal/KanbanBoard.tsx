@@ -53,6 +53,8 @@ interface KanbanBoardProps {
   onDelete?: (taskId: string) => void;
   onUploadAttachment?: (task: FiscalTask, file: File) => Promise<void>;
   onGroupClick?: (tasks: FiscalTask[]) => void;
+  profileOptions?: { id: string; name: string }[];
+  onReassign?: (taskId: string, profileId: string) => void;
 }
 
 interface SingleItem {
