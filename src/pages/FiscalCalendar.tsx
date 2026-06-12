@@ -545,6 +545,7 @@ export default function FiscalCalendar() {
                             <Button
                               variant="ghost"
                               size="icon"
+                              disabled={editingDisabled}
                               onClick={() => {
                                 setCustomInitial({
                                   id: cat!.id,
@@ -564,6 +565,7 @@ export default function FiscalCalendar() {
                             <Button
                               variant="ghost"
                               size="icon"
+                              disabled={editingDisabled}
                               onClick={() => setObligationToDelete({ id: cat!.id, name: cat!.name })}
                               title="Excluir obrigação personalizada"
                               className="text-destructive hover:text-destructive"
@@ -575,10 +577,12 @@ export default function FiscalCalendar() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          disabled={editingDisabled}
                           onClick={() => setRowToDelete(r)}
                           title="Excluir entrada do mês"
                           className="text-destructive hover:text-destructive"
                         >
+
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
