@@ -585,6 +585,75 @@ function OperacionalSection({
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader><CardTitle className="text-base">Datas por Esfera</CardTitle></CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-2 pr-3 font-medium text-xs text-muted-foreground">Esfera</th>
+                  <th className="text-left py-2 pr-3 font-medium text-xs text-muted-foreground">Abertura</th>
+                  <th className="text-left py-2 font-medium text-xs text-muted-foreground">Encerramento</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { label: 'Junta Comercial', open: 'data_abertura_junta', close: 'data_encerramento_junta' },
+                  { label: 'Receita Federal', open: 'data_abertura_rf', close: 'data_encerramento_rf' },
+                  { label: 'Prefeitura', open: 'data_abertura_prefeitura', close: 'data_encerramento_prefeitura' },
+                  { label: 'Estado', open: 'data_abertura_estado', close: 'data_encerramento_estado' },
+                ].map(row => (
+                  <tr key={row.label} className="border-b last:border-0">
+                    <td className="py-2 pr-3">{row.label}</td>
+                    <td className="py-2 pr-3">
+                      <Input type="date" value={form[row.open] || ''} onChange={e => set(row.open, e.target.value)} />
+                    </td>
+                    <td className="py-2">
+                      <Input type="date" value={form[row.close] || ''} onChange={e => set(row.close, e.target.value)} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Departamento Pessoal</CardTitle></CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <Label className="text-sm">Possui Funcionários</Label>
+            <Switch checked={!!form.possui_funcionarios} onCheckedChange={v => set('possui_funcionarios', v)} />
+          </div>
+          {form.possui_funcionarios === true && (
+            <Field label="Nº Funcionários">
+              <Input type="number" value={form.numero_funcionarios ?? ''} onChange={e => set('numero_funcionarios', e.target.value === '' ? null : Number(e.target.value))} />
+            </Field>
+          )}
+          <Field label="Tipo Cartão Ponto">
+            <Select value={form.tipo_cartao_ponto || ''} onValueChange={v => set('tipo_cartao_ponto', v)}>
+              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Central">Central</SelectItem>
+                <SelectItem value="Convencional">Convencional</SelectItem>
+                <SelectItem value="Eletrônico">Eletrônico</SelectItem>
+                <SelectItem value="Espelho">Espelho</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <Label className="text-sm">Medicina do Trabalho</Label>
+            <Switch checked={!!form.medicina_trabalho} onCheckedChange={v => set('medicina_trabalho', v)} />
+          </div>
+          <Field label="Grupo CIPA">
+            <Input value={form.grupo_cipa || ''} onChange={e => set('grupo_cipa', e.target.value)} />
+          </Field>
+        </CardContent>
+      </Card>
+
+
       <div className="flex justify-end">
         <Button onClick={onSave} disabled={isPending}>
           {isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
