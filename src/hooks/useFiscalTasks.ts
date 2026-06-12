@@ -42,20 +42,21 @@ export function useFiscalTasks(filters: FiscalTaskFilters = {}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Get profile id for the current user (needed for colaborador filter)
+  // Profile of the current user — needed for colaborador filter AND for notification authoring
   const { data: currentProfile } = useQuery({
-    queryKey: ['current-profile-id', user?.id],
+    queryKey: ['current-profile-fiscal', user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id')
+        .select('id, full_name, email')
         .eq('user_id', user!.id)
         .single();
       if (error) throw error;
       return data;
     },
-    enabled: !!user?.id && isColaborador,
+    enabled: !!user?.id,
   });
+
 
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ['fiscal-tasks', companyId, filters, isColaborador, currentProfile?.id],
