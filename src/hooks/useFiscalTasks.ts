@@ -139,20 +139,73 @@ export function useFiscalTasks(filters: FiscalTaskFilters = {}) {
     onMutate: async ({ id, ...updates }) => {
       await queryClient.cancelQueries({ queryKey: ['fiscal-tasks'] });
       const snapshots = queryClient.getQueriesData<FiscalTask[]>({ queryKey: ['fiscal-tasks'] });
+      let prevTask: FiscalTask | null = null;
       snapshots.forEach(([key, old]) => {
         if (!old) return;
+        if (!prevTask) {
+          const found = old.find((t) => t.id === id);
+          if (found) prevTask = found;
+        }
         queryClient.setQueryData<FiscalTask[]>(key, old.map((t) => (t.id === id ? { ...t, ...updates } as FiscalTask : t)));
       });
-      return { snapshots };
+      return { snapshots, prevTask };
     },
     onError: (_err, _vars, ctx) => {
       ctx?.snapshots?.forEach(([key, old]) => queryClient.setQueryData(key, old));
       toast({ title: 'Erro ao atualizar status', variant: 'destructive' });
     },
+    onSuccess: async (next, _vars, ctx) => {
+      const prev = ctx?.prevTask;
+      if (!next || !companyId) return;
+
+      const actorProfileId = currentProfile?.id ?? null;
+      const actorName =
+        (currentProfile as any)?.full_name ||
+        (currentProfile as any)?.email?.split('@')[0] ||
+        'Usuário';
+
+      // Resolve contact name (one lookup; cheap)
+      let contactName = '—';
+      if ((next as any).contact_id) {
+        const { data: c } = await supabase
+          .from('contacts')
+          .select('name')
+          .eq('id', (next as any).contact_id)
+          .maybeSingle();
+        contactName = (c as any)?.name ?? '—';
+      }
+
+      // Status -> concluido
+      if (prev && prev.status !== 'concluido' && (next as any).status === 'concluido') {
+        notifyTaskCompleted({
+          taskId: (next as any).id,
+          taskTitle: (next as any).title,
+          contactName,
+          completedByProfileId: actorProfileId,
+          completedByName: actorName,
+          companyId,
+        }).catch(() => {});
+      }
+
+      // Responsible changed
+      const prevResp = prev?.responsible_id ?? null;
+      const nextResp = (next as any).responsible_id ?? null;
+      if (nextResp && prevResp !== nextResp) {
+        notifyTaskAssigned({
+          taskId: (next as any).id,
+          taskTitle: (next as any).title,
+          contactName,
+          newResponsibleProfileId: nextResp,
+          companyId,
+          actorUserId: user?.id ?? null,
+        }).catch(() => {});
+      }
+    },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['fiscal-tasks'] });
     },
   });
+
 
   const deleteTask = useMutation({
     mutationFn: async (id: string) => {
