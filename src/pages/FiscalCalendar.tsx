@@ -442,8 +442,10 @@ export default function FiscalCalendar() {
                   checked={allChecked ? true : someChecked ? 'indeterminate' : false}
                   onCheckedChange={toggleAll}
                   aria-label="Selecionar todos"
+                  disabled={editingDisabled}
                 />
               </TableHead>
+
               <TableHead>Obrigação</TableHead>
               <TableHead>Regime</TableHead>
               <TableHead>Vencimento Fiscal</TableHead>
