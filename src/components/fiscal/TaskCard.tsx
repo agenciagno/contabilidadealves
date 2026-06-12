@@ -33,6 +33,7 @@ interface TaskCardProps {
   dragProps?: Record<string, any>;
   onEdit?: (task: FiscalTask) => void;
   onDelete?: (taskId: string) => void;
+  temporaryCoverage?: { end_date: string } | null;
 }
 
 function getDueDateColor(dueDate: string) {
