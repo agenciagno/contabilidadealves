@@ -85,6 +85,7 @@ function DroppableColumn({
   children: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
+  const isWaiting = id === 'aguardando_cliente';
 
   return (
     <div className="flex-1 min-w-[260px] flex-shrink-0 flex flex-col">
