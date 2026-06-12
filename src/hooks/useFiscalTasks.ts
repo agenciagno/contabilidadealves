@@ -5,6 +5,8 @@ import { useCompany } from '@/hooks/useCompany';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useToast } from '@/hooks/use-toast';
 import { fetchValidFiscalContactIds } from '@/lib/fiscal-filters';
+import { notifyTaskCompleted, notifyTaskAssigned } from '@/lib/fiscal-notifications';
+
 
 export interface FiscalTask {
   id: string;
