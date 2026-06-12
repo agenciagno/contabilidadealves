@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import {
   Sheet,
   SheetContent,
@@ -13,12 +14,45 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Upload, Paperclip, CheckCircle, Trash2 } from 'lucide-react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Upload, Paperclip, CheckCircle, Trash2, Send } from 'lucide-react';
 import { FiscalTask } from '@/hooks/useFiscalTasks';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useCompany } from '@/hooks/useCompany';
+import { useAuth } from '@/contexts/AuthContext';
+import { useQuery } from '@tanstack/react-query';
+
+interface TeamNote {
+  profile_id: string | null;
+  profile_name: string;
+  text: string;
+  created_at: string;
+  legacy?: boolean;
+}
+
+function parseNotes(raw: string | null, legacyDate: string): TeamNote[] {
+  if (!raw) return [];
+  const trimmed = raw.trim();
+  if (!trimmed) return [];
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((n) => n && typeof n.text === 'string').map((n: any) => ({
+        profile_id: n.profile_id ?? null,
+        profile_name: n.profile_name || '—',
+        text: String(n.text),
+        created_at: n.created_at || legacyDate,
+      }));
+    }
+  } catch { /* fallthrough to legacy */ }
+  return [{ profile_id: null, profile_name: 'Histórico', text: trimmed, created_at: legacyDate, legacy: true }];
+}
+
+function initialsOf(name: string) {
+  return name.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]).join('').toUpperCase() || '?';
+}
 
 interface TaskDetailModalProps {
   open: boolean;
@@ -49,6 +83,7 @@ const statusBadgeClass: Record<string, string> = {
 export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, onUpdate, onDelete, groupTasks, onUploadForTask }: TaskDetailModalProps) {
   const { isColaborador, isSuperAdmin, isAdmin } = useUserRole();
   const { company } = useCompany();
+  const { user } = useAuth();
   const companyId = company?.id;
   const { toast } = useToast();
   const canEdit = isSuperAdmin || isAdmin;
@@ -58,7 +93,8 @@ export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, 
   const [status, setStatus] = useState('a_fazer');
   const [dueDate, setDueDate] = useState('');
   const [responsibleId, setResponsibleId] = useState('');
-  const [notes, setNotes] = useState('');
+  const [notesRaw, setNotesRaw] = useState<string | null>(null);
+  const [newNote, setNewNote] = useState('');
   const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -69,10 +105,32 @@ export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, 
       setStatus(task.status);
       setDueDate(task.due_date);
       setResponsibleId(task.responsible_id || '');
-      setNotes(task.notes || '');
+      setNotesRaw(task.notes ?? null);
+      setNewNote('');
       setAttachmentUrl(task.attachment_url);
     }
   }, [task]);
+
+  // Current user's profile (for authoring notes)
+  const { data: currentProfile } = useQuery({
+    queryKey: ['current-profile-notes', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .eq('user_id', user!.id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  const teamNotes = useMemo<TeamNote[]>(() => {
+    if (!task) return [];
+    const list = parseNotes(notesRaw, task.created_at);
+    return [...list].sort((a, b) => b.created_at.localeCompare(a.created_at));
+  }, [notesRaw, task]);
 
   if (!task) return null;
 
@@ -120,9 +178,24 @@ export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, 
     toast({ title: '✅ Tarefa atualizada.' });
   };
 
-  const handleSaveNotes = () => {
-    onUpdate(task.id, { notes });
-    toast({ title: '✅ Observação salva.' });
+  const handleAddNote = () => {
+    const text = newNote.trim();
+    if (!text) return;
+    const authorName = currentProfile?.full_name || currentProfile?.email?.split('@')[0] || 'Usuário';
+    const entry: TeamNote = {
+      profile_id: currentProfile?.id ?? null,
+      profile_name: authorName,
+      text,
+      created_at: new Date().toISOString(),
+    };
+    const next = [...teamNotes.filter((n) => !n.legacy || true), entry];
+    // Persist as JSON array (legacy item is included so it survives)
+    const serializable = next.map(({ legacy, ...rest }) => rest);
+    const json = JSON.stringify(serializable);
+    setNotesRaw(json);
+    setNewNote('');
+    onUpdate(task.id, { notes: json });
+    toast({ title: '✅ Nota adicionada.' });
   };
 
   const handleMarkComplete = () => {
@@ -130,9 +203,10 @@ export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, 
       toast({ title: 'Anexe um arquivo antes de concluir', variant: 'destructive' });
       return;
     }
-    onUpdate(task.id, { status: 'concluido', notes });
+    onUpdate(task.id, { status: 'concluido' });
     onOpenChange(false);
   };
+
 
   const contactName = contacts.find(c => c.id === task.contact_id)?.name || '—';
   const responsibleName = profiles.find(p => p.id === responsibleId)?.full_name || '—';
@@ -299,18 +373,50 @@ export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, 
 
           <Separator />
 
-          {/* Observações */}
+          {/* Notas da Equipe */}
           <section className="space-y-3">
-            <h3 className="text-sm font-semibold text-foreground">Observações</h3>
-            <Textarea
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              rows={4}
-              placeholder="Adicionar observação..."
-            />
-            <Button size="sm" variant="outline" onClick={handleSaveNotes}>
-              Salvar observação
-            </Button>
+            <h3 className="text-sm font-semibold text-foreground">Notas da Equipe</h3>
+
+            <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+              {teamNotes.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic">Nenhuma nota ainda.</p>
+              ) : (
+                teamNotes.map((n, idx) => (
+                  <div key={idx} className="flex gap-2 rounded-md border border-border/50 bg-muted/20 p-2.5">
+                    <Avatar className="w-7 h-7 shrink-0">
+                      <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                        {initialsOf(n.profile_name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-semibold text-foreground">{n.profile_name}</span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {format(parseISO(n.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        </span>
+                        {n.legacy && (
+                          <Badge variant="outline" className="text-[9px] px-1.5 py-0">legado</Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-foreground whitespace-pre-wrap mt-0.5">{n.text}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="flex gap-2 items-end">
+              <Textarea
+                value={newNote}
+                onChange={(e) => setNewNote(e.target.value)}
+                rows={2}
+                placeholder="Escreva uma nota para a equipe..."
+                className="flex-1"
+              />
+              <Button size="sm" onClick={handleAddNote} disabled={!newNote.trim()} className="gap-1.5">
+                <Send className="w-3.5 h-3.5" /> Adicionar
+              </Button>
+            </div>
           </section>
 
           <Separator />

@@ -2,10 +2,13 @@ import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { format, isValid, parse } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Plus, Kanban, List, CalendarDays, CalendarIcon, X, ArrowRightLeft, Trash2 } from 'lucide-react';
+import { Plus, Kanban, List, CalendarDays, CalendarIcon, X, ArrowRightLeft, Trash2, Bookmark, BookmarkPlus } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -94,6 +97,37 @@ export default function FiscalTasks() {
   const companyId = company?.id;
   const { isColaborador, isSuperAdmin, isAdmin } = useUserRole();
   const { contacts } = useContacts();
+  const { user } = useAuth();
+
+  // Saved filters (localStorage)
+  type SavedFilter = {
+    id: string;
+    name: string;
+    filters: {
+      startDate?: string;
+      endDate?: string;
+      contact: string;
+      responsible: string;
+      obligation: string;
+    };
+  };
+  const savedKey = user?.id ? `fiscal:saved-filters:${user.id}` : null;
+  const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
+  const [savePopoverOpen, setSavePopoverOpen] = useState(false);
+  const [newFilterName, setNewFilterName] = useState('');
+
+  useEffect(() => {
+    if (!savedKey) return;
+    try {
+      const raw = localStorage.getItem(savedKey);
+      if (raw) setSavedFilters(JSON.parse(raw));
+    } catch { /* ignore */ }
+  }, [savedKey]);
+
+  const persistSaved = (list: SavedFilter[]) => {
+    setSavedFilters(list);
+    if (savedKey) localStorage.setItem(savedKey, JSON.stringify(list));
+  };
 
   // Filters
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
@@ -410,6 +444,123 @@ export default function FiscalTasks() {
           width="w-[220px]"
         />
 
+        {/* Saved Filters */}
+        <Popover open={savePopoverOpen} onOpenChange={setSavePopoverOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 gap-1.5 text-xs"
+              disabled={savedFilters.length >= 5}
+              title={savedFilters.length >= 5 ? 'Máximo de 5 filtros salvos' : 'Salvar filtro atual'}
+            >
+              <BookmarkPlus className="w-3.5 h-3.5" /> Salvar filtro
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-64 space-y-2">
+            <Label className="text-xs">Nome do filtro</Label>
+            <Input
+              value={newFilterName}
+              onChange={(e) => setNewFilterName(e.target.value)}
+              placeholder="Ex: Vencendo essa semana"
+              className="h-8 text-sm"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const name = newFilterName.trim();
+                  if (!name) return;
+                  const next: SavedFilter = {
+                    id: crypto.randomUUID(),
+                    name,
+                    filters: {
+                      startDate: startDate ? format(startDate, 'yyyy-MM-dd') : undefined,
+                      endDate: endDate ? format(endDate, 'yyyy-MM-dd') : undefined,
+                      contact: filterContact,
+                      responsible: filterResponsible,
+                      obligation: filterObligation,
+                    },
+                  };
+                  persistSaved([...savedFilters, next].slice(0, 5));
+                  setNewFilterName('');
+                  setSavePopoverOpen(false);
+                  toast.success('Filtro salvo');
+                }
+              }}
+            />
+            <Button
+              size="sm"
+              className="w-full h-8"
+              onClick={() => {
+                const name = newFilterName.trim();
+                if (!name) return;
+                const next: SavedFilter = {
+                  id: crypto.randomUUID(),
+                  name,
+                  filters: {
+                    startDate: startDate ? format(startDate, 'yyyy-MM-dd') : undefined,
+                    endDate: endDate ? format(endDate, 'yyyy-MM-dd') : undefined,
+                    contact: filterContact,
+                    responsible: filterResponsible,
+                    obligation: filterObligation,
+                  },
+                };
+                persistSaved([...savedFilters, next].slice(0, 5));
+                setNewFilterName('');
+                setSavePopoverOpen(false);
+                toast.success('Filtro salvo');
+              }}
+            >
+              Salvar
+            </Button>
+          </PopoverContent>
+        </Popover>
+
+        {savedFilters.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs">
+                <Bookmark className="w-3.5 h-3.5" /> Meus filtros ({savedFilters.length})
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-64">
+              <DropdownMenuLabel className="text-xs">Aplicar filtro salvo</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {savedFilters.map((sf) => (
+                <DropdownMenuItem
+                  key={sf.id}
+                  onSelect={(e) => e.preventDefault()}
+                  className="flex items-center justify-between gap-2"
+                >
+                  <button
+                    type="button"
+                    className="flex-1 text-left truncate"
+                    onClick={() => {
+                      setStartDate(sf.filters.startDate ? parse(sf.filters.startDate, 'yyyy-MM-dd', new Date()) : undefined);
+                      setEndDate(sf.filters.endDate ? parse(sf.filters.endDate, 'yyyy-MM-dd', new Date()) : undefined);
+                      setFilterContact(sf.filters.contact || 'all');
+                      setFilterResponsible(sf.filters.responsible || 'all');
+                      setFilterObligation(sf.filters.obligation || 'all');
+                      toast.success(`Filtro "${sf.name}" aplicado`);
+                    }}
+                  >
+                    {sf.name}
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Remover"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      persistSaved(savedFilters.filter((x) => x.id !== sf.id));
+                    }}
+                    className="h-5 w-5 inline-flex items-center justify-center rounded hover:bg-muted text-muted-foreground"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
         {/* View Toggle */}
         <div className="ml-auto">
           <ToggleGroup type="single" value={viewMode} onValueChange={v => v && setViewMode(v as ViewMode)} className="border border-border/50 rounded-md p-0.5">
@@ -438,6 +589,8 @@ export default function FiscalTasks() {
           onDelete={canDelete ? (id) => deleteTask.mutate(id) : undefined}
           onUploadAttachment={handleUploadAttachment}
           onGroupClick={handleGroupClick}
+          profileOptions={!isColaborador ? profileOptions : undefined}
+          onReassign={!isColaborador ? handleInlineReassign : undefined}
         />
       )}
 
