@@ -396,12 +396,24 @@ export default function FiscalCalendar() {
         <div className="flex items-start gap-3 rounded-lg border border-blue-500/30 bg-blue-500/10 p-4 text-sm">
           <Info className="h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" />
           <p className="text-foreground">
-            Calendário calculado. Revise as datas abaixo e clique em <strong>Confirmar e Lançar Tarefas</strong> para criar as tarefas no Kanban.
+            Calendário calculado. Revise o preview de distribuição abaixo e clique em <strong>Lançar Tarefas</strong> para criar as tarefas no Kanban.
           </p>
         </div>
       )}
 
-      {selected.size > 0 && (
+      {phase === 'calculated' && sorted.length > 0 && (
+        <CalendarLaunchPreview
+          rows={sorted}
+          reviewed={previewReviewed}
+          onReviewedChange={setPreviewReviewed}
+        />
+      )}
+
+      {phase !== 'idle' && sorted.length > 0 && (
+        <CalendarConflictMap rows={sorted} year={year} month={month} />
+      )}
+
+      {selected.size > 0 && !editingDisabled && (
         <div className="sticky top-2 z-10 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2 shadow-sm">
           <span className="text-sm font-medium">
             {selected.size} obrigação(ões) selecionada(s)
@@ -419,6 +431,7 @@ export default function FiscalCalendar() {
           </div>
         </div>
       )}
+
 
       <Card className="overflow-hidden">
         <Table>
