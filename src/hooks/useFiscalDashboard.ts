@@ -209,4 +209,4 @@ export function useUpcomingFiscalTasks() {
 }
 
 // Kept for backward compat in case other modules import it
-export { fetchValidFiscalContactIds };
+export { fetchValidFiscalContactIds } from '@/lib/fiscal-filters';
