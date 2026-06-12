@@ -399,7 +399,7 @@ export function ContactCadastroTab({ contactId }: Props) {
           set={set}
           onSave={() => saveSection([
             'responsible_id', 'categorias',
-            'data_inicio_contrato', 'data_encerramento_rf',
+            'data_inicio_contrato', 'data_saida_cliente',
             'data_abertura_junta', 'data_encerramento_junta',
             'data_abertura_rf', 'data_encerramento_rf',
             'data_abertura_prefeitura', 'data_encerramento_prefeitura',
