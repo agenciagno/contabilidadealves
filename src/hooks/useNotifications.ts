@@ -7,11 +7,17 @@ export interface NotificationRow {
   id: string;
   user_id: string;
   company_id: string | null;
+  task_id: string | null;
+  reference_type: string | null;
+  reference_id: string | null;
   type: string;
-  message: string;
-  related_id: string | null;
+  title: string;
+  body: string | null;
+  action_url: string | null;
   read_at: string | null;
   created_at: string;
+  // legacy fallback
+  message?: string | null;
 }
 
 export function useNotifications() {
@@ -62,7 +68,6 @@ export function useNotifications() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications', userId] }),
   });
 
-  // Realtime subscription
   useEffect(() => {
     if (!userId) return;
     const channel = supabase

@@ -1,16 +1,10 @@
-import { Bell, Moon, Sun } from 'lucide-react';
+import { Moon, Sun } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/button';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { HeaderCalculator } from './HeaderCalculator';
 import { HeaderCalendar } from './HeaderCalendar';
-import { NotificationBellDropdown } from '@/components/notifications/NotificationBellDropdown';
-import { useNotifications } from '@/hooks/useNotifications';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { isDevEnvironment } from '@/lib/environment';
 
 export function AppHeader() {
