@@ -8,8 +8,7 @@ import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { isDevEnvironment } from '@/lib/environment';
 
 export function AppHeader() {
-  const { theme, resolvedTheme, setTheme } = useTheme();
-  const { unreadCount } = useNotifications();
+  const { resolvedTheme, setTheme } = useTheme();
   const isDev = isDevEnvironment();
 
   return (
@@ -41,21 +40,7 @@ export function AppHeader() {
             )}
           </Button>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground">
-                <Bell className="w-5 h-5" />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center text-xs font-bold rounded-full bg-destructive text-destructive-foreground animate-pulse">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="p-0">
-              <NotificationBellDropdown />
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <NotificationBell />
         </div>
       </div>
     </header>

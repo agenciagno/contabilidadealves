@@ -31,6 +31,7 @@ import FiscalTasks from "@/pages/FiscalTasks";
 import FiscalCalendar from "@/pages/FiscalCalendar";
 import FiscalDashboard from "@/pages/FiscalDashboard";
 import FiscalCollaborators from "@/pages/FiscalCollaborators";
+import FiscalNotifications from "@/pages/FiscalNotifications";
 import Legalizacao from "@/pages/Legalizacao";
 import PessoalRH from "@/pages/PessoalRH";
 import NoAccess from "@/pages/NoAccess";
@@ -74,6 +75,7 @@ const App = () => (
               <Route path="/fiscal/calendario" element={<AppLayout><ModuleGuard moduleName="fiscal" requireAdmin><FiscalCalendar /></ModuleGuard></AppLayout>} />
               <Route path="/fiscal/dashboard" element={<AppLayout><ModuleGuard moduleName="fiscal" requireAdmin><FiscalDashboard /></ModuleGuard></AppLayout>} />
               <Route path="/fiscal/colaboradores" element={<AppLayout><ModuleGuard moduleName="fiscal" requireAdmin><FiscalCollaborators /></ModuleGuard></AppLayout>} />
+              <Route path="/fiscal/notificacoes" element={<AppLayout><ModuleGuard moduleName="fiscal" requireAdmin><FiscalNotifications /></ModuleGuard></AppLayout>} />
               <Route path="/legalizacao" element={<AppLayout><ModuleGuard moduleName="legalizacao"><Legalizacao /></ModuleGuard></AppLayout>} />
               <Route path="/pessoal-rh" element={<AppLayout><ModuleGuard moduleName="pessoal_rh"><PessoalRH /></ModuleGuard></AppLayout>} />
               <Route path="/acessos" element={<AppLayout><CofreGlobal /></AppLayout>} />
