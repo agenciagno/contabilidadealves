@@ -30,6 +30,7 @@ import { useCompany } from '@/hooks/useCompany';
 import { usePinnedShortcuts, PinnedShortcut } from '@/hooks/usePinnedShortcuts';
 import { useUserRole } from '@/hooks/useUserRole';
 import { usePendingApprovals } from '@/hooks/usePendingApprovals';
+import { useNotifications } from '@/hooks/useNotifications';
 import { ProfileModal } from '@/components/profile/ProfileModal';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import {
