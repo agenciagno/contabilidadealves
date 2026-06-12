@@ -180,6 +180,7 @@ export function AppSidebar() {
   const { isSuperAdmin, isAdmin, isColaborador, allowedModules, fullName, avatarUrl } = useUserRole();
   const [profileOpen, setProfileOpen] = useState(false);
   const { pendingCount } = usePendingApprovals();
+  const { unreadCount } = useNotifications();
 
   const planModules: string[] = (company as any)?.plan_modules ?? ['home', 'legalizacao', 'fiscal', 'pessoal_rh', 'financeiro', 'clientes', 'configuracoes'];
   const logoUrl: string | null = (company as any)?.logo_url ?? null;
