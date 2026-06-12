@@ -535,9 +535,11 @@ export default function FiscalCalendar() {
                           size="icon"
                           onClick={() => { setEditing(r); setDialogOpen(true); }}
                           title="Editar override"
+                          disabled={editingDisabled}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
+
                         {isCustom && (
                           <>
                             <Button
