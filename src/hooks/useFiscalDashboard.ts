@@ -10,7 +10,11 @@ export interface FiscalTaskRow {
   status: string;
   due_date: string | null;
   fiscal_due_date: string | null;
+  completed_at: string | null;
+  created_at: string | null;
   responsible_id: string | null;
+  contact_id: string | null;
+  contacts?: { tax_regime: string | null; name?: string | null } | null;
 }
 
 export interface CollaboratorRow {
@@ -25,6 +29,17 @@ export interface UpcomingTaskRow {
   due_date: string | null;
   fiscal_due_date: string | null;
   contacts: { name: string | null } | null;
+  responsible: { full_name: string | null } | null;
+  fiscal_obligations_catalog: { name: string | null } | null;
+}
+
+export interface Task48hRow {
+  id: string;
+  title: string | null;
+  status: string;
+  fiscal_due_date: string | null;
+  responsible_id: string | null;
+  contacts: { name: string | null; tax_regime: string | null } | null;
   responsible: { full_name: string | null } | null;
   fiscal_obligations_catalog: { name: string | null } | null;
 }
