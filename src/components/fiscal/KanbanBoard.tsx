@@ -123,7 +123,7 @@ function DroppableColumn({
   );
 }
 
-function SortableSingle({ item, contactsMap, profilesMap, onTaskClick, onEdit, onDelete, coverageMap }: {
+function SortableSingle({ item, contactsMap, profilesMap, onTaskClick, onEdit, onDelete, coverageMap, profileOptions, onReassign }: {
   item: SingleItem;
   contactsMap: Record<string, string>;
   profilesMap: Record<string, { name: string; initials: string }>;
@@ -131,6 +131,8 @@ function SortableSingle({ item, contactsMap, profilesMap, onTaskClick, onEdit, o
   onEdit?: (task: FiscalTask) => void;
   onDelete?: (taskId: string) => void;
   coverageMap: Record<string, { end_date: string }>;
+  profileOptions?: { id: string; name: string }[];
+  onReassign?: (taskId: string, profileId: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
@@ -151,6 +153,8 @@ function SortableSingle({ item, contactsMap, profilesMap, onTaskClick, onEdit, o
         onEdit={onEdit}
         onDelete={onDelete}
         temporaryCoverage={tempCov}
+        profileOptions={profileOptions}
+        onReassign={onReassign}
       />
     </div>
   );
