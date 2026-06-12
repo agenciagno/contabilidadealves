@@ -256,11 +256,14 @@ export function ContactDetailsTab({ contact }: ContactDetailsTabProps) {
 
       {/* Card 6 — Departamento Pessoal */}
       <Card className="bg-card border-border/50">
-        <CardHeader className="pb-3">
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Users className="h-4 w-4" />
             Departamento Pessoal
           </CardTitle>
+          <Button variant="ghost" size="icon" onClick={() => setEditSection('departamento-pessoal')}>
+            <Pencil className="h-4 w-4" />
+          </Button>
         </CardHeader>
         <CardContent className="space-y-4">
           <Field label="Possui Funcionários">{fmtBool(contact.possui_funcionarios)}</Field>
