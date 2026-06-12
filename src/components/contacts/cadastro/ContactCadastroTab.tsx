@@ -362,10 +362,31 @@ export function ContactCadastroTab({ contactId }: Props) {
           </CardContent>
         </Card>
 
+        <Card>
+          <CardHeader><CardTitle className="text-base">Registros e Livros</CardTitle></CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[
+              { key: 'registro_entradas', label: 'Registro de Entradas' },
+              { key: 'registro_saidas', label: 'Registro de Saídas' },
+              { key: 'registro_icms', label: 'Registro ICMS' },
+              { key: 'inventario', label: 'Inventário' },
+            ].map(item => (
+              <div key={item.key} className="flex items-center justify-between rounded-lg border p-3">
+                <Label className="text-sm">{item.label}</Label>
+                <Switch checked={!!form[item.key]} onCheckedChange={v => set(item.key, v)} />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
         <ObligationsSection contactId={contactId} />
 
         <div className="flex justify-end">
-          <Button onClick={() => saveSection(['tax_regime', 'status_cliente', 'im', 'ie'])} disabled={updateSuperPerfil.isPending}>
+          <Button onClick={() => saveSection([
+            'tax_regime', 'status_cliente', 'im', 'ie',
+            'regime_apuracao', 'numero_alvara', 'validade_alvara',
+            'registro_entradas', 'registro_saidas', 'registro_icms', 'inventario',
+          ])} disabled={updateSuperPerfil.isPending}>
             {updateSuperPerfil.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
             Salvar
           </Button>
