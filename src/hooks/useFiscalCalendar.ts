@@ -73,10 +73,53 @@ export function useCalculateCalendar() {
   });
 }
 
+export interface LaunchMeta {
+  launched_at: string;
+  launched_by: string;
+  task_ids: string[];
+}
+
+const launchKey = (companyId: string, y: number, m: number) =>
+  `fiscal-calendar-launch:${companyId}:${y}-${m}`;
+
+export function loadLaunchMeta(companyId: string, year: number, month: number): LaunchMeta | null {
+  try {
+    const raw = localStorage.getItem(launchKey(companyId, year, month));
+    if (!raw) return null;
+    return JSON.parse(raw) as LaunchMeta;
+  } catch {
+    return null;
+  }
+}
+
+export function saveLaunchMeta(companyId: string, year: number, month: number, meta: LaunchMeta) {
+  try {
+    localStorage.setItem(launchKey(companyId, year, month), JSON.stringify(meta));
+  } catch {}
+}
+
+export function clearLaunchMeta(companyId: string, year: number, month: number) {
+  try {
+    localStorage.removeItem(launchKey(companyId, year, month));
+  } catch {}
+}
+
 export function useConfirmMonthlyTasks() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ year, month }: { year: number; month: number }) => {
+    mutationFn: async ({
+      year,
+      month,
+      companyId,
+      launchedBy,
+    }: {
+      year: number;
+      month: number;
+      companyId?: string | null;
+      launchedBy?: string;
+    }) => {
+      // Capture timestamp slightly before RPC to account for clock skew
+      const beforeTs = new Date(Date.now() - 2000).toISOString();
       const { data, error } = await (supabase as any).rpc('generate_monthly_fiscal_tasks', {
         p_year: year,
         p_month: month,
@@ -86,6 +129,26 @@ export function useConfirmMonthlyTasks() {
         (data && typeof data === 'object' && 'tasks_created' in data
           ? (data as any).tasks_created
           : Array.isArray(data) && data[0]?.tasks_created) ?? 0;
+
+      // Try to capture IDs of just-created tasks for rollback support
+      let taskIds: string[] = [];
+      if (companyId && tasksCreated > 0) {
+        const { data: created } = await supabase
+          .from('fiscal_tasks')
+          .select('id')
+          .eq('company_id', companyId)
+          .gte('created_at', beforeTs);
+        taskIds = (created ?? []).map((r: any) => r.id as string);
+      }
+
+      if (companyId) {
+        saveLaunchMeta(companyId, year, month, {
+          launched_at: new Date().toISOString(),
+          launched_by: launchedBy ?? 'Usuário',
+          task_ids: taskIds,
+        });
+      }
+
       return { tasksCreated, year, month };
     },
     onSuccess: ({ tasksCreated, year, month }) => {
@@ -98,6 +161,56 @@ export function useConfirmMonthlyTasks() {
       qc.invalidateQueries({ queryKey: ['fiscal-tasks'] });
     },
     onError: (err: any) => toast.error(err?.message ?? 'Erro ao lançar tarefas'),
+  });
+}
+
+export function useRollbackMonthlyTasks() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      year,
+      month,
+      companyId,
+    }: {
+      year: number;
+      month: number;
+      companyId: string;
+    }) => {
+      const meta = loadLaunchMeta(companyId, year, month);
+      const ids = meta?.task_ids ?? [];
+      if (ids.length === 0) {
+        return { removed: 0, preserved: 0, year, month };
+      }
+      const { data: rows, error: selErr } = await supabase
+        .from('fiscal_tasks')
+        .select('id, status, created_at, updated_at')
+        .in('id', ids);
+      if (selErr) throw selErr;
+
+      const deletable: string[] = [];
+      let preserved = 0;
+      (rows ?? []).forEach((r: any) => {
+        const untouched =
+          r.status === 'a_fazer' &&
+          new Date(r.updated_at).getTime() - new Date(r.created_at).getTime() < 2000;
+        if (untouched) deletable.push(r.id);
+        else preserved += 1;
+      });
+
+      if (deletable.length > 0) {
+        const { error: delErr } = await supabase.from('fiscal_tasks').delete().in('id', deletable);
+        if (delErr) throw delErr;
+      }
+
+      clearLaunchMeta(companyId, year, month);
+      return { removed: deletable.length, preserved, year, month };
+    },
+    onSuccess: ({ removed, preserved, year, month }) => {
+      const label = `${String(month).padStart(2, '0')}/${year}`;
+      toast.success(`Lançamento de ${label} desfeito — ${removed} removidas, ${preserved} preservadas.`);
+      qc.invalidateQueries({ queryKey: ['fiscal-tasks'] });
+    },
+    onError: (err: any) => toast.error(err?.message ?? 'Erro ao desfazer lançamento'),
   });
 }
 

@@ -1,7 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
-import { CalendarRange, CheckCircle2, Info, Loader2, Pencil, Plus, Rocket, Sparkles, Trash2, X, Zap } from 'lucide-react';
+import {
+  CalendarRange,
+  CheckCircle2,
+  ClipboardCheck,
+  Info,
+  Loader2,
+  Lock,
+  LockOpen,
+  Pencil,
+  Plus,
+  Rocket,
+  Sparkles,
+  Trash2,
+  Undo2,
+  X,
+  Zap,
+} from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -37,14 +53,24 @@ import {
   useFiscalCalendar,
   useCalculateCalendar,
   useConfirmMonthlyTasks,
+  useRollbackMonthlyTasks,
+  loadLaunchMeta,
+  clearLaunchMeta,
   FiscalCalendarEffectiveRow,
 } from '@/hooks/useFiscalCalendar';
+import { useCompany } from '@/hooks/useCompany';
+import { useProfile } from '@/hooks/useProfile';
 import { FiscalObligationOverrideDialog } from '@/components/fiscal/FiscalObligationOverrideDialog';
 import { BulkEditCalendarDialog } from '@/components/fiscal/BulkEditCalendarDialog';
 import { CustomObligationDialog, CustomObligationInitial } from '@/components/fiscal/CustomObligationDialog';
+import { CalendarLaunchPreview } from '@/components/fiscal/CalendarLaunchPreview';
+import { CalendarConflictMap } from '@/components/fiscal/CalendarConflictMap';
+import { IbsCbsSection, isRtRow } from '@/components/fiscal/IbsCbsSection';
+import { RtChecklistDialog } from '@/components/fiscal/RtChecklistDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+
 
 const MONTHS = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -58,6 +84,9 @@ const phaseKey = (y: number, m: number) => `fiscal-calendar-phase:${y}-${m}`;
 export default function FiscalCalendar() {
   const { isAdmin, isSuperAdmin, isLoading: roleLoading } = useUserRole();
   const qc = useQueryClient();
+  const { company } = useCompany();
+  const { profile, userName } = useProfile();
+  const companyId = company?.id ?? '';
 
   const now = new Date();
   const [year, setYear] = useState<number>(now.getFullYear());
@@ -67,21 +96,52 @@ export default function FiscalCalendar() {
   const { data: rows, isLoading } = useFiscalCalendar(year, month, phase !== 'idle');
   const calculate = useCalculateCalendar();
   const confirm = useConfirmMonthlyTasks();
+  const rollback = useRollbackMonthlyTasks();
+
+  // Preview gate
+  const [previewReviewed, setPreviewReviewed] = useState(false);
+
+  // Lock / launch metadata
+  const [launchMeta, setLaunchMeta] = useState<ReturnType<typeof loadLaunchMeta>>(null);
+  const [locked, setLocked] = useState(false);
+  const [unlockOpen, setUnlockOpen] = useState(false);
+  const [rollbackOpen, setRollbackOpen] = useState(false);
+
+  // RT checklist
+  const [rtChecklistOpen, setRtChecklistOpen] = useState(false);
 
   useEffect(() => {
     try {
       const stored = sessionStorage.getItem(phaseKey(year, month));
-      setPhase((stored as Phase) ?? 'idle');
+      const p = (stored as Phase) ?? 'idle';
+      setPhase(p);
+      if (companyId) {
+        const meta = loadLaunchMeta(companyId, year, month);
+        setLaunchMeta(meta);
+        setLocked(p === 'launched' && !!meta);
+      } else {
+        setLaunchMeta(null);
+        setLocked(p === 'launched');
+      }
     } catch {
       setPhase('idle');
+      setLaunchMeta(null);
+      setLocked(false);
     }
-  }, [year, month]);
+    setPreviewReviewed(false);
+  }, [year, month, companyId]);
 
   const setPhasePersist = (next: Phase) => {
     setPhase(next);
     try {
       sessionStorage.setItem(phaseKey(year, month), next);
     } catch {}
+    if (next === 'launched' && companyId) {
+      setLaunchMeta(loadLaunchMeta(companyId, year, month));
+      setLocked(true);
+    } else if (next === 'calculated') {
+      setLocked(false);
+    }
   };
 
   const handleMonthChange = (v: string) => {
@@ -133,8 +193,52 @@ export default function FiscalCalendar() {
     calculate.mutate({ year, month }, { onSuccess: () => setPhasePersist('calculated') });
   };
   const handleConfirm = () => {
-    confirm.mutate({ year, month }, { onSuccess: () => setPhasePersist('launched') });
+    confirm.mutate(
+      { year, month, companyId, launchedBy: userName },
+      { onSuccess: () => setPhasePersist('launched') },
+    );
   };
+  const handleUnlock = () => {
+    if (!profile) return;
+    setLocked(false);
+    setUnlockOpen(false);
+    toast.success('Calendário desbloqueado para edição.');
+    // Annotate every overridden row with audit reason; rows without override stay untouched
+    const today = format(new Date(), 'dd/MM/yyyy');
+    const reason = `Calendário desbloqueado por ${userName} em ${today}`;
+    // We append the reason to future overrides via dialog default; store on launchMeta for UI display
+    setLaunchMeta((prev) => (prev ? { ...prev, launched_by: prev.launched_by } : prev));
+    // Best-effort: bump rows that already have override to capture the reason in their audit field
+    (async () => {
+      try {
+        const ids = sorted.filter((r) => !!r.adjusted_due_date_override).map((r) => r.id);
+        if (ids.length > 0) {
+          await (supabase as any)
+            .from('fiscal_calendar')
+            .update({ override_reason: reason })
+            .in('id', ids);
+          qc.invalidateQueries({ queryKey: ['fiscal-calendar'] });
+        }
+      } catch {}
+    })();
+  };
+  const handleRollback = () => {
+    if (!companyId) return;
+    rollback.mutate(
+      { year, month, companyId },
+      {
+        onSuccess: () => {
+          setPhasePersist('calculated');
+          setLaunchMeta(null);
+          setLocked(false);
+          setRollbackOpen(false);
+        },
+      },
+    );
+  };
+
+  const editingDisabled = phase === 'launched' && locked;
+
 
   const allChecked = sorted.length > 0 && selected.size === sorted.length;
   const someChecked = selected.size > 0 && selected.size < sorted.length;
@@ -221,11 +325,14 @@ export default function FiscalCalendar() {
           <Button
             variant="outline"
             onClick={() => { setCustomInitial(null); setCustomOpen(true); }}
+            disabled={editingDisabled}
           >
             <Plus className="h-4 w-4" /> Nova Obrigação
           </Button>
 
-
+          <Button variant="outline" onClick={() => setRtChecklistOpen(true)}>
+            <ClipboardCheck className="h-4 w-4" /> Checklist RT
+          </Button>
 
           {phase === 'idle' && (
             <Button onClick={handleCalculate} disabled={calculate.isPending}>
@@ -238,33 +345,75 @@ export default function FiscalCalendar() {
           )}
 
           {phase === 'calculated' && (
-            <Button onClick={handleConfirm} disabled={confirm.isPending} className="bg-emerald-600 hover:bg-emerald-700">
+            <Button
+              onClick={handleConfirm}
+              disabled={confirm.isPending || !previewReviewed}
+              className="bg-emerald-600 hover:bg-emerald-700"
+              title={!previewReviewed ? 'Marque "Revisei a distribuição" para liberar o lançamento' : undefined}
+            >
               {confirm.isPending ? (
                 <><Loader2 className="h-4 w-4 animate-spin" /> Lançando...</>
               ) : (
-                <><Rocket className="h-4 w-4" /> Confirmar e Lançar Tarefas</>
+                <><Rocket className="h-4 w-4" /> Lançar Tarefas</>
               )}
             </Button>
           )}
 
           {phase === 'launched' && (
-            <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 gap-1.5 px-3 py-1.5">
-              <CheckCircle2 className="h-3.5 w-3.5" /> Tarefas lançadas
-            </Badge>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 gap-1.5 px-3 py-1.5">
+                {locked ? <Lock className="h-3.5 w-3.5" /> : <LockOpen className="h-3.5 w-3.5" />}
+                {launchMeta
+                  ? `Lançado em ${format(parseISO(launchMeta.launched_at), "dd/MM/yyyy 'às' HH:mm")} por ${launchMeta.launched_by}`
+                  : 'Tarefas lançadas'}
+              </Badge>
+              {locked ? (
+                <Button size="sm" variant="outline" onClick={() => setUnlockOpen(true)}>
+                  <LockOpen className="h-4 w-4" /> Desbloquear
+                </Button>
+              ) : (
+                <Button size="sm" variant="outline" onClick={() => { setLocked(true); toast.info('Calendário bloqueado.'); }}>
+                  <Lock className="h-4 w-4" /> Rebloquear
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-destructive hover:text-destructive"
+                onClick={() => setRollbackOpen(true)}
+                disabled={rollback.isPending}
+              >
+                {rollback.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Undo2 className="h-4 w-4" />}
+                Desfazer lançamento
+              </Button>
+            </div>
           )}
         </div>
       </div>
+
 
       {phase === 'calculated' && (
         <div className="flex items-start gap-3 rounded-lg border border-blue-500/30 bg-blue-500/10 p-4 text-sm">
           <Info className="h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" />
           <p className="text-foreground">
-            Calendário calculado. Revise as datas abaixo e clique em <strong>Confirmar e Lançar Tarefas</strong> para criar as tarefas no Kanban.
+            Calendário calculado. Revise o preview de distribuição abaixo e clique em <strong>Lançar Tarefas</strong> para criar as tarefas no Kanban.
           </p>
         </div>
       )}
 
-      {selected.size > 0 && (
+      {phase === 'calculated' && sorted.length > 0 && (
+        <CalendarLaunchPreview
+          rows={sorted}
+          reviewed={previewReviewed}
+          onReviewedChange={setPreviewReviewed}
+        />
+      )}
+
+      {phase !== 'idle' && sorted.length > 0 && (
+        <CalendarConflictMap rows={sorted} year={year} month={month} />
+      )}
+
+      {selected.size > 0 && !editingDisabled && (
         <div className="sticky top-2 z-10 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2 shadow-sm">
           <span className="text-sm font-medium">
             {selected.size} obrigação(ões) selecionada(s)
@@ -283,6 +432,7 @@ export default function FiscalCalendar() {
         </div>
       )}
 
+
       <Card className="overflow-hidden">
         <Table>
           <TableHeader>
@@ -292,8 +442,10 @@ export default function FiscalCalendar() {
                   checked={allChecked ? true : someChecked ? 'indeterminate' : false}
                   onCheckedChange={toggleAll}
                   aria-label="Selecionar todos"
+                  disabled={editingDisabled}
                 />
               </TableHead>
+
               <TableHead>Obrigação</TableHead>
               <TableHead>Regime</TableHead>
               <TableHead>Vencimento Fiscal</TableHead>
@@ -335,10 +487,14 @@ export default function FiscalCalendar() {
                 return (
                   <TableRow key={r.id} data-state={isChecked ? 'selected' : undefined}>
                     <TableCell>
-                      <div onClick={(e) => handleRowCheckbox(idx, e)} className="inline-flex">
-                        <Checkbox checked={isChecked} aria-label="Selecionar linha" />
+                      <div
+                        onClick={(e) => !editingDisabled && handleRowCheckbox(idx, e)}
+                        className={'inline-flex ' + (editingDisabled ? 'opacity-40 pointer-events-none' : '')}
+                      >
+                        <Checkbox checked={isChecked} aria-label="Selecionar linha" disabled={editingDisabled} />
                       </div>
                     </TableCell>
+
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         <span>{cat?.name ?? '—'}</span>
@@ -379,14 +535,17 @@ export default function FiscalCalendar() {
                           size="icon"
                           onClick={() => { setEditing(r); setDialogOpen(true); }}
                           title="Editar override"
+                          disabled={editingDisabled}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
+
                         {isCustom && (
                           <>
                             <Button
                               variant="ghost"
                               size="icon"
+                              disabled={editingDisabled}
                               onClick={() => {
                                 setCustomInitial({
                                   id: cat!.id,
@@ -406,6 +565,7 @@ export default function FiscalCalendar() {
                             <Button
                               variant="ghost"
                               size="icon"
+                              disabled={editingDisabled}
                               onClick={() => setObligationToDelete({ id: cat!.id, name: cat!.name })}
                               title="Excluir obrigação personalizada"
                               className="text-destructive hover:text-destructive"
@@ -417,10 +577,12 @@ export default function FiscalCalendar() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          disabled={editingDisabled}
                           onClick={() => setRowToDelete(r)}
                           title="Excluir entrada do mês"
                           className="text-destructive hover:text-destructive"
                         >
+
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -432,6 +594,24 @@ export default function FiscalCalendar() {
           </TableBody>
         </Table>
       </Card>
+
+      {phase !== 'idle' && sorted.length > 0 && (
+        <IbsCbsSection
+          rows={sorted}
+          disabled={editingDisabled}
+          onNewRtObligation={() => {
+            setCustomInitial({
+              name: '',
+              description: '[RT] ',
+              applies_to: [],
+              due_rule: null,
+              holiday_adjustment: 'prev_business_day',
+            });
+            setCustomOpen(true);
+          }}
+        />
+      )}
+
 
       <FiscalObligationOverrideDialog
         row={editing}
@@ -535,6 +715,44 @@ export default function FiscalCalendar() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={unlockOpen} onOpenChange={setUnlockOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Desbloquear calendário</AlertDialogTitle>
+            <AlertDialogDescription>
+              Editar o calendário após o lançamento pode causar inconsistências com as tarefas já geradas. Continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleUnlock}>Desbloquear</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={rollbackOpen} onOpenChange={setRollbackOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Desfazer lançamento</AlertDialogTitle>
+            <AlertDialogDescription>
+              Isso vai DELETAR até {launchMeta?.task_ids.length ?? 0} tarefa(s) geradas automaticamente para {String(month).padStart(2, '0')}/{year}. Tarefas editadas manualmente ou com status diferente de "A Fazer" serão preservadas. Continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRollback}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Desfazer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <RtChecklistDialog open={rtChecklistOpen} onOpenChange={setRtChecklistOpen} />
     </div>
   );
 }
+
