@@ -369,6 +369,8 @@ export function KanbanBoard({ tasks, contactsMap, profilesMap, onStatusChange, o
                     onEdit={onEdit}
                     onDelete={onDelete}
                     coverageMap={coverageMap}
+                    profileOptions={profileOptions}
+                    onReassign={onReassign}
                   />
                 ) : (
                   <SortableGroup
