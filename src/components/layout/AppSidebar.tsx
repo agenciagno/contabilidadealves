@@ -283,7 +283,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {entry.items
-                .filter((item) => (!['/fiscal/calendario', '/fiscal/dashboard', '/fiscal/colaboradores'].includes(item.url)) || isAdmin || isSuperAdmin)
+                .filter((item) => (!['/fiscal/calendario', '/fiscal/dashboard', '/fiscal/colaboradores', '/fiscal/notificacoes'].includes(item.url)) || isAdmin || isSuperAdmin)
                 .map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild tooltip={item.title}>
@@ -296,6 +296,11 @@ export function AppSidebar() {
                       {showLabels && (
                         <>
                           <span className="flex-1 truncate">{item.title}</span>
+                          {item.url === '/fiscal/notificacoes' && unreadCount > 0 && (
+                            <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-semibold leading-none">
+                              {unreadCount > 99 ? '99+' : unreadCount}
+                            </span>
+                          )}
                           <button onClick={(e) => handlePinClick(e, item)} className="opacity-0 group-hover:opacity-100 transition-opacity">
                             {isPinned(item.url) ? <PinOff className="w-3 h-3 text-primary" /> : <Pin className="w-3 h-3 text-muted-foreground hover:text-primary" />}
                           </button>
@@ -305,6 +310,7 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+
             </SidebarMenu>
           </SidebarGroupContent>
         </CollapsibleContent>
