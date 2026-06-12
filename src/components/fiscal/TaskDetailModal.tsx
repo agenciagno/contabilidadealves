@@ -314,6 +314,20 @@ export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, 
   const responsibleName = profiles.find(p => p.id === responsibleId)?.full_name || '—';
   const competencia = task.due_date ? format(parseISO(task.due_date), 'MM/yyyy') : '—';
 
+  const sla = getSlaInfo(task);
+  const SlaIcon = sla.Icon;
+  const portal = getObligationPortal(title, description);
+  const taskAny = task as any;
+  const originalResponsibleId: string | null = taskAny.original_responsible_id ?? null;
+  const wasTransferred = !!originalResponsibleId && originalResponsibleId !== task.responsible_id;
+  const originalResponsibleName = originalResponsibleId
+    ? profiles.find(p => p.id === originalResponsibleId)?.full_name || '—'
+    : null;
+  const transferDateLabel = taskAny.updated_at
+    ? format(parseISO(taskAny.updated_at), 'dd/MM', { locale: ptBR })
+    : '';
+  const timeline = useMemo(() => buildTimeline(task, profiles), [task, profiles]);
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
@@ -327,7 +341,19 @@ export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, 
               Vencimento: {dueDate ? format(parseISO(dueDate), 'dd/MM/yyyy') : '—'}
             </span>
           </div>
+          <div
+            className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium ${slaToneClass[sla.tone]} ${sla.pulse ? 'animate-pulse' : ''}`}
+          >
+            <SlaIcon className="w-4 h-4 shrink-0" />
+            <span>{sla.label}</span>
+          </div>
+          {wasTransferred && (
+            <Badge variant="outline" className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 w-fit">
+              Originalmente atribuída a {originalResponsibleName}
+            </Badge>
+          )}
         </SheetHeader>
+
 
         <div className="space-y-6 pb-8">
           {/* Informações da tarefa */}
