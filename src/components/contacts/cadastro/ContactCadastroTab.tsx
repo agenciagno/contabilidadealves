@@ -193,6 +193,18 @@ export function ContactCadastroTab({ contactId }: Props) {
                 </SelectContent>
               </Select>
             </Field>
+            <Field label="Tipo de Estabelecimento">
+              <Select value={form.tipo_estabelecimento || ''} onValueChange={v => set('tipo_estabelecimento', v)}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Matriz">Matriz</SelectItem>
+                  <SelectItem value="Filial">Filial</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Representante Legal">
+              <Input value={form.representative_legal || ''} onChange={e => set('representative_legal', e.target.value)} />
+            </Field>
             <Field label="Natureza Jurídica" autofill>
               <Input value={form.natureza_juridica || ''} onChange={e => set('natureza_juridica', e.target.value)} />
             </Field>
