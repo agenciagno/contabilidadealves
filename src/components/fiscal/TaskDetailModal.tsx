@@ -580,6 +580,35 @@ export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, 
 
           <Separator />
 
+          {/* Histórico de Atividade */}
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold text-foreground">Histórico</h3>
+            {timeline.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">Sem eventos registrados.</p>
+            ) : (
+              <ol className="relative space-y-3 border-l border-border/60 pl-4">
+                {timeline.map((ev, idx) => {
+                  const Ico = ev.Icon;
+                  return (
+                    <li key={idx} className="relative">
+                      <span className={`absolute -left-[1.4rem] flex items-center justify-center w-5 h-5 rounded-full ${ev.iconClass}`}>
+                        <Ico className="w-3 h-3" />
+                      </span>
+                      <div className="text-xs text-foreground">{ev.text}</div>
+                      <div className="text-[10px] text-muted-foreground" title={format(parseISO(ev.at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}>
+                        {formatDistanceToNow(parseISO(ev.at), { locale: ptBR, addSuffix: true })}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </section>
+
+          <Separator />
+
+
+
           {/* Footer actions */}
           <div className="flex justify-between pt-2">
             <div>
