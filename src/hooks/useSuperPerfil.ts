@@ -16,7 +16,7 @@ const SUPER_PERFIL_COLUMNS = [
   'tax_regime', 'ie', 'im', 'regime_apuracao', 'numero_alvara', 'validade_alvara',
   'registro_entradas', 'registro_saidas', 'registro_icms', 'inventario',
   'responsible_id', 'categorias',
-  'data_inicio_contrato',
+  'data_inicio_contrato', 'data_saida_cliente',
   'data_abertura_junta', 'data_encerramento_junta',
   'data_abertura_rf', 'data_encerramento_rf',
   'data_abertura_prefeitura', 'data_encerramento_prefeitura',
