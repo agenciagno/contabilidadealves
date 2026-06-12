@@ -10,7 +10,11 @@ export interface FiscalTaskRow {
   status: string;
   due_date: string | null;
   fiscal_due_date: string | null;
+  completed_at: string | null;
+  created_at: string | null;
   responsible_id: string | null;
+  contact_id: string | null;
+  contacts?: { tax_regime: string | null; name?: string | null } | null;
 }
 
 export interface CollaboratorRow {
@@ -25,6 +29,17 @@ export interface UpcomingTaskRow {
   due_date: string | null;
   fiscal_due_date: string | null;
   contacts: { name: string | null } | null;
+  responsible: { full_name: string | null } | null;
+  fiscal_obligations_catalog: { name: string | null } | null;
+}
+
+export interface Task48hRow {
+  id: string;
+  title: string | null;
+  status: string;
+  fiscal_due_date: string | null;
+  responsible_id: string | null;
+  contacts: { name: string | null; tax_regime: string | null } | null;
   responsible: { full_name: string | null } | null;
   fiscal_obligations_catalog: { name: string | null } | null;
 }
@@ -71,7 +86,7 @@ export function useFiscalTasksOfMonth(year: number, month: number) {
       if (validContactIds.length === 0) return [];
       let q = (supabase as any)
         .from('fiscal_tasks')
-        .select('id, status, due_date, fiscal_due_date, responsible_id')
+        .select('id, status, due_date, fiscal_due_date, completed_at, created_at, responsible_id, contact_id, contacts(tax_regime, name)')
         .eq('company_id', companyId)
         .eq('competence_year', year)
         .eq('competence_month', month)
@@ -82,6 +97,49 @@ export function useFiscalTasksOfMonth(year: number, month: number) {
       const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as FiscalTaskRow[];
+    },
+  });
+}
+
+export function useFiscalTasksPrevMonth(year: number, month: number) {
+  const prev = month === 1
+    ? { y: year - 1, m: 12 }
+    : { y: year, m: month - 1 };
+  return useFiscalTasksOfMonth(prev.y, prev.m);
+}
+
+export function useFiscalTasks48h() {
+  const { company } = useCompany();
+  const companyId = (company as any)?.id;
+  const { isColaborador } = useUserRole();
+  const { data: profileId } = useCurrentProfileId();
+
+  return useQuery<Task48hRow[]>({
+    queryKey: ['fiscal-dashboard', 'tasks-48h', companyId, isColaborador, profileId],
+    enabled: !!companyId && (!isColaborador || !!profileId),
+    queryFn: async () => {
+      const validContactIds = await fetchValidFiscalContactIds(companyId!);
+      if (validContactIds.length === 0) return [];
+      const start = today();
+      const end = inDays(2);
+      let q = (supabase as any)
+        .from('fiscal_tasks')
+        .select(
+          'id, title, status, fiscal_due_date, responsible_id, contacts(name, tax_regime), responsible:profiles!fiscal_tasks_responsible_id_fkey(full_name), fiscal_obligations_catalog(name)'
+        )
+        .eq('company_id', companyId)
+        .in('contact_id', validContactIds)
+        .neq('status', 'concluido')
+        .gte('fiscal_due_date', start)
+        .lte('fiscal_due_date', end)
+        .order('fiscal_due_date', { ascending: true })
+        .limit(10);
+      if (isColaborador && profileId) {
+        q = q.eq('responsible_id', profileId);
+      }
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data ?? []) as Task48hRow[];
     },
   });
 }
