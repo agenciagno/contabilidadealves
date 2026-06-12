@@ -487,10 +487,14 @@ export default function FiscalCalendar() {
                 return (
                   <TableRow key={r.id} data-state={isChecked ? 'selected' : undefined}>
                     <TableCell>
-                      <div onClick={(e) => handleRowCheckbox(idx, e)} className="inline-flex">
-                        <Checkbox checked={isChecked} aria-label="Selecionar linha" />
+                      <div
+                        onClick={(e) => !editingDisabled && handleRowCheckbox(idx, e)}
+                        className={'inline-flex ' + (editingDisabled ? 'opacity-40 pointer-events-none' : '')}
+                      >
+                        <Checkbox checked={isChecked} aria-label="Selecionar linha" disabled={editingDisabled} />
                       </div>
                     </TableCell>
+
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         <span>{cat?.name ?? '—'}</span>
