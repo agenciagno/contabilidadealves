@@ -579,7 +579,7 @@ function OperacionalSection({
             <Input type="date" value={form.data_inicio_contrato || ''} onChange={e => set('data_inicio_contrato', e.target.value)} />
           </Field>
           <Field label="Data de saída / encerramento">
-            <Input type="date" value={form.data_encerramento_rf || ''} onChange={e => set('data_encerramento_rf', e.target.value)} />
+            <Input type="date" value={form.data_saida_cliente || ''} onChange={e => set('data_saida_cliente', e.target.value)} />
           </Field>
         </CardContent>
       </Card>
