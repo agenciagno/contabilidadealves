@@ -373,18 +373,50 @@ export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, 
 
           <Separator />
 
-          {/* Observações */}
+          {/* Notas da Equipe */}
           <section className="space-y-3">
-            <h3 className="text-sm font-semibold text-foreground">Observações</h3>
-            <Textarea
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              rows={4}
-              placeholder="Adicionar observação..."
-            />
-            <Button size="sm" variant="outline" onClick={handleSaveNotes}>
-              Salvar observação
-            </Button>
+            <h3 className="text-sm font-semibold text-foreground">Notas da Equipe</h3>
+
+            <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+              {teamNotes.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic">Nenhuma nota ainda.</p>
+              ) : (
+                teamNotes.map((n, idx) => (
+                  <div key={idx} className="flex gap-2 rounded-md border border-border/50 bg-muted/20 p-2.5">
+                    <Avatar className="w-7 h-7 shrink-0">
+                      <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                        {initialsOf(n.profile_name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-semibold text-foreground">{n.profile_name}</span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {format(parseISO(n.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        </span>
+                        {n.legacy && (
+                          <Badge variant="outline" className="text-[9px] px-1.5 py-0">legado</Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-foreground whitespace-pre-wrap mt-0.5">{n.text}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="flex gap-2 items-end">
+              <Textarea
+                value={newNote}
+                onChange={(e) => setNewNote(e.target.value)}
+                rows={2}
+                placeholder="Escreva uma nota para a equipe..."
+                className="flex-1"
+              />
+              <Button size="sm" onClick={handleAddNote} disabled={!newNote.trim()} className="gap-1.5">
+                <Send className="w-3.5 h-3.5" /> Adicionar
+              </Button>
+            </div>
           </section>
 
           <Separator />
