@@ -1,58 +1,68 @@
-## Melhorias em /fiscal/tarefas
 
-Implementação por blocos, mantendo todo o comportamento existente.
+## Plano — Melhorias TaskDetailModal
 
-### Arquivos alterados
+Arquivo único alterado: `src/components/fiscal/TaskDetailModal.tsx` (+ um helper novo).
 
-- `src/components/fiscal/TaskCard.tsx` — barra de prazo, badge SLA D-X, paperclip, borda amber em "aguardando_cliente", botão UserCog (quick reassign).
-- `src/components/fiscal/KanbanBoard.tsx` — header amber para coluna "Aguardando Cliente" + ícone Clock; ordenação automática por `fiscal_due_date ASC` com atrasadas no topo; passar callback `onReassign` e `profileOptions` ao `TaskCard`.
-- `src/components/fiscal/TaskDetailModal.tsx` — nova seção "Notas da Equipe" com lista + input; migração in-place de `notes` string → array JSON.
-- `src/pages/FiscalTasks.tsx` — botão "Salvar filtro" + dropdown "Meus filtros" (localStorage, máx 5); passar `profileOptions` e `onReassign` ao KanbanBoard.
+### 1. Indicador SLA no header
+Novo bloco logo abaixo do título com cor/ícone/texto conforme dias restantes:
+- Concluída → Verde `CheckCircle2`: "Concluída em DD/MM" + sufixo "✓ No prazo" se `completed_at <= due_date`, ou "Entregue com X dias de atraso".
+- Atrasada → Vermelho escuro com classe `animate-pulse`, `AlertTriangle`: "Atrasada há X dias".
+- 1-2 dias → Vermelho, `AlertTriangle`.
+- 3-5 dias → Amarelo, `Clock`.
+- >5 dias → Verde, `CheckCircle`.
 
-### Detalhes por item
+Helper `getSlaInfo(task)` calcula via `differenceInCalendarDays(parseISO(due_date), today)`.
 
-**1. Coluna "Aguardando Cliente" destacada**
-No `DroppableColumn` do KanbanBoard, quando `id === 'aguardando_cliente'`, header recebe `bg-amber-100 dark:bg-amber-900/20` e ícone `Clock` antes do label. O `TaskCard` detecta `task.status === 'aguardando_cliente'` e aplica `border-l-4 border-l-amber-500` + badge "Aguardando" amber dentro do card.
+### 2. Histórico de responsáveis
+Se `original_responsible_id && original_responsible_id !== responsible_id`:
+- Badge amber abaixo do header: "Originalmente atribuída a [nome original]".
+- Tooltip no campo Responsável: "Transferida de [original] em DD/MM" (data = `updated_at` como melhor proxy disponível).
 
-**2. Timer SLA**
-Função `getSlaInfo(task)` usa `task.fiscal_due_date || task.due_date`. Calcula `daysLeft = differenceInDays(due, today)`. Retorna:
-- `> 5`: green `D-X`
-- `3–5`: amber `D-X`
-- `1–2`: red com `animate-pulse` `D-X`
-- `0`: red `D-0`
-- `< 0`: red bg sólido "Atrasado há X dias"
+(Confirmar que `original_responsible_id` existe em `FiscalTask`; senão, ignorar a parte e usar apenas o que existir.)
 
-Badge posicionado no canto inferior direito (junto ao avatar atual).
+### 3. Link para portal da obrigação
+Função `getObligationPortal(title, description)` faz match por keywords:
+- DAS/PGDAS-D → SimplesNacional
+- DCTFWeb/eSocial/EFD-Reinf → cav.receita
+- FGTS → conectividadesocial.caixa
+- DCTF/ECF/EFD/SPED → gov.br/receitafederal/sped
+- ISS/ISSQN → omitido (sem config por município por enquanto)
+- Default → null (não renderiza o botão)
 
-**3. Ordenação automática**
-No `KanbanBoard`, dentro de cada coluna ordenar por `fiscal_due_date || due_date` ASC. Atrasadas (`daysLeft < 0`) ficam no topo independente da ordenação. Mantém o toggle de sort existente, mas o default vira ASC e "atrasados primeiro" é sempre aplicado.
+Botão `variant="outline"` com `ExternalLink`, `target="_blank" rel="noopener"`, posicionado ao lado de "Salvar alterações".
 
-**4. Badge de Anexo**
-Já existe `Paperclip` ao lado do avatar — mover para canto inferior esquerdo, tamanho 14 (`w-3.5 h-3.5`), cor `text-muted-foreground`.
+### 4. Timeline de Atividade (nova seção/aba)
+Adicionar seção "Histórico" entre Notas e Footer. Implementação como lista (sem tabs, mais leve).
 
-**5. Filtros Salvos por Colaborador**
-Chave localStorage: `fiscal:saved-filters:<profileId>`. Estrutura: `[{id, name, filters: {startDate, endDate, contact, responsible, obligation}}]`. UI:
-- Botão "Salvar filtro" abre um Popover com Input para nome → grava.
-- Dropdown "Meus filtros" lista os salvos; click aplica; X remove.
-- Máx 5 (botão desabilitado quando atingido).
-Sem migração de banco.
+Eventos derivados (sem nova tabela):
+- `created_at` → "Tarefa criada automaticamente" se `is_auto_generated`, senão "Tarefa criada".
+- `original_responsible_id` ≠ `responsible_id` → "Responsável alterado de A para B" (data = `updated_at`).
+- `attachment_url` presente → "Arquivo anexado" (data = `updated_at` como proxy).
+- `status === 'concluido' && completed_at` → "Tarefa concluída" (data = `completed_at`).
 
-**6. Quick Reassign**
-No `TaskCard`, ícone `UserCog` aparece no hover (top-right, ao lado do MoreVertical). Click abre `DropdownMenu` com a lista de colaboradores (passada via prop `profileOptions`). Selecionar chama `onReassign(task.id, profileId)` que faz `supabase.from('fiscal_tasks').update({ responsible_id }).eq('id', ...)` + invalida cache. Reaproveita `handleInlineReassign` já existente em FiscalTasks.tsx.
+Ordenação DESC por data. Cada item: ícone colorido + texto + `formatDistanceToNow` em ptBR + data absoluta em tooltip.
 
-**7. Notas em JSONB**
-A coluna `notes` hoje é `text`. Estratégia sem alterar schema:
-- Ao ler: tentar `JSON.parse(notes)`; se array → usar; se falhar e `notes` for texto não vazio → exibir como item "legado" (autor "—", data = `created_at` da task).
-- Ao adicionar: criar array `[{profile_id, profile_name, text, created_at: ISO}, ...legados]`, `JSON.stringify` e salvar em `notes`.
-- UI: lista ordenada `created_at DESC` (mais recente no topo), avatar com iniciais, nome, data formatada, texto. Input + botão "Adicionar".
-- Substitui a seção "Observações" atual (mantém Textarea legado oculto, sem perda — o item legado fica visível na lista).
+Ícones/cores:
+- Criação: `Plus` cinza
+- Status: `ArrowRight` azul
+- Responsável: `UserCog` roxo
+- Anexo: `Paperclip` âmbar
+- Conclusão: `CheckCircle2` verde
 
-**8. Barra fina de prazo (2px) no topo do card**
-`<div className="absolute top-0 left-0 right-0 h-0.5 rounded-t" />` dentro do `<Card className="... overflow-hidden">`, cor conforme SLA:
-- green-500 / amber-500 / red-500 / red-700 + `animate-pulse` (atrasado).
+### 5. Quick Notes — manter funcionamento atual
+A estrutura JSON multi-nota já existe (`parseNotes`, `handleAddNote`). Apenas:
+- Garantir que nota legada apareça destacada no topo (já tem badge "legado").
+- Manter input atual.
 
-### Notas técnicas
+Nenhuma mudança funcional aqui — o requisito já está atendido. Apenas confirmar no plano que não há regressão.
 
-- `FiscalTask` interface só tem `due_date`. Como `fiscal_due_date` existe no banco, expandir tipo localmente: `task as FiscalTask & { fiscal_due_date?: string | null }` e usar fallback `fiscal_due_date ?? due_date` em todos os cálculos SLA. Sem alteração de hook necessária — `select('*')` já traz a coluna.
-- Nenhuma migração Supabase. Nenhum alteração em RLS, rotas, ou auth.
-- Sem mudanças em TaskListView e TaskCalendarView neste PR (escopo é Kanban + Modal + Filtros).
+### Detalhes técnicos
+- Novos imports: `differenceInCalendarDays`, `formatDistanceToNow` (date-fns), ícones `Clock`, `AlertTriangle`, `CheckCircle2`, `ExternalLink`, `Plus`, `ArrowRight`, `UserCog`, `Tooltip` shadcn.
+- Sem mudanças no banco, hooks, ou outros componentes.
+- Sem mudanças em `FiscalTask` type — apenas leitura de campos já existentes (`completed_at`, `original_responsible_id`, `updated_at`, `is_auto_generated`, `attachment_url`, `created_at`).
+- Se algum campo não existir no tipo, faço fallback com optional chaining sem alterar o tipo.
+
+### O que NÃO muda
+- Rotas, permissões, RLS, schema.
+- Lógica de upload, salvar, concluir, excluir.
+- Outros componentes do Kanban / Lista / Calendário.
