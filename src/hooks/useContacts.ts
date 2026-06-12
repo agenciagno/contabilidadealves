@@ -92,7 +92,7 @@ type ContactOptionalKeys =
   | 'complemento' | 'segundo_email_contato'
   | 'ie' | 'im' | 'regime_apuracao' | 'numero_alvara' | 'validade_alvara'
   | 'status_cliente' | 'tipo_cliente' | 'tipo_estabelecimento' | 'grupo_escritorio'
-  | 'data_inicio_contrato' | 'categorias'
+  | 'data_inicio_contrato' | 'data_saida_cliente' | 'porte' | 'categorias'
   | 'data_abertura_junta' | 'data_abertura_rf' | 'data_abertura_prefeitura' | 'data_abertura_estado'
   | 'data_encerramento_junta' | 'data_encerramento_rf' | 'data_encerramento_prefeitura' | 'data_encerramento_estado'
   | 'possui_funcionarios' | 'numero_funcionarios' | 'tipo_cartao_ponto' | 'medicina_trabalho'
