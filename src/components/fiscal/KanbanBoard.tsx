@@ -89,8 +89,16 @@ function DroppableColumn({
 
   return (
     <div className="flex-1 min-w-[260px] flex-shrink-0 flex flex-col">
-      <div className="flex items-center gap-2 mb-3 px-1">
-        <div className={`w-2.5 h-2.5 rounded-full ${color}`} />
+      <div
+        className={`flex items-center gap-2 mb-3 px-2 py-1.5 rounded-md ${
+          isWaiting ? 'bg-amber-100 dark:bg-amber-900/20' : ''
+        }`}
+      >
+        {isWaiting ? (
+          <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+        ) : (
+          <div className={`w-2.5 h-2.5 rounded-full ${color}`} />
+        )}
         <span className="text-sm font-semibold text-foreground">{label}</span>
         <span className="text-xs text-muted-foreground bg-muted rounded-full px-2 py-0.5">{count}</span>
         <button
