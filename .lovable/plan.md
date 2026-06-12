@@ -1,136 +1,94 @@
-# Transferência Temporária de Clientes Fiscais
+# Plano — Melhorias no Dashboard Fiscal
 
-## Pré-requisito: tabela `collaborator_coverage`
+Tudo será implementado no **frontend**, sem migrations. As colunas `fiscal_due_date`, `completed_at`, `competence_year` e `competence_month` já existem no Supabase externo conectado ao projeto.
 
-Confirmei via `information_schema` que a tabela **não existe** neste projeto Supabase (nem `transfer_log`). Como você pediu para não criar tabelas, mas a feature inteira depende dela, vou criá-la como **passo 0 obrigatório** com exatamente o schema que você descreveu — nada além. Se preferir criar manualmente antes, me avise e pulo o passo 0.
+## Arquivos alterados
 
-### Passo 0 — Migration única
+1. **`src/hooks/useFiscalDashboard.ts`** — estender hooks existentes
+2. **`src/pages/FiscalDashboard.tsx`** — reescrever a UI (preservando o existente)
+3. **`src/index.css`** — adicionar regras `@media print` para layout A4
+4. **(opcional)** `src/hooks/useFiscalTasks48h.ts` — novo hook isolado para o widget 48h
 
-`collaborator_coverage`:
-- `id` uuid PK, `company_id` uuid (FK companies), `absent_profile_id` uuid (FK profiles), `covering_profile_id` uuid (FK profiles)
-- `start_date` date, `end_date` date
-- `reason` text default `'ferias'`, `notes` text
-- `is_active` boolean default true, `tasks_transferred` int default 0
-- `clients_transferred` jsonb default `'[]'` — array de contact_ids
-- `auto_reverted_at` timestamptz, `reverted_by` uuid (FK profiles), `revert_reason` text
-- `created_by` uuid, `created_at`/`updated_at` timestamptz
-- GRANTs para `authenticated` e `service_role`
-- RLS: SELECT/INSERT/UPDATE quando `company_id = get_user_company_id(auth.uid())`
-- Trigger `updated_at`
+Nenhuma rota, nenhuma permissão, nenhum schema é alterado.
 
-## Passo 1 — Edge function `auto-revert-coverages` + cron diário
+## 1. Hook layer (`useFiscalDashboard.ts`)
 
-Edge function que:
-1. Busca `collaborator_coverage` WHERE `is_active = true AND end_date <= current_date`
-2. Para cada uma:
-   - `UPDATE fiscal_tasks SET responsible_id = absent_profile_id` WHERE `responsible_id = covering_profile_id AND contact_id = ANY(clients_transferred) AND status IN ('a_fazer','em_progresso','aguardando_cliente')`
-   - `UPDATE collaborator_coverage SET is_active=false, auto_reverted_at=now()`
-   - INSERT 2 notificações (`type='transfer_end'`) — uma para cada profile envolvido com `company_id` correto
-3. Retorna resumo
+- `useFiscalTasksOfMonth` passa a selecionar também: `completed_at`, `created_at`, `contact_id` e fazer join `contacts(tax_regime)`. O tipo `FiscalTaskRow` ganha esses campos.
+- Novo hook `useFiscalTasks48h(companyId, taxRegime)`: tasks com `fiscal_due_date BETWEEN now AND now+48h`, `status != 'concluido'`, com joins `contacts(name, tax_regime)`, `responsible:profiles(full_name)`, `fiscal_obligations_catalog(name)`. Filtra cliente-side por regime quando aplicável. Ordena por `fiscal_due_date ASC`, limita a 10.
+- Novo hook `useFiscalTasksPrevMonth(year, month)`: mesma estrutura do current month, mas calculando ano/mês anterior. Usado só para o comparativo de taxa de cumprimento.
 
-Cron via `pg_cron` + `pg_net`, agendado 1×/dia às 03:00 BRT. Usa o anon key (já disponível).
+## 2. UI (`FiscalDashboard.tsx`)
 
-## Passo 2 — Novos componentes frontend
-
-### `src/components/fiscal/TransferTemporaryModal.tsx`
-Modal multi-step com `Tabs` interno controlado por estado (`step: 1|2|3`), rodapé com "Voltar" / "Próximo" / "Confirmar". Padrão visual igual aos modais fiscais existentes (`max-w-2xl max-h-[90vh] overflow-y-auto`).
-
-**Step 1 — Configuração** (`Select` shadcn + `Popover`+`Calendar` para datepicker com `pointer-events-auto`):
-- Colaborador ausente → `useCollaborators()` (já filtra com clientes ativos)
-- Colaborador substituto → `useAllFiscalProfiles()` filtrado != ausente
-- Motivo: `ferias | licenca_medica | afastamento | redistribuicao | outro` (label PT-BR). Se `outro`, mostrar `Input` "Descreva o motivo"
-- `start_date` (default hoje), `end_date` (obrigatória, > start_date)
-- `notes` textarea opcional
-- Validação inline antes de habilitar "Próximo"
-
-**Step 2 — Seleção de clientes**:
-- Query nova `useAbsentProfileClients(absent_profile_id)`: busca `contacts` distinct via `fiscal_tasks` WHERE `responsible_id = absent_profile_id AND status != 'concluido'`, join `contacts(id, name, tax_regime)` + COUNT de obrigações ativas por cliente
-- `Input` de busca por nome (filtro client-side)
-- Checkbox "Selecionar todos" no topo
-- Linha por cliente: nome em negrito, `Badge` outline com `tax_regime`, contagem de obrigações ativas como `text-xs text-muted-foreground`
-- Estado vazio: "Este colaborador não possui clientes ativos."
-
-**Step 3 — Confirmação**:
-- Card resumo: "Transferir **X clientes** de **[nome]** para **[nome]**"
-- Linhas com `Motivo: …`, `Período: dd/MM/yyyy → dd/MM/yyyy`
-- Texto descritivo: "As tarefas pendentes e em andamento serão reassignadas automaticamente."
-- `Alert` amarelo (`border-yellow-500/30 bg-yellow-500/10`): "Na data de expiração, os clientes e tarefas voltarão automaticamente para **[nome]**."
-- Botão "Confirmar Transferência" no rodapé
-
-**Submit** (transação client-side):
-1. INSERT em `collaborator_coverage` com `clients_transferred` = array de contact_ids selecionados, `tasks_transferred` = count, `is_active=true`, `created_by`=profile atual
-2. UPDATE `fiscal_tasks` SET `responsible_id = covering_profile_id` WHERE filtros descritos
-3. INSERT 2 linhas em `notifications` (`type='transfer_start'`, ambos `company_id` e `reference_type='coverage'`, `reference_id`=coverage.id)
-4. Invalida queries: `coverages`, `collaborators-with-clients`, `client-count-by-profile`, `fiscal-tasks`, `fiscal-dashboard`, `contacts`, `temporary-transfers-by-contact`
-
-### `src/components/fiscal/TransferHistoryPanel.tsx`
-Substitui `TransferHistory`. Lista todas as `collaborator_coverage` da empresa via novo hook `useTransferHistory()`:
-- Ordenação: `is_active DESC, created_at DESC`
-- Card por linha (mesmo estilo do Card de colaborador, `border-border/50 bg-card`):
-  - Header: nome (De → Para) com seta `ArrowRightLeft`
-  - Badge de status:
-    - `is_active=true`: green com `animate-pulse` "Ativa"
-    - `is_active=false AND auto_reverted_at IS NOT NULL AND revert_reason IS NULL`: gray "Expirada"
-    - `is_active=false AND revert_reason IS NOT NULL`: amber "Revertida manualmente"
-  - Linhas meta: motivo (PT-BR), período, X clientes
-  - Se ativa: countdown "Expira em N dias" (calculado de `end_date`) + botão outline `Reverter agora`
-  - Se revertida manualmente: "Revertida em DD/MM por [nome] — Motivo: [revert_reason]"
-  - Se expirada automaticamente: "Revertida automaticamente em DD/MM"
-
-### `RevertCoverageDialog` (interno ao painel)
-`AlertDialog` com `Textarea` "Motivo da reversão antecipada" obrigatório. Ao confirmar:
-1. UPDATE `collaborator_coverage` SET `is_active=false, reverted_by=profile_atual, revert_reason=motivo, auto_reverted_at=now()` (sim, esse campo carrega "quando voltou", independente de manual/auto)
-2. UPDATE `fiscal_tasks` reverso (responsible_id ← absent_profile_id) com os mesmos filtros de status
-3. 2 notificações `type='transfer_end'`
-4. Invalida mesmas queries
-
-## Passo 3 — Hook `useTemporaryTransfers`
-
-Novo arquivo `src/hooks/useTemporaryTransfers.ts` (não toco em `useCollaboratorCoverage.ts` para não quebrar nada):
-- `useTransferHistory()` — lista por `company_id` com joins em `profiles` (absent/covering/reverted_by)
-- `useAbsentProfileClients(profileId)` — busca distinct contacts via fiscal_tasks
-- `useCreateTemporaryTransfer()` — mutation com os 4 passos do submit
-- `useRevertTransfer()` — mutation da reversão manual
-- `useActiveCoverageByContact()` — retorna `Record<contact_id, { end_date, covering_profile_id, absent_profile_id }>` para os clientes em coverage ativa (alimenta o badge "Temporário")
-
-## Passo 4 — Badge "Temporário" nos cards e Kanban
-
-- `FiscalCollaborators.tsx`: ao listar clientes (se em algum lugar), olhar `useActiveCoverageByContact` e renderizar `Badge` purple `bg-purple-500/15 text-purple-600 border-purple-500/30` com "Temporário até dd/MM"
-- `TaskCard.tsx`: ao lado de `contactName` (linha 68), se `task.contact_id` está em `activeCoverageByContact`, mostrar o mesmo badge. Hook chamado uma vez por board e passado via context ou prop drilling no `KanbanBoard`.
-  - Para evitar N hooks, exponho `useActiveCoverageByContact` no nível do `KanbanBoard`/`TaskListView` e passo o map para o `TaskCard` via prop opcional `temporaryCoverage?: { endDate: string } | null`.
-
-## Passo 5 — Reescrever `FiscalCollaborators.tsx`
-
-- Remover imports e uso de `TransferClientsModal` e `TransferHistory`
-- Trocar botão "Transferir Clientes" para abrir `TransferTemporaryModal`
-- Em cada card de colaborador, adicionar indicadores baseados no histórico ativo:
-  - Se `covering_profile_id == c.id` em alguma ativa: `Badge` info "Cobrindo X clientes de [nome] até dd/MM"
-  - Se `absent_profile_id == c.id` em alguma ativa: `Badge` amber "Ausente — X clientes com [nome] até dd/MM"
-- Abaixo dos cards: seção `<h2>Transferências</h2>` + `<TransferHistoryPanel />`
-
-## Passo 6 — Limpeza
-
-- `TransferClientsModal.tsx` e `TransferHistory.tsx`: deletados (substituição completa, conforme escolha).
-- `useCollaboratorCoverage.ts`: mantenho funções genuinamente reutilizáveis (`useCollaborators`, `useAllFiscalProfiles`, `useClientCountByProfile`, `useCollaboratorDetails`). Removo apenas `useCoverages`/`usePendingTasksByProfile` se ficarem órfãos — checo usos antes.
-
-## Arquivos afetados
+Mantém todo o conteúdo atual. Acrescenta, na ordem visual:
 
 ```text
-+ supabase/migrations/<ts>_collaborator_coverage.sql              (passo 0)
-+ supabase/functions/auto-revert-coverages/index.ts               (passo 1)
-+ supabase/migrations/<ts>_schedule_auto_revert.sql               (cron — via insert tool, não migration)
-+ src/components/fiscal/TransferTemporaryModal.tsx                (passo 2)
-+ src/components/fiscal/TransferHistoryPanel.tsx                  (passo 2)
-+ src/hooks/useTemporaryTransfers.ts                              (passo 3)
-M src/components/fiscal/TaskCard.tsx                              (badge — prop opcional)
-M src/components/fiscal/KanbanBoard.tsx                           (passar coverage map)
-M src/components/fiscal/TaskListView.tsx                          (idem)
-M src/pages/FiscalCollaborators.tsx                               (passo 5)
-- src/components/fiscal/TransferClientsModal.tsx                  (deletado)
-- src/components/fiscal/TransferHistory.tsx                       (deletado)
-M src/hooks/useCollaboratorCoverage.ts                            (limpeza condicional)
+[Header: título + ToggleGroup regime + mês/ano + Atualizar + Exportar PDF]
+[Banner amarelo: tarefas sem responsável]    ← condicional
+[KPIs row 1: Pendentes | Em andamento | Atrasadas | Concluídas]
+[KPIs row 2: Taxa de Cumprimento | Comparativo Mês Anterior]
+[Card "Vencendo nas Próximas 48h"]
+[Gráfico de barras existente]
+[Cards de Progresso por Colaborador — incrementados]
+[Tabela "Próximos Vencimentos (7 dias)" — existente]
 ```
 
-## O que NÃO mexo
+### 2.1 ToggleGroup de Regime Tributário
+- shadcn `ToggleGroup` (single, default `'todos'`) com opções: Todos / Simples Nacional / Lucro Presumido / Lucro Real. Estado local (sempre volta a "Todos" ao entrar).
+- Filtragem cliente-side: `tasks.filter(t => t.contacts?.tax_regime === regime)` aplicada a todos os derivados (kpis, chart, progressList, 48h, semResponsavel, upcoming).
 
-Rotas, auth, RBAC (`ModuleGuard requireAdmin` continua o mesmo na página), tabelas existentes (`fiscal_tasks`, `contacts`, `notifications`, `profiles`), nem qualquer outro componente fiscal.
+### 2.2 KPIs novos
+- **Taxa de Cumprimento**: `concluidasNoPrazo / concluidasTotal * 100`, considerando "no prazo" quando `completed_at <= fiscal_due_date` (ambos truncados para data). Cores: verde ≥90, amarelo 70-89, vermelho <70. Ícone `TrendingUp`. Reaproveita `KpiCard` com prop opcional `valueLabel` para mostrar `"85%"` em vez de fração; ou cria pequeno `RateKpiCard`.
+- **Comparativo Mês Anterior**: `taxaAtual - taxaAnterior`. Seta `ArrowUp`/`ArrowDown` (verde/vermelha), formato `+5%` / `-3%` / `0%`. Ícone do card: `ArrowUpDown`.
+
+### 2.3 Widget "Vencendo nas Próximas 48h"
+Card próprio acima do gráfico. Título com `Badge` mostrando a contagem.
+- Lista (até 10): nome do cliente, obrigação, hora formatada `HH:mm` de `fiscal_due_date`, avatar mini do responsável (`AvatarFallback` com inicial), `StatusBadge`.
+- Ordenado por `fiscal_due_date ASC`.
+- Empty: ícone `CheckCircle` verde + "Nenhuma obrigação vencendo nas próximas 48 horas".
+- Link "Ver todas" → `navigate('/fiscal/tarefas?filter=48h')` (sem implementar o filtro do destino — só repassa a querystring; o Kanban pode reconhecer depois).
+
+### 2.4 Score por colaborador
+Em `progressList`, calcular adicionalmente:
+- `noPrazoPct` = `(tasksConcluidasNoPrazo / tasksConcluidas) * 100` para esse colaborador.
+- `mediaDias` = média de `(completed_at - created_at)` em dias para tasks concluídas no mês.
+- Cor da borda do `Card` via `cn('border-l-4', noPrazoPct>=90?'border-l-green-500':noPrazoPct>=70?'border-l-yellow-500':'border-l-red-500')`. Quando não houver concluídas, sem borda colorida.
+- Exibir duas linhas extras no card: `Entregas no prazo: X%` e `Média de dias para conclusão: X dias`.
+
+### 2.5 Banner sem responsável
+Se `tasks.filter(t => !t.responsible_id && t.status !== 'concluido').length > 0`, mostrar `Alert` amarelo (variant custom usando `bg-yellow-500/10 border-yellow-500/30`) com `AlertTriangle`, contagem e botão `Ver tarefas` → `navigate('/fiscal/tarefas?responsavel=none')`.
+
+### 2.6 Botão Exportar PDF
+`Button` outline com ícone `Download` ao lado do Atualizar. `onClick = () => window.print()`.
+
+## 3. Print CSS (`src/index.css`)
+
+```css
+@media print {
+  @page { size: A4; margin: 12mm; }
+  body { background: white !important; }
+  /* esconder shell de aplicação */
+  aside, header.app-header, [data-sidebar], .no-print { display: none !important; }
+  /* expandir conteúdo */
+  main { padding: 0 !important; }
+  /* evitar quebra dentro de cards */
+  .card, [data-card] { break-inside: avoid; page-break-inside: avoid; }
+  /* esconder controles interativos */
+  button, [role="combobox"] { display: none !important; }
+}
+```
+
+Aplicar classe `no-print` no header de controles (Select mês/ano, botões) e nada mais — assim KPIs, gráfico, progresso e tabela ficam visíveis na impressão. Verificar se o `AppLayout` tem `aside` para sidebar (esconder via seletor) — caso contrário marcar o container com `data-sidebar` ou `.no-print`.
+
+## Detalhes técnicos
+
+- **Sem alterações de schema, RLS ou edge functions.**
+- Filtro de regime é puramente client-side sobre o que o hook já trouxe (evita refetch ao trocar regime).
+- Comparativo de mês anterior dispara um único query extra paralelo via React Query.
+- `useFiscalTasks48h` usa `fiscal_due_date::timestamptz` — como o campo é `date`, usaremos comparação em formato `YYYY-MM-DD` com window de 2 dias (today, today+1, today+2) e ignoraremos hora (a UI mostra "—" se não houver hora). Caso o usuário queira granularidade de horas, é só ajustar o tipo no banco — mantemos o frontend pronto para ambos.
+- Toda nova UI usa shadcn/ui + Tailwind, padrão visual existente (Apple-like, radii 1rem, cores semânticas).
+- Mantém compatibilidade com role de colaborador: hooks continuam respeitando o filtro `responsible_id` quando `isColaborador`.
+
+## Fora de escopo
+
+- Implementação dos filtros `?filter=48h` e `?responsavel=none` no Kanban (links já saem prontos, suporte do destino é tarefa futura).
+- Geração de PDF real (jspdf/pdfmake). Por ora apenas `window.print()` com CSS A4, como pedido.
