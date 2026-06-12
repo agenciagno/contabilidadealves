@@ -383,7 +383,22 @@ export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, 
             </div>
 
             <div>
-              <Label>Responsável</Label>
+              <div className="flex items-center gap-1.5">
+                <Label>Responsável</Label>
+                {wasTransferred && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <UserCog className="w-3.5 h-3.5 text-amber-600 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Transferida de {originalResponsibleName}
+                        {transferDateLabel ? ` em ${transferDateLabel}` : ''}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
               {canEdit ? (
                 <Select value={responsibleId} onValueChange={setResponsibleId}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
@@ -397,6 +412,7 @@ export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, 
                 <p className="text-sm text-foreground mt-1">{responsibleName}</p>
               )}
             </div>
+
 
             <div className="grid grid-cols-2 gap-3">
               <div>
