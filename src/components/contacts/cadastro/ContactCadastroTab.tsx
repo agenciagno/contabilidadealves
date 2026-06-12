@@ -401,6 +401,12 @@ export function ContactCadastroTab({ contactId }: Props) {
           onSave={() => saveSection([
             'responsible_id', 'categorias',
             'data_inicio_contrato', 'data_encerramento_rf',
+            'data_abertura_junta', 'data_encerramento_junta',
+            'data_abertura_rf', 'data_encerramento_rf',
+            'data_abertura_prefeitura', 'data_encerramento_prefeitura',
+            'data_abertura_estado', 'data_encerramento_estado',
+            'possui_funcionarios', 'numero_funcionarios', 'tipo_cartao_ponto',
+            'medicina_trabalho', 'grupo_cipa',
           ])}
           isPending={updateSuperPerfil.isPending}
           contactId={contactId}
