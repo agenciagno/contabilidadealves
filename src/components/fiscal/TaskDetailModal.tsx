@@ -83,6 +83,7 @@ const statusBadgeClass: Record<string, string> = {
 export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, onUpdate, onDelete, groupTasks, onUploadForTask }: TaskDetailModalProps) {
   const { isColaborador, isSuperAdmin, isAdmin } = useUserRole();
   const { company } = useCompany();
+  const { user } = useAuth();
   const companyId = company?.id;
   const { toast } = useToast();
   const canEdit = isSuperAdmin || isAdmin;
@@ -92,7 +93,8 @@ export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, 
   const [status, setStatus] = useState('a_fazer');
   const [dueDate, setDueDate] = useState('');
   const [responsibleId, setResponsibleId] = useState('');
-  const [notes, setNotes] = useState('');
+  const [notesRaw, setNotesRaw] = useState<string | null>(null);
+  const [newNote, setNewNote] = useState('');
   const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -103,10 +105,32 @@ export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, 
       setStatus(task.status);
       setDueDate(task.due_date);
       setResponsibleId(task.responsible_id || '');
-      setNotes(task.notes || '');
+      setNotesRaw(task.notes ?? null);
+      setNewNote('');
       setAttachmentUrl(task.attachment_url);
     }
   }, [task]);
+
+  // Current user's profile (for authoring notes)
+  const { data: currentProfile } = useQuery({
+    queryKey: ['current-profile-notes', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .eq('user_id', user!.id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  const teamNotes = useMemo<TeamNote[]>(() => {
+    if (!task) return [];
+    const list = parseNotes(notesRaw, task.created_at);
+    return [...list].sort((a, b) => b.created_at.localeCompare(a.created_at));
+  }, [notesRaw, task]);
 
   if (!task) return null;
 
@@ -154,9 +178,24 @@ export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, 
     toast({ title: '✅ Tarefa atualizada.' });
   };
 
-  const handleSaveNotes = () => {
-    onUpdate(task.id, { notes });
-    toast({ title: '✅ Observação salva.' });
+  const handleAddNote = () => {
+    const text = newNote.trim();
+    if (!text) return;
+    const authorName = currentProfile?.full_name || currentProfile?.email?.split('@')[0] || 'Usuário';
+    const entry: TeamNote = {
+      profile_id: currentProfile?.id ?? null,
+      profile_name: authorName,
+      text,
+      created_at: new Date().toISOString(),
+    };
+    const next = [...teamNotes.filter((n) => !n.legacy || true), entry];
+    // Persist as JSON array (legacy item is included so it survives)
+    const serializable = next.map(({ legacy, ...rest }) => rest);
+    const json = JSON.stringify(serializable);
+    setNotesRaw(json);
+    setNewNote('');
+    onUpdate(task.id, { notes: json });
+    toast({ title: '✅ Nota adicionada.' });
   };
 
   const handleMarkComplete = () => {
@@ -164,9 +203,10 @@ export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, 
       toast({ title: 'Anexe um arquivo antes de concluir', variant: 'destructive' });
       return;
     }
-    onUpdate(task.id, { status: 'concluido', notes });
+    onUpdate(task.id, { status: 'concluido' });
     onOpenChange(false);
   };
+
 
   const contactName = contacts.find(c => c.id === task.contact_id)?.name || '—';
   const responsibleName = profiles.find(p => p.id === responsibleId)?.full_name || '—';
