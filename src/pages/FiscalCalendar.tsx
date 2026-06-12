@@ -715,6 +715,44 @@ export default function FiscalCalendar() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={unlockOpen} onOpenChange={setUnlockOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Desbloquear calendário</AlertDialogTitle>
+            <AlertDialogDescription>
+              Editar o calendário após o lançamento pode causar inconsistências com as tarefas já geradas. Continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleUnlock}>Desbloquear</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={rollbackOpen} onOpenChange={setRollbackOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Desfazer lançamento</AlertDialogTitle>
+            <AlertDialogDescription>
+              Isso vai DELETAR até {launchMeta?.task_ids.length ?? 0} tarefa(s) geradas automaticamente para {String(month).padStart(2, '0')}/{year}. Tarefas editadas manualmente ou com status diferente de "A Fazer" serão preservadas. Continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRollback}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Desfazer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <RtChecklistDialog open={rtChecklistOpen} onOpenChange={setRtChecklistOpen} />
     </div>
   );
 }
+
