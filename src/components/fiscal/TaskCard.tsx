@@ -48,7 +48,7 @@ function getDueDateColor(dueDate: string) {
   return { bg: 'bg-emerald-500/10', text: 'text-emerald-600', border: 'border-emerald-500/30', label: `${daysLeft}d` };
 }
 
-export function TaskCard({ task, contactName, responsibleName, responsibleInitials, onClick, dragProps, onEdit, onDelete }: TaskCardProps) {
+export function TaskCard({ task, contactName, responsibleName, responsibleInitials, onClick, dragProps, onEdit, onDelete, temporaryCoverage }: TaskCardProps) {
   const dateColor = getDueDateColor(task.due_date);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -66,7 +66,14 @@ export function TaskCard({ task, contactName, responsibleName, responsibleInitia
         <CardContent className="p-3 space-y-2">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1 space-y-1">
-              <p className="text-sm font-semibold text-foreground truncate">{contactName}</p>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <p className="text-sm font-semibold text-foreground truncate">{contactName}</p>
+                {temporaryCoverage && (
+                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30">
+                    Temporário até {format(parseISO(temporaryCoverage.end_date), 'dd/MM')}
+                  </Badge>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground line-clamp-2">{task.title}</p>
             </div>
             {(onEdit || onDelete) && (
