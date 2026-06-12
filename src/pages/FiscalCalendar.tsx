@@ -84,6 +84,9 @@ const phaseKey = (y: number, m: number) => `fiscal-calendar-phase:${y}-${m}`;
 export default function FiscalCalendar() {
   const { isAdmin, isSuperAdmin, isLoading: roleLoading } = useUserRole();
   const qc = useQueryClient();
+  const { company } = useCompany();
+  const { profile, userName } = useProfile();
+  const companyId = company?.id ?? '';
 
   const now = new Date();
   const [year, setYear] = useState<number>(now.getFullYear());
@@ -93,21 +96,52 @@ export default function FiscalCalendar() {
   const { data: rows, isLoading } = useFiscalCalendar(year, month, phase !== 'idle');
   const calculate = useCalculateCalendar();
   const confirm = useConfirmMonthlyTasks();
+  const rollback = useRollbackMonthlyTasks();
+
+  // Preview gate
+  const [previewReviewed, setPreviewReviewed] = useState(false);
+
+  // Lock / launch metadata
+  const [launchMeta, setLaunchMeta] = useState<ReturnType<typeof loadLaunchMeta>>(null);
+  const [locked, setLocked] = useState(false);
+  const [unlockOpen, setUnlockOpen] = useState(false);
+  const [rollbackOpen, setRollbackOpen] = useState(false);
+
+  // RT checklist
+  const [rtChecklistOpen, setRtChecklistOpen] = useState(false);
 
   useEffect(() => {
     try {
       const stored = sessionStorage.getItem(phaseKey(year, month));
-      setPhase((stored as Phase) ?? 'idle');
+      const p = (stored as Phase) ?? 'idle';
+      setPhase(p);
+      if (companyId) {
+        const meta = loadLaunchMeta(companyId, year, month);
+        setLaunchMeta(meta);
+        setLocked(p === 'launched' && !!meta);
+      } else {
+        setLaunchMeta(null);
+        setLocked(p === 'launched');
+      }
     } catch {
       setPhase('idle');
+      setLaunchMeta(null);
+      setLocked(false);
     }
-  }, [year, month]);
+    setPreviewReviewed(false);
+  }, [year, month, companyId]);
 
   const setPhasePersist = (next: Phase) => {
     setPhase(next);
     try {
       sessionStorage.setItem(phaseKey(year, month), next);
     } catch {}
+    if (next === 'launched' && companyId) {
+      setLaunchMeta(loadLaunchMeta(companyId, year, month));
+      setLocked(true);
+    } else if (next === 'calculated') {
+      setLocked(false);
+    }
   };
 
   const handleMonthChange = (v: string) => {
@@ -159,8 +193,52 @@ export default function FiscalCalendar() {
     calculate.mutate({ year, month }, { onSuccess: () => setPhasePersist('calculated') });
   };
   const handleConfirm = () => {
-    confirm.mutate({ year, month }, { onSuccess: () => setPhasePersist('launched') });
+    confirm.mutate(
+      { year, month, companyId, launchedBy: userName },
+      { onSuccess: () => setPhasePersist('launched') },
+    );
   };
+  const handleUnlock = () => {
+    if (!profile) return;
+    setLocked(false);
+    setUnlockOpen(false);
+    toast.success('Calendário desbloqueado para edição.');
+    // Annotate every overridden row with audit reason; rows without override stay untouched
+    const today = format(new Date(), 'dd/MM/yyyy');
+    const reason = `Calendário desbloqueado por ${userName} em ${today}`;
+    // We append the reason to future overrides via dialog default; store on launchMeta for UI display
+    setLaunchMeta((prev) => (prev ? { ...prev, launched_by: prev.launched_by } : prev));
+    // Best-effort: bump rows that already have override to capture the reason in their audit field
+    (async () => {
+      try {
+        const ids = sorted.filter((r) => !!r.adjusted_due_date_override).map((r) => r.id);
+        if (ids.length > 0) {
+          await (supabase as any)
+            .from('fiscal_calendar')
+            .update({ override_reason: reason })
+            .in('id', ids);
+          qc.invalidateQueries({ queryKey: ['fiscal-calendar'] });
+        }
+      } catch {}
+    })();
+  };
+  const handleRollback = () => {
+    if (!companyId) return;
+    rollback.mutate(
+      { year, month, companyId },
+      {
+        onSuccess: () => {
+          setPhasePersist('calculated');
+          setLaunchMeta(null);
+          setLocked(false);
+          setRollbackOpen(false);
+        },
+      },
+    );
+  };
+
+  const editingDisabled = phase === 'launched' && locked;
+
 
   const allChecked = sorted.length > 0 && selected.size === sorted.length;
   const someChecked = selected.size > 0 && selected.size < sorted.length;
