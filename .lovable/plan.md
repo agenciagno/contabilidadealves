@@ -1,94 +1,58 @@
-# Plano — Melhorias no Dashboard Fiscal
+## Melhorias em /fiscal/tarefas
 
-Tudo será implementado no **frontend**, sem migrations. As colunas `fiscal_due_date`, `completed_at`, `competence_year` e `competence_month` já existem no Supabase externo conectado ao projeto.
+Implementação por blocos, mantendo todo o comportamento existente.
 
-## Arquivos alterados
+### Arquivos alterados
 
-1. **`src/hooks/useFiscalDashboard.ts`** — estender hooks existentes
-2. **`src/pages/FiscalDashboard.tsx`** — reescrever a UI (preservando o existente)
-3. **`src/index.css`** — adicionar regras `@media print` para layout A4
-4. **(opcional)** `src/hooks/useFiscalTasks48h.ts` — novo hook isolado para o widget 48h
+- `src/components/fiscal/TaskCard.tsx` — barra de prazo, badge SLA D-X, paperclip, borda amber em "aguardando_cliente", botão UserCog (quick reassign).
+- `src/components/fiscal/KanbanBoard.tsx` — header amber para coluna "Aguardando Cliente" + ícone Clock; ordenação automática por `fiscal_due_date ASC` com atrasadas no topo; passar callback `onReassign` e `profileOptions` ao `TaskCard`.
+- `src/components/fiscal/TaskDetailModal.tsx` — nova seção "Notas da Equipe" com lista + input; migração in-place de `notes` string → array JSON.
+- `src/pages/FiscalTasks.tsx` — botão "Salvar filtro" + dropdown "Meus filtros" (localStorage, máx 5); passar `profileOptions` e `onReassign` ao KanbanBoard.
 
-Nenhuma rota, nenhuma permissão, nenhum schema é alterado.
+### Detalhes por item
 
-## 1. Hook layer (`useFiscalDashboard.ts`)
+**1. Coluna "Aguardando Cliente" destacada**
+No `DroppableColumn` do KanbanBoard, quando `id === 'aguardando_cliente'`, header recebe `bg-amber-100 dark:bg-amber-900/20` e ícone `Clock` antes do label. O `TaskCard` detecta `task.status === 'aguardando_cliente'` e aplica `border-l-4 border-l-amber-500` + badge "Aguardando" amber dentro do card.
 
-- `useFiscalTasksOfMonth` passa a selecionar também: `completed_at`, `created_at`, `contact_id` e fazer join `contacts(tax_regime)`. O tipo `FiscalTaskRow` ganha esses campos.
-- Novo hook `useFiscalTasks48h(companyId, taxRegime)`: tasks com `fiscal_due_date BETWEEN now AND now+48h`, `status != 'concluido'`, com joins `contacts(name, tax_regime)`, `responsible:profiles(full_name)`, `fiscal_obligations_catalog(name)`. Filtra cliente-side por regime quando aplicável. Ordena por `fiscal_due_date ASC`, limita a 10.
-- Novo hook `useFiscalTasksPrevMonth(year, month)`: mesma estrutura do current month, mas calculando ano/mês anterior. Usado só para o comparativo de taxa de cumprimento.
+**2. Timer SLA**
+Função `getSlaInfo(task)` usa `task.fiscal_due_date || task.due_date`. Calcula `daysLeft = differenceInDays(due, today)`. Retorna:
+- `> 5`: green `D-X`
+- `3–5`: amber `D-X`
+- `1–2`: red com `animate-pulse` `D-X`
+- `0`: red `D-0`
+- `< 0`: red bg sólido "Atrasado há X dias"
 
-## 2. UI (`FiscalDashboard.tsx`)
+Badge posicionado no canto inferior direito (junto ao avatar atual).
 
-Mantém todo o conteúdo atual. Acrescenta, na ordem visual:
+**3. Ordenação automática**
+No `KanbanBoard`, dentro de cada coluna ordenar por `fiscal_due_date || due_date` ASC. Atrasadas (`daysLeft < 0`) ficam no topo independente da ordenação. Mantém o toggle de sort existente, mas o default vira ASC e "atrasados primeiro" é sempre aplicado.
 
-```text
-[Header: título + ToggleGroup regime + mês/ano + Atualizar + Exportar PDF]
-[Banner amarelo: tarefas sem responsável]    ← condicional
-[KPIs row 1: Pendentes | Em andamento | Atrasadas | Concluídas]
-[KPIs row 2: Taxa de Cumprimento | Comparativo Mês Anterior]
-[Card "Vencendo nas Próximas 48h"]
-[Gráfico de barras existente]
-[Cards de Progresso por Colaborador — incrementados]
-[Tabela "Próximos Vencimentos (7 dias)" — existente]
-```
+**4. Badge de Anexo**
+Já existe `Paperclip` ao lado do avatar — mover para canto inferior esquerdo, tamanho 14 (`w-3.5 h-3.5`), cor `text-muted-foreground`.
 
-### 2.1 ToggleGroup de Regime Tributário
-- shadcn `ToggleGroup` (single, default `'todos'`) com opções: Todos / Simples Nacional / Lucro Presumido / Lucro Real. Estado local (sempre volta a "Todos" ao entrar).
-- Filtragem cliente-side: `tasks.filter(t => t.contacts?.tax_regime === regime)` aplicada a todos os derivados (kpis, chart, progressList, 48h, semResponsavel, upcoming).
+**5. Filtros Salvos por Colaborador**
+Chave localStorage: `fiscal:saved-filters:<profileId>`. Estrutura: `[{id, name, filters: {startDate, endDate, contact, responsible, obligation}}]`. UI:
+- Botão "Salvar filtro" abre um Popover com Input para nome → grava.
+- Dropdown "Meus filtros" lista os salvos; click aplica; X remove.
+- Máx 5 (botão desabilitado quando atingido).
+Sem migração de banco.
 
-### 2.2 KPIs novos
-- **Taxa de Cumprimento**: `concluidasNoPrazo / concluidasTotal * 100`, considerando "no prazo" quando `completed_at <= fiscal_due_date` (ambos truncados para data). Cores: verde ≥90, amarelo 70-89, vermelho <70. Ícone `TrendingUp`. Reaproveita `KpiCard` com prop opcional `valueLabel` para mostrar `"85%"` em vez de fração; ou cria pequeno `RateKpiCard`.
-- **Comparativo Mês Anterior**: `taxaAtual - taxaAnterior`. Seta `ArrowUp`/`ArrowDown` (verde/vermelha), formato `+5%` / `-3%` / `0%`. Ícone do card: `ArrowUpDown`.
+**6. Quick Reassign**
+No `TaskCard`, ícone `UserCog` aparece no hover (top-right, ao lado do MoreVertical). Click abre `DropdownMenu` com a lista de colaboradores (passada via prop `profileOptions`). Selecionar chama `onReassign(task.id, profileId)` que faz `supabase.from('fiscal_tasks').update({ responsible_id }).eq('id', ...)` + invalida cache. Reaproveita `handleInlineReassign` já existente em FiscalTasks.tsx.
 
-### 2.3 Widget "Vencendo nas Próximas 48h"
-Card próprio acima do gráfico. Título com `Badge` mostrando a contagem.
-- Lista (até 10): nome do cliente, obrigação, hora formatada `HH:mm` de `fiscal_due_date`, avatar mini do responsável (`AvatarFallback` com inicial), `StatusBadge`.
-- Ordenado por `fiscal_due_date ASC`.
-- Empty: ícone `CheckCircle` verde + "Nenhuma obrigação vencendo nas próximas 48 horas".
-- Link "Ver todas" → `navigate('/fiscal/tarefas?filter=48h')` (sem implementar o filtro do destino — só repassa a querystring; o Kanban pode reconhecer depois).
+**7. Notas em JSONB**
+A coluna `notes` hoje é `text`. Estratégia sem alterar schema:
+- Ao ler: tentar `JSON.parse(notes)`; se array → usar; se falhar e `notes` for texto não vazio → exibir como item "legado" (autor "—", data = `created_at` da task).
+- Ao adicionar: criar array `[{profile_id, profile_name, text, created_at: ISO}, ...legados]`, `JSON.stringify` e salvar em `notes`.
+- UI: lista ordenada `created_at DESC` (mais recente no topo), avatar com iniciais, nome, data formatada, texto. Input + botão "Adicionar".
+- Substitui a seção "Observações" atual (mantém Textarea legado oculto, sem perda — o item legado fica visível na lista).
 
-### 2.4 Score por colaborador
-Em `progressList`, calcular adicionalmente:
-- `noPrazoPct` = `(tasksConcluidasNoPrazo / tasksConcluidas) * 100` para esse colaborador.
-- `mediaDias` = média de `(completed_at - created_at)` em dias para tasks concluídas no mês.
-- Cor da borda do `Card` via `cn('border-l-4', noPrazoPct>=90?'border-l-green-500':noPrazoPct>=70?'border-l-yellow-500':'border-l-red-500')`. Quando não houver concluídas, sem borda colorida.
-- Exibir duas linhas extras no card: `Entregas no prazo: X%` e `Média de dias para conclusão: X dias`.
+**8. Barra fina de prazo (2px) no topo do card**
+`<div className="absolute top-0 left-0 right-0 h-0.5 rounded-t" />` dentro do `<Card className="... overflow-hidden">`, cor conforme SLA:
+- green-500 / amber-500 / red-500 / red-700 + `animate-pulse` (atrasado).
 
-### 2.5 Banner sem responsável
-Se `tasks.filter(t => !t.responsible_id && t.status !== 'concluido').length > 0`, mostrar `Alert` amarelo (variant custom usando `bg-yellow-500/10 border-yellow-500/30`) com `AlertTriangle`, contagem e botão `Ver tarefas` → `navigate('/fiscal/tarefas?responsavel=none')`.
+### Notas técnicas
 
-### 2.6 Botão Exportar PDF
-`Button` outline com ícone `Download` ao lado do Atualizar. `onClick = () => window.print()`.
-
-## 3. Print CSS (`src/index.css`)
-
-```css
-@media print {
-  @page { size: A4; margin: 12mm; }
-  body { background: white !important; }
-  /* esconder shell de aplicação */
-  aside, header.app-header, [data-sidebar], .no-print { display: none !important; }
-  /* expandir conteúdo */
-  main { padding: 0 !important; }
-  /* evitar quebra dentro de cards */
-  .card, [data-card] { break-inside: avoid; page-break-inside: avoid; }
-  /* esconder controles interativos */
-  button, [role="combobox"] { display: none !important; }
-}
-```
-
-Aplicar classe `no-print` no header de controles (Select mês/ano, botões) e nada mais — assim KPIs, gráfico, progresso e tabela ficam visíveis na impressão. Verificar se o `AppLayout` tem `aside` para sidebar (esconder via seletor) — caso contrário marcar o container com `data-sidebar` ou `.no-print`.
-
-## Detalhes técnicos
-
-- **Sem alterações de schema, RLS ou edge functions.**
-- Filtro de regime é puramente client-side sobre o que o hook já trouxe (evita refetch ao trocar regime).
-- Comparativo de mês anterior dispara um único query extra paralelo via React Query.
-- `useFiscalTasks48h` usa `fiscal_due_date::timestamptz` — como o campo é `date`, usaremos comparação em formato `YYYY-MM-DD` com window de 2 dias (today, today+1, today+2) e ignoraremos hora (a UI mostra "—" se não houver hora). Caso o usuário queira granularidade de horas, é só ajustar o tipo no banco — mantemos o frontend pronto para ambos.
-- Toda nova UI usa shadcn/ui + Tailwind, padrão visual existente (Apple-like, radii 1rem, cores semânticas).
-- Mantém compatibilidade com role de colaborador: hooks continuam respeitando o filtro `responsible_id` quando `isColaborador`.
-
-## Fora de escopo
-
-- Implementação dos filtros `?filter=48h` e `?responsavel=none` no Kanban (links já saem prontos, suporte do destino é tarefa futura).
-- Geração de PDF real (jspdf/pdfmake). Por ora apenas `window.print()` com CSS A4, como pedido.
+- `FiscalTask` interface só tem `due_date`. Como `fiscal_due_date` existe no banco, expandir tipo localmente: `task as FiscalTask & { fiscal_due_date?: string | null }` e usar fallback `fiscal_due_date ?? due_date` em todos os cálculos SLA. Sem alteração de hook necessária — `select('*')` já traz a coluna.
+- Nenhuma migração Supabase. Nenhum alteração em RLS, rotas, ou auth.
+- Sem mudanças em TaskListView e TaskCalendarView neste PR (escopo é Kanban + Modal + Filtros).
