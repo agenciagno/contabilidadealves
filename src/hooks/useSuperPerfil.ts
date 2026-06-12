@@ -70,15 +70,6 @@ export function useSuperPerfil(contactId: string) {
     },
   });
 
-  const lookupCnpj = async (cnpj: string) => {
-    const digits = cnpj.replace(/\D/g, '');
-    if (digits.length !== 14) {
-      throw new Error('CNPJ inválido');
-    }
-    const res = await fetch(`https://publica.cnpj.ws/cnpj/${digits}`);
-    if (!res.ok) throw new Error('Não foi possível consultar a Receita Federal');
-    return res.json();
-  };
-
-  return { data, isLoading, error, updateSuperPerfil, lookupCnpj };
+  return { data, isLoading, error, updateSuperPerfil, lookupCnpj: cnpjLookupFn };
 }
+
