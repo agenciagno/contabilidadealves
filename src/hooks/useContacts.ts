@@ -181,6 +181,8 @@ export function useContacts() {
           name: 'Nome',
           document: 'CPF/CNPJ',
           tax_regime: 'Regime Tributário',
+          porte: 'Porte',
+          data_saida_cliente: 'Data de Saída do Cliente',
           email: 'E-mail',
           phone: 'Telefone',
           cep: 'CEP',
