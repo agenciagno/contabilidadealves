@@ -366,6 +366,7 @@ export function KanbanBoard({ tasks, contactsMap, profilesMap, onStatusChange, o
             responsibleName={profilesMap[activeItem.task.responsible_id || '']?.name || '?'}
             responsibleInitials={profilesMap[activeItem.task.responsible_id || '']?.initials || '?'}
             onClick={() => {}}
+            temporaryCoverage={coverageMap[activeItem.task.contact_id] ?? null}
           />
         )}
         {activeItem && activeItem.type === 'group' && (
