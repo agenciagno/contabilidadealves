@@ -449,9 +449,24 @@ export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, 
               </div>
             )}
 
-            {canEdit && (
-              <Button size="sm" onClick={handleSaveTaskInfo}>Salvar alterações</Button>
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+              {canEdit && (
+                <Button size="sm" onClick={handleSaveTaskInfo}>Salvar alterações</Button>
+              )}
+              {portal && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  asChild
+                >
+                  <a href={portal.url} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    {portal.label}
+                  </a>
+                </Button>
+              )}
+            </div>
           </section>
 
           <Separator />
