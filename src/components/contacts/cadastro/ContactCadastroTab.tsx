@@ -110,23 +110,22 @@ export function ContactCadastroTab({ contactId }: Props) {
     setCnpjLoading(true);
     try {
       const r = await lookupCnpj(form.document);
-      const est = r.estabelecimento || {};
       setForm(prev => ({
         ...prev,
         razao_social: r.razao_social ?? prev.razao_social,
-        nome_fantasia: est.nome_fantasia ?? prev.nome_fantasia,
-        natureza_juridica: r.natureza_juridica?.descricao ?? prev.natureza_juridica,
-        situacao_cadastral: est.situacao_cadastral ?? prev.situacao_cadastral,
-        data_abertura_receita: est.data_inicio_atividade ?? prev.data_abertura_receita,
-        cep: est.cep ?? prev.cep,
-        address: est.logradouro ?? prev.address,
-        address_number: est.numero ?? prev.address_number,
-        complemento: est.complemento ?? prev.complemento,
-        neighborhood: est.bairro ?? prev.neighborhood,
-        city: est.cidade?.nome ?? prev.city,
-        state: est.estado?.sigla ?? prev.state,
-        cnae_principal: est.atividade_principal ?? prev.cnae_principal,
-        cnaes_secundarios: est.atividades_secundarias ?? prev.cnaes_secundarios,
+        nome_fantasia: r.nome_fantasia ?? prev.nome_fantasia,
+        natureza_juridica: r.natureza_juridica ?? prev.natureza_juridica,
+        situacao_cadastral: r.situacao_cadastral ?? prev.situacao_cadastral,
+        data_abertura_receita: r.data_abertura_receita ?? prev.data_abertura_receita,
+        cep: r.cep ?? prev.cep,
+        address: r.address ?? prev.address,
+        address_number: r.address_number ?? prev.address_number,
+        complemento: r.complemento ?? prev.complemento,
+        neighborhood: r.neighborhood ?? prev.neighborhood,
+        city: r.city ?? prev.city,
+        state: r.state ?? prev.state,
+        cnae_principal: r.cnae_principal ?? prev.cnae_principal,
+        cnaes_secundarios: r.cnaes_secundarios ?? prev.cnaes_secundarios,
       }));
       toast.success('Dados da Receita carregados');
     } catch (e: any) {
