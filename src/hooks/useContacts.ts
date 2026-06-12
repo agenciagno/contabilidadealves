@@ -60,6 +60,8 @@ export interface Contact {
   tipo_estabelecimento: string | null;
   grupo_escritorio: string | null;
   data_inicio_contrato: string | null;
+  data_saida_cliente: string | null;
+  porte: string | null;
   categorias: string[];
   // Datas por esfera
   data_abertura_junta: string | null;
