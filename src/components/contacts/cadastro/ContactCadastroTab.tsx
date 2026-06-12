@@ -316,6 +316,21 @@ export function ContactCadastroTab({ contactId }: Props) {
             </Field>
             <Field label="Inscrição Municipal (IM)"><Input value={form.im || ''} onChange={e => set('im', e.target.value)} /></Field>
             <Field label="Inscrição Estadual (IE)"><Input value={form.ie || ''} onChange={e => set('ie', e.target.value)} /></Field>
+            <Field label="Regime de Apuração">
+              <Select value={form.regime_apuracao || ''} onValueChange={v => set('regime_apuracao', v)}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Mensal">Mensal</SelectItem>
+                  <SelectItem value="Trimestral">Trimestral</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Nº Alvará">
+              <Input value={form.numero_alvara || ''} onChange={e => set('numero_alvara', e.target.value)} />
+            </Field>
+            <Field label="Validade Alvará">
+              <Input type="date" value={form.validade_alvara || ''} onChange={e => set('validade_alvara', e.target.value)} />
+            </Field>
           </CardContent>
         </Card>
 
