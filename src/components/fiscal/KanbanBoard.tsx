@@ -21,6 +21,7 @@ import { FiscalTask } from '@/hooks/useFiscalTasks';
 import { TaskCard } from './TaskCard';
 import { GroupedTaskCard } from './GroupedTaskCard';
 import { useToast } from '@/hooks/use-toast';
+import { useActiveCoverageByContact } from '@/hooks/useTemporaryTransfers';
 
 const COLUMNS = [
   { id: 'a_fazer', label: 'A Fazer', color: 'bg-blue-500' },
@@ -110,13 +111,14 @@ function DroppableColumn({
   );
 }
 
-function SortableSingle({ item, contactsMap, profilesMap, onTaskClick, onEdit, onDelete }: {
+function SortableSingle({ item, contactsMap, profilesMap, onTaskClick, onEdit, onDelete, coverageMap }: {
   item: SingleItem;
   contactsMap: Record<string, string>;
   profilesMap: Record<string, { name: string; initials: string }>;
   onTaskClick: (task: FiscalTask) => void;
   onEdit?: (task: FiscalTask) => void;
   onDelete?: (taskId: string) => void;
+  coverageMap: Record<string, { end_date: string }>;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
@@ -124,6 +126,7 @@ function SortableSingle({ item, contactsMap, profilesMap, onTaskClick, onEdit, o
   });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
   const profile = profilesMap[item.task.responsible_id || ''] || { name: 'Sem responsável', initials: '?' };
+  const tempCov = coverageMap[item.task.contact_id] ?? null;
   return (
     <div ref={setNodeRef} style={style}>
       <TaskCard
@@ -135,6 +138,7 @@ function SortableSingle({ item, contactsMap, profilesMap, onTaskClick, onEdit, o
         dragProps={{ ...attributes, ...listeners }}
         onEdit={onEdit}
         onDelete={onDelete}
+        temporaryCoverage={tempCov}
       />
     </div>
   );
