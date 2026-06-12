@@ -325,11 +325,14 @@ export default function FiscalCalendar() {
           <Button
             variant="outline"
             onClick={() => { setCustomInitial(null); setCustomOpen(true); }}
+            disabled={editingDisabled}
           >
             <Plus className="h-4 w-4" /> Nova Obrigação
           </Button>
 
-
+          <Button variant="outline" onClick={() => setRtChecklistOpen(true)}>
+            <ClipboardCheck className="h-4 w-4" /> Checklist RT
+          </Button>
 
           {phase === 'idle' && (
             <Button onClick={handleCalculate} disabled={calculate.isPending}>
@@ -342,22 +345,52 @@ export default function FiscalCalendar() {
           )}
 
           {phase === 'calculated' && (
-            <Button onClick={handleConfirm} disabled={confirm.isPending} className="bg-emerald-600 hover:bg-emerald-700">
+            <Button
+              onClick={handleConfirm}
+              disabled={confirm.isPending || !previewReviewed}
+              className="bg-emerald-600 hover:bg-emerald-700"
+              title={!previewReviewed ? 'Marque "Revisei a distribuição" para liberar o lançamento' : undefined}
+            >
               {confirm.isPending ? (
                 <><Loader2 className="h-4 w-4 animate-spin" /> Lançando...</>
               ) : (
-                <><Rocket className="h-4 w-4" /> Confirmar e Lançar Tarefas</>
+                <><Rocket className="h-4 w-4" /> Lançar Tarefas</>
               )}
             </Button>
           )}
 
           {phase === 'launched' && (
-            <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 gap-1.5 px-3 py-1.5">
-              <CheckCircle2 className="h-3.5 w-3.5" /> Tarefas lançadas
-            </Badge>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 gap-1.5 px-3 py-1.5">
+                {locked ? <Lock className="h-3.5 w-3.5" /> : <LockOpen className="h-3.5 w-3.5" />}
+                {launchMeta
+                  ? `Lançado em ${format(parseISO(launchMeta.launched_at), "dd/MM/yyyy 'às' HH:mm")} por ${launchMeta.launched_by}`
+                  : 'Tarefas lançadas'}
+              </Badge>
+              {locked ? (
+                <Button size="sm" variant="outline" onClick={() => setUnlockOpen(true)}>
+                  <LockOpen className="h-4 w-4" /> Desbloquear
+                </Button>
+              ) : (
+                <Button size="sm" variant="outline" onClick={() => { setLocked(true); toast.info('Calendário bloqueado.'); }}>
+                  <Lock className="h-4 w-4" /> Rebloquear
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-destructive hover:text-destructive"
+                onClick={() => setRollbackOpen(true)}
+                disabled={rollback.isPending}
+              >
+                {rollback.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Undo2 className="h-4 w-4" />}
+                Desfazer lançamento
+              </Button>
+            </div>
           )}
         </div>
       </div>
+
 
       {phase === 'calculated' && (
         <div className="flex items-start gap-3 rounded-lg border border-blue-500/30 bg-blue-500/10 p-4 text-sm">
