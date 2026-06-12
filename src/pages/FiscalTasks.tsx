@@ -96,6 +96,37 @@ export default function FiscalTasks() {
   const companyId = company?.id;
   const { isColaborador, isSuperAdmin, isAdmin } = useUserRole();
   const { contacts } = useContacts();
+  const { user } = useAuth();
+
+  // Saved filters (localStorage)
+  type SavedFilter = {
+    id: string;
+    name: string;
+    filters: {
+      startDate?: string;
+      endDate?: string;
+      contact: string;
+      responsible: string;
+      obligation: string;
+    };
+  };
+  const savedKey = user?.id ? `fiscal:saved-filters:${user.id}` : null;
+  const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
+  const [savePopoverOpen, setSavePopoverOpen] = useState(false);
+  const [newFilterName, setNewFilterName] = useState('');
+
+  useEffect(() => {
+    if (!savedKey) return;
+    try {
+      const raw = localStorage.getItem(savedKey);
+      if (raw) setSavedFilters(JSON.parse(raw));
+    } catch { /* ignore */ }
+  }, [savedKey]);
+
+  const persistSaved = (list: SavedFilter[]) => {
+    setSavedFilters(list);
+    if (savedKey) localStorage.setItem(savedKey, JSON.stringify(list));
+  };
 
   // Filters
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
