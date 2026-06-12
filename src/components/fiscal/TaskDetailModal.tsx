@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import {
   Sheet,
   SheetContent,
@@ -13,12 +14,45 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Upload, Paperclip, CheckCircle, Trash2 } from 'lucide-react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Upload, Paperclip, CheckCircle, Trash2, Send } from 'lucide-react';
 import { FiscalTask } from '@/hooks/useFiscalTasks';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useCompany } from '@/hooks/useCompany';
+import { useAuth } from '@/contexts/AuthContext';
+import { useQuery } from '@tanstack/react-query';
+
+interface TeamNote {
+  profile_id: string | null;
+  profile_name: string;
+  text: string;
+  created_at: string;
+  legacy?: boolean;
+}
+
+function parseNotes(raw: string | null, legacyDate: string): TeamNote[] {
+  if (!raw) return [];
+  const trimmed = raw.trim();
+  if (!trimmed) return [];
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((n) => n && typeof n.text === 'string').map((n: any) => ({
+        profile_id: n.profile_id ?? null,
+        profile_name: n.profile_name || '—',
+        text: String(n.text),
+        created_at: n.created_at || legacyDate,
+      }));
+    }
+  } catch { /* fallthrough to legacy */ }
+  return [{ profile_id: null, profile_name: 'Histórico', text: trimmed, created_at: legacyDate, legacy: true }];
+}
+
+function initialsOf(name: string) {
+  return name.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]).join('').toUpperCase() || '?';
+}
 
 interface TaskDetailModalProps {
   open: boolean;
