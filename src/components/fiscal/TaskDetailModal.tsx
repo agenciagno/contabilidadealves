@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, differenceInCalendarDays, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
   Sheet,
@@ -15,7 +15,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Upload, Paperclip, CheckCircle, Trash2, Send } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  Upload, Paperclip, CheckCircle, Trash2, Send,
+  Clock, AlertTriangle, CheckCircle2, ExternalLink,
+  Plus, ArrowRight, UserCog,
+} from 'lucide-react';
 import { FiscalTask } from '@/hooks/useFiscalTasks';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useToast } from '@/hooks/use-toast';
@@ -23,6 +28,103 @@ import { supabase } from '@/integrations/supabase/client';
 import { useCompany } from '@/hooks/useCompany';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
+
+// ---- SLA helper ----
+type SlaInfo = {
+  tone: 'success' | 'warning' | 'danger' | 'critical' | 'done';
+  Icon: typeof Clock;
+  label: string;
+  pulse?: boolean;
+};
+
+function getSlaInfo(task: any): SlaInfo {
+  const completedAt: string | null = task.completed_at ?? null;
+  const due = task.due_date ? parseISO(task.due_date) : null;
+  if (task.status === 'concluido' && completedAt && due) {
+    const c = parseISO(completedAt);
+    const diff = differenceInCalendarDays(c, due);
+    const base = `Concluída em ${format(c, 'dd/MM/yyyy')}`;
+    if (diff <= 0) return { tone: 'done', Icon: CheckCircle2, label: `${base} · ✓ No prazo` };
+    return { tone: 'danger', Icon: CheckCircle2, label: `${base} · entregue com ${diff} dia(s) de atraso` };
+  }
+  if (!due) return { tone: 'success', Icon: CheckCircle, label: 'Sem prazo definido' };
+  const days = differenceInCalendarDays(due, new Date());
+  if (days < 0) return { tone: 'critical', Icon: AlertTriangle, label: `Atrasada há ${Math.abs(days)} dia(s)`, pulse: true };
+  if (days <= 2) return { tone: 'danger', Icon: AlertTriangle, label: `${days === 0 ? 'Vence hoje' : `${days} dia(s) para o vencimento`}` };
+  if (days <= 5) return { tone: 'warning', Icon: Clock, label: `${days} dias para o vencimento` };
+  return { tone: 'success', Icon: CheckCircle, label: `${days} dias para o vencimento` };
+}
+
+const slaToneClass: Record<SlaInfo['tone'], string> = {
+  success: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
+  warning: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
+  danger: 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/30',
+  critical: 'bg-red-700/15 text-red-800 dark:text-red-300 border-red-700/40',
+  done: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
+};
+
+// ---- Portal lookup ----
+function getObligationPortal(title: string, description?: string | null): { url: string; label: string } | null {
+  const t = `${title || ''} ${description || ''}`.toUpperCase();
+  if (/\bDAS\b|PGDAS/.test(t)) return { url: 'https://www8.receita.fazenda.gov.br/SimplesNacional/', label: 'Portal Simples Nacional' };
+  if (/DCTFWEB|ESOCIAL|EFD[- ]?REINF|REINF/.test(t)) return { url: 'https://cav.receita.fazenda.gov.br/', label: 'Portal e-CAC' };
+  if (/FGTS/.test(t)) return { url: 'https://conectividadesocial.caixa.gov.br/', label: 'Conectividade Social' };
+  if (/\bDCTF\b|\bECF\b|\bEFD\b|SPED/.test(t)) return { url: 'https://www.gov.br/receitafederal/pt-br/assuntos/orientacao-tributaria/declaracoes-e-demonstrativos/sped-sistema-publico-de-escrituracao-digital', label: 'Portal SPED' };
+  return null;
+}
+
+// ---- Activity timeline ----
+type TimelineEvent = {
+  at: string;
+  Icon: typeof Plus;
+  iconClass: string;
+  text: string;
+};
+
+function buildTimeline(task: any, profiles: { id: string; full_name: string | null }[]): TimelineEvent[] {
+  const nameOf = (id: string | null | undefined) => (id ? profiles.find(p => p.id === id)?.full_name || '—' : '—');
+  const events: TimelineEvent[] = [];
+  if (task.created_at) {
+    events.push({
+      at: task.created_at,
+      Icon: Plus,
+      iconClass: 'text-muted-foreground bg-muted',
+      text: task.is_auto_generated ? 'Tarefa criada automaticamente' : 'Tarefa criada',
+    });
+  }
+  if (task.original_responsible_id && task.original_responsible_id !== task.responsible_id) {
+    events.push({
+      at: task.updated_at || task.created_at,
+      Icon: UserCog,
+      iconClass: 'text-purple-700 bg-purple-500/15',
+      text: `Responsável alterado de ${nameOf(task.original_responsible_id)} para ${nameOf(task.responsible_id)}`,
+    });
+  }
+  if (task.attachment_url) {
+    events.push({
+      at: task.updated_at || task.created_at,
+      Icon: Paperclip,
+      iconClass: 'text-amber-700 bg-amber-500/15',
+      text: 'Arquivo anexado',
+    });
+  }
+  if (task.status === 'concluido') {
+    events.push({
+      at: task.completed_at || task.updated_at || task.created_at,
+      Icon: CheckCircle2,
+      iconClass: 'text-emerald-700 bg-emerald-500/15',
+      text: 'Tarefa concluída',
+    });
+  } else if (task.updated_at && task.updated_at !== task.created_at) {
+    events.push({
+      at: task.updated_at,
+      Icon: ArrowRight,
+      iconClass: 'text-blue-700 bg-blue-500/15',
+      text: `Status atual: ${task.status}`,
+    });
+  }
+  return events.sort((a, b) => b.at.localeCompare(a.at));
+}
 
 interface TeamNote {
   profile_id: string | null;
