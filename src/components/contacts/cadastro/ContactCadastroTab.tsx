@@ -227,6 +227,9 @@ export function ContactCadastroTab({ contactId }: Props) {
                 placeholder="(XX) XXXXX-XXXX"
               />
             </Field>
+            <Field label="Segundo E-mail">
+              <Input type="email" value={form.segundo_email_contato || ''} onChange={e => set('segundo_email_contato', e.target.value)} />
+            </Field>
             <div className="md:col-span-2">
               <Field label="Observações Gerais">
                 <Textarea rows={3} value={form.notes || ''} onChange={e => set('notes', e.target.value)} />
@@ -239,6 +242,7 @@ export function ContactCadastroTab({ contactId }: Props) {
             'document', 'razao_social', 'nome_fantasia', 'porte', 'natureza_juridica',
             'data_abertura_receita', 'situacao_cadastral', 'email', 'phone', 'whatsapp', 'notes',
             'cnae_principal', 'cnaes_secundarios',
+            'tipo_estabelecimento', 'representative_legal', 'segundo_email_contato',
           ])} disabled={updateSuperPerfil.isPending}>
             {updateSuperPerfil.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
             Salvar
