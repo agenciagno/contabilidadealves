@@ -95,11 +95,18 @@ interface ContactRow {
 }
 
 export function RtChecklistDialog({ open, onOpenChange }: Props) {
-  const { company } = useCompany();
+  const { company, isLoading: companyLoading } = useCompany();
   const companyId = company?.id ?? '';
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
   const [states, setStates] = useState<Record<string, RtState>>({});
+
+  useEffect(() => {
+    if (open) {
+      // eslint-disable-next-line no-console
+      console.log('RtChecklistDialog companyId:', companyId, 'companyLoading:', companyLoading);
+    }
+  }, [open, companyId, companyLoading]);
 
   const { data: contacts = [], isLoading } = useQuery<ContactRow[]>({
     queryKey: ['rt-checklist-contacts', companyId],
@@ -185,7 +192,9 @@ export function RtChecklistDialog({ open, onOpenChange }: Props) {
         </div>
 
         <div className="px-6 pb-6 overflow-y-auto space-y-1.5">
-          {isLoading ? (
+          {companyLoading || !companyId ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">Carregando empresa...</p>
+          ) : isLoading ? (
             Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)
           ) : filtered.length === 0 ? (
             <p className="text-sm text-muted-foreground py-8 text-center">Nenhum cliente encontrado.</p>
