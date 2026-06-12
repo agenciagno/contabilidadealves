@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { lookupCnpj as cnpjLookupFn } from '@/lib/cnpj-lookup';
+
 
 // Lista explícita de colunas (exclui siare_senha_encrypted)
 const SUPER_PERFIL_COLUMNS = [
