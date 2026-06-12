@@ -95,11 +95,18 @@ interface ContactRow {
 }
 
 export function RtChecklistDialog({ open, onOpenChange }: Props) {
-  const { company } = useCompany();
+  const { company, isLoading: companyLoading } = useCompany();
   const companyId = company?.id ?? '';
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
   const [states, setStates] = useState<Record<string, RtState>>({});
+
+  useEffect(() => {
+    if (open) {
+      // eslint-disable-next-line no-console
+      console.log('RtChecklistDialog companyId:', companyId, 'companyLoading:', companyLoading);
+    }
+  }, [open, companyId, companyLoading]);
 
   const { data: contacts = [], isLoading } = useQuery<ContactRow[]>({
     queryKey: ['rt-checklist-contacts', companyId],
