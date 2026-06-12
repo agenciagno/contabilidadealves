@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { lookupCnpj as cnpjLookupFn } from '@/lib/cnpj-lookup';
+
 
 // Lista explícita de colunas (exclui siare_senha_encrypted)
 const SUPER_PERFIL_COLUMNS = [
@@ -14,7 +16,7 @@ const SUPER_PERFIL_COLUMNS = [
   'tax_regime', 'ie', 'im', 'regime_apuracao', 'numero_alvara', 'validade_alvara',
   'registro_entradas', 'registro_saidas', 'registro_icms', 'inventario',
   'responsible_id', 'categorias',
-  'data_inicio_contrato',
+  'data_inicio_contrato', 'data_saida_cliente',
   'data_abertura_junta', 'data_encerramento_junta',
   'data_abertura_rf', 'data_encerramento_rf',
   'data_abertura_prefeitura', 'data_encerramento_prefeitura',
@@ -68,15 +70,6 @@ export function useSuperPerfil(contactId: string) {
     },
   });
 
-  const lookupCnpj = async (cnpj: string) => {
-    const digits = cnpj.replace(/\D/g, '');
-    if (digits.length !== 14) {
-      throw new Error('CNPJ inválido');
-    }
-    const res = await fetch(`https://publica.cnpj.ws/cnpj/${digits}`);
-    if (!res.ok) throw new Error('Não foi possível consultar a Receita Federal');
-    return res.json();
-  };
-
-  return { data, isLoading, error, updateSuperPerfil, lookupCnpj };
+  return { data, isLoading, error, updateSuperPerfil, lookupCnpj: cnpjLookupFn };
 }
+

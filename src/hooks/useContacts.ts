@@ -60,6 +60,8 @@ export interface Contact {
   tipo_estabelecimento: string | null;
   grupo_escritorio: string | null;
   data_inicio_contrato: string | null;
+  data_saida_cliente: string | null;
+  porte: string | null;
   categorias: string[];
   // Datas por esfera
   data_abertura_junta: string | null;
@@ -90,7 +92,7 @@ type ContactOptionalKeys =
   | 'complemento' | 'segundo_email_contato'
   | 'ie' | 'im' | 'regime_apuracao' | 'numero_alvara' | 'validade_alvara'
   | 'status_cliente' | 'tipo_cliente' | 'tipo_estabelecimento' | 'grupo_escritorio'
-  | 'data_inicio_contrato' | 'categorias'
+  | 'data_inicio_contrato' | 'data_saida_cliente' | 'porte' | 'categorias'
   | 'data_abertura_junta' | 'data_abertura_rf' | 'data_abertura_prefeitura' | 'data_abertura_estado'
   | 'data_encerramento_junta' | 'data_encerramento_rf' | 'data_encerramento_prefeitura' | 'data_encerramento_estado'
   | 'possui_funcionarios' | 'numero_funcionarios' | 'tipo_cartao_ponto' | 'medicina_trabalho'
@@ -179,6 +181,8 @@ export function useContacts() {
           name: 'Nome',
           document: 'CPF/CNPJ',
           tax_regime: 'Regime Tributário',
+          porte: 'Porte',
+          data_saida_cliente: 'Data de Saída do Cliente',
           email: 'E-mail',
           phone: 'Telefone',
           cep: 'CEP',
