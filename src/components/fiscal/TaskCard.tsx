@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { differenceInDays, parseISO, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Calendar, Paperclip, MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import { Paperclip, MoreVertical, Pencil, Trash2, Clock, UserCog } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,6 +10,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
@@ -34,40 +36,87 @@ interface TaskCardProps {
   onEdit?: (task: FiscalTask) => void;
   onDelete?: (taskId: string) => void;
   temporaryCoverage?: { end_date: string } | null;
+  profileOptions?: { id: string; name: string }[];
+  onReassign?: (taskId: string, profileId: string) => void;
 }
 
-function getDueDateColor(dueDate: string) {
+export function getSlaInfo(task: FiscalTask) {
+  const dueStr = (task as any).fiscal_due_date || task.due_date;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const due = parseISO(dueDate);
+  const due = parseISO(dueStr);
   const daysLeft = differenceInDays(due, today);
 
-  if (daysLeft < 0) return { bg: 'bg-destructive/10', text: 'text-destructive', border: 'border-destructive/30', label: 'Vencido' };
-  if (daysLeft <= 2) return { bg: 'bg-orange-500/10', text: 'text-orange-600', border: 'border-orange-500/30', label: `${daysLeft}d` };
-  if (daysLeft <= 6) return { bg: 'bg-yellow-500/10', text: 'text-yellow-600', border: 'border-yellow-500/30', label: `${daysLeft}d` };
-  return { bg: 'bg-emerald-500/10', text: 'text-emerald-600', border: 'border-emerald-500/30', label: `${daysLeft}d` };
+  if (daysLeft < 0) {
+    return {
+      daysLeft,
+      label: `Atrasado há ${Math.abs(daysLeft)}d`,
+      badgeClass: 'bg-red-600 text-white border-red-700 animate-pulse',
+      barClass: 'bg-red-700 animate-pulse',
+      isOverdue: true,
+    };
+  }
+  if (daysLeft <= 2) {
+    return {
+      daysLeft,
+      label: `D-${daysLeft}`,
+      badgeClass: 'bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/40 animate-pulse',
+      barClass: 'bg-red-500',
+      isOverdue: false,
+    };
+  }
+  if (daysLeft <= 5) {
+    return {
+      daysLeft,
+      label: `D-${daysLeft}`,
+      badgeClass: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/40',
+      barClass: 'bg-amber-500',
+      isOverdue: false,
+    };
+  }
+  return {
+    daysLeft,
+    label: `D-${daysLeft}`,
+    badgeClass: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/40',
+    barClass: 'bg-emerald-500',
+    isOverdue: false,
+  };
 }
 
-export function TaskCard({ task, contactName, responsibleName, responsibleInitials, onClick, dragProps, onEdit, onDelete, temporaryCoverage }: TaskCardProps) {
-  const dateColor = getDueDateColor(task.due_date);
+export function TaskCard({
+  task, contactName, responsibleName, responsibleInitials, onClick, dragProps,
+  onEdit, onDelete, temporaryCoverage, profileOptions, onReassign,
+}: TaskCardProps) {
+  const sla = getSlaInfo(task);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const isWaiting = task.status === 'aguardando_cliente';
+  const dueStr = (task as any).fiscal_due_date || task.due_date;
 
-  const stopAll = (e: React.SyntheticEvent) => {
-    e.stopPropagation();
-  };
+  const stopAll = (e: React.SyntheticEvent) => e.stopPropagation();
 
   return (
     <>
       <Card
-        className="cursor-pointer hover:shadow-md transition-shadow border-border/50 bg-card relative"
+        className={cn(
+          'group cursor-pointer hover:shadow-md transition-shadow border-border/50 bg-card relative overflow-hidden',
+          isWaiting && 'border-l-4 border-l-amber-500',
+        )}
         onClick={onClick}
         {...dragProps}
       >
-        <CardContent className="p-3 space-y-2">
+        {/* SLA top bar (2px) */}
+        <div className={cn('absolute top-0 left-0 right-0 h-0.5', sla.barClass)} />
+
+        <CardContent className="p-3 space-y-2 pt-3.5">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <p className="text-sm font-semibold text-foreground truncate">{contactName}</p>
+                {isWaiting && (
+                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/40">
+                    Aguardando
+                  </Badge>
+                )}
                 {temporaryCoverage && (
                   <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30">
                     Temporário até {format(parseISO(temporaryCoverage.end_date), 'dd/MM')}
@@ -75,14 +124,43 @@ export function TaskCard({ task, contactName, responsibleName, responsibleInitia
                 )}
               </div>
               <p className="text-xs text-muted-foreground line-clamp-2">{task.title}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {format(parseISO(dueStr), "dd 'de' MMM", { locale: ptBR })}
+              </p>
             </div>
-            {(onEdit || onDelete) && (
-              <div
-                onPointerDown={stopAll}
-                onMouseDown={stopAll}
-                onClick={stopAll}
-                className="-mr-1 -mt-1"
-              >
+            <div
+              onPointerDown={stopAll}
+              onMouseDown={stopAll}
+              onClick={stopAll}
+              className="-mr-1 -mt-1 flex items-center gap-0.5"
+            >
+              {profileOptions && onReassign && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className="h-6 w-6 inline-flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                      aria-label="Reatribuir"
+                      title="Reatribuir responsável"
+                    >
+                      <UserCog className="w-3.5 h-3.5" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" onClick={stopAll} className="max-h-72 overflow-y-auto">
+                    <DropdownMenuLabel className="text-xs">Reatribuir para</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {profileOptions.map((p) => (
+                      <DropdownMenuItem
+                        key={p.id}
+                        onClick={() => onReassign(task.id, p.id)}
+                        className={cn(task.responsible_id === p.id && 'font-semibold')}
+                      >
+                        {p.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+              {(onEdit || onDelete) && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
@@ -108,19 +186,15 @@ export function TaskCard({ task, contactName, responsibleName, responsibleInitia
                     )}
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
-          <div className="flex items-center justify-between pt-1">
-            <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0', dateColor.bg, dateColor.text, dateColor.border)}>
-              <Calendar className="w-3 h-3 mr-1" />
-              {format(parseISO(task.due_date), 'dd/MM', { locale: ptBR })}
-            </Badge>
-
-            <div className="flex items-center gap-1.5">
+          <div className="flex items-center justify-between pt-1 gap-2">
+            {/* Bottom-left: attachment indicator */}
+            <div className="flex items-center gap-1.5 min-w-0">
               {task.attachment_url && (
-                <Paperclip className="w-3 h-3 text-muted-foreground" />
+                <Paperclip className="w-[14px] h-[14px] text-muted-foreground shrink-0" />
               )}
               <Avatar className="w-6 h-6">
                 <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
@@ -128,6 +202,16 @@ export function TaskCard({ task, contactName, responsibleName, responsibleInitia
                 </AvatarFallback>
               </Avatar>
             </div>
+
+            {/* Bottom-right: SLA badge */}
+            <Badge
+              variant="outline"
+              className={cn('text-[10px] px-1.5 py-0 inline-flex items-center gap-1 shrink-0', sla.badgeClass)}
+              title={`Vencimento: ${format(parseISO(dueStr), 'dd/MM/yyyy')}`}
+            >
+              <Clock className="w-3 h-3" />
+              {sla.label}
+            </Badge>
           </div>
         </CardContent>
       </Card>
