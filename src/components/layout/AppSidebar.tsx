@@ -124,7 +124,9 @@ const menuEntries: MenuEntry[] = [
       { title: 'Tarefas Fiscais', url: '/fiscal/tarefas', icon: CalendarClock, iconName: 'calendar-clock' },
       { title: 'Calendário Fiscal', url: '/fiscal/calendario', icon: CalendarClock, iconName: 'calendar-clock' },
       { title: 'Colaboradores', url: '/fiscal/colaboradores', icon: UsersRound, iconName: 'users-round' },
+      { title: 'Notificações', url: '/fiscal/notificacoes', icon: Bell, iconName: 'bell' },
     ],
+
   },
   {
     kind: 'simple',
