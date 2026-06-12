@@ -149,10 +149,13 @@ export function useConfirmMonthlyTasks() {
           launched_by: launchedBy ?? 'Usuário',
           task_ids: taskIds,
         });
+        // Fire-and-forget notifications to each responsible
+        notifyCalendarLaunched({ companyId, year, month, taskIds }).catch(() => {});
       }
 
       return { tasksCreated, year, month };
     },
+
     onSuccess: ({ tasksCreated, year, month }) => {
       const label = `${String(month).padStart(2, '0')}/${year}`;
       if (tasksCreated === 0) {
