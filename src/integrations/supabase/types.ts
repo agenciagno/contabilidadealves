@@ -1021,6 +1021,59 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          action_url: string | null
+          body: string | null
+          company_id: string | null
+          created_at: string
+          id: string
+          read_at: string | null
+          reference_id: string | null
+          reference_type: string | null
+          task_id: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          action_url?: string | null
+          body?: string | null
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+          task_id?: string | null
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          action_url?: string | null
+          body?: string | null
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+          task_id?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           allowed_modules: string[]
