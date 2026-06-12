@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Eye, Trash2, Paperclip } from 'lucide-react';
 import { FiscalTask } from '@/hooks/useFiscalTasks';
+import { useActiveCoverageByContact } from '@/hooks/useTemporaryTransfers';
 import { cn } from '@/lib/utils';
 
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
@@ -65,6 +66,7 @@ export function TaskListView({
   selectedIds, onToggleSelected, onToggleAll, onRangeSelect, profileOptions, onReassign,
 }: TaskListViewProps) {
   const lastIdxRef = useRef<number | null>(null);
+  const { data: coverageMap = {} } = useActiveCoverageByContact();
 
   // Reset anchor when selection cleared
   useEffect(() => {
@@ -135,7 +137,16 @@ export function TaskListView({
                     </span>
                   </TableCell>
                 )}
-                <TableCell className="font-medium text-sm">{contactsMap[task.contact_id] || '—'}</TableCell>
+                <TableCell className="font-medium text-sm">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span>{contactsMap[task.contact_id] || '—'}</span>
+                    {coverageMap[task.contact_id] && (
+                      <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30">
+                        Temporário até {format(parseISO(coverageMap[task.contact_id].end_date), 'dd/MM')}
+                      </Badge>
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell className="text-sm">{task.title}</TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   {onReassign && profileOptions ? (
