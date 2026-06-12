@@ -595,6 +595,24 @@ export default function FiscalCalendar() {
         </Table>
       </Card>
 
+      {phase !== 'idle' && sorted.length > 0 && (
+        <IbsCbsSection
+          rows={sorted}
+          disabled={editingDisabled}
+          onNewRtObligation={() => {
+            setCustomInitial({
+              name: '',
+              description: '[RT] ',
+              applies_to: [],
+              due_rule: null,
+              holiday_adjustment: 'prev_business_day',
+            });
+            setCustomOpen(true);
+          }}
+        />
+      )}
+
+
       <FiscalObligationOverrideDialog
         row={editing}
         open={dialogOpen}
