@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useCompany } from '@/hooks/useCompany';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useAuth } from '@/contexts/AuthContext';
-import { fetchValidFiscalContactIds } from '@/lib/fiscal-filters';
+
 
 export interface FiscalTaskRow {
   id: string;
@@ -54,12 +54,6 @@ const inDays = (n: number) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
-const monthBounds = (year: number, month: number) => {
-  const start = `${year}-${String(month).padStart(2, '0')}-01`;
-  const lastDay = new Date(year, month, 0).getDate();
-  const end = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-  return { start, end };
-};
 
 function useCurrentProfileId() {
   const { user } = useAuth();
@@ -89,14 +83,12 @@ export function useFiscalTasksOfMonth(year: number, month: number) {
     queryKey: ['fiscal-dashboard', 'tasks', companyId, year, month, isColaborador, profileId],
     enabled: !!companyId && (!isColaborador || !!profileId),
     queryFn: async () => {
-      const { start, end } = monthBounds(year, month);
       let q = (supabase as any)
         .from('fiscal_tasks')
-        .select('id, status, due_date, fiscal_due_date, completed_at, created_at, responsible_id, contact_id, competence_year, competence_month, contacts(tax_regime, name)')
+        .select('id, status, due_date, fiscal_due_date, completed_at, created_at, responsible_id, contact_id, contacts(tax_regime, name)')
         .eq('company_id', companyId)
-        .or(
-          `and(competence_year.eq.${year},competence_month.eq.${month}),and(competence_year.is.null,competence_month.is.null,due_date.gte.${start},due_date.lte.${end})`
-        );
+        .eq('competence_year', year)
+        .eq('competence_month', month);
       if (isColaborador && profileId) {
         q = q.eq('responsible_id', profileId);
       }
@@ -217,4 +209,4 @@ export function useUpcomingFiscalTasks() {
 }
 
 // Kept for backward compat in case other modules import it
-export { fetchValidFiscalContactIds };
+export { fetchValidFiscalContactIds } from '@/lib/fiscal-filters';
