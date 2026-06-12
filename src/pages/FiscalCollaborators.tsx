@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -9,8 +9,6 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useUserRole } from '@/hooks/useUserRole';
-import { useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { useCompany } from '@/hooks/useCompany';
 import {
   useCollaborators,
@@ -18,11 +16,11 @@ import {
   useClientCountByProfile,
   useCollaboratorDetails,
 } from '@/hooks/useCollaboratorCoverage';
-import { TransferClientsModal } from '@/components/fiscal/TransferClientsModal';
-import { TransferHistory } from '@/components/fiscal/TransferHistory';
+import { useTransferHistory } from '@/hooks/useTemporaryTransfers';
+import { TransferTemporaryModal } from '@/components/fiscal/TransferTemporaryModal';
+import { TransferHistoryPanel } from '@/components/fiscal/TransferHistoryPanel';
 
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
 
 const STATUS_BADGE: Record<string, string> = {
   a_fazer: 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30',
@@ -87,7 +85,6 @@ export default function FiscalCollaborators() {
   const { isAdmin, isSuperAdmin } = useUserRole();
   const { company } = useCompany();
   const companyId = company?.id;
-  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!isAdmin && !isSuperAdmin) {
@@ -95,41 +92,33 @@ export default function FiscalCollaborators() {
     }
   }, [isAdmin, isSuperAdmin, navigate]);
 
-  const now = new Date();
-
   const { data: collaborators = [] } = useCollaborators();
   const { data: allFiscalProfiles = [] } = useAllFiscalProfiles();
   const { data: clientCountMap = {} } = useClientCountByProfile();
+  const { data: history = [] } = useTransferHistory();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const handleTransfer = async ({ fromId, toId, fromName, toName }: { fromId: string; toId: string; fromName: string; toName: string }) => {
-    if (!companyId) return;
-    try {
-      const { data, error } = await (supabase as any).rpc('transfer_clients_with_log', {
-        p_from_profile_id: fromId,
-        p_to_profile_id: toId,
+  // Active coverages per profile (as covering or as absent)
+  const { coveringFor, absentTo } = useMemo(() => {
+    const coveringFor: Record<string, { absentName: string; count: number; end_date: string }[]> = {};
+    const absentTo: Record<string, { coveringName: string; count: number; end_date: string }[]> = {};
+    history.filter((h) => h.is_active).forEach((h) => {
+      const count = (h.clients_transferred ?? []).length;
+      (coveringFor[h.covering_profile_id] ??= []).push({
+        absentName: h.absent_profile?.full_name ?? '—',
+        count,
+        end_date: h.end_date,
       });
-      if (error) throw error;
-      if (data?.success) {
-        toast.success(`✅ ${data.contacts_transferred} clientes e ${data.tasks_transferred} tarefas transferidos de ${fromName} para ${toName}.`);
-        queryClient.invalidateQueries({ queryKey: ['collaborators-with-clients'] });
-        queryClient.invalidateQueries({ queryKey: ['client-count-by-profile'] });
-        queryClient.invalidateQueries({ queryKey: ['fiscal-tasks'] });
-        queryClient.invalidateQueries({ queryKey: ['fiscal-dashboard'] });
-        queryClient.invalidateQueries({ queryKey: ['contacts'] });
-        queryClient.invalidateQueries({ queryKey: ['company-profiles-fiscal-with-clients'] });
-        queryClient.invalidateQueries({ queryKey: ['transfer-log'] });
-      } else {
-        toast.error(data?.error || 'Erro ao transferir clientes');
-      }
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Erro ao transferir.');
-      throw e;
-    }
-  };
-
+      (absentTo[h.absent_profile_id] ??= []).push({
+        coveringName: h.covering_profile?.full_name ?? '—',
+        count,
+        end_date: h.end_date,
+      });
+    });
+    return { coveringFor, absentTo };
+  }, [history]);
 
   return (
     <div className="space-y-6">
@@ -137,7 +126,7 @@ export default function FiscalCollaborators() {
         <h1 className="text-2xl font-bold text-foreground">Colaboradores</h1>
         <Button className="gap-2" onClick={() => setModalOpen(true)}>
           <ArrowRightLeft className="w-4 h-4" />
-          Transferir Clientes
+          Transferência Temporária
         </Button>
       </div>
 
@@ -149,6 +138,8 @@ export default function FiscalCollaborators() {
             const initials = (name || '?').substring(0, 2).toUpperCase();
             const clientsCount = clientCountMap[c.id] ?? 0;
             const isExpanded = expandedId === c.id;
+            const covering = coveringFor[c.id] ?? [];
+            const absent = absentTo[c.id] ?? [];
             return (
               <Card
                 key={c.id}
@@ -172,6 +163,24 @@ export default function FiscalCollaborators() {
                       <UserCheck className="w-3 h-3" />
                       {clientsCount} cliente{clientsCount === 1 ? '' : 's'} vinculado{clientsCount === 1 ? '' : 's'}
                     </p>
+                    {covering.map((cov, i) => (
+                      <Badge
+                        key={`cov-${i}`}
+                        variant="outline"
+                        className="mt-2 mr-1 text-[10px] bg-blue-500/10 text-blue-600 border-blue-500/30"
+                      >
+                        Cobrindo {cov.count} de {cov.absentName} até {format(parseISO(cov.end_date), 'dd/MM')}
+                      </Badge>
+                    ))}
+                    {absent.map((abs, i) => (
+                      <Badge
+                        key={`abs-${i}`}
+                        variant="outline"
+                        className="mt-2 mr-1 text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/30"
+                      >
+                        Ausente — {abs.count} com {abs.coveringName} até {format(parseISO(abs.end_date), 'dd/MM')}
+                      </Badge>
+                    ))}
                   </div>
                   <ChevronDown className={cn('w-4 h-4 text-muted-foreground transition-transform', isExpanded && 'rotate-180')} />
                 </CardContent>
@@ -190,15 +199,13 @@ export default function FiscalCollaborators() {
         </div>
       </section>
 
-      {(isAdmin || isSuperAdmin) && <TransferHistory />}
+      {(isAdmin || isSuperAdmin) && <TransferHistoryPanel />}
 
-
-      <TransferClientsModal
+      <TransferTemporaryModal
         open={modalOpen}
         onOpenChange={setModalOpen}
         sourceCollaborators={collaborators}
         destinationCollaborators={allFiscalProfiles}
-        onConfirm={handleTransfer}
       />
     </div>
   );

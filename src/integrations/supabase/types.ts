@@ -315,6 +315,102 @@ export type Database = {
           },
         ]
       }
+      collaborator_coverage: {
+        Row: {
+          absent_profile_id: string
+          auto_reverted_at: string | null
+          clients_transferred: Json
+          company_id: string
+          covering_profile_id: string
+          created_at: string
+          created_by: string | null
+          end_date: string
+          id: string
+          is_active: boolean
+          notes: string | null
+          reason: string
+          revert_reason: string | null
+          reverted_by: string | null
+          start_date: string
+          tasks_transferred: number
+          updated_at: string
+        }
+        Insert: {
+          absent_profile_id: string
+          auto_reverted_at?: string | null
+          clients_transferred?: Json
+          company_id: string
+          covering_profile_id: string
+          created_at?: string
+          created_by?: string | null
+          end_date: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          reason?: string
+          revert_reason?: string | null
+          reverted_by?: string | null
+          start_date?: string
+          tasks_transferred?: number
+          updated_at?: string
+        }
+        Update: {
+          absent_profile_id?: string
+          auto_reverted_at?: string | null
+          clients_transferred?: Json
+          company_id?: string
+          covering_profile_id?: string
+          created_at?: string
+          created_by?: string | null
+          end_date?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          reason?: string
+          revert_reason?: string | null
+          reverted_by?: string | null
+          start_date?: string
+          tasks_transferred?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collaborator_coverage_absent_profile_id_fkey"
+            columns: ["absent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collaborator_coverage_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collaborator_coverage_covering_profile_id_fkey"
+            columns: ["covering_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collaborator_coverage_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collaborator_coverage_reverted_by_fkey"
+            columns: ["reverted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           cnpj: string
