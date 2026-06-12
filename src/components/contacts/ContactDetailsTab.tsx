@@ -9,7 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { ContactEditSheet } from './ContactEditSheet';
 import { ContactBillingCard } from './ContactBillingCard';
 
-type Section = 'contato' | 'endereco' | 'fiscal' | 'observacoes';
+type Section = 'contato' | 'endereco' | 'fiscal' | 'observacoes' | 'empresariais' | 'datas-esfera' | 'departamento-pessoal';
 
 interface ContactDetailsTabProps {
   contact: Contact;
