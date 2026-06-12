@@ -326,7 +326,7 @@ export function TaskDetailModal({ open, onOpenChange, task, contacts, profiles, 
   const transferDateLabel = taskAny.updated_at
     ? format(parseISO(taskAny.updated_at), 'dd/MM', { locale: ptBR })
     : '';
-  const timeline = useMemo(() => buildTimeline(task, profiles), [task, profiles]);
+  const timeline = buildTimeline(task, profiles);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
