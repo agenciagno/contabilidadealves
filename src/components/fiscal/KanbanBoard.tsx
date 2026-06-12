@@ -191,14 +191,23 @@ function SortableGroup({ item, contactsMap, profilesMap, onUploadAttachment, onC
   );
 }
 
-export function KanbanBoard({ tasks, contactsMap, profilesMap, onStatusChange, onTaskClick, onEdit, onDelete, onUploadAttachment, onGroupClick }: KanbanBoardProps) {
+export function KanbanBoard({ tasks, contactsMap, profilesMap, onStatusChange, onTaskClick, onEdit, onDelete, onUploadAttachment, onGroupClick, profileOptions, onReassign }: KanbanBoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [columnSort, setColumnSort] = useState<Record<string, SortDir>>(() =>
-    COLUMNS.reduce((acc, c) => ({ ...acc, [c.id]: 'desc' as SortDir }), {}),
+    COLUMNS.reduce((acc, c) => ({ ...acc, [c.id]: 'asc' as SortDir }), {}),
   );
   const { toast } = useToast();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const { data: coverageMap = {} } = useActiveCoverageByContact();
+
+  const today = useMemo(() => {
+    const d = new Date(); d.setHours(0, 0, 0, 0); return d;
+  }, []);
+  const effDate = (t: FiscalTask) => ((t as any).fiscal_due_date as string | null) || t.due_date;
+  const isOverdueTask = (t: FiscalTask) => {
+    if (t.status === 'concluido') return false;
+    try { return differenceInDays(parseISO(effDate(t)), today) < 0; } catch { return false; }
+  };
 
   // Build items: group by (contact_id + due_date) when 2+ tasks share the pair
   const itemsByStatus = useMemo(() => {
@@ -214,42 +223,45 @@ export function KanbanBoard({ tasks, contactsMap, profilesMap, onStatusChange, o
     for (const [key, group] of groupsMap.entries()) {
       if (group.length === 1) {
         const t = group[0];
-        items.push({ type: 'single', id: t.id, dueDate: t.due_date, task: t });
+        items.push({ type: 'single', id: t.id, dueDate: effDate(t), task: t });
       } else {
-        // sort tasks inside group by title for consistency
         const sorted = [...group].sort((a, b) => (a.title || '').localeCompare(b.title || ''));
-        // display status = most advanced
         let best = sorted[0].status as string;
         for (const t of sorted) {
           if ((STATUS_PRECEDENCE[t.status] ?? 0) > (STATUS_PRECEDENCE[best] ?? 0)) {
             best = t.status;
           }
         }
-        const [contactId, dueDate] = key.split('__');
+        const [contactId] = key.split('__');
+        // min effective date across the group
+        const minDue = sorted.map(effDate).sort()[0];
         items.push({
           type: 'group',
-          id: `group-${contactId}-${dueDate}`,
+          id: `group-${contactId}-${sorted[0].due_date}`,
           contactId,
-          dueDate,
+          dueDate: minDue,
           tasks: sorted,
           displayStatus: best,
         });
       }
     }
 
-    // Distribute into columns and sort by due_date
+    // Distribute into columns: overdue first (always), then by effective due date
     return COLUMNS.reduce((acc, col) => {
       const dir = columnSort[col.id];
       const list = items
         .filter((it) => (it.type === 'single' ? it.task.status : it.displayStatus) === col.id)
         .sort((a, b) => {
+          const aOver = a.type === 'single' ? isOverdueTask(a.task) : a.tasks.some(isOverdueTask);
+          const bOver = b.type === 'single' ? isOverdueTask(b.task) : b.tasks.some(isOverdueTask);
+          if (aOver !== bOver) return aOver ? -1 : 1;
           const cmp = a.dueDate.localeCompare(b.dueDate);
           return dir === 'asc' ? cmp : -cmp;
         });
       acc[col.id] = list;
       return acc;
     }, {} as Record<string, KanbanItem[]>);
-  }, [tasks, columnSort]);
+  }, [tasks, columnSort, today]);
 
   const activeItem = useMemo(() => {
     if (!activeId) return null;
