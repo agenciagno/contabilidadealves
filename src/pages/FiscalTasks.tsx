@@ -333,7 +333,7 @@ export default function FiscalTasks() {
 
   const handleInlineReassign = async (taskId: string, newId: string) => {
     try {
-      await (supabase as any).from('fiscal_tasks').update({ responsible_id: newId }).eq('id', taskId);
+      await updateTask.mutateAsync({ id: taskId, responsible_id: newId });
       const name = profileOptions.find((p) => p.id === newId)?.name ?? 'colaborador';
       toast.success(`Responsável alterado para ${name}`);
       queryClient.invalidateQueries({ queryKey: ['fiscal-tasks'] });
@@ -365,9 +365,12 @@ export default function FiscalTasks() {
       toast.error('Nenhuma tarefa para transferir.');
       return;
     }
-    const { error } = await (supabase as any).from('fiscal_tasks').update({ responsible_id: newId }).in('id', ids);
-    if (error) {
-      toast.error(error.message);
+    try {
+      await Promise.all(
+        ids.map((id) => updateTask.mutateAsync({ id, responsible_id: newId })),
+      );
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Erro ao transferir tarefas');
       return;
     }
     const name = profileOptions.find((p) => p.id === newId)?.name ?? 'colaborador';
@@ -375,6 +378,7 @@ export default function FiscalTasks() {
     queryClient.invalidateQueries({ queryKey: ['fiscal-tasks'] });
     clearSelection();
   };
+
 
   return (
     <div className="space-y-6">
