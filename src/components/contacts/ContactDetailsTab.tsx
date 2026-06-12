@@ -216,11 +216,14 @@ export function ContactDetailsTab({ contact }: ContactDetailsTabProps) {
 
       {/* Card 5 — Datas por Esfera */}
       <Card className="bg-card border-border/50 md:col-span-2">
-        <CardHeader className="pb-3">
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Calendar className="h-4 w-4" />
             Datas por Esfera
           </CardTitle>
+          <Button variant="ghost" size="icon" onClick={() => setEditSection('datas-esfera')}>
+            <Pencil className="h-4 w-4" />
+          </Button>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
