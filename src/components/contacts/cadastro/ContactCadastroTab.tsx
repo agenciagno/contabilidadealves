@@ -193,6 +193,18 @@ export function ContactCadastroTab({ contactId }: Props) {
                 </SelectContent>
               </Select>
             </Field>
+            <Field label="Tipo de Estabelecimento">
+              <Select value={form.tipo_estabelecimento || ''} onValueChange={v => set('tipo_estabelecimento', v)}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Matriz">Matriz</SelectItem>
+                  <SelectItem value="Filial">Filial</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Representante Legal">
+              <Input value={form.representative_legal || ''} onChange={e => set('representative_legal', e.target.value)} />
+            </Field>
             <Field label="Natureza Jurídica" autofill>
               <Input value={form.natureza_juridica || ''} onChange={e => set('natureza_juridica', e.target.value)} />
             </Field>
@@ -215,6 +227,9 @@ export function ContactCadastroTab({ contactId }: Props) {
                 placeholder="(XX) XXXXX-XXXX"
               />
             </Field>
+            <Field label="Segundo E-mail">
+              <Input type="email" value={form.segundo_email_contato || ''} onChange={e => set('segundo_email_contato', e.target.value)} />
+            </Field>
             <div className="md:col-span-2">
               <Field label="Observações Gerais">
                 <Textarea rows={3} value={form.notes || ''} onChange={e => set('notes', e.target.value)} />
@@ -227,6 +242,7 @@ export function ContactCadastroTab({ contactId }: Props) {
             'document', 'razao_social', 'nome_fantasia', 'porte', 'natureza_juridica',
             'data_abertura_receita', 'situacao_cadastral', 'email', 'phone', 'whatsapp', 'notes',
             'cnae_principal', 'cnaes_secundarios',
+            'tipo_estabelecimento', 'representative_legal', 'segundo_email_contato',
           ])} disabled={updateSuperPerfil.isPending}>
             {updateSuperPerfil.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
             Salvar
@@ -300,6 +316,21 @@ export function ContactCadastroTab({ contactId }: Props) {
             </Field>
             <Field label="Inscrição Municipal (IM)"><Input value={form.im || ''} onChange={e => set('im', e.target.value)} /></Field>
             <Field label="Inscrição Estadual (IE)"><Input value={form.ie || ''} onChange={e => set('ie', e.target.value)} /></Field>
+            <Field label="Regime de Apuração">
+              <Select value={form.regime_apuracao || ''} onValueChange={v => set('regime_apuracao', v)}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Mensal">Mensal</SelectItem>
+                  <SelectItem value="Trimestral">Trimestral</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Nº Alvará">
+              <Input value={form.numero_alvara || ''} onChange={e => set('numero_alvara', e.target.value)} />
+            </Field>
+            <Field label="Validade Alvará">
+              <Input type="date" value={form.validade_alvara || ''} onChange={e => set('validade_alvara', e.target.value)} />
+            </Field>
           </CardContent>
         </Card>
 
@@ -331,10 +362,31 @@ export function ContactCadastroTab({ contactId }: Props) {
           </CardContent>
         </Card>
 
+        <Card>
+          <CardHeader><CardTitle className="text-base">Registros e Livros</CardTitle></CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[
+              { key: 'registro_entradas', label: 'Registro de Entradas' },
+              { key: 'registro_saidas', label: 'Registro de Saídas' },
+              { key: 'registro_icms', label: 'Registro ICMS' },
+              { key: 'inventario', label: 'Inventário' },
+            ].map(item => (
+              <div key={item.key} className="flex items-center justify-between rounded-lg border p-3">
+                <Label className="text-sm">{item.label}</Label>
+                <Switch checked={!!form[item.key]} onCheckedChange={v => set(item.key, v)} />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
         <ObligationsSection contactId={contactId} />
 
         <div className="flex justify-end">
-          <Button onClick={() => saveSection(['tax_regime', 'status_cliente', 'im', 'ie'])} disabled={updateSuperPerfil.isPending}>
+          <Button onClick={() => saveSection([
+            'tax_regime', 'status_cliente', 'im', 'ie',
+            'regime_apuracao', 'numero_alvara', 'validade_alvara',
+            'registro_entradas', 'registro_saidas', 'registro_icms', 'inventario',
+          ])} disabled={updateSuperPerfil.isPending}>
             {updateSuperPerfil.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
             Salvar
           </Button>
@@ -349,6 +401,12 @@ export function ContactCadastroTab({ contactId }: Props) {
           onSave={() => saveSection([
             'responsible_id', 'categorias',
             'data_inicio_contrato', 'data_encerramento_rf',
+            'data_abertura_junta', 'data_encerramento_junta',
+            'data_abertura_rf', 'data_encerramento_rf',
+            'data_abertura_prefeitura', 'data_encerramento_prefeitura',
+            'data_abertura_estado', 'data_encerramento_estado',
+            'possui_funcionarios', 'numero_funcionarios', 'tipo_cartao_ponto',
+            'medicina_trabalho', 'grupo_cipa',
           ])}
           isPending={updateSuperPerfil.isPending}
           contactId={contactId}
@@ -526,6 +584,75 @@ function OperacionalSection({
           </Field>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Datas por Esfera</CardTitle></CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-2 pr-3 font-medium text-xs text-muted-foreground">Esfera</th>
+                  <th className="text-left py-2 pr-3 font-medium text-xs text-muted-foreground">Abertura</th>
+                  <th className="text-left py-2 font-medium text-xs text-muted-foreground">Encerramento</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { label: 'Junta Comercial', open: 'data_abertura_junta', close: 'data_encerramento_junta' },
+                  { label: 'Receita Federal', open: 'data_abertura_rf', close: 'data_encerramento_rf' },
+                  { label: 'Prefeitura', open: 'data_abertura_prefeitura', close: 'data_encerramento_prefeitura' },
+                  { label: 'Estado', open: 'data_abertura_estado', close: 'data_encerramento_estado' },
+                ].map(row => (
+                  <tr key={row.label} className="border-b last:border-0">
+                    <td className="py-2 pr-3">{row.label}</td>
+                    <td className="py-2 pr-3">
+                      <Input type="date" value={form[row.open] || ''} onChange={e => set(row.open, e.target.value)} />
+                    </td>
+                    <td className="py-2">
+                      <Input type="date" value={form[row.close] || ''} onChange={e => set(row.close, e.target.value)} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Departamento Pessoal</CardTitle></CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <Label className="text-sm">Possui Funcionários</Label>
+            <Switch checked={!!form.possui_funcionarios} onCheckedChange={v => set('possui_funcionarios', v)} />
+          </div>
+          {form.possui_funcionarios === true && (
+            <Field label="Nº Funcionários">
+              <Input type="number" value={form.numero_funcionarios ?? ''} onChange={e => set('numero_funcionarios', e.target.value === '' ? null : Number(e.target.value))} />
+            </Field>
+          )}
+          <Field label="Tipo Cartão Ponto">
+            <Select value={form.tipo_cartao_ponto || ''} onValueChange={v => set('tipo_cartao_ponto', v)}>
+              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Central">Central</SelectItem>
+                <SelectItem value="Convencional">Convencional</SelectItem>
+                <SelectItem value="Eletrônico">Eletrônico</SelectItem>
+                <SelectItem value="Espelho">Espelho</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <Label className="text-sm">Medicina do Trabalho</Label>
+            <Switch checked={!!form.medicina_trabalho} onCheckedChange={v => set('medicina_trabalho', v)} />
+          </div>
+          <Field label="Grupo CIPA">
+            <Input value={form.grupo_cipa || ''} onChange={e => set('grupo_cipa', e.target.value)} />
+          </Field>
+        </CardContent>
+      </Card>
+
 
       <div className="flex justify-end">
         <Button onClick={onSave} disabled={isPending}>
