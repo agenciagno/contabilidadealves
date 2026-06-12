@@ -94,11 +94,14 @@ export function ContactDetailsTab({ contact }: ContactDetailsTabProps) {
     <div className="grid md:grid-cols-2 gap-6">
       {/* Card 1 — Dados Empresariais */}
       <Card className="bg-card border-border/50 md:col-span-2">
-        <CardHeader className="pb-3">
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             Dados Empresariais
           </CardTitle>
+          <Button variant="ghost" size="icon" onClick={() => setEditSection('empresariais')}>
+            <Pencil className="h-4 w-4" />
+          </Button>
         </CardHeader>
         <CardContent className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <Field label="Razão Social">{fmt(contact.razao_social)}</Field>
@@ -107,6 +110,7 @@ export function ContactDetailsTab({ contact }: ContactDetailsTabProps) {
           <Field label="CNAE Principal">{fmtCnae(contact.cnae_principal)}</Field>
           <Field label="Natureza Jurídica">{fmt(contact.natureza_juridica)}</Field>
           <Field label="Situação Cadastral">{fmt(contact.situacao_cadastral)}</Field>
+          <Field label="Porte">{fmt(contact.porte)}</Field>
           <Field label="Data Abertura RF">{fmtDate(contact.data_abertura_receita)}</Field>
           <Field label="Tipo Estabelecimento">{fmt(contact.tipo_estabelecimento)}</Field>
           <Field label="Status do Cliente">
@@ -115,6 +119,7 @@ export function ContactDetailsTab({ contact }: ContactDetailsTabProps) {
           <Field label="Tipo de Cliente">{fmt(contact.tipo_cliente)}</Field>
           <Field label="Grupo do Escritório">{fmt(contact.grupo_escritorio)}</Field>
           <Field label="Data Início Contrato">{fmtDate(contact.data_inicio_contrato)}</Field>
+          <Field label="Data Saída do Cliente">{fmtDate(contact.data_saida_cliente)}</Field>
           <div className="sm:col-span-2 lg:col-span-3">
             <label className="text-xs text-muted-foreground">Categorias</label>
             <div className="flex flex-wrap gap-1.5 mt-1">
