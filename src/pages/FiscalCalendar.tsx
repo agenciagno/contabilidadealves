@@ -1,7 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
-import { CalendarRange, CheckCircle2, Info, Loader2, Pencil, Plus, Rocket, Sparkles, Trash2, X, Zap } from 'lucide-react';
+import {
+  CalendarRange,
+  CheckCircle2,
+  ClipboardCheck,
+  Info,
+  Loader2,
+  Lock,
+  LockOpen,
+  Pencil,
+  Plus,
+  Rocket,
+  Sparkles,
+  Trash2,
+  Undo2,
+  X,
+  Zap,
+} from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -37,14 +53,24 @@ import {
   useFiscalCalendar,
   useCalculateCalendar,
   useConfirmMonthlyTasks,
+  useRollbackMonthlyTasks,
+  loadLaunchMeta,
+  clearLaunchMeta,
   FiscalCalendarEffectiveRow,
 } from '@/hooks/useFiscalCalendar';
+import { useCompany } from '@/hooks/useCompany';
+import { useProfile } from '@/hooks/useProfile';
 import { FiscalObligationOverrideDialog } from '@/components/fiscal/FiscalObligationOverrideDialog';
 import { BulkEditCalendarDialog } from '@/components/fiscal/BulkEditCalendarDialog';
 import { CustomObligationDialog, CustomObligationInitial } from '@/components/fiscal/CustomObligationDialog';
+import { CalendarLaunchPreview } from '@/components/fiscal/CalendarLaunchPreview';
+import { CalendarConflictMap } from '@/components/fiscal/CalendarConflictMap';
+import { IbsCbsSection, isRtRow } from '@/components/fiscal/IbsCbsSection';
+import { RtChecklistDialog } from '@/components/fiscal/RtChecklistDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+
 
 const MONTHS = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
