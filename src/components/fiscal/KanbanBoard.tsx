@@ -182,6 +182,7 @@ export function KanbanBoard({ tasks, contactsMap, profilesMap, onStatusChange, o
   );
   const { toast } = useToast();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  const { data: coverageMap = {} } = useActiveCoverageByContact();
 
   // Build items: group by (contact_id + due_date) when 2+ tasks share the pair
   const itemsByStatus = useMemo(() => {
