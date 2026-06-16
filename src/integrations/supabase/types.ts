@@ -10,13 +10,12 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
       acessos_portais: {
         Row: {
-          anexo_url: string | null
           atualizado_por: string | null
           company_id: string
           contact_id: string
@@ -31,7 +30,6 @@ export type Database = {
           validade_certificado: string | null
         }
         Insert: {
-          anexo_url?: string | null
           atualizado_por?: string | null
           company_id: string
           contact_id: string
@@ -46,7 +44,6 @@ export type Database = {
           validade_certificado?: string | null
         }
         Update: {
-          anexo_url?: string | null
           atualizado_por?: string | null
           company_id?: string
           contact_id?: string
@@ -90,36 +87,6 @@ export type Database = {
             referencedColumns: ["contact_id"]
           },
         ]
-      }
-      active_sessions: {
-        Row: {
-          company_id: string
-          device_info: string | null
-          id: string
-          last_seen_at: string | null
-          logged_in_at: string | null
-          session_uuid: string
-          user_id: string
-        }
-        Insert: {
-          company_id: string
-          device_info?: string | null
-          id?: string
-          last_seen_at?: string | null
-          logged_in_at?: string | null
-          session_uuid: string
-          user_id: string
-        }
-        Update: {
-          company_id?: string
-          device_info?: string | null
-          id?: string
-          last_seen_at?: string | null
-          logged_in_at?: string | null
-          session_uuid?: string
-          user_id?: string
-        }
-        Relationships: []
       }
       banks: {
         Row: {
@@ -179,34 +146,73 @@ export type Database = {
       }
       boleto_controls: {
         Row: {
+          canal_entrega: string | null
+          codigo_barras: string | null
           company_id: string
           contact_id: string
           created_at: string
+          data_pagamento: string | null
+          data_vencimento: string | null
+          entregue_em: string | null
           generated_at: string | null
           id: string
+          linha_digitavel: string | null
+          nosso_numero: number | null
+          origem_baixa: string | null
           reference_month: string
+          seu_numero: string | null
+          sicoob_response: Json | null
           status: string
           updated_at: string
+          url_qrcode: string | null
+          valor: number | null
+          valor_pago: number | null
         }
         Insert: {
+          canal_entrega?: string | null
+          codigo_barras?: string | null
           company_id: string
           contact_id: string
           created_at?: string
+          data_pagamento?: string | null
+          data_vencimento?: string | null
+          entregue_em?: string | null
           generated_at?: string | null
           id?: string
+          linha_digitavel?: string | null
+          nosso_numero?: number | null
+          origem_baixa?: string | null
           reference_month: string
+          seu_numero?: string | null
+          sicoob_response?: Json | null
           status?: string
           updated_at?: string
+          url_qrcode?: string | null
+          valor?: number | null
+          valor_pago?: number | null
         }
         Update: {
+          canal_entrega?: string | null
+          codigo_barras?: string | null
           company_id?: string
           contact_id?: string
           created_at?: string
+          data_pagamento?: string | null
+          data_vencimento?: string | null
+          entregue_em?: string | null
           generated_at?: string | null
           id?: string
+          linha_digitavel?: string | null
+          nosso_numero?: number | null
+          origem_baixa?: string | null
           reference_month?: string
+          seu_numero?: string | null
+          sicoob_response?: Json | null
           status?: string
           updated_at?: string
+          url_qrcode?: string | null
+          valor?: number | null
+          valor_pago?: number | null
         }
         Relationships: []
       }
@@ -215,8 +221,6 @@ export type Database = {
           color: string | null
           company_id: string
           created_at: string
-          display_order: number
-          dre_section: string
           icon: string | null
           id: string
           name: string
@@ -229,8 +233,6 @@ export type Database = {
           color?: string | null
           company_id: string
           created_at?: string
-          display_order?: number
-          dre_section?: string
           icon?: string | null
           id?: string
           name: string
@@ -243,8 +245,6 @@ export type Database = {
           color?: string | null
           company_id?: string
           created_at?: string
-          display_order?: number
-          dre_section?: string
           icon?: string | null
           id?: string
           name?: string
@@ -270,31 +270,163 @@ export type Database = {
           },
         ]
       }
-      cofre_acessos_log: {
+      client_obligations: {
         Row: {
-          acao: string
-          acesso_id: string
+          active: boolean | null
+          company_id: string
+          contact_id: string
           created_at: string
           id: string
-          ip_address: string | null
+          notes: string | null
+          obligation_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean | null
+          company_id: string
+          contact_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          obligation_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean | null
+          company_id?: string
+          contact_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          obligation_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_obligations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_obligations_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_obligations_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "vw_cofre_global"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "client_obligations_obligation_id_fkey"
+            columns: ["obligation_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_obligations_catalog"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cnds: {
+        Row: {
+          arquivo_url: string | null
+          company_id: string
+          contact_id: string
+          created_at: string
+          data_emissao: string | null
+          data_validade: string | null
+          id: string
+          numero: string | null
+          observacao: string | null
+          status: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          arquivo_url?: string | null
+          company_id: string
+          contact_id: string
+          created_at?: string
+          data_emissao?: string | null
+          data_validade?: string | null
+          id?: string
+          numero?: string | null
+          observacao?: string | null
+          status?: string
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          arquivo_url?: string | null
+          company_id?: string
+          contact_id?: string
+          created_at?: string
+          data_emissao?: string | null
+          data_validade?: string | null
+          id?: string
+          numero?: string | null
+          observacao?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cnds_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cnds_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cnds_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "vw_cofre_global"
+            referencedColumns: ["contact_id"]
+          },
+        ]
+      }
+      cofre_acessos_log: {
+        Row: {
+          acao: string | null
+          acesso_id: string | null
+          contact_id: string | null
+          created_at: string
+          id: string
+          portal: string | null
           usuario_id: string | null
           usuario_nome: string | null
         }
         Insert: {
-          acao: string
-          acesso_id: string
+          acao?: string | null
+          acesso_id?: string | null
+          contact_id?: string | null
           created_at?: string
           id?: string
-          ip_address?: string | null
+          portal?: string | null
           usuario_id?: string | null
           usuario_nome?: string | null
         }
         Update: {
-          acao?: string
-          acesso_id?: string
+          acao?: string | null
+          acesso_id?: string | null
+          contact_id?: string | null
           created_at?: string
           id?: string
-          ip_address?: string | null
+          portal?: string | null
           usuario_id?: string | null
           usuario_nome?: string | null
         }
@@ -313,64 +445,78 @@ export type Database = {
             referencedRelation: "vw_cofre_global"
             referencedColumns: ["acesso_id"]
           },
+          {
+            foreignKeyName: "cofre_acessos_log_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cofre_acessos_log_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "vw_cofre_global"
+            referencedColumns: ["contact_id"]
+          },
         ]
       }
       collaborator_coverage: {
         Row: {
           absent_profile_id: string
           auto_reverted_at: string | null
-          clients_transferred: Json
+          clients_transferred: Json | null
           company_id: string
           covering_profile_id: string
           created_at: string
           created_by: string | null
-          end_date: string
+          end_date: string | null
           id: string
-          is_active: boolean
+          is_active: boolean | null
           notes: string | null
-          reason: string
+          reason: string | null
           revert_reason: string | null
           reverted_by: string | null
           start_date: string
-          tasks_transferred: number
+          tasks_transferred: number | null
           updated_at: string
         }
         Insert: {
           absent_profile_id: string
           auto_reverted_at?: string | null
-          clients_transferred?: Json
+          clients_transferred?: Json | null
           company_id: string
           covering_profile_id: string
           created_at?: string
           created_by?: string | null
-          end_date: string
+          end_date?: string | null
           id?: string
-          is_active?: boolean
+          is_active?: boolean | null
           notes?: string | null
-          reason?: string
+          reason?: string | null
           revert_reason?: string | null
           reverted_by?: string | null
-          start_date?: string
-          tasks_transferred?: number
+          start_date: string
+          tasks_transferred?: number | null
           updated_at?: string
         }
         Update: {
           absent_profile_id?: string
           auto_reverted_at?: string | null
-          clients_transferred?: Json
+          clients_transferred?: Json | null
           company_id?: string
           covering_profile_id?: string
           created_at?: string
           created_by?: string | null
-          end_date?: string
+          end_date?: string | null
           id?: string
-          is_active?: boolean
+          is_active?: boolean | null
           notes?: string | null
-          reason?: string
+          reason?: string | null
           revert_reason?: string | null
           reverted_by?: string | null
           start_date?: string
-          tasks_transferred?: number
+          tasks_transferred?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -762,6 +908,7 @@ export type Database = {
           data_encerramento_prefeitura: string | null
           data_encerramento_rf: string | null
           data_inicio_contrato: string | null
+          data_saida_cliente: string | null
           document: string | null
           email: string | null
           enviar_cobranca_auto: boolean
@@ -832,6 +979,7 @@ export type Database = {
           data_encerramento_prefeitura?: string | null
           data_encerramento_rf?: string | null
           data_inicio_contrato?: string | null
+          data_saida_cliente?: string | null
           document?: string | null
           email?: string | null
           enviar_cobranca_auto?: boolean
@@ -902,6 +1050,7 @@ export type Database = {
           data_encerramento_prefeitura?: string | null
           data_encerramento_rf?: string | null
           data_inicio_contrato?: string | null
+          data_saida_cliente?: string | null
           document?: string | null
           email?: string | null
           enviar_cobranca_auto?: boolean
@@ -956,6 +1105,173 @@ export type Database = {
           },
         ]
       }
+      content_generated: {
+        Row: {
+          carousel_slides: Json | null
+          company_id: string
+          created_at: string
+          facebook_caption: string | null
+          gmb_post: string | null
+          id: string
+          image_url: string | null
+          instagram_caption: string | null
+          linkedin_post: string | null
+          pillar: string | null
+          published_at: string | null
+          queue_item_id: string | null
+          reels_script: string | null
+          scheduled_at: string | null
+          status: string
+          topic: string
+          updated_at: string
+        }
+        Insert: {
+          carousel_slides?: Json | null
+          company_id: string
+          created_at?: string
+          facebook_caption?: string | null
+          gmb_post?: string | null
+          id?: string
+          image_url?: string | null
+          instagram_caption?: string | null
+          linkedin_post?: string | null
+          pillar?: string | null
+          published_at?: string | null
+          queue_item_id?: string | null
+          reels_script?: string | null
+          scheduled_at?: string | null
+          status?: string
+          topic: string
+          updated_at?: string
+        }
+        Update: {
+          carousel_slides?: Json | null
+          company_id?: string
+          created_at?: string
+          facebook_caption?: string | null
+          gmb_post?: string | null
+          id?: string
+          image_url?: string | null
+          instagram_caption?: string | null
+          linkedin_post?: string | null
+          pillar?: string | null
+          published_at?: string | null
+          queue_item_id?: string | null
+          reels_script?: string | null
+          scheduled_at?: string | null
+          status?: string
+          topic?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_generated_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_generated_queue_item_id_fkey"
+            columns: ["queue_item_id"]
+            isOneToOne: false
+            referencedRelation: "content_queue"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_queue: {
+        Row: {
+          angle_suggestion: string | null
+          collected_at: string
+          company_id: string
+          created_at: string
+          curated_at: string | null
+          curator_notes: string | null
+          destination: string
+          id: string
+          pillar: string | null
+          raw_content: string | null
+          relevance_score: number | null
+          source_name: string | null
+          source_url: string | null
+          summary: string | null
+          title: string
+          updated_at: string
+          urgency: string | null
+        }
+        Insert: {
+          angle_suggestion?: string | null
+          collected_at?: string
+          company_id: string
+          created_at?: string
+          curated_at?: string | null
+          curator_notes?: string | null
+          destination?: string
+          id?: string
+          pillar?: string | null
+          raw_content?: string | null
+          relevance_score?: number | null
+          source_name?: string | null
+          source_url?: string | null
+          summary?: string | null
+          title: string
+          updated_at?: string
+          urgency?: string | null
+        }
+        Update: {
+          angle_suggestion?: string | null
+          collected_at?: string
+          company_id?: string
+          created_at?: string
+          curated_at?: string | null
+          curator_notes?: string | null
+          destination?: string
+          id?: string
+          pillar?: string | null
+          raw_content?: string | null
+          relevance_score?: number | null
+          source_name?: string | null
+          source_url?: string | null
+          summary?: string | null
+          title?: string
+          updated_at?: string
+          urgency?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_queue_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      curadoria_sessions: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          id: string
+          item_ids: string[]
+          session_date: string
+        }
+        Insert: {
+          company_id?: string
+          created_at?: string | null
+          id?: string
+          item_ids: string[]
+          session_date: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          id?: string
+          item_ids?: string[]
+          session_date?: string
+        }
+        Relationships: []
+      }
       dre_budgets: {
         Row: {
           budget_value: number
@@ -986,16 +1302,225 @@ export type Database = {
         }
         Relationships: []
       }
+      editorial_calendar: {
+        Row: {
+          channel: string
+          company_id: string
+          content_generated_id: string | null
+          created_at: string
+          format: string | null
+          id: string
+          is_open_slot: boolean
+          month_year: string
+          notes: string | null
+          pillar: string | null
+          slot_date: string
+          status: string
+          topic: string | null
+          updated_at: string
+          week_number: number | null
+        }
+        Insert: {
+          channel: string
+          company_id: string
+          content_generated_id?: string | null
+          created_at?: string
+          format?: string | null
+          id?: string
+          is_open_slot?: boolean
+          month_year: string
+          notes?: string | null
+          pillar?: string | null
+          slot_date: string
+          status?: string
+          topic?: string | null
+          updated_at?: string
+          week_number?: number | null
+        }
+        Update: {
+          channel?: string
+          company_id?: string
+          content_generated_id?: string | null
+          created_at?: string
+          format?: string | null
+          id?: string
+          is_open_slot?: boolean
+          month_year?: string
+          notes?: string | null
+          pillar?: string | null
+          slot_date?: string
+          status?: string
+          topic?: string | null
+          updated_at?: string
+          week_number?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "editorial_calendar_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "editorial_calendar_content_generated_id_fkey"
+            columns: ["content_generated_id"]
+            isOneToOne: false
+            referencedRelation: "content_generated"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fiscal_calendar: {
+        Row: {
+          adjusted_due_date: string
+          adjusted_due_date_override: string | null
+          competence_month: number | null
+          competence_year: number | null
+          created_at: string
+          id: string
+          internal_delivery_date: string
+          internal_delivery_date_override: string | null
+          month: number | null
+          obligation_id: string
+          overridden_at: string | null
+          overridden_by: string | null
+          override_reason: string | null
+          raw_due_date: string
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          adjusted_due_date: string
+          adjusted_due_date_override?: string | null
+          competence_month?: number | null
+          competence_year?: number | null
+          created_at?: string
+          id?: string
+          internal_delivery_date: string
+          internal_delivery_date_override?: string | null
+          month?: number | null
+          obligation_id: string
+          overridden_at?: string | null
+          overridden_by?: string | null
+          override_reason?: string | null
+          raw_due_date: string
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          adjusted_due_date?: string
+          adjusted_due_date_override?: string | null
+          competence_month?: number | null
+          competence_year?: number | null
+          created_at?: string
+          id?: string
+          internal_delivery_date?: string
+          internal_delivery_date_override?: string | null
+          month?: number | null
+          obligation_id?: string
+          overridden_at?: string | null
+          overridden_by?: string | null
+          override_reason?: string | null
+          raw_due_date?: string
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_calendar_obligation_id_fkey"
+            columns: ["obligation_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_obligations_catalog"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_calendar_overridden_by_fkey"
+            columns: ["overridden_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fiscal_obligations_catalog: {
+        Row: {
+          active: boolean | null
+          applies_to: string[]
+          code: string | null
+          company_id: string | null
+          created_at: string
+          description: string | null
+          due_rule: string
+          frequency: string
+          holiday_adjustment: string
+          id: string
+          is_custom: boolean
+          name: string
+          requires_employees: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean | null
+          applies_to: string[]
+          code?: string | null
+          company_id?: string | null
+          created_at?: string
+          description?: string | null
+          due_rule: string
+          frequency: string
+          holiday_adjustment: string
+          id?: string
+          is_custom?: boolean
+          name: string
+          requires_employees?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean | null
+          applies_to?: string[]
+          code?: string | null
+          company_id?: string | null
+          created_at?: string
+          description?: string | null
+          due_rule?: string
+          frequency?: string
+          holiday_adjustment?: string
+          id?: string
+          is_custom?: boolean
+          name?: string
+          requires_employees?: boolean | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_obligations_catalog_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fiscal_tasks: {
         Row: {
           attachment_url: string | null
+          calendar_id: string | null
           company_id: string
+          competence_month: number | null
+          competence_year: number | null
+          completed_at: string | null
           contact_id: string
           created_at: string
+          delivery_date: string | null
           description: string | null
           due_date: string
+          fiscal_due_date: string | null
           id: string
+          is_auto_generated: boolean | null
           notes: string | null
+          obligation_id: string | null
+          original_responsible_id: string | null
           responsible_id: string | null
           status: string
           title: string
@@ -1003,13 +1528,22 @@ export type Database = {
         }
         Insert: {
           attachment_url?: string | null
+          calendar_id?: string | null
           company_id: string
+          competence_month?: number | null
+          competence_year?: number | null
+          completed_at?: string | null
           contact_id: string
           created_at?: string
+          delivery_date?: string | null
           description?: string | null
           due_date: string
+          fiscal_due_date?: string | null
           id?: string
+          is_auto_generated?: boolean | null
           notes?: string | null
+          obligation_id?: string | null
+          original_responsible_id?: string | null
           responsible_id?: string | null
           status?: string
           title: string
@@ -1017,19 +1551,57 @@ export type Database = {
         }
         Update: {
           attachment_url?: string | null
+          calendar_id?: string | null
           company_id?: string
+          competence_month?: number | null
+          competence_year?: number | null
+          completed_at?: string | null
           contact_id?: string
           created_at?: string
+          delivery_date?: string | null
           description?: string | null
           due_date?: string
+          fiscal_due_date?: string | null
           id?: string
+          is_auto_generated?: boolean | null
           notes?: string | null
+          obligation_id?: string | null
+          original_responsible_id?: string | null
           responsible_id?: string | null
           status?: string
           title?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_tasks_calendar_id_fkey"
+            columns: ["calendar_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_calendar"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_tasks_calendar_id_fkey"
+            columns: ["calendar_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_calendar_effective"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_tasks_obligation_id_fkey"
+            columns: ["obligation_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_obligations_catalog"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_tasks_original_responsible_id_fkey"
+            columns: ["original_responsible_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       global_logs: {
         Row: {
@@ -1117,6 +1689,278 @@ export type Database = {
         }
         Relationships: []
       }
+      honorarios_historico: {
+        Row: {
+          boleto_control_id: string | null
+          canal_envio: string | null
+          company_id: string
+          competencia: string
+          contact_id: string
+          created_at: string
+          data_pagamento: string | null
+          data_vencimento: string
+          id: string
+          linha_digitavel: string | null
+          nosso_numero: string | null
+          pdf_url: string | null
+          status: string
+          valor: number
+        }
+        Insert: {
+          boleto_control_id?: string | null
+          canal_envio?: string | null
+          company_id: string
+          competencia: string
+          contact_id: string
+          created_at?: string
+          data_pagamento?: string | null
+          data_vencimento: string
+          id?: string
+          linha_digitavel?: string | null
+          nosso_numero?: string | null
+          pdf_url?: string | null
+          status?: string
+          valor: number
+        }
+        Update: {
+          boleto_control_id?: string | null
+          canal_envio?: string | null
+          company_id?: string
+          competencia?: string
+          contact_id?: string
+          created_at?: string
+          data_pagamento?: string | null
+          data_vencimento?: string
+          id?: string
+          linha_digitavel?: string | null
+          nosso_numero?: string | null
+          pdf_url?: string | null
+          status?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "honorarios_historico_boleto_control_id_fkey"
+            columns: ["boleto_control_id"]
+            isOneToOne: false
+            referencedRelation: "boleto_controls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "honorarios_historico_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "honorarios_historico_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "honorarios_historico_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "vw_cofre_global"
+            referencedColumns: ["contact_id"]
+          },
+        ]
+      }
+      metrics_monthly: {
+        Row: {
+          clicks: number | null
+          collected_at: string | null
+          company_id: string
+          created_at: string
+          engagement: number | null
+          engagement_rate: number | null
+          followers: number | null
+          id: string
+          impressions: number | null
+          month_year: string
+          platform: string
+          posts_count: number | null
+          profile_views: number | null
+          raw_data: Json | null
+          reach: number | null
+        }
+        Insert: {
+          clicks?: number | null
+          collected_at?: string | null
+          company_id: string
+          created_at?: string
+          engagement?: number | null
+          engagement_rate?: number | null
+          followers?: number | null
+          id?: string
+          impressions?: number | null
+          month_year: string
+          platform: string
+          posts_count?: number | null
+          profile_views?: number | null
+          raw_data?: Json | null
+          reach?: number | null
+        }
+        Update: {
+          clicks?: number | null
+          collected_at?: string | null
+          company_id?: string
+          created_at?: string
+          engagement?: number | null
+          engagement_rate?: number | null
+          followers?: number | null
+          id?: string
+          impressions?: number | null
+          month_year?: string
+          platform?: string
+          posts_count?: number | null
+          profile_views?: number | null
+          raw_data?: Json | null
+          reach?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metrics_monthly_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      monitor_cnpj: {
+        Row: {
+          cnpj: string
+          company_id: string
+          contact_id: string
+          created_at: string
+          dados_completos: Json | null
+          data_consulta: string
+          id: string
+          situacao_anterior: string | null
+          situacao_nova: string
+        }
+        Insert: {
+          cnpj: string
+          company_id: string
+          contact_id: string
+          created_at?: string
+          dados_completos?: Json | null
+          data_consulta?: string
+          id?: string
+          situacao_anterior?: string | null
+          situacao_nova: string
+        }
+        Update: {
+          cnpj?: string
+          company_id?: string
+          contact_id?: string
+          created_at?: string
+          dados_completos?: Json | null
+          data_consulta?: string
+          id?: string
+          situacao_anterior?: string | null
+          situacao_nova?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monitor_cnpj_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "monitor_cnpj_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "monitor_cnpj_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "vw_cofre_global"
+            referencedColumns: ["contact_id"]
+          },
+        ]
+      }
+      national_holidays: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          name: string
+          state: string | null
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          name: string
+          state?: string | null
+          type?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          name?: string
+          state?: string | null
+          type?: string
+        }
+        Relationships: []
+      }
+      newsletters: {
+        Row: {
+          approved_at: string | null
+          company_id: string
+          content: string
+          created_at: string | null
+          id: string
+          items_count: number | null
+          sent_at: string | null
+          slug: string
+          status: string | null
+          title: string
+          type: string
+          whatsapp_group_jid: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          company_id?: string
+          content: string
+          created_at?: string | null
+          id?: string
+          items_count?: number | null
+          sent_at?: string | null
+          slug: string
+          status?: string | null
+          title: string
+          type: string
+          whatsapp_group_jid?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          company_id?: string
+          content?: string
+          created_at?: string | null
+          id?: string
+          items_count?: number | null
+          sent_at?: string | null
+          slug?: string
+          status?: string | null
+          title?: string
+          type?: string
+          whatsapp_group_jid?: string | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           action_url: string | null
@@ -1143,7 +1987,7 @@ export type Database = {
           reference_type?: string | null
           task_id?: string | null
           title: string
-          type?: string
+          type: string
           user_id: string
         }
         Update: {
@@ -1166,6 +2010,90 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      onboarding_steps: {
+        Row: {
+          company_id: string
+          contact_id: string
+          created_at: string
+          data_conclusao: string | null
+          data_inicio: string | null
+          etapa: string
+          fluxo: string
+          id: string
+          observacao: string | null
+          ordem: number
+          responsavel_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          contact_id: string
+          created_at?: string
+          data_conclusao?: string | null
+          data_inicio?: string | null
+          etapa: string
+          fluxo: string
+          id?: string
+          observacao?: string | null
+          ordem?: number
+          responsavel_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          contact_id?: string
+          created_at?: string
+          data_conclusao?: string | null
+          data_inicio?: string | null
+          etapa?: string
+          fluxo?: string
+          id?: string
+          observacao?: string | null
+          ordem?: number
+          responsavel_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "onboarding_steps_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "onboarding_steps_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "onboarding_steps_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "vw_cofre_global"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "onboarding_steps_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1389,7 +2317,6 @@ export type Database = {
           due_date: string | null
           expected_date: string | null
           id: string
-          is_cash: boolean
           is_paid: boolean
           issue_date: string | null
           notes: string | null
@@ -1410,7 +2337,6 @@ export type Database = {
           due_date?: string | null
           expected_date?: string | null
           id?: string
-          is_cash?: boolean
           is_paid?: boolean
           issue_date?: string | null
           notes?: string | null
@@ -1431,7 +2357,6 @@ export type Database = {
           due_date?: string | null
           expected_date?: string | null
           id?: string
-          is_cash?: boolean
           is_paid?: boolean
           issue_date?: string | null
           notes?: string | null
@@ -1477,6 +2402,77 @@ export type Database = {
           },
         ]
       }
+      transfer_log: {
+        Row: {
+          company_id: string
+          contact_ids: string[]
+          from_profile_id: string
+          id: string
+          notes: string | null
+          reverted_at: string | null
+          reverted_by: string | null
+          task_ids: string[]
+          to_profile_id: string
+          transferred_at: string
+          transferred_by: string | null
+        }
+        Insert: {
+          company_id: string
+          contact_ids?: string[]
+          from_profile_id: string
+          id?: string
+          notes?: string | null
+          reverted_at?: string | null
+          reverted_by?: string | null
+          task_ids?: string[]
+          to_profile_id: string
+          transferred_at?: string
+          transferred_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          contact_ids?: string[]
+          from_profile_id?: string
+          id?: string
+          notes?: string | null
+          reverted_at?: string | null
+          reverted_by?: string | null
+          task_ids?: string[]
+          to_profile_id?: string
+          transferred_at?: string
+          transferred_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transfer_log_from_profile_id_fkey"
+            columns: ["from_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transfer_log_reverted_by_fkey"
+            columns: ["reverted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transfer_log_to_profile_id_fkey"
+            columns: ["to_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transfer_log_transferred_by_fkey"
+            columns: ["transferred_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
@@ -1497,29 +2493,66 @@ export type Database = {
       }
     }
     Views: {
+      fiscal_calendar_effective: {
+        Row: {
+          adjusted_due_date: string | null
+          adjusted_due_date_override: string | null
+          applies_to: string[] | null
+          competence_month: number | null
+          competence_year: number | null
+          created_at: string | null
+          effective_delivery_date: string | null
+          effective_due_date: string | null
+          frequency: string | null
+          has_override: boolean | null
+          holiday_adjustment: string | null
+          id: string | null
+          internal_delivery_date: string | null
+          internal_delivery_date_override: string | null
+          month: number | null
+          obligation_code: string | null
+          obligation_id: string | null
+          obligation_name: string | null
+          overridden_at: string | null
+          overridden_by: string | null
+          override_reason: string | null
+          raw_due_date: string | null
+          requires_employees: boolean | null
+          updated_at: string | null
+          year: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_calendar_obligation_id_fkey"
+            columns: ["obligation_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_obligations_catalog"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_calendar_overridden_by_fkey"
+            columns: ["overridden_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vw_cofre_global: {
         Row: {
           acesso_id: string | null
           alerta_vencimento: boolean | null
-          company_id: string | null
+          cliente_nome: string | null
+          cnpj: string | null
           contact_id: string | null
           login: string | null
-          nome_cliente: string | null
           observacao: string | null
           portal: Database["public"]["Enums"]["portal_tipo"] | null
           portal_label: string | null
           senha_atualizada_em: string | null
           validade_certificado: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "contacts_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Functions: {
@@ -1529,6 +2562,14 @@ export type Database = {
       }
       cofre_encrypt_internal: {
         Args: { p_key: string; p_plaintext: string }
+        Returns: string
+      }
+      generate_monthly_fiscal_tasks: {
+        Args: { p_month: number; p_year: number }
+        Returns: Json
+      }
+      get_effective_responsible: {
+        Args: { p_date: string; p_profile_id: string }
         Returns: string
       }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
@@ -1541,6 +2582,11 @@ export type Database = {
         Returns: boolean
       }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      revert_transfer: { Args: { p_transfer_log_id: string }; Returns: Json }
+      transfer_clients_with_log: {
+        Args: { p_from_profile_id: string; p_to_profile_id: string }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "colaborador" | "cliente"
