@@ -14,7 +14,7 @@ export function usePendingApprovals() {
       const { count, error } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending')
+        .eq('status_active', false)
         .eq('company_id', companyId!);
 
       if (error) throw error;
